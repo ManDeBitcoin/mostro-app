@@ -341,39 +341,38 @@ class _ScannerCutoutPainter extends CustomPainter {
     final top = rect.top;
     final right = rect.right;
     final bottom = rect.bottom;
-    const r = borderRadius;
-    const cl = cornerLength;
+    const radius = Radius.circular(borderRadius);
 
     // Top-left
     final topLeft = Path()
-      ..moveTo(left, top + cl)
-      ..lineTo(left, top + r)
-      ..arcToPoint(Offset(left + r, top), radius: Radius.circular(r))
-      ..lineTo(left + cl, top);
+      ..moveTo(left, top + cornerLength)
+      ..lineTo(left, top + borderRadius)
+      ..arcToPoint(Offset(left + borderRadius, top), radius: radius)
+      ..lineTo(left + cornerLength, top);
     canvas.drawPath(topLeft, cornerPaint);
 
     // Top-right
     final topRight = Path()
-      ..moveTo(right - cl, top)
-      ..lineTo(right - r, top)
-      ..arcToPoint(Offset(right, top + r), radius: Radius.circular(r))
-      ..lineTo(right, top + cl);
+      ..moveTo(right - cornerLength, top)
+      ..lineTo(right - borderRadius, top)
+      ..arcToPoint(Offset(right, top + borderRadius), radius: radius)
+      ..lineTo(right, top + cornerLength);
     canvas.drawPath(topRight, cornerPaint);
 
     // Bottom-left
     final bottomLeft = Path()
-      ..moveTo(left, bottom - cl)
-      ..lineTo(left, bottom - r)
-      ..arcToPoint(Offset(left + r, bottom), radius: Radius.circular(r))
-      ..lineTo(left + cl, bottom);
+      ..moveTo(left, bottom - cornerLength)
+      ..lineTo(left, bottom - borderRadius)
+      ..arcToPoint(Offset(left + borderRadius, bottom), radius: radius)
+      ..lineTo(left + cornerLength, bottom);
     canvas.drawPath(bottomLeft, cornerPaint);
 
     // Bottom-right
     final bottomRight = Path()
-      ..moveTo(right - cl, bottom)
-      ..lineTo(right - r, bottom)
-      ..arcToPoint(Offset(right, bottom - r), radius: Radius.circular(r))
-      ..lineTo(right, bottom - cl);
+      ..moveTo(right - cornerLength, bottom)
+      ..lineTo(right - borderRadius, bottom)
+      ..arcToPoint(Offset(right, bottom - borderRadius), radius: radius)
+      ..lineTo(right, bottom - cornerLength);
     canvas.drawPath(bottomRight, cornerPaint);
   }
 
