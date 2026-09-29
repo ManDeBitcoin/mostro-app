@@ -11,7 +11,9 @@ import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/core/automation/automation_id.dart';
 import 'package:mostro/core/automation/automation_ids.dart';
 import 'package:mostro/core/daemon_errors.dart';
+import 'package:mostro/core/ui_mode.dart';
 import 'package:mostro/features/about/providers/mostro_node_provider.dart';
+import 'package:mostro/features/simple_mode/screens/simple_trade_detail_view.dart';
 import 'package:mostro/features/account/providers/privacy_mode_provider.dart';
 import 'package:mostro/features/chat/providers/chat_providers.dart';
 import 'package:mostro/features/disputes/providers/disputes_providers.dart';
@@ -48,7 +50,7 @@ import 'package:mostro/src/rust/api/reputation.dart' as reputation_api;
 import 'package:mostro/features/cashu/seller_funding_route.dart';
 import 'package:mostro/features/settings/providers/escrow_mode_provider.dart';
 import 'package:mostro/src/rust/api/types.dart'
-    show CooperativeCancelState, TradeInfo;
+    show CooperativeCancelState, OrderStatus, TradeInfo;
 
 export 'package:mostro/features/trades/models/trade_status.dart';
 
@@ -658,6 +660,23 @@ class _TradeDetailScreenState extends ConsumerState<TradeDetailScreen>
     // the Rust side emits after persisting the snapshot.
     final tradeAsync = ref.watch(tradeInfoProvider(widget.orderId));
     final trade = tradeAsync.valueOrNull;
+
+    final uiMode = ref.watch(uiModeProvider);
+    if (uiMode == UiMode.simple) {
+      final liveStatus =
+          ref.watch(tradeStatusProvider(widget.orderId)).valueOrNull ??
+              OrderStatus.active;
+      return SimpleTradeDetailView(
+        orderId: widget.orderId,
+        status: liveStatus,
+        isBuyer: isBuyer,
+        fiatAmount: order?.fiatAmount ?? trade?.fiatAmount,
+        fiatCode: order?.fiatCode ?? trade?.fiatCode ?? 'USD',
+        amountSats: order?.amountSats?.toInt() ?? trade?.amount?.toInt(),
+        paymentMethod:
+            order?.paymentMethod ?? trade?.paymentMethod ?? 'Transferencia',
+      );
+    }
     final peerRating = trade?.peerRating;
     final room =
         ref

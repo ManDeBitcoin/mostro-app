@@ -581,4 +581,148 @@ class SimpleL10n {
         'nl' => 'Sats berekenen...',
         _ => 'Calculating sats...',
       };
+
+  static String tradeAccepted(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Oferta aceptada',
+        'fr' => 'Offre acceptée',
+        'de' => 'Angebot angenommen',
+        'it' => 'Offerta accettata',
+        'nl' => 'Bod geaccepteerd',
+        _ => 'Offer accepted',
+      };
+
+  static String guaranteeLocked(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Garantía temporal bloqueada',
+        'fr' => 'Garantie temporaire verrouillée',
+        'de' => 'Vorübergehende Garantie gesperrt',
+        'it' => 'Garanzia temporanea bloccata',
+        'nl' => 'Tijdelijke borg vergrendeld',
+        _ => 'Temporary guarantee secured',
+      };
+
+  static String bitcoinSecured(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Bitcoin protegido en custodia',
+        'fr' => 'Bitcoin protégé sous séquestre',
+        'de' => 'Bitcoin treuhänderisch geschützt',
+        'it' => 'Bitcoin protetto in custodia',
+        'nl' => 'Bitcoin beveiligd in escrow',
+        _ => 'Bitcoin protected in escrow',
+      };
+
+  static String sendFiatStep(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Envía el dinero fiat',
+        'fr' => 'Envoyez le paiement fiat',
+        'de' => 'Fiat-Zahlung senden',
+        'it' => 'Invia pagamento fiat',
+        'nl' => 'Stuur fiat betaling',
+        _ => 'Send fiat payment',
+      };
+
+  static String waitingFiatConfirmation(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Esperando confirmación del vendedor',
+        'fr' => 'En attente de confirmation du vendeur',
+        'de' => 'Warten auf Bestätigung des Verkäufers',
+        'it' => 'In attesa di conferma del venditore',
+        'nl' => 'Wachten op bevestiging van verkoper',
+        _ => 'Waiting for seller confirmation',
+      };
+
+  static String bitcoinReceived(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Bitcoin recibido en tu billetera',
+        'fr' => 'Bitcoin reçu dans votre portefeuille',
+        'de' => 'Bitcoin in Ihrer Wallet empfangen',
+        'it' => 'Bitcoin ricevuto nel tuo wallet',
+        'nl' => 'Bitcoin ontvangen in je wallet',
+        _ => 'Bitcoin received in your wallet',
+      };
+
+  static String tradeCompleted(BuildContext context) => switch (_lang(context)) {
+        'es' => '¡Operación completada con éxito!',
+        'fr' => 'Opération terminée avec succès !',
+        'de' => 'Trade erfolgreich abgeschlossen!',
+        'it' => 'Operazione completata con successo!',
+        'nl' => 'Transactie succesvol voltooid!',
+        _ => 'Trade completed successfully!',
+      };
+
+  static String iHavePaid(BuildContext context) => switch (_lang(context)) {
+        'es' => 'YA PAGUÉ',
+        'fr' => 'J\'AI PAYÉ',
+        'de' => 'ICH HABE BEZAHLT',
+        'it' => 'HO PAGATO',
+        'nl' => 'IK HEB BETAALD',
+        _ => 'I HAVE PAID',
+      };
+
+  static String iReceivedMoney(BuildContext context) => switch (_lang(context)) {
+        'es' => 'RECIBÍ EL DINERO',
+        'fr' => 'J\'AI REÇU L\'ARGENT',
+        'de' => 'GELD EMPFANGEN',
+        'it' => 'HO RICEVUTO IL DENARO',
+        'nl' => 'IK HEB HET GELD ONTVANGEN',
+        _ => 'I RECEIVED THE MONEY',
+      };
+
+  static String confirmPaymentSent(BuildContext context) => switch (_lang(context)) {
+        'es' => '¿Confirmas que ya enviaste el dinero a tu contraparte?',
+        'fr' => 'Confirmez-vous avoir envoyé l\'argent à votre contrepartie ?',
+        'de' => 'Bestätigen Sie, dass Sie das Geld an die Gegenpartei gesendet haben?',
+        'it' => 'Confermi di aver inviato il denaro alla controparte?',
+        'nl' => 'Bevestig je dat je het geld naar je tegenpartij hebt gestuurd?',
+        _ => 'Do you confirm you have sent the fiat funds to your counterparty?',
+      };
+
+  static String chatWithCounterpart(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Chat con tu contraparte',
+        'fr' => 'Chat avec la contrepartie',
+        'de' => 'Chat mit der Gegenpartei',
+        'it' => 'Chat con la controparte',
+        'nl' => 'Chat met tegenpartij',
+        _ => 'Chat with counterparty',
+      };
+
+  static String mediationCaseReceived(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Caso recibido',
+        'fr' => 'Dossier reçu',
+        'de' => 'Fall erhalten',
+        'it' => 'Caso ricevuto',
+        'nl' => 'Zaak ontvangen',
+        _ => 'Case received',
+      };
+
+  static String mediatorAssigned(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Mediador de la comunidad asignado',
+        'fr' => 'Médiateur de la communauté assigné',
+        'de' => 'Community-Mediator zugewiesen',
+        'it' => 'Mediatore della comunità assegnato',
+        'nl' => 'Communitybemiddelaar toegewezen',
+        _ => 'Community mediator assigned',
+      };
+
+  static String waitingMediationResolution(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Esperando resolución del mediador',
+        'fr' => 'En attente de résolution par le médiateur',
+        'de' => 'Warten auf Entscheidung des Mediators',
+        'it' => 'In attesa di risoluzione del mediatore',
+        'nl' => 'Wachten op oplossing van bemiddelaar',
+        _ => 'Awaiting mediator resolution',
+      };
+
+  static String explainProblem(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Explícanos brevemente qué ocurrió:',
+        'fr' => 'Expliquez brièvement ce qui s\'est passé :',
+        'de' => 'Erklären Sie kurz, was passiert ist:',
+        'it' => 'Spiega brevemente cosa è successo:',
+        'nl' => 'Leg kort uit wat er is gebeurd:',
+        _ => 'Briefly explain what happened:',
+      };
+
+  static String sendRequest(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Solicitar Asistencia',
+        'fr' => 'Demander de l\'aide',
+        'de' => 'Hilfe anfordern',
+        'it' => 'Richiedi Assistenza',
+        'nl' => 'Vraag hulp aan',
+        _ => 'Request Assistance',
+      };
 }
