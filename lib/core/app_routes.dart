@@ -26,6 +26,7 @@ import 'package:mostro/features/settings/screens/settings_screen.dart';
 import 'package:mostro/features/settings/screens/relays_screen.dart';
 import 'package:mostro/features/trades/screens/trade_detail_screen.dart';
 import 'package:mostro/features/trades/screens/trades_screen.dart';
+import 'package:mostro/features/simple_mode/providers/simple_nav_provider.dart';
 import 'package:mostro/features/walkthrough/providers/first_run_provider.dart';
 import 'package:mostro/features/walkthrough/screens/walkthrough_screen.dart';
 
@@ -34,6 +35,11 @@ import 'package:mostro/features/walkthrough/screens/walkthrough_screen.dart';
 abstract final class AppRoute {
   static const walkthrough = '/walkthrough';
   static const home = '/';
+  static const simpleBuy = '/simple/buy';
+  static const simpleSell = '/simple/sell';
+  static const simpleTrades = '/simple/trades';
+  static const simpleProfile = '/simple/profile';
+  static const simpleHelp = '/simple/help';
   static const orderBook = '/order_book';
   static const addOrder = '/add_order';
   static const myOrder = '/my_order/:orderId';
@@ -264,6 +270,41 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => LockEscrowScreen(
         orderId: state.pathParameters['orderId']!,
       ),
+    ),
+    GoRoute(
+      path: AppRoute.simpleBuy,
+      builder: (_, __) {
+        routerContainer?.read(simpleNavIndexProvider.notifier).state = 0;
+        return const HomeScreen();
+      },
+    ),
+    GoRoute(
+      path: AppRoute.simpleSell,
+      builder: (_, __) {
+        routerContainer?.read(simpleNavIndexProvider.notifier).state = 1;
+        return const HomeScreen();
+      },
+    ),
+    GoRoute(
+      path: AppRoute.simpleTrades,
+      builder: (_, __) {
+        routerContainer?.read(simpleNavIndexProvider.notifier).state = 2;
+        return const HomeScreen();
+      },
+    ),
+    GoRoute(
+      path: AppRoute.simpleProfile,
+      builder: (_, __) {
+        routerContainer?.read(simpleNavIndexProvider.notifier).state = 3;
+        return const HomeScreen();
+      },
+    ),
+    GoRoute(
+      path: AppRoute.simpleHelp,
+      builder: (_, __) {
+        routerContainer?.read(simpleNavIndexProvider.notifier).state = 4;
+        return const HomeScreen();
+      },
     ),
   ],
 );

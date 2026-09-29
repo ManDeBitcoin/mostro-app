@@ -10,7 +10,10 @@ import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/core/automation/automation_id.dart';
 import 'package:mostro/core/automation/automation_ids.dart';
 import 'package:mostro/core/create_order_palette.dart';
+import 'package:mostro/core/ui_mode.dart';
 import 'package:mostro/features/drawer/screens/drawer_menu.dart';
+import 'package:mostro/features/simple_mode/screens/simple_shell_screen.dart';
+import 'package:mostro/features/simple_mode/widgets/advanced_mode_banner.dart';
 import 'package:mostro/features/home/providers/home_order_providers.dart';
 import 'package:mostro/features/home/providers/order_reason_provider.dart';
 import 'package:mostro/features/home/widgets/order_book_list.dart';
@@ -77,6 +80,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final uiMode = ref.watch(uiModeProvider);
+    if (uiMode == UiMode.simple) {
+      return const SimpleShellScreen();
+    }
+
     final theme = Theme.of(context);
     final pal = OrderBookPalette.of(context);
     final filteredOrders = ref.watch(filteredOrdersProvider);
@@ -126,6 +134,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // ── Main content column ───────────────────────────────────────────────────
     final mainContent = Column(
       children: [
+        const AdvancedModeBanner(),
         _OrderBookAppBar(
           palette: pal,
           onMenuTap: isDesktop ? null : _toggleDrawer,

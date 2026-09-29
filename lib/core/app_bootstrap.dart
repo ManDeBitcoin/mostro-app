@@ -16,6 +16,7 @@ import 'package:mostro/core/services/identity_service.dart';
 import 'package:mostro/core/test_environment.dart';
 import 'package:mostro/core/lifecycle/app_lifecycle_service.dart';
 import 'package:mostro/core/lifecycle/resume_resync.dart';
+import 'package:mostro/core/ui_mode.dart';
 import 'package:mostro/core/web/attachment_probe.dart';
 import 'package:mostro/core/web/bridge_probe.dart';
 import 'package:mostro/core/web/store_probe.dart';
@@ -93,6 +94,13 @@ Future<void> bootstrapAndRun({List<String> seedRelays = const []}) async {
   final backupActive = prefs.getBool(kBackupReminderActiveKey) ?? false;
   final backupPending = backupActive && !backupDismissed;
   final savedSettings = AppSettingsState.fromPrefs(prefs);
+  final savedUiModeStr = prefs.getString(kUiModeKey);
+  final savedUiMode = savedUiModeStr != null
+      ? UiMode.values.firstWhere(
+          (m) => m.name == savedUiModeStr,
+          orElse: () => UiMode.simple,
+        )
+      : UiMode.simple;
 
   // Before any startup work below, so a failure in it is captured at the
   // verbosity the user asked for rather than the default.
@@ -231,6 +239,9 @@ Future<void> bootstrapAndRun({List<String> seedRelays = const []}) async {
       ),
       nwcProvider.overrideWith((ref) => NwcNotifier(prefs: prefs)),
       mostroPubkeyProvider.overrideWith((ref) => activeMostroPubkey),
+      uiModeProvider.overrideWith(
+        (ref) => UiModeNotifier(prefs: prefs, initial: savedUiMode),
+      ),
     ],
   );
 
