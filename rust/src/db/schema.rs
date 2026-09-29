@@ -141,4 +141,13 @@ CREATE TABLE IF NOT EXISTS bond_claims (
     updated_at      INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_bond_claims_node ON bond_claims(node_pubkey, phase);
+
+CREATE TABLE IF NOT EXISTS announcements (
+    id              TEXT PRIMARY KEY,
+    data            TEXT NOT NULL,
+    created_at      INTEGER NOT NULL,
+    event_id        TEXT NOT NULL,
+    is_read         INTEGER NOT NULL DEFAULT 0,
+    is_dismissed    INTEGER NOT NULL DEFAULT 0
+);
 "#;
