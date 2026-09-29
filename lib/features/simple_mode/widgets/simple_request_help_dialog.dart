@@ -4,6 +4,7 @@ import 'package:mostro/core/order_book_palette.dart';
 import 'package:mostro/features/disputes/providers/disputes_providers.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
 import 'package:mostro/shared/utils/platform_int64.dart';
+import 'package:mostro/shared/widgets/mostro_modal.dart';
 import 'package:mostro/src/rust/api/disputes.dart' as disputes_api;
 
 /// Dialog for requesting community mediation in Simple Mode.
@@ -17,7 +18,7 @@ class SimpleRequestHelpDialog extends ConsumerStatefulWidget {
   final String orderId;
 
   static Future<bool?> show(BuildContext context, String orderId) {
-    return showDialog<bool>(
+    return showMostroDialog<bool>(
       context: context,
       builder: (_) => SimpleRequestHelpDialog(orderId: orderId),
     );
@@ -77,24 +78,9 @@ class _SimpleRequestHelpDialogState
     final pal = OrderBookPalette.of(context);
     final theme = Theme.of(context);
 
-    return AlertDialog(
-      backgroundColor: pal.surfaceCard,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: Row(
-        children: [
-          Icon(Icons.support_agent_rounded, color: pal.limeText, size: 24),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              SimpleL10n.haveProblem(context),
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: pal.textTitle,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
+    return MostroDialog(
+      icon: Icons.support_agent_rounded,
+      title: SimpleL10n.haveProblem(context),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,35 +129,15 @@ class _SimpleRequestHelpDialogState
           ],
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _submitting ? null : () => Navigator.of(context).pop(false),
-          child: Text(
-            'Cancelar',
-            style: TextStyle(color: pal.textSecondary),
-          ),
-        ),
-        FilledButton(
-          onPressed: _submitting ? null : _submitHelpRequest,
-          style: FilledButton.styleFrom(
-            backgroundColor: pal.limeText,
-            foregroundColor: Colors.black,
-          ),
-          child: _submitting
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.black,
-                  ),
-                )
-              : Text(
-                  SimpleL10n.sendRequest(context),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-        ),
-      ],
+      primary: ModalAction(
+        label: SimpleL10n.sendRequest(context),
+        onPressed: _submitting ? null : _submitHelpRequest,
+        busy: _submitting,
+      ),
+      secondary: ModalAction(
+        label: 'Cancelar',
+        onPressed: _submitting ? null : () => Navigator.of(context).pop(false),
+      ),
     );
   }
 }

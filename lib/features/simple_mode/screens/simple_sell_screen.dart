@@ -5,6 +5,7 @@ import 'package:mostro/features/order/providers/exchange_rate_provider.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
 import 'package:mostro/features/simple_mode/providers/community_provider.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_sell_confirm_sheet.dart';
+import 'package:mostro/shared/widgets/mostro_modal.dart';
 
 /// Simple Mode: Amount-first Sell Wizard.
 /// 1. Amount input with live Satoshi conversion
@@ -39,14 +40,8 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
     required int? estimatedSats,
     required int bondPercent,
   }) {
-    final pal = OrderBookPalette.of(context);
-    showModalBottomSheet(
+    showMostroSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: pal.surfaceCard,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (_) => SimpleSellConfirmSheet(
         fiatAmount: fiatAmount,
         fiatCode: fiatCode,

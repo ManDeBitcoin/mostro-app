@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mostro/features/simple_mode/screens/simple_trade_detail_view.dart';
+import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/src/rust/api/types.dart';
 
 void main() {
@@ -11,6 +12,8 @@ void main() {
       const ProviderScope(
         child: MaterialApp(
           locale: Locale('es'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: SimpleTradeDetailView(
             orderId: 'trade-test-1',
             status: OrderStatus.active,
@@ -50,6 +53,8 @@ void main() {
       const ProviderScope(
         child: MaterialApp(
           locale: Locale('es'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: SimpleTradeDetailView(
             orderId: 'trade-test-2',
             status: OrderStatus.fiatSent,

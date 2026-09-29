@@ -8,6 +8,7 @@ import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_request_help_dialog.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_trade_timeline.dart';
 import 'package:mostro/features/trades/widgets/release_confirmation_sheet.dart';
+import 'package:mostro/shared/widgets/mostro_modal.dart';
 import 'package:mostro/src/rust/api/orders.dart' as orders_api;
 import 'package:mostro/src/rust/api/types.dart';
 
@@ -46,33 +47,19 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
   bool _markingPaid = false;
 
   Future<void> _handleFiatPaid() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showMostroDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: OrderBookPalette.of(context).surfaceCard,
-        title: Text(
-          'Confirmar Pago',
-          style: TextStyle(color: OrderBookPalette.of(context).textTitle),
+      builder: (ctx) => MostroDialog(
+        title: 'Confirmar Pago',
+        body: SimpleL10n.confirmPaymentSent(context),
+        primary: ModalAction(
+          label: 'Confirmar',
+          onPressed: () => Navigator.pop(ctx, true),
         ),
-        content: Text(
-          SimpleL10n.confirmPaymentSent(context),
-          style: TextStyle(color: OrderBookPalette.of(context).textSecondary),
+        secondary: ModalAction(
+          label: 'Cancelar',
+          onPressed: () => Navigator.pop(ctx, false),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancelar',
-                style: TextStyle(color: OrderBookPalette.of(context).textSecondary)),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: OrderBookPalette.of(context).limeText,
-              foregroundColor: Colors.black,
-            ),
-            child: const Text('Confirmar'),
-          ),
-        ],
       ),
     );
 

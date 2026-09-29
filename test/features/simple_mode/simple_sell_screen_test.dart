@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mostro/features/simple_mode/screens/simple_sell_screen.dart';
+import 'package:mostro/l10n/app_localizations.dart';
 
 void main() {
   testWidgets('SimpleSellScreen renders amount input and steps explanation',
@@ -10,6 +11,8 @@ void main() {
       const ProviderScope(
         child: MaterialApp(
           locale: Locale('es'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SimpleSellScreen(),
           ),

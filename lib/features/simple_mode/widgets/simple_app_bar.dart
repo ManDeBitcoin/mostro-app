@@ -6,6 +6,7 @@ import 'package:mostro/core/order_book_palette.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
 import 'package:mostro/features/simple_mode/providers/community_provider.dart';
 import 'package:mostro/l10n/app_localizations.dart';
+import 'package:mostro/shared/widgets/mostro_modal.dart';
 import 'package:mostro/shared/widgets/notification_bell.dart';
 import 'package:mostro/shared/widgets/platform_aware_qr_scanner.dart';
 import 'package:mostro/shared/widgets/redesign_app_bar.dart';
@@ -30,12 +31,8 @@ class SimpleAppBar extends ConsumerWidget implements PreferredSizeWidget {
     final pal = OrderBookPalette.of(context);
     final theme = Theme.of(context);
 
-    showModalBottomSheet(
+    showMostroSheet(
       context: context,
-      backgroundColor: pal.surfaceCard,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (sheetContext) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
@@ -156,14 +153,10 @@ class SimpleAppBar extends ConsumerWidget implements PreferredSizeWidget {
     final controller = TextEditingController();
     final pal = OrderBookPalette.of(context);
 
-    showDialog(
+    showMostroDialog(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
-        backgroundColor: pal.surfaceCard,
-        title: Text(
-          SimpleL10n.scanCommunityQr(context),
-          style: TextStyle(color: pal.textTitle),
-        ),
+      builder: (dialogCtx) => MostroDialog(
+        title: SimpleL10n.scanCommunityQr(context),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -210,45 +203,39 @@ class SimpleAppBar extends ConsumerWidget implements PreferredSizeWidget {
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: Text('Cancelar', style: TextStyle(color: pal.textSecondary)),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final text = controller.text.trim();
-              if (text.isEmpty) return;
-              try {
-                final parsed =
-                    await community_api.parseCommunityPayload(input: text);
-                await ref
-                    .read(activeCommunityProfileProvider.notifier)
-                    .applyProfile(parsed);
-                if (context.mounted) {
-                  Navigator.pop(dialogCtx);
-                  final msg = parsed.name == 'Community Node'
-                      ? 'Comunidad conectada'
-                      : 'Comunidad ${parsed.name} conectada';
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(msg)),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error al cargar comunidad: $e')),
-                  );
-                }
+        primary: ModalAction(
+          label: 'Aceptar',
+          onPressed: () async {
+            final text = controller.text.trim();
+            if (text.isEmpty) return;
+            try {
+              final parsed =
+                  await community_api.parseCommunityPayload(input: text);
+              await ref
+                  .read(activeCommunityProfileProvider.notifier)
+                  .applyProfile(parsed);
+              if (context.mounted) {
+                Navigator.pop(dialogCtx);
+                final msg = parsed.name == 'Community Node'
+                    ? 'Comunidad conectada'
+                    : 'Comunidad ${parsed.name} conectada';
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(msg)),
+                );
               }
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: pal.limeText,
-              foregroundColor: Colors.black,
-            ),
-            child: const Text('Aceptar'),
-          ),
-        ],
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error al cargar comunidad: $e')),
+                );
+              }
+            }
+          },
+        ),
+        secondary: ModalAction(
+          label: 'Cancelar',
+          onPressed: () => Navigator.pop(dialogCtx),
+        ),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_trade_timeline.dart';
+import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/src/rust/api/types.dart';
 
 void main() {
@@ -9,6 +10,8 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         locale: Locale('es'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: SimpleTradeTimeline(
             status: OrderStatus.active,
@@ -36,6 +39,8 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         locale: Locale('es'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: SimpleTradeTimeline(
             status: OrderStatus.dispute,
