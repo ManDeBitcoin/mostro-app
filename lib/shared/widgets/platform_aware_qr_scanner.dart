@@ -202,7 +202,6 @@ class _ScannerOverlay extends StatelessWidget {
               boxSize: scanBoxSize,
               borderColor: const Color(0xFFC4F43A),
               scrimColor: Colors.black.withValues(alpha: 0.65),
-              borderRadius: 18.0,
             ),
           ),
         ),
@@ -289,17 +288,15 @@ class _ScannerCutoutPainter extends CustomPainter {
     required this.boxSize,
     required this.borderColor,
     required this.scrimColor,
-    this.borderRadius = 18.0,
-    this.cornerLength = 30.0,
-    this.strokeWidth = 3.5,
   });
+
+  static const double borderRadius = 18.0;
+  static const double cornerLength = 30.0;
+  static const double strokeWidth = 3.5;
 
   final double boxSize;
   final Color borderColor;
   final Color scrimColor;
-  final double borderRadius;
-  final double cornerLength;
-  final double strokeWidth;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -384,8 +381,7 @@ class _ScannerCutoutPainter extends CustomPainter {
   bool shouldRepaint(covariant _ScannerCutoutPainter oldDelegate) {
     return oldDelegate.boxSize != boxSize ||
         oldDelegate.borderColor != borderColor ||
-        oldDelegate.scrimColor != scrimColor ||
-        oldDelegate.borderRadius != borderRadius;
+        oldDelegate.scrimColor != scrimColor;
   }
 }
 
