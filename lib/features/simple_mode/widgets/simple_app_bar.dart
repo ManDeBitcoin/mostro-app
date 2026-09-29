@@ -7,7 +7,10 @@ import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/core/order_book_palette.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
 import 'package:mostro/features/simple_mode/providers/community_provider.dart';
+import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/widgets/notification_bell.dart';
+import 'package:mostro/shared/widgets/platform_aware_qr_scanner.dart';
+import 'package:mostro/shared/widgets/redesign_app_bar.dart';
 import 'package:mostro/src/rust/api/community.dart' as community_api;
 import 'package:mostro/src/rust/api/community.dart' show CommunityProfile;
 
@@ -165,6 +168,7 @@ class SimpleAppBar extends ConsumerWidget implements PreferredSizeWidget {
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
               'Pega el enlace o código de tu comunidad (mostro://community/... o JSON):',
@@ -179,6 +183,32 @@ class SimpleAppBar extends ConsumerWidget implements PreferredSizeWidget {
                 border: const OutlineInputBorder(),
               ),
               maxLines: 3,
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.qr_code_scanner),
+              label: Text(AppLocalizations.of(context).scanQrButtonLabel),
+              onPressed: () async {
+                final scanned = await Navigator.of(context).push<String>(
+                  MaterialPageRoute(
+                    builder: (routeContext) => Scaffold(
+                      backgroundColor: pal.bg,
+                      appBar: redesignAppBar(
+                        routeContext,
+                        title: AppLocalizations.of(routeContext).scanQrCodeTitle,
+                        onBack: () => Navigator.of(routeContext).pop(),
+                      ),
+                      body: PlatformAwareQrScanner(
+                        hint: 'mostro://community/...',
+                        onDetected: (value) => Navigator.of(routeContext).pop(value),
+                      ),
+                    ),
+                  ),
+                );
+                if (scanned != null && context.mounted) {
+                  controller.text = scanned;
+                }
+              },
             ),
           ],
         ),
