@@ -10,6 +10,7 @@ void main() {
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(
+          locale: Locale('es'),
           home: SimpleTradeDetailView(
             orderId: 'trade-test-1',
             status: OrderStatus.active,
@@ -48,6 +49,7 @@ void main() {
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(
+          locale: Locale('es'),
           home: SimpleTradeDetailView(
             orderId: 'trade-test-2',
             status: OrderStatus.fiatSent,

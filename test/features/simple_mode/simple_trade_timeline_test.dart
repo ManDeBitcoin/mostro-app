@@ -8,6 +8,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
+        locale: Locale('es'),
         home: Scaffold(
           body: SimpleTradeTimeline(
             status: OrderStatus.active,
@@ -34,6 +35,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
+        locale: Locale('es'),
         home: Scaffold(
           body: SimpleTradeTimeline(
             status: OrderStatus.dispute,

@@ -9,6 +9,7 @@ void main() {
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(
+          locale: Locale('es'),
           home: Scaffold(
             body: SimpleBuyScreen(),
           ),
