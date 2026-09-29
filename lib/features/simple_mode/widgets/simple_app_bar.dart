@@ -229,9 +229,11 @@ class SimpleAppBar extends ConsumerWidget implements PreferredSizeWidget {
                     .applyProfile(parsed);
                 if (context.mounted) {
                   Navigator.pop(dialogCtx);
+                  final msg = parsed.name == 'Community Node'
+                      ? 'Comunidad conectada'
+                      : 'Comunidad ${parsed.name} conectada';
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text('Comunidad ${parsed.name} activada')),
+                    SnackBar(content: Text(msg)),
                   );
                 }
               } catch (e) {
@@ -298,7 +300,9 @@ class SimpleAppBar extends ConsumerWidget implements PreferredSizeWidget {
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 160),
                       child: Text(
-                        activeProfile?.name ?? SimpleL10n.generalMarket(context),
+                        (activeProfile != null && activeProfile.name == 'Community Node')
+                            ? 'Comunidad'
+                            : (activeProfile?.name ?? SimpleL10n.generalMarket(context)),
                         style: TextStyle(
                           color: pal.textTitle,
                           fontWeight: FontWeight.w600,
