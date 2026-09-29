@@ -7,9 +7,7 @@ import 'package:mostro/features/order/providers/trade_state_provider.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_request_help_dialog.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_trade_timeline.dart';
-import 'package:mostro/features/trades/providers/trades_providers.dart';
 import 'package:mostro/features/trades/widgets/release_confirmation_sheet.dart';
-import 'package:mostro/shared/widgets/mostro_reactive_button.dart';
 import 'package:mostro/src/rust/api/orders.dart' as orders_api;
 import 'package:mostro/src/rust/api/types.dart';
 
@@ -120,7 +118,6 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
   @override
   Widget build(BuildContext context) {
     final pal = OrderBookPalette.of(context);
-    final theme = Theme.of(context);
     final isDisputed = widget.status == OrderStatus.dispute;
     final isSuccess = widget.status == OrderStatus.success ||
         widget.status == OrderStatus.settledHoldInvoice;
@@ -434,7 +431,8 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
                     onPressed: () async {
                       final submitted = await SimpleRequestHelpDialog.show(
                           context, widget.orderId);
-                      if (submitted == true && mounted) {
+                      if (!context.mounted) return;
+                      if (submitted == true) {
                         ref.invalidate(tradeStatusProvider(widget.orderId));
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(

@@ -1,8 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:mostro/core/app_routes.dart';
 import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/core/order_book_palette.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
@@ -323,7 +321,7 @@ class SimpleAppBar extends ConsumerWidget implements PreferredSizeWidget {
             ),
             const Spacer(),
             // Notification bell
-            NotificationBell(),
+            const NotificationBell(),
           ],
         ),
       ),

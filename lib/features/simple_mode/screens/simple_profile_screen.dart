@@ -293,7 +293,7 @@ class SimpleProfileScreen extends ConsumerWidget {
                             .setMode(UiMode.advanced);
                       }
                     },
-                    activeColor: pal.limeText,
+                    activeThumbColor: pal.limeText,
                   ),
                 ],
               ),

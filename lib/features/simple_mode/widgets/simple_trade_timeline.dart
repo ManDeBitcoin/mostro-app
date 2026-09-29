@@ -222,7 +222,7 @@ class SimpleTradeTimeline extends StatelessWidget {
                 width: 2,
                 height: 24,
                 color: state == MilestoneState.completed
-                    ? pal.limeText.withOpacity(0.5)
+                    ? pal.limeText.withValues(alpha: 0.5)
                     : pal.navBorder,
               ),
           ],

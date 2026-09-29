@@ -320,9 +320,9 @@ class IdentityService {
     final privacyMode = stored.privacyMode;
     final createdAt = stored.createdAtMillis;
 
-    if (words.length == 1 && words.first.startsWith("nsec1")) {
+    if (words.length == 1 && words.first.startsWith('nsec1')) {
       final info = await identity_api.importFromNsec(nsec: words.first);
-      debugPrint("[identity] identity loaded from nsec — pubkey=${info.publicKey}");
+      debugPrint('[identity] identity loaded from nsec — pubkey=${info.publicKey}');
       return words;
     }
 
