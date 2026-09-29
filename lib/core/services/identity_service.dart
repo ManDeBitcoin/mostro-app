@@ -172,6 +172,24 @@ class IdentityService {
   ///
   /// Replaces any currently loaded identity. Throws if [words] is not a valid
   /// 12- or 24-word BIP-39 phrase.
+  /// Import an identity from an nsec key and persist it.
+  static Future<void> importNsecAndStore(String nsec) async {
+    await identity_api.deleteIdentity();
+    await identity_api.importFromNsec(nsec: nsec);
+
+    await _storage.write(key: _kMnemonic, value: nsec);
+    await Future.wait([
+      _storage.write(key: _kTradeKeyIndex, value: '0'),
+      _storage.write(key: _kPrivacyMode, value: 'false'),
+      _storage.write(
+        key: _kCreatedAt,
+        value: DateTime.now().millisecondsSinceEpoch.toString(),
+      ),
+    ]);
+
+    debugPrint('[identity] identity imported from nsec');
+  }
+
   static Future<void> importAndStore(List<String> words) async {
     await identity_api.deleteIdentity();
     await identity_api.importFromMnemonic(words: words, recover: false);
@@ -301,6 +319,12 @@ class IdentityService {
     final tradeKeyIndex = stored.tradeKeyIndex;
     final privacyMode = stored.privacyMode;
     final createdAt = stored.createdAtMillis;
+
+    if (words.length == 1 && words.first.startsWith("nsec1")) {
+      final info = await identity_api.importFromNsec(nsec: words.first);
+      debugPrint("[identity] identity loaded from nsec — pubkey=${info.publicKey}");
+      return words;
+    }
 
     final info = await identity_api.loadIdentityFromMnemonic(
       words: words,

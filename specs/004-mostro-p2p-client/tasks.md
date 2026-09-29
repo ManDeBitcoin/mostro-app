@@ -501,7 +501,7 @@ existing mnemonic loses all trades, sessions, and disputes — see epic #142
 and its sub-issues (#216, #218, #219, #220, #221, #222) for the current,
 actively maintained breakdown of this work.
 
-- [ ] T148 Implement the recovery flow per `contracts/identity.md`
+- [x] T148 Implement the recovery flow per `contracts/identity.md`
       `import_from_mnemonic(words, recover: true)`: send `Action.restore`
       to the Mostro daemon via NIP-44 (Kind 14), receive order/dispute IDs,
       request details for each, sync the trade key index, and reconstruct

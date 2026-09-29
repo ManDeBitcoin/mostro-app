@@ -425,30 +425,31 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     );
   }
 
-  Future<void> _importIdentity(BuildContext context, List<String> words) async {
+  Future<void> _importIdentity(BuildContext context, String input) async {
     final swap = _IdentitySwap.of(context);
     final l10n = swap.l10n;
     try {
-      await (widget.debugImport?.call(words) ??
-          IdentityService.importAndStore(words));
+      if (input.startsWith('\''nsec1'\'')) {
+        await IdentityService.importNsecAndStore(input);
+      } else {
+        final words = input.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+        await (widget.debugImport?.call(words) ?? IdentityService.importAndStore(words));
+      }
     } catch (e) {
-      debugPrint('[account] importIdentity error: $e');
+      debugPrint('\''[account] importIdentity error: $e'\'');
       swap.messenger.showSnackBar(
         SnackBar(
           content: Text(
-            kDebugMode ? 'Import failed: $e' : l10n.invalidMnemonicMessage,
+            kDebugMode ? '\''Import failed: $e'\'' : l10n.invalidMnemonicMessage,
           ),
         ),
       );
       return;
     }
-    // Before the recovery below, not after: what it brings back belongs to
-    // the imported identity and must survive.
     await _forgetPreviousIdentity(swap);
-    // A seed that already traded must learn its trades and trade index from
-    // the daemon before its first new order (InvalidTradeIndex otherwise).
-    await _restoreOrders(swap);
-    // The user restored from words they already had: nothing to back up.
+    if (!input.startsWith('\''nsec1'\'')) {
+      await _restoreOrders(swap);
+    }
     await _finishIdentitySwap(swap, alreadyBackedUp: true);
   }
 
@@ -1117,7 +1118,7 @@ class _CardHeader extends StatelessWidget {
 class _ImportMnemonicDialog extends StatefulWidget {
   const _ImportMnemonicDialog({required this.onImport});
 
-  final void Function(List<String> words) onImport;
+  final void Function(String input) onImport;
 
   @override
   State<_ImportMnemonicDialog> createState() => _ImportMnemonicDialogState();
@@ -1134,12 +1135,17 @@ class _ImportMnemonicDialogState extends State<_ImportMnemonicDialog> {
   }
 
   void _submit() {
-    final words =
-        _controller.text
-            .trim()
-            .split(RegExp(r'\s+'))
-            .where((w) => w.isNotEmpty)
-            .toList();
+    final text = _controller.text.trim();
+    if (text.startsWith('\''nsec1'\'')) {
+      if (text.length < 50) {
+        setState(() => _error = AppLocalizations.of(context).enterValidMnemonicError);
+        return;
+      }
+      Navigator.pop(context);
+      widget.onImport(text);
+      return;
+    }
+    final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
     final validLength = words.length == 12 || words.length == 24;
     final validWords = words.every((w) => RegExp(r'^[a-zA-Z]+$').hasMatch(w));
     if (!validLength || !validWords) {
@@ -1149,7 +1155,7 @@ class _ImportMnemonicDialogState extends State<_ImportMnemonicDialog> {
       return;
     }
     Navigator.pop(context);
-    widget.onImport(words);
+    widget.onImport(text);
   }
 
   @override
