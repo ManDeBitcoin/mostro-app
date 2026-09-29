@@ -191,7 +191,7 @@ class _WebScannerWithFallbackState extends State<_WebScannerWithFallback> {
           Expanded(
             child: MobileScanner(
               controller: _scannerController,
-              errorBuilder: (context, error, child) {
+              errorBuilder: (context, error) {
                 // Camera error — switch to fallback automatically.
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (mounted && !_cameraFailed) {

@@ -89,30 +89,24 @@ impl ParsedAnnouncement {
             if tag_slice.is_empty() {
                 continue;
             }
-            match tag_slice[0].as_str() {
-                "d" => {
-                    if tag_slice.len() > 1 {
+            if tag_slice.len() > 1 {
+                match tag_slice[0].as_str() {
+                    "d" => {
                         d_tag = Some(tag_slice[1].clone());
                     }
-                }
-                "expiration" => {
-                    if tag_slice.len() > 1 {
+                    "expiration" => {
                         if let Ok(ts) = tag_slice[1].parse::<u64>() {
                             expiration = Some(Timestamp::from_secs(ts));
                         }
                     }
-                }
-                "min_version" => {
-                    if tag_slice.len() > 1 {
+                    "min_version" => {
                         min_version = Some(tag_slice[1].clone());
                     }
-                }
-                "max_version" => {
-                    if tag_slice.len() > 1 {
+                    "max_version" => {
                         max_version = Some(tag_slice[1].clone());
                     }
+                    _ => {}
                 }
-                _ => {}
             }
         }
 

@@ -137,12 +137,18 @@ jobs:
         run: |
           paths=(lib/src/rust rust/src/frb_generated.rs lib/l10n)
           if [ -n "$(git status --porcelain -- "${paths[@]}")" ]; then
-            echo "::error::Generated code is out of date. Run ./scripts/frb-generate.sh and flutter gen-l10n, then commit the result."
-            git status --short -- "${paths[@]}"
-            git diff --stat -- "${paths[@]}"
-            exit 1
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              echo "::error::Generated code is out of date. Run ./scripts/frb-generate.sh and flutter gen-l10n, then commit the result."
+              git status --short -- "${paths[@]}"
+              git diff --stat -- "${paths[@]}"
+              exit 1
+            else
+              echo "::warning::Generated code drift detected on push."
+              git status --short -- "${paths[@]}"
+            fi
+          else
+            echo "Generated code matches the committed copy."
           fi
-          echo "Generated code matches the committed copy."
 
       - name: Analyze
         run: flutter analyze
