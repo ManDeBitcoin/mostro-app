@@ -7,13 +7,21 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
-// These functions are ignored because they are not marked as `pub`: `emit`, `found`, `sender`
 
-/// Stream of restore steps; see the module docs.
-Future<RestoreProgressStream> onRestoreProgress() =>
-    RustLib.instance.api.crateApiRestoreProgressOnRestoreProgress();
+            // These functions are ignored because they are not marked as `pub`: `emit`, `found`, `sender`
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RestoreProgressStream>>
-abstract class RestoreProgressStream implements RustOpaqueInterface {
-  Future<RestoreProgress?> next();
-}
+
+            /// Stream of restore steps; see the module docs.
+Future<RestoreProgressStream>  onRestoreProgress() => RustLib.instance.api.crateApiRestoreProgressOnRestoreProgress();
+
+            
+                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RestoreProgressStream>>
+                abstract class RestoreProgressStream implements RustOpaqueInterface {
+                     Future<RestoreProgress?>  next();
+
+
+
+                    
+                }
+                
+            

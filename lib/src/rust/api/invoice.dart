@@ -7,20 +7,17 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
-// These functions are ignored because they are not marked as `pub`: `check`, `classify`, `is_lightning_address`, `lnd_network_name`, `network_matches`, `next_step_start`, `normalize`, `parse_step_start`, `record_invoice_step_start`, `rejected_with`, `step_start_applies`, `summarize`
 
-/// Amount and expiry of `invoice`, or `None` when it is not a well-formed,
+            // These functions are ignored because they are not marked as `pub`: `check`, `classify`, `is_lightning_address`, `lnd_network_name`, `network_matches`, `next_step_start`, `normalize`, `parse_step_start`, `record_invoice_step_start`, `rejected_with`, `step_start_applies`, `summarize`
+
+
+            /// Amount and expiry of `invoice`, or `None` when it is not a well-formed,
 /// correctly signed BOLT11 invoice. A `lightning:` prefix and surrounding
 /// whitespace are ignored; case is not significant.
-Future<Bolt11Summary?> decodeBolt11({required String invoice}) =>
-    RustLib.instance.api.crateApiInvoiceDecodeBolt11(invoice: invoice);
+Future<Bolt11Summary?>  decodeBolt11({required String invoice }) => RustLib.instance.api.crateApiInvoiceDecodeBolt11(invoice: invoice);
 
 /// What `input` is: an invoice, a Lightning address, or neither.
-Future<PaymentDestination> classifyPaymentDestination({
-  required String input,
-}) => RustLib.instance.api.crateApiInvoiceClassifyPaymentDestination(
-  input: input,
-);
+Future<PaymentDestination>  classifyPaymentDestination({required String input }) => RustLib.instance.api.crateApiInvoiceClassifyPaymentDestination(input: input);
 
 /// Judge `input` for a trade that pays `expected_sats` (`None` while the
 /// amount is not known yet), against a node on `node_networks` (its
@@ -28,19 +25,7 @@ Future<PaymentDestination> classifyPaymentDestination({
 /// `min_remaining_secs` of invoice lifetime (its `invoice_expiration_window`;
 /// `None` skips it). `now` is unix seconds — the caller's clock, the same one
 /// its countdown runs on.
-Future<InvoiceVerdict> checkBuyerInvoice({
-  required String input,
-  BigInt? expectedSats,
-  required List<String> nodeNetworks,
-  BigInt? minRemainingSecs,
-  required PlatformInt64 now,
-}) => RustLib.instance.api.crateApiInvoiceCheckBuyerInvoice(
-  input: input,
-  expectedSats: expectedSats,
-  nodeNetworks: nodeNetworks,
-  minRemainingSecs: minRemainingSecs,
-  now: now,
-);
+Future<InvoiceVerdict>  checkBuyerInvoice({required String input , BigInt? expectedSats , required List<String> nodeNetworks , BigInt? minRemainingSecs , required PlatformInt64 now }) => RustLib.instance.api.crateApiInvoiceCheckBuyerInvoice(input: input, expectedSats: expectedSats, nodeNetworks: nodeNetworks, minRemainingSecs: minRemainingSecs, now: now);
 
 /// Unix seconds (the node's clock) of the daemon message that moved
 /// `order_id` into its current status, or `None` when none was recorded.
@@ -61,5 +46,7 @@ Future<InvoiceVerdict> checkBuyerInvoice({
 /// normally on the current generation already. This refuses what a write
 /// path missed — a start left by a take whose messages stopped arriving,
 /// say — instead of counting from a step that ended hours ago.
-Future<PlatformInt64?> tradeStepStartedAt({required String orderId}) =>
-    RustLib.instance.api.crateApiInvoiceTradeStepStartedAt(orderId: orderId);
+Future<PlatformInt64?>  tradeStepStartedAt({required String orderId }) => RustLib.instance.api.crateApiInvoiceTradeStepStartedAt(orderId: orderId);
+
+            
+            

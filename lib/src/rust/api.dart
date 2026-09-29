@@ -6,7 +6,10 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-Future<String> getAppVersion() => RustLib.instance.api.crateApiGetAppVersion();
+
+            
+
+            Future<String>  getAppVersion() => RustLib.instance.api.crateApiGetAppVersion();
 
 /// Initialise the persistent store.
 ///
@@ -16,5 +19,7 @@ Future<String> getAppVersion() => RustLib.instance.api.crateApiGetAppVersion();
 /// IndexedDB database name.
 ///
 /// Subsequent calls are no-ops.
-Future<void> initDb({required String path}) =>
-    RustLib.instance.api.crateApiInitDb(path: path);
+Future<void>  initDb({required String path }) => RustLib.instance.api.crateApiInitDb(path: path);
+
+            
+            

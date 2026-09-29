@@ -73,6 +73,12 @@ pub mod settings_keys {
     /// startup and by every `fetch_mostro_node_stats`.
     pub const MOSTRO_NODE_INFO: &str = "mostro_node_info";
 
+    /// Active community profile, JSON object of `crate::api::community::CommunityProfile`.
+    pub const ACTIVE_COMMUNITY_PROFILE: &str = "active_community_profile";
+
+    /// Cached accepted payment methods for the active community, JSON array of strings.
+    pub const COMMUNITY_PAYMENT_METHODS: &str = "community_payment_methods";
+
     /// Developer escrow-mode override — `"auto"` or `"force_cashu"`.
     /// See [`crate::mostro::escrow_mode::EscrowModeOverride`].
     pub const ESCROW_MODE_OVERRIDE: &str = "escrow_mode_override";
