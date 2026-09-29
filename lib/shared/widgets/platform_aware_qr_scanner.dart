@@ -308,7 +308,7 @@ class _ScannerCutoutPainter extends CustomPainter {
     );
     final rrect = RRect.fromRectAndRadius(
       rect,
-      Radius.circular(borderRadius),
+      const Radius.circular(borderRadius),
     );
 
     // Dark scrim with transparent cutout
@@ -341,8 +341,8 @@ class _ScannerCutoutPainter extends CustomPainter {
     final top = rect.top;
     final right = rect.right;
     final bottom = rect.bottom;
-    final r = borderRadius;
-    final cl = cornerLength;
+    const r = borderRadius;
+    const cl = cornerLength;
 
     // Top-left
     final topLeft = Path()
