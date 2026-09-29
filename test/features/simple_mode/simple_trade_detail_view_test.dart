@@ -8,6 +8,10 @@ import 'package:mostro/src/rust/api/types.dart';
 void main() {
   testWidgets('SimpleTradeDetailView renders YA PAGUÉ for buyer in active state',
       (tester) async {
+    tester.view.physicalSize = const Size(360, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(
@@ -49,6 +53,10 @@ void main() {
   testWidgets(
       'SimpleTradeDetailView renders RECIBÍ EL DINERO for seller in fiatSent state',
       (tester) async {
+    tester.view.physicalSize = const Size(360, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(

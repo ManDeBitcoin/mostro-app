@@ -7,6 +7,10 @@ import 'package:mostro/l10n/app_localizations.dart';
 void main() {
   testWidgets('SimpleSellScreen renders amount input and steps explanation',
       (tester) async {
+    tester.view.physicalSize = const Size(360, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(
