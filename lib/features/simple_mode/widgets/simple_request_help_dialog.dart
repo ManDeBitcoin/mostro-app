@@ -76,7 +76,6 @@ class _SimpleRequestHelpDialogState
   @override
   Widget build(BuildContext context) {
     final pal = OrderBookPalette.of(context);
-    final theme = Theme.of(context);
 
     return MostroDialog(
       icon: Icons.support_agent_rounded,
