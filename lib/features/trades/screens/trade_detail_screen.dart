@@ -670,11 +670,11 @@ class _TradeDetailScreenState extends ConsumerState<TradeDetailScreen>
         orderId: widget.orderId,
         status: liveStatus,
         isBuyer: isBuyer,
-        fiatAmount: order?.fiatAmount ?? trade?.fiatAmount,
-        fiatCode: order?.fiatCode ?? trade?.fiatCode ?? 'USD',
-        amountSats: order?.amountSats?.toInt() ?? trade?.amount?.toInt(),
+        fiatAmount: order?.fiatAmount ?? trade?.order.fiatAmount,
+        fiatCode: order?.fiatCode ?? trade?.order.fiatCode ?? 'USD',
+        amountSats: order?.amountSats?.toInt() ?? trade?.order.amountSats?.toInt(),
         paymentMethod:
-            order?.paymentMethod ?? trade?.paymentMethod ?? 'Transferencia',
+            order?.paymentMethod ?? trade?.order.paymentMethod ?? 'Transferencia',
       );
     }
     final peerRating = trade?.peerRating;

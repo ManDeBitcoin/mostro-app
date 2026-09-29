@@ -429,25 +429,25 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     final swap = _IdentitySwap.of(context);
     final l10n = swap.l10n;
     try {
-      if (input.startsWith('\''nsec1'\'')) {
+      if (input.startsWith('nsec1')) {
         await IdentityService.importNsecAndStore(input);
       } else {
         final words = input.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
         await (widget.debugImport?.call(words) ?? IdentityService.importAndStore(words));
       }
     } catch (e) {
-      debugPrint('\''[account] importIdentity error: $e'\'');
+      debugPrint('[account] importIdentity error: $e');
       swap.messenger.showSnackBar(
         SnackBar(
           content: Text(
-            kDebugMode ? '\''Import failed: $e'\'' : l10n.invalidMnemonicMessage,
+            kDebugMode ? 'Import failed: $e' : l10n.invalidMnemonicMessage,
           ),
         ),
       );
       return;
     }
     await _forgetPreviousIdentity(swap);
-    if (!input.startsWith('\''nsec1'\'')) {
+    if (!input.startsWith('nsec1')) {
       await _restoreOrders(swap);
     }
     await _finishIdentitySwap(swap, alreadyBackedUp: true);
@@ -1136,7 +1136,7 @@ class _ImportMnemonicDialogState extends State<_ImportMnemonicDialog> {
 
   void _submit() {
     final text = _controller.text.trim();
-    if (text.startsWith('\''nsec1'\'')) {
+    if (text.startsWith('nsec1')) {
       if (text.length < 50) {
         setState(() => _error = AppLocalizations.of(context).enterValidMnemonicError);
         return;

@@ -431,6 +431,7 @@ class _SidebarContent extends StatelessWidget {
         ),
         _MenuRow(
           palette: palette,
+          automationId: 'drawer-switch-to-simple',
           icon: Icons.auto_awesome_rounded,
           label: SimpleL10n.switchToSimple(context),
           showChevron: true,

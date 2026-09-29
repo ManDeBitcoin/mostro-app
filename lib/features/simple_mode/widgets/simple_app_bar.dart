@@ -289,9 +289,7 @@ class SimpleAppBar extends ConsumerWidget implements PreferredSizeWidget {
             ),
             const Spacer(),
             // Notification bell
-            NotificationBell(
-              onTap: () => context.push(AppRoute.notifications),
-            ),
+            NotificationBell(),
           ],
         ),
       ),

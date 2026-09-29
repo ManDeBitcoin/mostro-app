@@ -21,7 +21,7 @@ class SimpleProfileScreen extends ConsumerWidget {
     final communityAsync = ref.watch(activeCommunityProfileProvider);
     final community = communityAsync.valueOrNull;
     final nwcState = ref.watch(nwcProvider);
-    final isWalletConnected = nwcState.isConnected;
+    final isWalletConnected = nwcState != null;
 
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
