@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:mostro/core/app_routes.dart';
 import 'package:mostro/core/order_book_palette.dart';
 import 'package:mostro/features/home/providers/home_order_providers.dart';
+import 'package:mostro/features/order/providers/exchange_rate_provider.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
 import 'package:mostro/features/simple_mode/providers/community_provider.dart';
+import 'package:mostro/features/simple_mode/widgets/simple_buy_confirm_sheet.dart';
 
-/// Simple Mode: Amount-first Buy Screen.
-/// Guides the user to:
-/// 1. Enter an amount
-/// 2. Choose payment method (filtered by community if active)
-/// 3. Select seller with clear reputation, fee, and temporary guarantee
+/// Simple Mode: Amount-first Buy Wizard.
+/// 1. Amount input with live Satoshi conversion
+/// 2. Payment method selector (filtered by community if active)
+/// 3. Filtered sellers list with humanized reputation and refundable guarantee
+/// 4. Bottom sheet confirmation summary before taking order
 class SimpleBuyScreen extends ConsumerStatefulWidget {
   const SimpleBuyScreen({super.key});
 
@@ -29,6 +29,31 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
     super.dispose();
   }
 
+  void _openConfirmSheet({
+    required OrderItem order,
+    required double fiatAmount,
+    required String fiatCode,
+    required int? estimatedSats,
+    required int bondPercent,
+  }) {
+    final pal = OrderBookPalette.of(context);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: pal.surfaceCard,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => SimpleBuyConfirmSheet(
+        order: order,
+        fiatAmount: fiatAmount,
+        fiatCode: fiatCode,
+        estimatedSats: estimatedSats,
+        bondPercent: bondPercent,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final pal = OrderBookPalette.of(context);
@@ -36,6 +61,14 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
     final communityAsync = ref.watch(activeCommunityProfileProvider);
     final community = communityAsync.valueOrNull;
     final currency = community?.currency ?? 'USD';
+
+    // Live exchange rate & Sats calculation
+    final rateAsync = ref.watch(exchangeRateProvider(currency));
+    final rate = rateAsync.valueOrNull;
+    final double? parsedAmount = double.tryParse(_amountController.text.trim());
+    final int? estimatedSats = (rate != null && rate > 0 && parsedAmount != null && parsedAmount > 0)
+        ? (parsedAmount / rate * 100000000).round()
+        : null;
 
     final paymentMethods = community != null && community.paymentMethods.isNotEmpty
         ? community.paymentMethods
@@ -47,8 +80,17 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
 
     final book = ref.watch(orderBookProvider);
     final allOrders = book.valueOrNull ?? [];
-    // Filter sell orders matching currency
-    final sellOrders = allOrders.where((o) => o.kind == 'sell').toList();
+
+    // Filter active sell orders matching currency
+    final sellOrders = allOrders.where((o) {
+      if (o.kind != 'sell') return false;
+      if (o.fiatCode.toUpperCase() != currency.toUpperCase()) return false;
+      if (_selectedMethod != null &&
+          !o.paymentMethod.toLowerCase().contains(_selectedMethod!.toLowerCase())) {
+        return false;
+      }
+      return true;
+    }).toList();
 
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -102,6 +144,26 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
                         contentPadding: EdgeInsets.zero,
                       ),
                       onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // Satoshi live conversion readout
+              Row(
+                children: [
+                  Icon(Icons.bolt_rounded, size: 16, color: pal.limeText),
+                  const SizedBox(width: 4),
+                  Text(
+                    estimatedSats != null
+                        ? '≈ $estimatedSats sats'
+                        : (rateAsync.isLoading
+                            ? SimpleL10n.calculatingRate(context)
+                            : 'Recibirás Bitcoin al cambio del mercado'),
+                    style: TextStyle(
+                      color: pal.limeText,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
                     ),
                   ),
                 ],
@@ -163,7 +225,7 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
           }).toList(),
         ),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
 
         // Temporary guarantee notice
         Container(
@@ -182,7 +244,7 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${SimpleL10n.temporaryGuarantee(context)}: ~3%',
+                      '${SimpleL10n.temporaryGuarantee(context)}: ~${community?.bondPercent ?? 3}%',
                       style: TextStyle(
                         color: pal.textTitle,
                         fontWeight: FontWeight.w600,
@@ -228,12 +290,12 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
                 Icon(Icons.storefront_outlined, size: 40, color: pal.textTertiary),
                 const SizedBox(height: 12),
                 Text(
-                  'No hay vendedores activos en este momento.',
+                  'No hay vendedores activos con estos filtros.',
                   style: TextStyle(color: pal.textSecondary),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Puedes publicar una solicitud o volver a intentarlo más tarde.',
+                  'Prueba con otro método de pago o publica una solicitud.',
                   style: TextStyle(color: pal.textTertiary, fontSize: 12),
                   textAlign: TextAlign.center,
                 ),
@@ -292,7 +354,7 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
                           ),
                         ),
                         Text(
-                          '${order.fiatAmount} ${order.fiatCode}',
+                          '${order.fiatAmount ?? parsedAmount ?? 50} ${order.fiatCode}',
                           style: TextStyle(
                             color: pal.limeText,
                             fontWeight: FontWeight.bold,
@@ -311,7 +373,13 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
                         ),
                         FilledButton(
                           onPressed: () {
-                            context.push(AppRoute.takeSellPath(order.id));
+                            _openConfirmSheet(
+                              order: order,
+                              fiatAmount: parsedAmount ?? order.fiatAmount ?? 50.0,
+                              fiatCode: currency,
+                              estimatedSats: estimatedSats,
+                              bondPercent: community?.bondPercent ?? 3,
+                            );
                           },
                           style: FilledButton.styleFrom(
                             backgroundColor: pal.limeText,

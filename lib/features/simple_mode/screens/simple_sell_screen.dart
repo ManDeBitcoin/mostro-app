@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:mostro/core/app_routes.dart';
 import 'package:mostro/core/order_book_palette.dart';
+import 'package:mostro/features/order/providers/exchange_rate_provider.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
 import 'package:mostro/features/simple_mode/providers/community_provider.dart';
+import 'package:mostro/features/simple_mode/widgets/simple_sell_confirm_sheet.dart';
 
-/// Simple Mode: Sell Screen.
-/// Guides the user to specify how much they want to sell,
-/// how they want to receive payment, and publishes the offer cleanly.
+/// Simple Mode: Amount-first Sell Wizard.
+/// 1. Amount input with live Satoshi conversion
+/// 2. Payment method selector (filtered by community if active)
+/// 3. Recipient payment details input
+/// 4. Explanatory stages of security escrow
+/// 5. Bottom sheet confirmation summary before publishing offer
 class SimpleSellScreen extends ConsumerStatefulWidget {
   const SimpleSellScreen({super.key});
 
@@ -18,12 +21,41 @@ class SimpleSellScreen extends ConsumerStatefulWidget {
 
 class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
   final _amountController = TextEditingController(text: '100');
+  final _detailsController = TextEditingController();
   String? _selectedMethod;
 
   @override
   void dispose() {
     _amountController.dispose();
+    _detailsController.dispose();
     super.dispose();
+  }
+
+  void _openConfirmSheet({
+    required double fiatAmount,
+    required String fiatCode,
+    required String paymentMethod,
+    required String paymentDetails,
+    required int? estimatedSats,
+    required int bondPercent,
+  }) {
+    final pal = OrderBookPalette.of(context);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: pal.surfaceCard,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => SimpleSellConfirmSheet(
+        fiatAmount: fiatAmount,
+        fiatCode: fiatCode,
+        paymentMethod: paymentMethod,
+        paymentDetails: paymentDetails,
+        estimatedSats: estimatedSats,
+        bondPercent: bondPercent,
+      ),
+    );
   }
 
   @override
@@ -33,6 +65,14 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
     final communityAsync = ref.watch(activeCommunityProfileProvider);
     final community = communityAsync.valueOrNull;
     final currency = community?.currency ?? 'USD';
+
+    // Live exchange rate & Satoshi estimation
+    final rateAsync = ref.watch(exchangeRateProvider(currency));
+    final rate = rateAsync.valueOrNull;
+    final double? parsedAmount = double.tryParse(_amountController.text.trim());
+    final int? estimatedSats = (rate != null && rate > 0 && parsedAmount != null && parsedAmount > 0)
+        ? (parsedAmount / rate * 100000000).round()
+        : null;
 
     final paymentMethods = community != null && community.paymentMethods.isNotEmpty
         ? community.paymentMethods
@@ -98,6 +138,26 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 6),
+              // Satoshi live conversion readout
+              Row(
+                children: [
+                  Icon(Icons.bolt_rounded, size: 16, color: pal.limeText),
+                  const SizedBox(width: 4),
+                  Text(
+                    estimatedSats != null
+                        ? '≈ $estimatedSats sats'
+                        : (rateAsync.isLoading
+                            ? SimpleL10n.calculatingRate(context)
+                            : 'Cotización al cambio del mercado'),
+                    style: TextStyle(
+                      color: pal.limeText,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
               // Preset chips
               Wrap(
@@ -155,6 +215,36 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
           }).toList(),
         ),
 
+        const SizedBox(height: 20),
+
+        // Payment Details Input
+        Text(
+          SimpleL10n.paymentDetailsPrompt(context),
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: pal.textTitle,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          decoration: BoxDecoration(
+            color: pal.surfaceCard,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: pal.navBorder),
+          ),
+          child: TextField(
+            controller: _detailsController,
+            style: TextStyle(color: pal.textTitle, fontSize: 14),
+            decoration: InputDecoration(
+              hintText: SimpleL10n.paymentDetailsHint(context),
+              hintStyle: TextStyle(color: pal.textTertiary, fontSize: 13),
+              border: InputBorder.none,
+            ),
+            maxLines: 2,
+          ),
+        ),
+
         const SizedBox(height: 24),
 
         // Steps Explanation
@@ -209,8 +299,14 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
         // Publish Button
         FilledButton.icon(
           onPressed: () {
-            // Route to AddOrderScreen with sell type
-            context.push('${AppRoute.addOrder}?type=sell');
+            _openConfirmSheet(
+              fiatAmount: parsedAmount ?? 100.0,
+              fiatCode: currency,
+              paymentMethod: _selectedMethod ?? paymentMethods.first,
+              paymentDetails: _detailsController.text.trim(),
+              estimatedSats: estimatedSats,
+              bondPercent: community?.bondPercent ?? 3,
+            );
           },
           icon: const Icon(Icons.arrow_upward_rounded),
           label: Text(

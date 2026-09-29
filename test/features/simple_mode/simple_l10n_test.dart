@@ -57,6 +57,19 @@ void main() {
       expect(SimpleL10n.faq1A(capturedContext), isNotEmpty);
       expect(SimpleL10n.faq2Q(capturedContext), isNotEmpty);
       expect(SimpleL10n.faq2A(capturedContext), isNotEmpty);
+
+      // Verify Phase 4 wizard strings
+      expect(SimpleL10n.buyConfirmationTitle(capturedContext), isNotEmpty);
+      expect(SimpleL10n.buySummary(capturedContext), isNotEmpty);
+      expect(SimpleL10n.youWillReceive(capturedContext), isNotEmpty);
+      expect(SimpleL10n.refundNotice(capturedContext), isNotEmpty);
+      expect(SimpleL10n.paymentDetailsPrompt(capturedContext), isNotEmpty);
+      expect(SimpleL10n.paymentDetailsHint(capturedContext), isNotEmpty);
+      expect(SimpleL10n.safetyNoticeBuy(capturedContext), isNotEmpty);
+      expect(SimpleL10n.safetyNoticeSell(capturedContext), isNotEmpty);
+      expect(SimpleL10n.confirmAndBuy(capturedContext), isNotEmpty);
+      expect(SimpleL10n.confirmAndPublish(capturedContext), isNotEmpty);
+      expect(SimpleL10n.calculatingRate(capturedContext), isNotEmpty);
     });
   }
 }

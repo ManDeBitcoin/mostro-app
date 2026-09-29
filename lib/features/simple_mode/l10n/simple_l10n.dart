@@ -470,4 +470,115 @@ class SimpleL10n {
         _ =>
           'Yes. The Bitcoin is secured under a temporary escrow contract until the seller verifies receiving the fiat funds in their bank account.',
       };
+
+  static String buyConfirmationTitle(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Confirma tu compra',
+        'fr' => 'Confirmez votre achat',
+        'de' => 'Kauf bestätigen',
+        'it' => 'Conferma acquisto',
+        'nl' => 'Bevestig aankoop',
+        _ => 'Confirm your purchase',
+      };
+
+  static String buySummary(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Vas a pagar',
+        'fr' => 'Vous allez payer',
+        'de' => 'Sie zahlen',
+        'it' => 'Pagherai',
+        'nl' => 'Je betaalt',
+        _ => 'You will pay',
+      };
+
+  static String youWillReceive(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Recibirás',
+        'fr' => 'Vous recevrez',
+        'de' => 'Sie erhalten',
+        'it' => 'Riceverai',
+        'nl' => 'Je ontvangt',
+        _ => 'You will receive',
+      };
+
+  static String refundNotice(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Reembolsable al terminar con éxito',
+        'fr' => 'Remboursable en fin d\'opération',
+        'de' => 'Erstattungsfähig bei Erfolg',
+        'it' => 'Rimborsabile al completamento',
+        'nl' => 'Terugbetaalbaar na succes',
+        _ => 'Refunded upon completion',
+      };
+
+  static String paymentDetailsPrompt(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Tus datos para recibir el pago',
+        'fr' => 'Vos coordonnées pour recevoir le paiement',
+        'de' => 'Ihre Angaben für den Zahlungsempfang',
+        'it' => 'I tuoi dettagli per ricevere il pagamento',
+        'nl' => 'Je gegevens om betaling te ontvangen',
+        _ => 'Your details to receive payment',
+      };
+
+  static String paymentDetailsHint(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Número de cuenta, titular, teléfono móvil o alias...',
+        'fr' => 'Numéro de compte, titulaire ou identifiant...',
+        'de' => 'Kontonummer, Inhaber oder Mobilnummer...',
+        'it' => 'Numero di conto, intestatario o cellulare...',
+        'nl' => 'Rekeningnummer, naam of mobiel...',
+        _ => 'Account number, holder name or mobile...',
+      };
+
+  static String safetyNoticeBuy(BuildContext context) => switch (_lang(context)) {
+        'es' =>
+          'Verifica cuidadosamente los datos antes de enviar el dinero. Tu Bitcoin estará protegido en custodia.',
+        'fr' =>
+          'Vérifiez attentivement les données avant d\'envoyer l\'argent. Vos Bitcoins seront protégés.',
+        'de' =>
+          'Überprüfen Sie die Angaben vor dem Senden sorgfältig. Ihr Bitcoin ist geschützt.',
+        'it' =>
+          'Verifica attentamente i dati prima di inviare il denaro. I tuoi Bitcoin saranno protetti.',
+        'nl' =>
+          'Controleer de gegevens zorgvuldig voordat je betaalt. Je Bitcoin is beschermd.',
+        _ =>
+          'Verify payment details carefully before sending money. Your Bitcoin is protected in escrow.',
+      };
+
+  static String safetyNoticeSell(BuildContext context) => switch (_lang(context)) {
+        'es' =>
+          'Confirma únicamente después de ver el dinero reflejado en tu propia cuenta bancaria. Esta acción no se puede deshacer.',
+        'fr' =>
+          'Ne confirmez qu\'après avoir vu l\'argent sur votre compte bancaire. Cette action est irréversible.',
+        'de' =>
+          'Bestätigen Sie erst, wenn das Geld auf Ihrem Bankkonto eingegangen ist. Dies kann nicht rückgängig gemacht werden.',
+        'it' =>
+          'Conferma solo dopo aver visto i fondi sul tuo conto bancario. Questa azione non può essere annullata.',
+        'nl' =>
+          'Bevestig pas zodra je het geld op je eigen rekening ziet. Dit kan niet ongedaan worden gemaakt.',
+        _ =>
+          'Only confirm after seeing the funds in your own bank account. This action cannot be undone.',
+      };
+
+  static String confirmAndBuy(BuildContext context) => switch (_lang(context)) {
+        'es' => 'CONFIRMAR Y COMPRAR',
+        'fr' => 'CONFIRMER ET ACHETER',
+        'de' => 'BESTÄTIGEN & KAUFEN',
+        'it' => 'CONFERMA E COMPRA',
+        'nl' => 'BEVESTIG EN KOOP',
+        _ => 'CONFIRM & BUY',
+      };
+
+  static String confirmAndPublish(BuildContext context) => switch (_lang(context)) {
+        'es' => 'CONFIRMAR Y PUBLICAR',
+        'fr' => 'CONFIRMER ET PUBLIER',
+        'de' => 'BESTÄTIGEN & VERÖFFENTLICHEN',
+        'it' => 'CONFERMA E PUBBLICA',
+        'nl' => 'BEVESTIG EN PUBLICEER',
+        _ => 'CONFIRM & PUBLISH',
+      };
+
+  static String calculatingRate(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Calculando sats...',
+        'fr' => 'Calcul des sats...',
+        'de' => 'Sats werden berechnet...',
+        'it' => 'Calcolo sats...',
+        'nl' => 'Sats berekenen...',
+        _ => 'Calculating sats...',
+      };
 }
