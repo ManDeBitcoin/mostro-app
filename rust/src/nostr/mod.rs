@@ -9,4 +9,5 @@ pub mod relay_list;
 pub mod relay_pool;
 pub mod relay_probe;
 pub mod req_census;
+pub mod announcements;
 pub mod subscriptions;
