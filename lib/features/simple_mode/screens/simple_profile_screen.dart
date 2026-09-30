@@ -14,10 +14,8 @@ import 'package:mostro/features/notifications/services/pwa_service.dart';
 import 'package:mostro/features/notifications/services/push_notification_service.dart';
 import 'package:mostro/features/simple_mode/providers/simple_identity_provider.dart';
 import 'package:mostro/features/simple_mode/widgets/a2hs_guide_modal.dart';
-import 'package:mostro/shared/providers/peer_nym_provider.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
 import 'package:mostro/shared/widgets/nym_avatar.dart';
-import 'package:mostro/src/rust/api/identity.dart' as identity_api;
 
 /// Simple Mode: Profile Screen.
 /// Clean, non-technical overview of user reputation, connected wallet,
