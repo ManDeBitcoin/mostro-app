@@ -19,9 +19,10 @@ Future<EscrowModeInfo> getEscrowMode() =>
 /// Developer affordance (§4.3): it exists to test against a daemon branch that
 /// implements Cashu without publishing the 38385 tags yet. The Flutter surface
 /// that calls it is `kDebugMode`-only, so release builds cannot reach it.
-Future<void> setEscrowModeOverride({required bool forceCashu}) =>
-    RustLib.instance.api
-        .crateApiEscrowSetEscrowModeOverride(forceCashu: forceCashu);
+Future<void> setEscrowModeOverride({required bool forceCashu}) => RustLib
+    .instance
+    .api
+    .crateApiEscrowSetEscrowModeOverride(forceCashu: forceCashu);
 
 /// Point Cashu at a specific mint instead of the one the node advertises.
 ///

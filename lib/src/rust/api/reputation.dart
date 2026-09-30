@@ -22,8 +22,10 @@ import 'types.dart';
 ///
 /// **Errors**: `InvalidScore`, `PrivacyModeEnabled`, `AlreadyRated`.
 Future<void> submitRating({required String tradeId, required int score}) =>
-    RustLib.instance.api
-        .crateApiReputationSubmitRating(tradeId: tradeId, score: score);
+    RustLib.instance.api.crateApiReputationSubmitRating(
+      tradeId: tradeId,
+      score: score,
+    );
 
 /// Check whether privacy mode is currently enabled.
 Future<bool> getPrivacyMode() =>
@@ -50,12 +52,15 @@ Future<RatingInfo?> getRatingForTrade({required String tradeId}) =>
 ///
 /// No-ops silently when privacy mode is active — incoming reputation data is
 /// discarded in both directions when the user has opted out.
-Future<void> handleRatingReceived(
-        {required String tradeId,
-        required int score,
-        required String fromPubkey}) =>
-    RustLib.instance.api.crateApiReputationHandleRatingReceived(
-        tradeId: tradeId, score: score, fromPubkey: fromPubkey);
+Future<void> handleRatingReceived({
+  required String tradeId,
+  required int score,
+  required String fromPubkey,
+}) => RustLib.instance.api.crateApiReputationHandleRatingReceived(
+  tradeId: tradeId,
+  score: score,
+  fromPubkey: fromPubkey,
+);
 
 /// Subscribe to incoming rating events.
 Future<RatingStream> onRatingReceived() =>

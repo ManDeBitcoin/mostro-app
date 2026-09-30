@@ -26,10 +26,13 @@ Future<List<MostroNodeEntry>> listMostroNodes() =>
 ///
 /// **Errors**: `PrivateKeyNotAllowed`, `InvalidPubkey`, `NodeAlreadyExists`
 /// (already trusted or already added), `NotInitialized` (no storage yet).
-Future<MostroNodeEntry> addCustomMostroNode(
-        {required String input, String? name}) =>
-    RustLib.instance.api
-        .crateApiNodesAddCustomMostroNode(input: input, name: name);
+Future<MostroNodeEntry> addCustomMostroNode({
+  required String input,
+  String? name,
+}) => RustLib.instance.api.crateApiNodesAddCustomMostroNode(
+  input: input,
+  name: name,
+);
 
 /// Remove a user-added node. Removing an absent node is a no-op.
 ///
@@ -58,12 +61,7 @@ class NodeMetadata {
   final String? about;
   final String? website;
 
-  const NodeMetadata({
-    this.name,
-    this.picture,
-    this.about,
-    this.website,
-  });
+  const NodeMetadata({this.name, this.picture, this.about, this.website});
 
   static Future<NodeMetadata> default_() =>
       RustLib.instance.api.crateApiNodesNodeMetadataDefault();

@@ -50,7 +50,9 @@ Future<PaymentResult> payInvoice({required String bolt11}) =>
 /// **Errors**: `NoWalletConnected`, `WalletError`.
 Future<String> makeInvoice({required BigInt amountSats, String? description}) =>
     RustLib.instance.api.crateApiNwcMakeInvoice(
-        amountSats: amountSats, description: description);
+      amountSats: amountSats,
+      description: description,
+    );
 
 /// Subscribe to wallet status changes.
 Future<WalletStatusStream> onWalletStatusChanged() =>

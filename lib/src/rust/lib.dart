@@ -14,9 +14,7 @@ class U8Array32 extends NonGrowableListView<int> {
   Uint8List get inner => _inner;
   final Uint8List _inner;
 
-  U8Array32(this._inner)
-      : assert(_inner.length == arraySize),
-        super(_inner);
+  U8Array32(this._inner) : assert(_inner.length == arraySize), super(_inner);
 
   U8Array32.init() : this(Uint8List(arraySize));
 }

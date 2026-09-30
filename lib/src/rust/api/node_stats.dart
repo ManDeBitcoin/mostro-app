@@ -19,10 +19,11 @@ import 'types.dart';
 /// `latest_order_at == None` regardless of the node's real book) and
 /// `info_seen_at` is as old as the cache: never derive liquidity or
 /// availability from them. [`fetch_mostro_node_stats`] supplies both.
-Future<List<MostroNodeStats>> cachedMostroNodeStats(
-        {required List<String> pubkeys}) =>
-    RustLib.instance.api
-        .crateApiNodeStatsCachedMostroNodeStats(pubkeys: pubkeys);
+Future<List<MostroNodeStats>> cachedMostroNodeStats({
+  required List<String> pubkeys,
+}) => RustLib.instance.api.crateApiNodeStatsCachedMostroNodeStats(
+  pubkeys: pubkeys,
+);
 
 /// Download the kind 38385 event of every node in the registry (trusted and
 /// user-added) and persist the newest per node. Called once at startup, in
@@ -54,10 +55,11 @@ Future<void> refreshMostroNodeInfoCache() =>
 ///
 /// The kind 38385 events it received refresh the persisted cache behind
 /// [`cached_mostro_node_stats`] (best effort, written only on a change).
-Future<List<MostroNodeStats>> fetchMostroNodeStats(
-        {required List<String> pubkeys}) =>
-    RustLib.instance.api
-        .crateApiNodeStatsFetchMostroNodeStats(pubkeys: pubkeys);
+Future<List<MostroNodeStats>> fetchMostroNodeStats({
+  required List<String> pubkeys,
+}) => RustLib.instance.api.crateApiNodeStatsFetchMostroNodeStats(
+  pubkeys: pubkeys,
+);
 
 /// Open orders of one fiat currency on one node.
 class FiatOrderCount {
@@ -65,10 +67,7 @@ class FiatOrderCount {
   final String fiatCode;
   final int count;
 
-  const FiatOrderCount({
-    required this.fiatCode,
-    required this.count,
-  });
+  const FiatOrderCount({required this.fiatCode, required this.count});
 
   @override
   int get hashCode => fiatCode.hashCode ^ count.hashCode;

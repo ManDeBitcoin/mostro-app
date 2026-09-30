@@ -22,9 +22,10 @@ Future<BondPolicyInfo?> getBondPolicy() =>
 /// `order_amount_sats`, for the pre-commit warning. `None` when the policy is
 /// unknown, not enabled, or advertises no percentage. Never used to charge
 /// anything: the daemon sends the exact bolt11.
-Future<BigInt?> estimateBondSats({required BigInt orderAmountSats}) =>
-    RustLib.instance.api
-        .crateApiBondEstimateBondSats(orderAmountSats: orderAmountSats);
+Future<BigInt?> estimateBondSats({required BigInt orderAmountSats}) => RustLib
+    .instance
+    .api
+    .crateApiBondEstimateBondSats(orderAmountSats: orderAmountSats);
 
 /// Drop an order parked at `WaitingMakerBond` from this device only — the
 /// user's explicit choice once the daemon refused the cancel
@@ -58,10 +59,13 @@ Future<BondClaim?> getBondClaim({required String orderId}) =>
 
 /// The claim one node issued for one order — the exact claim a
 /// [`BondClaimUpdate`] names, whatever other node holds one for the order.
-Future<BondClaim?> getBondClaimFrom(
-        {required String nodePubkey, required String orderId}) =>
-    RustLib.instance.api
-        .crateApiBondGetBondClaimFrom(nodePubkey: nodePubkey, orderId: orderId);
+Future<BondClaim?> getBondClaimFrom({
+  required String nodePubkey,
+  required String orderId,
+}) => RustLib.instance.api.crateApiBondGetBondClaimFrom(
+  nodePubkey: nodePubkey,
+  orderId: orderId,
+);
 
 /// Send the daemon the bolt11 for a claim's share (§6.4): publish the
 /// `add-bond-invoice` reply **to the node that issued the claim**, mark the
@@ -73,10 +77,13 @@ Future<BondClaim?> getBondClaimFrom(
 /// the claim cannot explain; it stays `Pending`), `BondClaimExpired` (the
 /// deadline passed), `NoDaemonResponse` (the claim stays `Submitted`; the
 /// acknowledgement arrives on the global feed).
-Future<void> submitBondPayoutInvoice(
-        {required String orderId, required String invoice}) =>
-    RustLib.instance.api.crateApiBondSubmitBondPayoutInvoice(
-        orderId: orderId, invoice: invoice);
+Future<void> submitBondPayoutInvoice({
+  required String orderId,
+  required String invoice,
+}) => RustLib.instance.api.crateApiBondSubmitBondPayoutInvoice(
+  orderId: orderId,
+  invoice: invoice,
+);
 
 /// Subscribe to incoming `bond-slashed` notices.
 Future<BondSlashedStream> onBondSlashed() =>

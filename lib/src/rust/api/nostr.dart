@@ -98,10 +98,11 @@ Future<RelayStatusStream> onRelayStatusChanged() =>
 ///
 /// Returns `None` if no matching event arrives within 10 seconds (relay
 /// not reachable, or daemon has never published a Kind 38385 event).
-Future<List<List<String>>?> fetchMostroInstanceTags(
-        {required String mostroPubkeyHex}) =>
-    RustLib.instance.api
-        .crateApiNostrFetchMostroInstanceTags(mostroPubkeyHex: mostroPubkeyHex);
+Future<List<List<String>>?> fetchMostroInstanceTags({
+  required String mostroPubkeyHex,
+}) => RustLib.instance.api.crateApiNostrFetchMostroInstanceTags(
+  mostroPubkeyHex: mostroPubkeyHex,
+);
 
 /// Price of one BTC in `fiat_code`, as published by `mostro_pubkey_hex` in its
 /// Kind 30078 (`d` = `mostro-rates`) event.
@@ -121,10 +122,13 @@ Future<List<List<String>>?> fetchMostroInstanceTags(
 ///
 /// Answers from a per-node cache bounded by the event's own NIP-40 expiration,
 /// so the three amount fields of a range order cost one relay query, not three.
-Future<double?> fetchExchangeRate(
-        {required String mostroPubkeyHex, required String fiatCode}) =>
-    RustLib.instance.api.crateApiNostrFetchExchangeRate(
-        mostroPubkeyHex: mostroPubkeyHex, fiatCode: fiatCode);
+Future<double?> fetchExchangeRate({
+  required String mostroPubkeyHex,
+  required String fiatCode,
+}) => RustLib.instance.api.crateApiNostrFetchExchangeRate(
+  mostroPubkeyHex: mostroPubkeyHex,
+  fiatCode: fiatCode,
+);
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ConnectionStateStream>>
 abstract class ConnectionStateStream implements RustOpaqueInterface {

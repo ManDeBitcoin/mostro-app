@@ -22,10 +22,13 @@ Future<void> reconcilePush() =>
     RustLib.instance.api.crateApiPushReconcilePush();
 
 /// Dart hands the device token over (first token, and every refresh).
-Future<void> setPushToken(
-        {required String token, required PushPlatform platform}) =>
-    RustLib.instance.api
-        .crateApiPushSetPushToken(token: token, platform: platform);
+Future<void> setPushToken({
+  required String token,
+  required PushPlatform platform,
+}) => RustLib.instance.api.crateApiPushSetPushToken(
+  token: token,
+  platform: platform,
+);
 
 /// After `deleteToken()` on the device: nothing can be registered any more.
 Future<void> clearPushToken() =>

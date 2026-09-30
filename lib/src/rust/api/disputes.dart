@@ -26,8 +26,10 @@ import 'types.dart';
 /// **Errors**: `TradeNotDisputable`, `DisputeAlreadyOpen`, `ProtocolError`,
 /// `NoDaemonResponse`, plus daemon `CantDo` reasons passed through.
 Future<Dispute> openDispute({required String tradeId, String? reason}) =>
-    RustLib.instance.api
-        .crateApiDisputesOpenDispute(tradeId: tradeId, reason: reason);
+    RustLib.instance.api.crateApiDisputesOpenDispute(
+      tradeId: tradeId,
+      reason: reason,
+    );
 
 /// Submit free-text evidence for an open dispute, and return it as stored.
 ///
@@ -35,10 +37,13 @@ Future<Dispute> openDispute({required String tradeId, String? reason}) =>
 ///
 /// **Errors**: `EvidenceEmpty`, `NoOpenDispute`, `AdminNotAssigned`,
 /// `TradeNotFound`.
-Future<ChatMessage> submitEvidence(
-        {required String tradeId, required String text}) =>
-    RustLib.instance.api
-        .crateApiDisputesSubmitEvidence(tradeId: tradeId, text: text);
+Future<ChatMessage> submitEvidence({
+  required String tradeId,
+  required String text,
+}) => RustLib.instance.api.crateApiDisputesSubmitEvidence(
+  tradeId: tradeId,
+  text: text,
+);
 
 /// Encrypt, upload and send an image or PDF to the solver (#589 phase 3).
 ///
@@ -50,16 +55,17 @@ Future<ChatMessage> submitEvidence(
 /// **Errors**: `FileTooLarge`, `UnsupportedFileType`, `InvalidImage`,
 /// `NoOpenDispute`, `AdminNotAssigned`, `TradeNotFound`, `UploadFailed`,
 /// `SendFailed`.
-Future<ChatMessage> sendDisputeFile(
-        {required String tradeId,
-        required List<int> fileBytes,
-        required String fileName,
-        required String uploadId}) =>
-    RustLib.instance.api.crateApiDisputesSendDisputeFile(
-        tradeId: tradeId,
-        fileBytes: fileBytes,
-        fileName: fileName,
-        uploadId: uploadId);
+Future<ChatMessage> sendDisputeFile({
+  required String tradeId,
+  required List<int> fileBytes,
+  required String fileName,
+  required String uploadId,
+}) => RustLib.instance.api.crateApiDisputesSendDisputeFile(
+  tradeId: tradeId,
+  fileBytes: fileBytes,
+  fileName: fileName,
+  uploadId: uploadId,
+);
 
 /// Get dispute details for a trade.
 ///
@@ -71,10 +77,13 @@ Future<Dispute?> getDispute({required String tradeId}) =>
 ///
 /// Extracts the admin pubkey, marks the dispute as `InReview`, and derives
 /// the ECDH admin shared key for dispute chat encryption.
-Future<void> handleAdminTookDispute(
-        {required String tradeId, required String adminPubkey}) =>
-    RustLib.instance.api.crateApiDisputesHandleAdminTookDispute(
-        tradeId: tradeId, adminPubkey: adminPubkey);
+Future<void> handleAdminTookDispute({
+  required String tradeId,
+  required String adminPubkey,
+}) => RustLib.instance.api.crateApiDisputesHandleAdminTookDispute(
+  tradeId: tradeId,
+  adminPubkey: adminPubkey,
+);
 
 /// Handle an incoming `adminSettled` event (admin resolved in buyer's favour).
 Future<void> handleAdminSettled({required String tradeId}) =>

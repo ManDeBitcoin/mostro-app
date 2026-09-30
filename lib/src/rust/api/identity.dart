@@ -31,26 +31,30 @@ Future<IdentityCreationResult> createIdentity() =>
 /// Pass the `trade_key_index` previously stored so the key counter is restored.
 /// Pass `created_at` from the persisted value so the original creation timestamp
 /// is preserved; pass `None` (or `0`) to fall back to the current time.
-Future<IdentityInfo> loadIdentityFromMnemonic(
-        {required List<String> words,
-        required int tradeKeyIndex,
-        required bool privacyMode,
-        PlatformInt64? createdAt}) =>
-    RustLib.instance.api.crateApiIdentityLoadIdentityFromMnemonic(
-        words: words,
-        tradeKeyIndex: tradeKeyIndex,
-        privacyMode: privacyMode,
-        createdAt: createdAt);
+Future<IdentityInfo> loadIdentityFromMnemonic({
+  required List<String> words,
+  required int tradeKeyIndex,
+  required bool privacyMode,
+  PlatformInt64? createdAt,
+}) => RustLib.instance.api.crateApiIdentityLoadIdentityFromMnemonic(
+  words: words,
+  tradeKeyIndex: tradeKeyIndex,
+  privacyMode: privacyMode,
+  createdAt: createdAt,
+);
 
 /// Import identity from a BIP-39 mnemonic phrase (user-entered recovery).
 ///
 /// When `recover = true`, the daemon recovery flow is triggered (Phase 7).
 /// Currently this validates and loads the mnemonic; recovery contacts are
 /// initiated separately via the daemon API.
-Future<IdentityInfo> importFromMnemonic(
-        {required List<String> words, required bool recover}) =>
-    RustLib.instance.api
-        .crateApiIdentityImportFromMnemonic(words: words, recover: recover);
+Future<IdentityInfo> importFromMnemonic({
+  required List<String> words,
+  required bool recover,
+}) => RustLib.instance.api.crateApiIdentityImportFromMnemonic(
+  words: words,
+  recover: recover,
+);
 
 /// Import identity from an nsec (bech32-encoded Nostr secret key).
 /// Note: nsec import produces a single key with no BIP-39 mnemonic backup.
@@ -102,9 +106,10 @@ Future<NymIdentity> getNymIdentity({required String pubkeyHex}) =>
 /// Output format (base64-encoded): `[12-byte nonce][ciphertext+tag]`
 /// The nonce is randomly generated per call and prepended so that the
 /// same passphrase never reuses a nonce.
-Future<String> exportEncryptedBackup({required String passphrase}) =>
-    RustLib.instance.api
-        .crateApiIdentityExportEncryptedBackup(passphrase: passphrase);
+Future<String> exportEncryptedBackup({required String passphrase}) => RustLib
+    .instance
+    .api
+    .crateApiIdentityExportEncryptedBackup(passphrase: passphrase);
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TradeKeyIndexStream>>
 abstract class TradeKeyIndexStream implements RustOpaqueInterface {
@@ -146,10 +151,7 @@ class TradeKeyInfo {
   final int index;
   final String publicKey;
 
-  const TradeKeyInfo({
-    required this.index,
-    required this.publicKey,
-  });
+  const TradeKeyInfo({required this.index, required this.publicKey});
 
   @override
   int get hashCode => index.hashCode ^ publicKey.hashCode;

@@ -13,10 +13,13 @@ part 'types.freezed.dart';
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// The `bond_claims` key for a node / order pair.
-Future<String> bondClaimKey(
-        {required String nodePubkey, required String orderId}) =>
-    RustLib.instance.api
-        .crateApiTypesBondClaimKey(nodePubkey: nodePubkey, orderId: orderId);
+Future<String> bondClaimKey({
+  required String nodePubkey,
+  required String orderId,
+}) => RustLib.instance.api.crateApiTypesBondClaimKey(
+  nodePubkey: nodePubkey,
+  orderId: orderId,
+);
 
 /// Aggregated user-facing application settings.
 ///
@@ -191,7 +194,6 @@ enum BondApplyTo {
 
   /// Both sides.
   both,
-  ;
 }
 
 /// The counterparty's share of a slashed bond this user may claim
@@ -251,9 +253,7 @@ class BondClaim {
 
   /// The storage key: `<node_pubkey>:<order_id>`.
   Future<String> storageId() =>
-      RustLib.instance.api.crateApiTypesBondClaimStorageId(
-        that: this,
-      );
+      RustLib.instance.api.crateApiTypesBondClaimStorageId(that: this);
 
   @override
   int get hashCode =>
@@ -306,15 +306,12 @@ enum BondClaimPhase {
   completed,
 
   /// The claim window closed unclaimed.
-  expired,
-  ;
+  expired;
 
   /// A phase nothing follows: the daemon stops retrying and the kind-14
   /// filter no longer needs the issuing node for this claim.
   Future<bool> isTerminal() =>
-      RustLib.instance.api.crateApiTypesBondClaimPhaseIsTerminal(
-        that: this,
-      );
+      RustLib.instance.api.crateApiTypesBondClaimPhaseIsTerminal(that: this);
 }
 
 /// A claim's phase changed (new claim, submission, ack, payout, expiry).
@@ -413,8 +410,7 @@ enum BondPolicy {
   disabled,
 
   /// `bond_enabled = true`; the other fields of [`BondPolicyInfo`] are live.
-  enabled,
-  ;
+  enabled;
 
   static Future<BondPolicy> default_() =>
       RustLib.instance.api.crateApiTypesBondPolicyDefault();
@@ -482,11 +478,7 @@ class BondPolicyInfo {
 
 /// Who posted the bond — a *posting-timing* role, not the buyer/seller side
 /// (`docs/ANTI_ABUSE_BOND.md` §2.3).
-enum BondRole {
-  maker,
-  taker,
-  ;
-}
+enum BondRole { maker, taker }
 
 /// Event emitted when the local user's anti-abuse bond is slashed.
 ///
@@ -562,7 +554,6 @@ enum BondState {
 
   /// `bond-slashed` received for this order.
   slashed,
-  ;
 }
 
 enum BuyerStep {
@@ -572,7 +563,6 @@ enum BuyerStep {
   fiatSent,
   awaitingRelease,
   complete,
-  ;
 }
 
 /// What a seller is about to lock into a Cashu escrow — phase C5.
@@ -752,19 +742,9 @@ class ChatMessage {
           createdAt == other.createdAt;
 }
 
-enum ConnectionState {
-  online,
-  offline,
-  reconnecting,
-  ;
-}
+enum ConnectionState { online, offline, reconnecting }
 
-enum CooperativeCancelState {
-  requestedByMe,
-  requestedByPeer,
-  accepted,
-  ;
-}
+enum CooperativeCancelState { requestedByMe, requestedByPeer, accepted }
 
 /// An open or resolved dispute on a trade.
 ///
@@ -853,23 +833,11 @@ enum DisputeResolution {
   /// Admin canceled the order — sats returned to the seller.
   fundsToSeller,
   cooperativeCancel,
-  ;
 }
 
-enum DisputeStatus {
-  open,
-  inReview,
-  resolved,
-  ;
-}
+enum DisputeStatus { open, inReview, resolved }
 
-enum DownloadStatus {
-  pending,
-  downloading,
-  downloaded,
-  failed,
-  ;
-}
+enum DownloadStatus { pending, downloading, downloaded, failed }
 
 /// The settlement backend the active Mostro node runs, as resolved by
 /// [`crate::mostro::escrow_mode`] with the developer overrides applied.
@@ -943,12 +911,7 @@ class EscrowModeInfo {
           mintUrlOverride == other.mintUrlOverride;
 }
 
-enum FileType {
-  image,
-  document,
-  video,
-  ;
-}
+enum FileType { image, document, video }
 
 /// One thing the current identity still has in flight, as listed by
 /// `funds_at_risk()` before a new user is generated or a seed imported.
@@ -997,7 +960,6 @@ enum FundsAtRiskReason {
 
   /// A bond invoice that can still be paid: nothing is locked yet.
   bondInvoicePending,
-  ;
 }
 
 class IdentityInfo {
@@ -1058,7 +1020,6 @@ enum InvoiceProblem {
 
   /// Decodes, but for another chain than the node's.
   wrongNetwork,
-  ;
 }
 
 @freezed
@@ -1143,20 +1104,9 @@ class LogEntry {
           timestamp == other.timestamp;
 }
 
-enum LogLevel {
-  debug,
-  info,
-  warning,
-  error,
-  ;
-}
+enum LogLevel { debug, info, warning, error }
 
-enum MessageType {
-  peer,
-  admin,
-  system,
-  ;
-}
+enum MessageType { peer, admin, system }
 
 /// One entry of the Mostro node registry shown in Settings → Mostro Node.
 ///
@@ -1550,11 +1500,7 @@ class OrderInfo {
 
 /// Shared types exposed to Flutter via flutter_rust_bridge.
 /// These are the data structures that cross the Rust/Dart boundary.
-enum OrderKind {
-  buy,
-  sell,
-  ;
-}
+enum OrderKind { buy, sell }
 
 /// Protocol-level order states.
 ///
@@ -1593,7 +1539,6 @@ enum OrderStatus {
   /// daemon but has **no** kind 38383 event yet and is invisible in the
   /// order book until the bond locks. See `docs/ANTI_ABUSE_BOND.md` §2.8.
   waitingMakerBond,
-  ;
 }
 
 @freezed
@@ -1604,9 +1549,8 @@ sealed class PaymentDestination with _$PaymentDestination {
   const factory PaymentDestination.empty() = PaymentDestination_Empty;
 
   /// A well-formed, correctly signed BOLT11 invoice.
-  const factory PaymentDestination.bolt11(
-    Bolt11Summary field0,
-  ) = PaymentDestination_Bolt11;
+  const factory PaymentDestination.bolt11(Bolt11Summary field0) =
+      PaymentDestination_Bolt11;
 
   /// Starts like an invoice (`lnbc…` / `lntb…`) but does not decode: a
   /// typo or a truncated copy.
@@ -1614,9 +1558,8 @@ sealed class PaymentDestination with _$PaymentDestination {
       PaymentDestination_MalformedBolt11;
 
   /// `user@domain` (LUD-16), normalized to lower case.
-  const factory PaymentDestination.lightningAddress(
-    String field0,
-  ) = PaymentDestination_LightningAddress;
+  const factory PaymentDestination.lightningAddress(String field0) =
+      PaymentDestination_LightningAddress;
 
   /// Anything else — including an LNURL, which the submission path does
   /// not resolve.
@@ -1634,11 +1577,7 @@ class PaymentResult {
   /// Human-readable error message, present on failure.
   final String? error;
 
-  const PaymentResult({
-    required this.success,
-    this.preimage,
-    this.error,
-  });
+  const PaymentResult({required this.success, this.preimage, this.error});
 
   @override
   int get hashCode => success.hashCode ^ preimage.hashCode ^ error.hashCode;
@@ -1658,13 +1597,11 @@ class PaymentResult {
 enum PushPlatform {
   android,
   ios,
-  web,
-  ;
+  web;
 
   /// The wire value of `platform`.
-  Future<void> asWire() => RustLib.instance.api.crateApiTypesPushPlatformAsWire(
-        that: this,
-      );
+  Future<void> asWire() =>
+      RustLib.instance.api.crateApiTypesPushPlatformAsWire(that: this);
 
   static Future<PushPlatform?> fromWire({required String value}) =>
       RustLib.instance.api.crateApiTypesPushPlatformFromWire(value: value);
@@ -1845,20 +1782,9 @@ class RelayInfo {
           lastError == other.lastError;
 }
 
-enum RelaySource {
-  default_,
-  mostroDiscovered,
-  userAdded,
-  ;
-}
+enum RelaySource { default_, mostroDiscovered, userAdded }
 
-enum RelayStatus {
-  connected,
-  disconnected,
-  connecting,
-  error,
-  ;
-}
+enum RelayStatus { connected, disconnected, connecting, error }
 
 @freezed
 sealed class RestoreProgress with _$RestoreProgress {
@@ -1920,7 +1846,6 @@ enum SellerStep {
   paymentLocked,
   awaitingFiat,
   complete,
-  ;
 }
 
 /// Cause of an anti-abuse bond slash, inferred from the tracked order state.
@@ -1933,15 +1858,9 @@ enum SlashCause {
 
   /// A solver directed the slash while resolving a dispute.
   dispute,
-  ;
 }
 
-enum ThemeMode {
-  system,
-  dark,
-  light,
-  ;
-}
+enum ThemeMode { system, dark, light }
 
 class TradeInfo {
   final String id;
@@ -2110,31 +2029,16 @@ class TradeInfo {
 /// `PaymentFailed` is intentionally absent — LN payment failures are transient
 /// and retried; they are not a terminal trade outcome. The order stays in
 /// `SettledHoldInvoice` while retries are in flight.
-enum TradeOutcome {
-  success,
-  canceled,
-  expired,
-  disputeWon,
-  disputeLost,
-  ;
-}
+enum TradeOutcome { success, canceled, expired, disputeWon, disputeLost }
 
-enum TradeRole {
-  buyer,
-  seller,
-  ;
-}
+enum TradeRole { buyer, seller }
 
 @freezed
 sealed class TradeStep with _$TradeStep {
   const TradeStep._();
 
-  const factory TradeStep.buyer(
-    BuyerStep field0,
-  ) = TradeStep_Buyer;
-  const factory TradeStep.seller(
-    SellerStep field0,
-  ) = TradeStep_Seller;
+  const factory TradeStep.buyer(BuyerStep field0) = TradeStep_Buyer;
+  const factory TradeStep.seller(SellerStep field0) = TradeStep_Seller;
   const factory TradeStep.disputed() = TradeStep_Disputed;
 }
 
@@ -2146,9 +2050,7 @@ class TradeTouch {
   /// subscriber fell behind and touches were dropped: re-read every trade.
   final String? orderId;
 
-  const TradeTouch({
-    this.orderId,
-  });
+  const TradeTouch({this.orderId});
 
   @override
   int get hashCode => orderId.hashCode;
@@ -2237,13 +2139,6 @@ enum TradeUpdateReason {
   /// The counterparty asked to cancel; this side decides whether to
   /// cancel too. Emitted on `cooperative-cancel-initiated-by-peer`.
   cooperativeCancelRequestedByPeer,
-  ;
 }
 
-enum WalletStatus {
-  connected,
-  disconnected,
-  connecting,
-  error,
-  ;
-}
+enum WalletStatus { connected, disconnected, connecting, error }

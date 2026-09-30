@@ -16,10 +16,11 @@ Future<Bolt11Summary?> decodeBolt11({required String invoice}) =>
     RustLib.instance.api.crateApiInvoiceDecodeBolt11(invoice: invoice);
 
 /// What `input` is: an invoice, a Lightning address, or neither.
-Future<PaymentDestination> classifyPaymentDestination(
-        {required String input}) =>
-    RustLib.instance.api
-        .crateApiInvoiceClassifyPaymentDestination(input: input);
+Future<PaymentDestination> classifyPaymentDestination({
+  required String input,
+}) => RustLib.instance.api.crateApiInvoiceClassifyPaymentDestination(
+  input: input,
+);
 
 /// Judge `input` for a trade that pays `expected_sats` (`None` while the
 /// amount is not known yet), against a node on `node_networks` (its
@@ -27,18 +28,19 @@ Future<PaymentDestination> classifyPaymentDestination(
 /// `min_remaining_secs` of invoice lifetime (its `invoice_expiration_window`;
 /// `None` skips it). `now` is unix seconds — the caller's clock, the same one
 /// its countdown runs on.
-Future<InvoiceVerdict> checkBuyerInvoice(
-        {required String input,
-        BigInt? expectedSats,
-        required List<String> nodeNetworks,
-        BigInt? minRemainingSecs,
-        required PlatformInt64 now}) =>
-    RustLib.instance.api.crateApiInvoiceCheckBuyerInvoice(
-        input: input,
-        expectedSats: expectedSats,
-        nodeNetworks: nodeNetworks,
-        minRemainingSecs: minRemainingSecs,
-        now: now);
+Future<InvoiceVerdict> checkBuyerInvoice({
+  required String input,
+  BigInt? expectedSats,
+  required List<String> nodeNetworks,
+  BigInt? minRemainingSecs,
+  required PlatformInt64 now,
+}) => RustLib.instance.api.crateApiInvoiceCheckBuyerInvoice(
+  input: input,
+  expectedSats: expectedSats,
+  nodeNetworks: nodeNetworks,
+  minRemainingSecs: minRemainingSecs,
+  now: now,
+);
 
 /// Unix seconds (the node's clock) of the daemon message that moved
 /// `order_id` into its current status, or `None` when none was recorded.

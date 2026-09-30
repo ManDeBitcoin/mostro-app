@@ -33,9 +33,10 @@ Future<void> setDefaultFiatCode({String? code}) =>
 /// Set or clear the default Lightning Address.
 ///
 /// **Errors**: `InvalidLightningAddress` if `address` is Some but malformed.
-Future<void> setDefaultLightningAddress({String? address}) =>
-    RustLib.instance.api
-        .crateApiSettingsSetDefaultLightningAddress(address: address);
+Future<void> setDefaultLightningAddress({String? address}) => RustLib
+    .instance
+    .api
+    .crateApiSettingsSetDefaultLightningAddress(address: address);
 
 /// Return the currently active Mostro node pubkey (override or default).
 /// Mortsom test environment only: every order this client creates asks

@@ -18,8 +18,9 @@ Future<U8Array32> canonicalDigest({required CommunityProfile profile}) =>
 ///
 /// Returns `true` if the signature is valid, `false` otherwise.
 Future<bool> verifyCommunitySignature({required CommunityProfile profile}) =>
-    RustLib.instance.api
-        .crateApiCommunityVerifyCommunitySignature(profile: profile);
+    RustLib.instance.api.crateApiCommunityVerifyCommunitySignature(
+      profile: profile,
+    );
 
 /// Parse a raw input string (deep link, URL, Base64/Base64URL JSON, or nprofile)
 /// into a validated [`CommunityProfile`].
@@ -37,8 +38,9 @@ Future<CommunityProfile> parseCommunityPayload({required String input}) =>
 /// 3. Registers community relays in the pool.
 /// 4. Persists the active profile and accepted payment methods.
 Future<void> applyCommunityProfile({required CommunityProfile profile}) =>
-    RustLib.instance.api
-        .crateApiCommunityApplyCommunityProfile(profile: profile);
+    RustLib.instance.api.crateApiCommunityApplyCommunityProfile(
+      profile: profile,
+    );
 
 /// Retrieve the currently active [`CommunityProfile`], if any.
 Future<CommunityProfile?> getActiveCommunityProfile() =>

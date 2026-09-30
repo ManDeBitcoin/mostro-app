@@ -20,10 +20,13 @@ import 'types.dart';
 /// before, chat never throws for transport reasons.
 ///
 /// Returns the sent `ChatMessage` (with `is_mine: true`).
-Future<ChatMessage> sendMessage(
-        {required String tradeId, required String content}) =>
-    RustLib.instance.api
-        .crateApiMessagesSendMessage(tradeId: tradeId, content: content);
+Future<ChatMessage> sendMessage({
+  required String tradeId,
+  required String content,
+}) => RustLib.instance.api.crateApiMessagesSendMessage(
+  tradeId: tradeId,
+  content: content,
+);
 
 /// Get all messages for a trade, ordered by creation time (oldest first).
 Future<List<ChatMessage>> getMessages({required String tradeId}) =>
@@ -52,16 +55,17 @@ Future<int> getUnreadCount() =>
 ///
 /// Errors are markers: `FileTooLarge`, `UnsupportedFileType`, `InvalidImage`,
 /// `SessionNotFound`, `PeerUnknown`, `UploadFailed`, `SendFailed`.
-Future<ChatMessage> sendFile(
-        {required String tradeId,
-        required List<int> fileBytes,
-        required String fileName,
-        required String uploadId}) =>
-    RustLib.instance.api.crateApiMessagesSendFile(
-        tradeId: tradeId,
-        fileBytes: fileBytes,
-        fileName: fileName,
-        uploadId: uploadId);
+Future<ChatMessage> sendFile({
+  required String tradeId,
+  required List<int> fileBytes,
+  required String fileName,
+  required String uploadId,
+}) => RustLib.instance.api.crateApiMessagesSendFile(
+  tradeId: tradeId,
+  fileBytes: fileBytes,
+  fileName: fileName,
+  uploadId: uploadId,
+);
 
 /// Fetch and decrypt the attachment of `message_id` (#589).
 ///
@@ -74,8 +78,9 @@ Future<ChatMessage> sendFile(
 /// Errors are markers: `AttachmentNotFound`, `SessionNotFound`, `PeerUnknown`,
 /// `DownloadFailed`, `DecryptionFailed`.
 Future<AttachmentData> downloadAttachment({required String messageId}) =>
-    RustLib.instance.api
-        .crateApiMessagesDownloadAttachment(messageId: messageId);
+    RustLib.instance.api.crateApiMessagesDownloadAttachment(
+      messageId: messageId,
+    );
 
 /// The web smoke test's attachment round trip (#589 phase 4): encrypt random
 /// bytes, upload them to `server`, download them back, cache and decrypt
@@ -88,8 +93,9 @@ Future<void> attachmentWebProbe({required String server}) =>
 
 /// Get the attachment download status for a message.
 Future<DownloadStatus?> getAttachmentStatus({required String messageId}) =>
-    RustLib.instance.api
-        .crateApiMessagesGetAttachmentStatus(messageId: messageId);
+    RustLib.instance.api.crateApiMessagesGetAttachmentStatus(
+      messageId: messageId,
+    );
 
 /// Stream that emits new messages for a specific trade.
 Future<MessageStream> onNewMessage({required String tradeId}) =>
@@ -109,10 +115,11 @@ Future<UnreadCountStream> onUnreadCountChanged() =>
     RustLib.instance.api.crateApiMessagesOnUnreadCountChanged();
 
 /// Stream that emits attachment upload/download progress (0.0–1.0).
-Future<AttachmentProgressStream> onAttachmentProgress(
-        {required String messageId}) =>
-    RustLib.instance.api
-        .crateApiMessagesOnAttachmentProgress(messageId: messageId);
+Future<AttachmentProgressStream> onAttachmentProgress({
+  required String messageId,
+}) => RustLib.instance.api.crateApiMessagesOnAttachmentProgress(
+  messageId: messageId,
+);
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AnyMessageStream>>
 abstract class AnyMessageStream implements RustOpaqueInterface {

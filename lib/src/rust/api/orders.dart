@@ -35,25 +35,29 @@ Future<OrderInfo> createOrder({required NewOrderParams params}) =>
 /// derived trade key.  Automatically includes the user's default Lightning
 /// Address in the payload when taking a sell order (take-sell-ln-address flow).
 /// Returns a `TradeInfo` with the initial trade state.
-Future<TradeInfo> takeOrder(
-        {required String orderId,
-        required TradeRole role,
-        double? fiatAmount}) =>
-    RustLib.instance.api.crateApiOrdersTakeOrder(
-        orderId: orderId, role: role, fiatAmount: fiatAmount);
+Future<TradeInfo> takeOrder({
+  required String orderId,
+  required TradeRole role,
+  double? fiatAmount,
+}) => RustLib.instance.api.crateApiOrdersTakeOrder(
+  orderId: orderId,
+  role: role,
+  fiatAmount: fiatAmount,
+);
 
 /// Submit buyer's Lightning invoice for a trade.
 ///
 /// Sends an `AddInvoice` MostroMessage to the daemon signed with the trade key
 /// that was used when taking the order.
-Future<void> sendInvoice(
-        {required String orderId,
-        required String invoiceOrAddress,
-        required BigInt amountSats}) =>
-    RustLib.instance.api.crateApiOrdersSendInvoice(
-        orderId: orderId,
-        invoiceOrAddress: invoiceOrAddress,
-        amountSats: amountSats);
+Future<void> sendInvoice({
+  required String orderId,
+  required String invoiceOrAddress,
+  required BigInt amountSats,
+}) => RustLib.instance.api.crateApiOrdersSendInvoice(
+  orderId: orderId,
+  invoiceOrAddress: invoiceOrAddress,
+  amountSats: amountSats,
+);
 
 /// Mark fiat payment as sent by the buyer.
 ///
@@ -83,9 +87,10 @@ Future<void> cancelOrder({required String orderId}) =>
 /// answers with the same bolt11 (upstream §6.5.1); this is the same-take
 /// re-request of `docs/ANTI_ABUSE_BOND.md` §9 — same key and index, fresh
 /// `request_id`, the existing row updated, never a second one.
-Future<TradeInfo> requestBondInvoiceAgain({required String orderId}) =>
-    RustLib.instance.api
-        .crateApiOrdersRequestBondInvoiceAgain(orderId: orderId);
+Future<TradeInfo> requestBondInvoiceAgain({required String orderId}) => RustLib
+    .instance
+    .api
+    .crateApiOrdersRequestBondInvoiceAgain(orderId: orderId);
 
 Future<void> subscribeOrders() =>
     RustLib.instance.api.crateApiOrdersSubscribeOrders();
@@ -192,8 +197,10 @@ abstract class OrderBook implements RustOpaqueInterface {
   /// Update the status of an existing cached order and notify listeners.
   ///
   /// No-op when the order is not in the cache (e.g. already removed).
-  Future<void> updateOrderStatus(
-      {required String orderId, required OrderStatus status});
+  Future<void> updateOrderStatus({
+    required String orderId,
+    required OrderStatus status,
+  });
 
   /// Insert or update a single order and notify listeners.
   Future<void> upsertOrder({required OrderInfo order});
@@ -220,11 +227,7 @@ class OrderFilters {
   final String? fiatCode;
   final String? paymentMethod;
 
-  const OrderFilters({
-    this.kind,
-    this.fiatCode,
-    this.paymentMethod,
-  });
+  const OrderFilters({this.kind, this.fiatCode, this.paymentMethod});
 
   static Future<OrderFilters> default_() =>
       RustLib.instance.api.crateApiOrdersOrderFiltersDefault();
