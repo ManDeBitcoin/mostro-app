@@ -43,6 +43,7 @@ class AccountScreen extends ConsumerStatefulWidget {
     @visibleForTesting this.debugPublicKey,
     @visibleForTesting this.debugRegenerate,
     @visibleForTesting this.debugImport,
+    @visibleForTesting this.debugImportNsec,
     @visibleForTesting this.debugRecover,
     @visibleForTesting this.debugFundsAtRisk,
     @visibleForTesting this.debugRestoreRun,
@@ -61,6 +62,7 @@ class AccountScreen extends ConsumerStatefulWidget {
   /// bridge-backed ones. Never set in production.
   final Future<void> Function()? debugRegenerate;
   final Future<void> Function(List<String> words)? debugImport;
+  final Future<void> Function(String nsec)? debugImportNsec;
   final Future<RecoveryOutcome> Function()? debugRecover;
   final Future<List<FundsAtRisk>> Function()? debugFundsAtRisk;
 
@@ -96,10 +98,9 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
 
   Future<void> _loadPublicKey() async {
     try {
-      final key =
-          widget.debugPublicKey != null
-              ? await widget.debugPublicKey!()
-              : (await identity_api.getIdentity())?.publicKey;
+      final key = widget.debugPublicKey != null
+          ? await widget.debugPublicKey!()
+          : (await identity_api.getIdentity())?.publicKey;
       if (!mounted) return;
       setState(() => _publicKey = key);
     } catch (e) {
@@ -180,8 +181,8 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       appBar: redesignAppBar(
         context,
         title: l10n.accountScreenTitle,
-        onBack:
-            () => context.canPop() ? context.pop() : context.go(AppRoute.home),
+        onBack: () =>
+            context.canPop() ? context.pop() : context.go(AppRoute.home),
       ),
       // #267: SafeArea keeps the Import/Refresh row clear of the system
       // navigation bar.
@@ -212,29 +213,25 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   _BackupBanner(onTap: () => showBackupTriggerSheet(context)),
                 _PrivacyCard(
                   privacyMode: privacyMode,
-                  onSelect:
-                      (enabled) => ref
-                          .read(privacyModeProvider.notifier)
-                          .setPrivacyMode(enabled),
-                  onInfo:
-                      () => _showInfoDialog(
-                        context,
-                        l10n.privacyModesInfoTitle,
-                        l10n.privacyModesInfoContent,
-                      ),
+                  onSelect: (enabled) => ref
+                      .read(privacyModeProvider.notifier)
+                      .setPrivacyMode(enabled),
+                  onInfo: () => _showInfoDialog(
+                    context,
+                    l10n.privacyModesInfoTitle,
+                    l10n.privacyModesInfoContent,
+                  ),
                 ),
               ],
               footer: _AccountActions(
-                onGenerate:
-                    () => _guardedIdentitySwap(
-                      context,
-                      () => _confirmGenerateNewUser(context),
-                    ),
-                onImport:
-                    () => _guardedIdentitySwap(
-                      context,
-                      () => _showImportDialog(context),
-                    ),
+                onGenerate: () => _guardedIdentitySwap(
+                  context,
+                  () => _confirmGenerateNewUser(context),
+                ),
+                onImport: () => _guardedIdentitySwap(
+                  context,
+                  () => _showImportDialog(context),
+                ),
                 onRefresh: () => _confirmRefresh(context),
               ),
             ),
@@ -257,15 +254,14 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   void _showInfoDialog(BuildContext context, String title, String content) {
     showMostroDialog<void>(
       context: context,
-      builder:
-          (dialogContext) => MostroDialog(
-            title: title,
-            body: content,
-            primary: ModalAction(
-              label: AppLocalizations.of(context).okButtonLabel,
-              onPressed: () => Navigator.pop(dialogContext),
-            ),
-          ),
+      builder: (dialogContext) => MostroDialog(
+        title: title,
+        body: content,
+        primary: ModalAction(
+          label: AppLocalizations.of(context).okButtonLabel,
+          onPressed: () => Navigator.pop(dialogContext),
+        ),
+      ),
     );
   }
 
@@ -298,10 +294,9 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     final reminder = swap.container.read(backupReminderProvider.notifier);
     final completed = swap.container.read(backupCompletedProvider.notifier);
 
-    final writes =
-        alreadyBackedUp
-            ? [reminder.markAlreadyBackedUp, completed.markCompleted]
-            : [reminder.showBackupReminder, completed.reset];
+    final writes = alreadyBackedUp
+        ? [reminder.markAlreadyBackedUp, completed.markCompleted]
+        : [reminder.showBackupReminder, completed.reset];
 
     var resetFailed = false;
     for (final write in writes) {
@@ -335,8 +330,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     var risks = const <FundsAtRisk>[];
     try {
       risks =
-          await (widget.debugFundsAtRisk?.call() ??
-              identity_api.fundsAtRisk());
+          await (widget.debugFundsAtRisk?.call() ?? identity_api.fundsAtRisk());
     } catch (e) {
       debugPrint('[account] fundsAtRisk error: $e');
     }
@@ -371,66 +365,73 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     final l10n = AppLocalizations.of(context);
     showMostroDialog<void>(
       context: context,
-      builder:
-          (dialogContext) => MostroDialog(
-            title: l10n.generateNewUserDialogTitle,
-            body: l10n.generateNewUserDialogContent,
-            secondary: ModalAction(
-              label: l10n.cancel,
-              onPressed: () => Navigator.pop(dialogContext),
-              automationId: AutomationIds.keysGenerateCancel,
-            ),
-            primary: ModalAction(
-              label: l10n.continueButtonLabel,
-              tone: ModalTone.destructive,
-              automationId: AutomationIds.keysGenerateConfirm,
-              onPressed: () async {
-                  final swap = _IdentitySwap.of(context);
-                  Navigator.pop(dialogContext);
-                  try {
-                    // Atomically replaces the stored identity: new mnemonic is
-                    // written before old data is cleared, so there is no window
-                    // where the user is left without a valid identity.
-                    await (widget.debugRegenerate?.call() ??
-                        IdentityService.regenerate());
-                  } catch (e) {
-                    debugPrint('[account] generateNewUser error: $e');
-                    swap.messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          kDebugMode
-                              ? 'Failed to generate identity: $e'
-                              : swap.l10n.failedToGenerateIdentityMessage,
-                        ),
-                      ),
-                    );
-                    return;
-                  }
-                  // Only reset and navigate once the new identity exists.
-                  await _forgetPreviousIdentity(swap);
-                  await _finishIdentitySwap(swap, alreadyBackedUp: false);
-              },
-            ),
-          ),
+      builder: (dialogContext) => MostroDialog(
+        title: l10n.generateNewUserDialogTitle,
+        body: l10n.generateNewUserDialogContent,
+        secondary: ModalAction(
+          label: l10n.cancel,
+          onPressed: () => Navigator.pop(dialogContext),
+          automationId: AutomationIds.keysGenerateCancel,
+        ),
+        primary: ModalAction(
+          label: l10n.continueButtonLabel,
+          tone: ModalTone.destructive,
+          automationId: AutomationIds.keysGenerateConfirm,
+          onPressed: () async {
+            final swap = _IdentitySwap.of(context);
+            Navigator.pop(dialogContext);
+            try {
+              // Atomically replaces the stored identity: new mnemonic is
+              // written before old data is cleared, so there is no window
+              // where the user is left without a valid identity.
+              await (widget.debugRegenerate?.call() ??
+                  IdentityService.regenerate());
+            } catch (e) {
+              debugPrint('[account] generateNewUser error: $e');
+              swap.messenger.showSnackBar(
+                SnackBar(
+                  content: Text(
+                    kDebugMode
+                        ? 'Failed to generate identity: $e'
+                        : swap.l10n.failedToGenerateIdentityMessage,
+                  ),
+                ),
+              );
+              return;
+            }
+            // Only reset and navigate once the new identity exists.
+            await _forgetPreviousIdentity(swap);
+            await _finishIdentitySwap(swap, alreadyBackedUp: false);
+          },
+        ),
+      ),
     );
   }
 
   void _showImportDialog(BuildContext context) {
     showMostroDialog<void>(
       context: context,
-      builder:
-          (dialogContext) => _ImportMnemonicDialog(
-            onImport: (words) => _importIdentity(context, words),
-          ),
+      builder: (dialogContext) => _ImportMnemonicDialog(
+        onImport: (input) => _importIdentity(context, input),
+      ),
     );
   }
 
-  Future<void> _importIdentity(BuildContext context, List<String> words) async {
+  Future<void> _importIdentity(BuildContext context, String input) async {
     final swap = _IdentitySwap.of(context);
     final l10n = swap.l10n;
     try {
-      await (widget.debugImport?.call(words) ??
-          IdentityService.importAndStore(words));
+      if (input.startsWith('nsec1')) {
+        await (widget.debugImportNsec?.call(input) ??
+            IdentityService.importNsecAndStore(input));
+      } else {
+        final words = input
+            .split(RegExp(r'\s+'))
+            .where((w) => w.isNotEmpty)
+            .toList();
+        await (widget.debugImport?.call(words) ??
+            IdentityService.importAndStore(words));
+      }
     } catch (e) {
       debugPrint('[account] importIdentity error: $e');
       swap.messenger.showSnackBar(
@@ -447,8 +448,11 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     await _forgetPreviousIdentity(swap);
     // A seed that already traded must learn its trades and trade index from
     // the daemon before its first new order (InvalidTradeIndex otherwise).
-    await _restoreOrders(swap);
-    // The user restored from words they already had: nothing to back up.
+    // An nsec identity has no child trade-key derivation on the daemon to restore.
+    if (!input.startsWith('nsec1')) {
+      await _restoreOrders(swap);
+    }
+    // The user restored from words or key they already had: nothing to back up.
     await _finishIdentitySwap(swap, alreadyBackedUp: true);
   }
 
@@ -523,49 +527,48 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     final l10n = AppLocalizations.of(context);
     showMostroDialog<void>(
       context: context,
-      builder:
-          (dialogContext) => MostroDialog(
-            title: l10n.refreshUserDialogTitle,
-            body: l10n.refreshUserDialogContent,
-            secondary: ModalAction(
-              label: l10n.cancel,
-              onPressed: () => Navigator.pop(dialogContext),
-            ),
-            primary: ModalAction(
-              label: l10n.refreshButtonLabel,
-              onPressed: () async {
-                  Navigator.pop(dialogContext);
-                  try {
-                    await (widget.debugRestartOrders?.call() ??
-                        orders_api.restartOrdersSubscription());
-                    // `Actualizar` promises the account's trades too, and the
-                    // failed restore (20c) sends the user here to retry: the
-                    // same restore sheet, unless privacy mode has no account
-                    // on the node to restore.
-                    if (await _refreshRestores() && mounted) {
-                      await _openRestoreSheet();
-                      return;
-                    }
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(l10n.orderBookRefreshedMessage)),
-                    );
-                  } catch (e) {
-                    debugPrint('[account] refresh error: $e');
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          kDebugMode
-                              ? 'Refresh failed: $e'
-                              : l10n.refreshFailedMessage,
-                        ),
-                      ),
-                    );
-                  }
-              },
-            ),
-          ),
+      builder: (dialogContext) => MostroDialog(
+        title: l10n.refreshUserDialogTitle,
+        body: l10n.refreshUserDialogContent,
+        secondary: ModalAction(
+          label: l10n.cancel,
+          onPressed: () => Navigator.pop(dialogContext),
+        ),
+        primary: ModalAction(
+          label: l10n.refreshButtonLabel,
+          onPressed: () async {
+            Navigator.pop(dialogContext);
+            try {
+              await (widget.debugRestartOrders?.call() ??
+                  orders_api.restartOrdersSubscription());
+              // `Actualizar` promises the account's trades too, and the
+              // failed restore (20c) sends the user here to retry: the
+              // same restore sheet, unless privacy mode has no account
+              // on the node to restore.
+              if (await _refreshRestores() && mounted) {
+                await _openRestoreSheet();
+                return;
+              }
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(l10n.orderBookRefreshedMessage)),
+              );
+            } catch (e) {
+              debugPrint('[account] refresh error: $e');
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    kDebugMode
+                        ? 'Refresh failed: $e'
+                        : l10n.refreshFailedMessage,
+                  ),
+                ),
+              );
+            }
+          },
+        ),
+      ),
     );
   }
 }
@@ -932,17 +935,16 @@ class _PrivacyOption extends StatelessWidget {
                 ),
               ),
               alignment: Alignment.center,
-              child:
-                  selected
-                      ? Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: pal.accent,
-                          shape: BoxShape.circle,
-                        ),
-                      )
-                      : null,
+              child: selected
+                  ? Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: pal.accent,
+                        shape: BoxShape.circle,
+                      ),
+                    )
+                  : null,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -1117,7 +1119,7 @@ class _CardHeader extends StatelessWidget {
 class _ImportMnemonicDialog extends StatefulWidget {
   const _ImportMnemonicDialog({required this.onImport});
 
-  final void Function(List<String> words) onImport;
+  final void Function(String input) onImport;
 
   @override
   State<_ImportMnemonicDialog> createState() => _ImportMnemonicDialogState();
@@ -1134,12 +1136,23 @@ class _ImportMnemonicDialogState extends State<_ImportMnemonicDialog> {
   }
 
   void _submit() {
-    final words =
-        _controller.text
-            .trim()
-            .split(RegExp(r'\s+'))
-            .where((w) => w.isNotEmpty)
-            .toList();
+    final text = _controller.text.trim();
+    if (text.startsWith('nsec1')) {
+      if (text.length < 50) {
+        setState(
+          () => _error = AppLocalizations.of(context).enterValidMnemonicError,
+        );
+        return;
+      }
+      Navigator.pop(context);
+      widget.onImport(text);
+      return;
+    }
+
+    final words = text
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
     final validLength = words.length == 12 || words.length == 24;
     final validWords = words.every((w) => RegExp(r'^[a-zA-Z]+$').hasMatch(w));
     if (!validLength || !validWords) {
@@ -1149,7 +1162,7 @@ class _ImportMnemonicDialogState extends State<_ImportMnemonicDialog> {
       return;
     }
     Navigator.pop(context);
-    widget.onImport(words);
+    widget.onImport(text);
   }
 
   @override

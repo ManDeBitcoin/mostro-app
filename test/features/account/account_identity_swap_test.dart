@@ -42,6 +42,7 @@ Future<ProviderContainer> _pumpAccount(
   required bool backedUp,
   Future<void> Function()? onRegenerate,
   Future<void> Function(List<String> words)? onImport,
+  Future<void> Function(String nsec)? onImportNsec,
   Future<RecoveryOutcome> Function(ProviderContainer container)? onRecover,
   Future<List<FundsAtRisk>> Function()? fundsAtRisk,
   bool privacyMode = false,
@@ -82,36 +83,34 @@ Future<ProviderContainer> _pumpAccount(
       ),
       GoRoute(
         path: AppRoute.keyManagement,
-        builder:
-            (_, __) => AccountScreen(
-              debugWords: _seed.split(' '),
-              debugPublicKey: () async => null,
-              debugRegenerate: onRegenerate ?? () async {},
-              debugImport: onImport ?? (_) async {},
-              debugFundsAtRisk: fundsAtRisk ?? () async => const [],
-              debugRecover:
-                  () async =>
-                      await onRecover?.call(container) ??
-                      const RecoveryOutcome.skipped(),
-              debugPrivacyMode: () async {
-                if (privacyError != null) throw privacyError;
-                return privacyMode;
-              },
-              debugRestartOrders: () async {},
-              // The restore sheet runs the same recovery: its count on
-              // success, an error when it failed.
-              debugRestoreRun:
-                  () => RestoreRun(
-                    progress: () async => const Stream.empty(),
-                    recover: () async {
-                      final outcome = await onRecover?.call(container);
-                      if (outcome?.isFailed ?? false) {
-                        throw StateError('NoDaemonResponse');
-                      }
-                      return outcome?.count ?? 0;
-                    },
-                  ),
-            ),
+        builder: (_, __) => AccountScreen(
+          debugWords: _seed.split(' '),
+          debugPublicKey: () async => null,
+          debugRegenerate: onRegenerate ?? () async {},
+          debugImport: onImport ?? (_) async {},
+          debugImportNsec: onImportNsec,
+          debugFundsAtRisk: fundsAtRisk ?? () async => const [],
+          debugRecover: () async =>
+              await onRecover?.call(container) ??
+              const RecoveryOutcome.skipped(),
+          debugPrivacyMode: () async {
+            if (privacyError != null) throw privacyError;
+            return privacyMode;
+          },
+          debugRestartOrders: () async {},
+          // The restore sheet runs the same recovery: its count on
+          // success, an error when it failed.
+          debugRestoreRun: () => RestoreRun(
+            progress: () async => const Stream.empty(),
+            recover: () async {
+              final outcome = await onRecover?.call(container);
+              if (outcome?.isFailed ?? false) {
+                throw StateError('NoDaemonResponse');
+              }
+              return outcome?.count ?? 0;
+            },
+          ),
+        ),
       ),
     ],
   );
@@ -153,6 +152,19 @@ Future<void> _submitImport(WidgetTester tester, AppLocalizations l10n) async {
   await tester.tap(find.bySemanticsIdentifier(AutomationIds.keysImport));
   await tester.pumpAndSettle();
   await tester.enterText(find.byType(TextField), _seed);
+  await tester.tap(find.widgetWithText(FilledButton, l10n.importButtonLabel));
+  await tester.pumpAndSettle();
+}
+
+/// Import an nsec key.
+Future<void> _submitImportNsec(
+  WidgetTester tester,
+  AppLocalizations l10n,
+  String nsec,
+) async {
+  await tester.tap(find.bySemanticsIdentifier(AutomationIds.keysImport));
+  await tester.pumpAndSettle();
+  await tester.enterText(find.byType(TextField), nsec);
   await tester.tap(find.widgetWithText(FilledButton, l10n.importButtonLabel));
   await tester.pumpAndSettle();
 }
@@ -663,5 +675,48 @@ void main() {
       expect(prefs.getBool(kBackupReminderDismissedKey), isFalse);
       expect(prefs.getBool(kBackupCompletedKey), isFalse);
     });
+  });
+
+  group('importing an nsec identity', () {
+    const validNsec =
+        'nsec1vl029mgpspedva04g90vltkh6fvh240eqtv9xx0q2knsq6egvdtq9fv0wm';
+
+    testWidgets('rejects an nsec key that is too short', (tester) async {
+      var imported = false;
+      await _pumpAccount(
+        tester,
+        reminderArmed: true,
+        backedUp: false,
+        onImportNsec: (_) async => imported = true,
+      );
+
+      await _submitImportNsec(tester, l10n, 'nsec1short');
+
+      expect(imported, isFalse);
+      expect(find.text(l10n.enterValidMnemonicError), findsOneWidget);
+    });
+
+    testWidgets(
+      'imports valid nsec, forgets previous identity, and marks backed up',
+      (tester) async {
+        String? importedNsec;
+        final container = await _pumpAccount(
+          tester,
+          reminderArmed: true,
+          backedUp: false,
+          onImportNsec: (nsec) async => importedNsec = nsec,
+        );
+        await _seedPreviousUser(container);
+
+        await _submitImportNsec(tester, l10n, validNsec);
+
+        expect(importedNsec, validNsec);
+        expect(container.read(notificationsProvider), isEmpty);
+        expect(container.read(tradeRoleProvider), isEmpty);
+        expect(container.read(chatReadStatusProvider), isEmpty);
+        expect(container.read(backupReminderProvider), isFalse);
+        expect(container.read(backupCompletedProvider), isTrue);
+      },
+    );
   });
 }

@@ -168,6 +168,26 @@ class IdentityService {
     }
   }
 
+  /// Import an identity from an nsec key and persist it.
+  ///
+  /// Replaces any currently loaded identity.
+  static Future<void> importNsecAndStore(String nsec) async {
+    await identity_api.deleteIdentity();
+    await identity_api.importFromNsec(nsec: nsec);
+
+    await _storage.write(key: _kMnemonic, value: nsec);
+    await Future.wait([
+      _storage.write(key: _kTradeKeyIndex, value: '0'),
+      _storage.write(key: _kPrivacyMode, value: 'false'),
+      _storage.write(
+        key: _kCreatedAt,
+        value: DateTime.now().millisecondsSinceEpoch.toString(),
+      ),
+    ]);
+
+    debugPrint('[identity] identity imported from nsec');
+  }
+
   /// Import an identity from a BIP-39 mnemonic phrase and persist it.
   ///
   /// Replaces any currently loaded identity. Throws if [words] is not a valid
@@ -318,6 +338,14 @@ class IdentityService {
 
   static Future<void> _loadIntoCore(StoredIdentity stored) async {
     final createdAt = stored.createdAtMillis;
+    if (stored.words.length == 1 && stored.words.first.startsWith('nsec1')) {
+      final info = await identity_api.importFromNsec(nsec: stored.words.first);
+      debugPrint(
+        '[identity] identity loaded from nsec — pubkey=${info.publicKey}',
+      );
+      return;
+    }
+
     final info = await identity_api.loadIdentityFromMnemonic(
       words: stored.words,
       tradeKeyIndex: stored.tradeKeyIndex,
