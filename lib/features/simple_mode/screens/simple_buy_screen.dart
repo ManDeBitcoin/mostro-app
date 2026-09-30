@@ -6,6 +6,7 @@ import 'package:mostro/features/home/providers/home_order_providers.dart';
 import 'package:mostro/features/order/providers/exchange_rate_provider.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
 import 'package:mostro/features/simple_mode/providers/community_provider.dart';
+import 'package:mostro/features/simple_mode/providers/simple_identity_provider.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_buy_confirm_sheet.dart';
 import 'package:mostro/shared/providers/peer_nym_provider.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
@@ -454,7 +455,16 @@ class _SellerOfferCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final nym = ref.watch(peerNymProvider(order.creatorPubkey)).valueOrNull;
+    final myPubkey = ref.watch(myPubkeyProvider).valueOrNull;
+    final isMyOrder =
+        order.isMine || (myPubkey != null && order.creatorPubkey == myPubkey);
+    final nym = isMyOrder && myPubkey != null
+        ? ref.watch(peerNymProvider(myPubkey)).valueOrNull
+        : ref.watch(peerNymProvider(order.creatorPubkey)).valueOrNull;
+
+    final displayName = isMyOrder
+        ? '${nym?.pseudonym ?? "Tú"} ${SimpleL10n.yourOffer(context)}'
+        : (nym?.pseudonym ?? (order.kind == 'sell' ? 'Vendedor' : 'Comprador'));
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -492,10 +502,7 @@ class _SellerOfferCard extends ConsumerWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              nym?.pseudonym ??
-                                  (order.kind == 'sell'
-                                      ? 'Vendedor'
-                                      : 'Comprador'),
+                              displayName,
                               style: TextStyle(
                                 color: pal.textTitle,
                                 fontWeight: FontWeight.bold,

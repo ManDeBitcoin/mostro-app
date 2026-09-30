@@ -6,87 +6,187 @@ import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/src/rust/api/types.dart';
 
 void main() {
-  testWidgets('SimpleTradeDetailView renders YA PAGUÉ for buyer in active state',
-      (tester) async {
-    tester.view.physicalSize = const Size(360, 1600);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+  testWidgets(
+    'SimpleTradeDetailView renders YA PAGUÉ for buyer in active state',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(
-          locale: Locale('es'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: SimpleTradeDetailView(
-            orderId: 'trade-test-1',
-            status: OrderStatus.active,
-            isBuyer: true,
-            fiatAmount: 50.0,
-            fiatCode: 'USD',
-            amountSats: 125000,
-            paymentMethod: 'Bancolombia',
-            paymentDetails: 'Cuenta de Ahorros 123-456-789',
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            locale: Locale('es'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: SimpleTradeDetailView(
+              orderId: 'trade-test-1',
+              status: OrderStatus.active,
+              isBuyer: true,
+              fiatAmount: 50.0,
+              fiatCode: 'USD',
+              amountSats: 125000,
+              paymentMethod: 'Bancolombia',
+              paymentDetails: 'Cuenta de Ahorros 123-456-789',
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    // Header and amount
-    expect(find.text('Compra de Bitcoin'), findsOneWidget);
-    expect(find.text('50.0 USD'), findsOneWidget);
-    expect(find.text('≈ 125000 sats'), findsOneWidget);
+      // Header and amount
+      expect(find.text('Compra de Bitcoin'), findsOneWidget);
+      expect(find.text('50.0 USD'), findsOneWidget);
+      expect(find.text('≈ 125000 sats'), findsOneWidget);
 
-    // Primary action
-    expect(find.text('YA PAGUÉ'), findsOneWidget);
+      // Primary action
+      expect(find.text('YA PAGUÉ'), findsOneWidget);
 
-    // Safety notice
-    expect(
+      // Safety notice
+      expect(
         find.text(
-            'Verifica cuidadosamente los datos antes de enviar el dinero. Tu Bitcoin estará protegido en custodia.'),
-        findsOneWidget);
+          'Verifica cuidadosamente los datos antes de enviar el dinero. Tu Bitcoin estará protegido en custodia.',
+        ),
+        findsOneWidget,
+      );
 
-    // Assistance button
-    expect(find.text('PEDIR AYUDA'), findsOneWidget);
-  });
+      // Assistance button
+      expect(find.text('PEDIR AYUDA'), findsOneWidget);
+    },
+  );
 
   testWidgets(
-      'SimpleTradeDetailView renders RECIBÍ EL DINERO for seller in fiatSent state',
-      (tester) async {
-    tester.view.physicalSize = const Size(360, 1600);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+    'SimpleTradeDetailView renders RECIBÍ EL DINERO for seller in fiatSent state',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(
-          locale: Locale('es'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: SimpleTradeDetailView(
-            orderId: 'trade-test-2',
-            status: OrderStatus.fiatSent,
-            isBuyer: false,
-            fiatAmount: 100.0,
-            fiatCode: 'USD',
-            amountSats: 250000,
-            paymentMethod: 'Zelle',
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            locale: Locale('es'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: SimpleTradeDetailView(
+              orderId: 'trade-test-2',
+              status: OrderStatus.fiatSent,
+              isBuyer: false,
+              fiatAmount: 100.0,
+              fiatCode: 'USD',
+              amountSats: 250000,
+              paymentMethod: 'Zelle',
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    // Header and title
-    expect(find.text('Venta de Bitcoin'), findsOneWidget);
-    expect(find.text('100.0 USD'), findsOneWidget);
+      // Header and title
+      expect(find.text('Venta de Bitcoin'), findsOneWidget);
+      expect(find.text('100.0 USD'), findsOneWidget);
 
-    // Primary action
-    expect(find.text('RECIBÍ EL DINERO'), findsOneWidget);
+      // Primary action
+      expect(find.text('RECIBÍ EL DINERO'), findsOneWidget);
 
-    // Safety notice for seller
-    expect(
+      // Safety notice for seller
+      expect(
         find.text(
-            'Confirma únicamente después de ver el dinero reflejado en tu propia cuenta bancaria. Esta acción no se puede deshacer.'),
-        findsOneWidget);
-  });
+          'Confirma únicamente después de ver el dinero reflejado en tu propia cuenta bancaria. Esta acción no se puede deshacer.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'SimpleTradeDetailView renders SUBIR FACTURA LIGHTNING for buyer in waitingBuyerInvoice state',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            locale: Locale('es'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: SimpleTradeDetailView(
+              orderId: 'trade-test-3',
+              status: OrderStatus.waitingBuyerInvoice,
+              isBuyer: true,
+              fiatAmount: 50.0,
+              fiatCode: 'USD',
+              amountSats: 125000,
+              paymentMethod: 'Bancolombia',
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('SUBIR FACTURA LIGHTNING'), findsOneWidget);
+      expect(find.text('Factura Lightning requerida'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'SimpleTradeDetailView renders PAGAR FACTURA DE CUSTODIA for seller in waitingPayment state',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            locale: Locale('es'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: SimpleTradeDetailView(
+              orderId: 'trade-test-4',
+              status: OrderStatus.waitingPayment,
+              isBuyer: false,
+              fiatAmount: 80.0,
+              fiatCode: 'USD',
+              amountSats: 200000,
+              paymentMethod: 'Transferencia',
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('PAGAR FACTURA DE CUSTODIA'), findsOneWidget);
+      expect(find.text('Depósito de custodia requerido'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'SimpleTradeDetailView renders PAGAR FIANZA DE GARANTÍA in waitingMakerBond state',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            locale: Locale('es'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: SimpleTradeDetailView(
+              orderId: 'trade-test-5',
+              status: OrderStatus.waitingMakerBond,
+              isBuyer: false,
+              fiatAmount: 100.0,
+              fiatCode: 'USD',
+              amountSats: 250000,
+              paymentMethod: 'Zelle',
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('PAGAR FIANZA DE GARANTÍA'), findsOneWidget);
+      expect(find.text('Depósito de fianza requerido'), findsOneWidget);
+    },
+  );
 }

@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:mostro/core/app_routes.dart';
 import 'package:mostro/core/order_book_palette.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
+import 'package:mostro/features/simple_mode/providers/simple_identity_provider.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart'
     show refreshTrades;
+import 'package:mostro/shared/widgets/nym_avatar.dart';
 import 'package:mostro/src/rust/api/orders.dart' as rust_orders;
 import 'package:mostro/src/rust/api/types.dart';
 
@@ -37,7 +39,8 @@ class SimpleSellConfirmSheet extends ConsumerStatefulWidget {
       _SimpleSellConfirmSheetState();
 }
 
-class _SimpleSellConfirmSheetState extends ConsumerState<SimpleSellConfirmSheet> {
+class _SimpleSellConfirmSheetState
+    extends ConsumerState<SimpleSellConfirmSheet> {
   bool _submitting = false;
   String? _errorMessage;
 
@@ -69,7 +72,7 @@ class _SimpleSellConfirmSheetState extends ConsumerState<SimpleSellConfirmSheet>
       if (order.status == OrderStatus.waitingMakerBond) {
         context.push(AppRoute.payBondPath(order.id));
       } else {
-        context.push(AppRoute.myOrderPath(order.id));
+        context.push(AppRoute.tradeDetailPath(order.id));
       }
     } catch (e) {
       if (!mounted) return;
@@ -84,6 +87,7 @@ class _SimpleSellConfirmSheetState extends ConsumerState<SimpleSellConfirmSheet>
   Widget build(BuildContext context) {
     final pal = OrderBookPalette.of(context);
     final theme = Theme.of(context);
+    final myNym = ref.watch(myNymProvider).valueOrNull;
 
     return SafeArea(
       child: Padding(
@@ -95,8 +99,7 @@ class _SimpleSellConfirmSheetState extends ConsumerState<SimpleSellConfirmSheet>
             // Title
             Row(
               children: [
-                Icon(Icons.arrow_upward_rounded,
-                    color: pal.limeText, size: 28),
+                Icon(Icons.arrow_upward_rounded, color: pal.limeText, size: 28),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -125,6 +128,39 @@ class _SimpleSellConfirmSheetState extends ConsumerState<SimpleSellConfirmSheet>
               ),
               child: Column(
                 children: [
+                  if (myNym != null) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          SimpleL10n.publishingAs(context),
+                          style: TextStyle(
+                            color: pal.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            NymAvatar(
+                              iconIndex: myNym.iconIndex,
+                              colorHue: myNym.colorHue,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              myNym.pseudonym,
+                              style: TextStyle(
+                                color: pal.limeText,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 20),
+                  ],
                   _buildRow(
                     label: 'Vas a vender',
                     value:
@@ -186,8 +222,7 @@ class _SimpleSellConfirmSheetState extends ConsumerState<SimpleSellConfirmSheet>
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.shield_outlined,
-                      color: pal.limeText, size: 20),
+                  Icon(Icons.shield_outlined, color: pal.limeText, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -263,10 +298,7 @@ class _SimpleSellConfirmSheetState extends ConsumerState<SimpleSellConfirmSheet>
           children: [
             Text(
               label,
-              style: TextStyle(
-                color: pal.textSecondary,
-                fontSize: 13,
-              ),
+              style: TextStyle(color: pal.textSecondary, fontSize: 13),
             ),
             Text(
               value,

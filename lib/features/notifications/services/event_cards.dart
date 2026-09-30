@@ -82,9 +82,13 @@ class EventCards {
     required String body,
     String? tag,
     String? orderId,
-  })? onNotificationAlert;
+  })?
+  onNotificationAlert;
 
   static String? _noDispute(String tradeId) => null;
+
+  /// Avoid duplicate OS alerts for the same order and status transition.
+  final Set<String> _alertedTradeKeys = {};
 
   Future<void> onTradeUpdate(TradeUpdate update) async {
     final event = tradeCardEvent(update.status);
@@ -101,9 +105,15 @@ class EventCards {
     );
     await notifications().addIfNew(model);
     if (onNotificationAlert != null) {
+      final alertKey = '${update.orderId}:${update.status.name}';
+      if (_alertedTradeKeys.contains(alertKey)) return;
+      _alertedTradeKeys.add(alertKey);
+
       if (!_isOrderOnScreen(update.orderId)) {
-        final (title, body) =
-            _tradeNotificationCopy(update.status, update.reason);
+        final (title, body) = _tradeNotificationCopy(
+          update.status,
+          update.reason,
+        );
         await onNotificationAlert!(
           title: title,
           body: body,
@@ -196,14 +206,12 @@ class EventCards {
         return NotificationModel.chatMessages(
           tradeId: message.tradeId,
           fromSolver: fromSolver,
-          count:
-              existing == null || existing.isRead
-                  ? 1
-                  : existing.chatUnreadCount + 1,
-          at:
-              existing != null && existing.timestamp.isAfter(at)
-                  ? existing.timestamp
-                  : at,
+          count: existing == null || existing.isRead
+              ? 1
+              : existing.chatUnreadCount + 1,
+          at: existing != null && existing.timestamp.isAfter(at)
+              ? existing.timestamp
+              : at,
         );
       },
     );
@@ -215,8 +223,9 @@ class EventCards {
       final shortId = message.tradeId.length > 8
           ? message.tradeId.substring(0, 8)
           : message.tradeId;
-      final title =
-          fromSolver ? 'Mostro: Mensaje de mediador' : 'Mostro: Nuevo mensaje';
+      final title = fromSolver
+          ? 'Mostro: Mensaje de mediador'
+          : 'Mostro: Nuevo mensaje';
       final body = 'Tienes un nuevo mensaje en la orden $shortId';
       await onNotificationAlert!(
         title: title,
