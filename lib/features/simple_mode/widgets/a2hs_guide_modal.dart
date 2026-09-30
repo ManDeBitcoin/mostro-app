@@ -39,7 +39,6 @@ class _A2hsGuideModalState extends State<A2hsGuideModal> {
   @override
   Widget build(BuildContext context) {
     final pal = OrderBookPalette.of(context);
-    final theme = Theme.of(context);
     final pwa = PwaService.instance;
 
     return MostroDialog(
@@ -242,6 +241,7 @@ class _A2hsGuideModalState extends State<A2hsGuideModal> {
                 if (context.mounted) {
                   if (granted) {
                     await PushNotificationService.instance.retryInitialize();
+                    if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('¡Notificaciones activadas con éxito!'),

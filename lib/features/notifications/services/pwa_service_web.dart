@@ -2,7 +2,7 @@ import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'package:flutter/foundation.dart';
 import 'package:web/web.dart' as web;
-import 'pwa_service.dart';
+import 'package:mostro/features/notifications/services/pwa_service.dart';
 
 PwaService getPwaService() => PwaServiceWeb();
 

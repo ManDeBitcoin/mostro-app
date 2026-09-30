@@ -1,4 +1,4 @@
-import 'pwa_service.dart';
+import 'package:mostro/features/notifications/services/pwa_service.dart';
 
 PwaService getPwaService() => PwaServiceStub();
 

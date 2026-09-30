@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'pwa_service_stub.dart' if (dart.library.js_interop) 'pwa_service_web.dart';
+import 'package:mostro/features/notifications/services/pwa_service_stub.dart'
+    if (dart.library.js_interop) 'package:mostro/features/notifications/services/pwa_service_web.dart';
 
 /// Platform-agnostic interface for Progressive Web App (PWA), Add to Home Screen (A2HS),
 /// and browser push capability checks.

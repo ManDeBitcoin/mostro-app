@@ -536,6 +536,7 @@ class SimpleProfileScreen extends ConsumerWidget {
                         if (context.mounted) {
                           if (ok) {
                             await PushNotificationService.instance.retryInitialize();
+                            if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('¡Notificaciones activadas con éxito!'),
