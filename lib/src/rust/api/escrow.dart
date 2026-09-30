@@ -7,12 +7,11 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
+// These functions are ignored because they are not marked as `pub`: `persist`, `snapshot`, `validate_mint_url`
 
-            // These functions are ignored because they are not marked as `pub`: `persist`, `snapshot`, `validate_mint_url`
-
-
-            /// The active node's settlement backend, overrides applied.
-Future<EscrowModeInfo>  getEscrowMode() => RustLib.instance.api.crateApiEscrowGetEscrowMode();
+/// The active node's settlement backend, overrides applied.
+Future<EscrowModeInfo> getEscrowMode() =>
+    RustLib.instance.api.crateApiEscrowGetEscrowMode();
 
 /// Force the client to treat the active node as running Cashu escrow, or go
 /// back to trusting the node's own tags.
@@ -20,14 +19,18 @@ Future<EscrowModeInfo>  getEscrowMode() => RustLib.instance.api.crateApiEscrowGe
 /// Developer affordance (§4.3): it exists to test against a daemon branch that
 /// implements Cashu without publishing the 38385 tags yet. The Flutter surface
 /// that calls it is `kDebugMode`-only, so release builds cannot reach it.
-Future<void>  setEscrowModeOverride({required bool forceCashu }) => RustLib.instance.api.crateApiEscrowSetEscrowModeOverride(forceCashu: forceCashu);
+Future<void> setEscrowModeOverride({required bool forceCashu}) => RustLib
+    .instance
+    .api
+    .crateApiEscrowSetEscrowModeOverride(forceCashu: forceCashu);
 
 /// Point Cashu at a specific mint instead of the one the node advertises.
 ///
 /// `None` (or a blank string) clears the override, restoring the node's value.
 ///
 /// **Errors**: `InvalidMintUrl` when the URL is not an `http(s)` URL with a host.
-Future<void>  setCashuMintUrlOverride({String? mintUrl }) => RustLib.instance.api.crateApiEscrowSetCashuMintUrlOverride(mintUrl: mintUrl);
+Future<void> setCashuMintUrlOverride({String? mintUrl}) => RustLib.instance.api
+    .crateApiEscrowSetCashuMintUrlOverride(mintUrl: mintUrl);
 
 /// Load the persisted overrides into memory.
 ///
@@ -35,23 +38,18 @@ Future<void>  setCashuMintUrlOverride({String? mintUrl }) => RustLib.instance.ap
 /// so the first capability fetch already resolves against the user's overrides.
 /// No-op when the DB is unavailable (the `Auto` default then applies, which
 /// keeps every Cashu path shut).
-Future<void>  rehydrateEscrowOverrides() => RustLib.instance.api.crateApiEscrowRehydrateEscrowOverrides();
+Future<void> rehydrateEscrowOverrides() =>
+    RustLib.instance.api.crateApiEscrowRehydrateEscrowOverrides();
 
 /// Subscribe to escrow-mode changes.
-Future<EscrowModeStream>  onEscrowModeChanged() => RustLib.instance.api.crateApiEscrowOnEscrowModeChanged();
+Future<EscrowModeStream> onEscrowModeChanged() =>
+    RustLib.instance.api.crateApiEscrowOnEscrowModeChanged();
 
-            
-                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EscrowModeStream>>
-                abstract class EscrowModeStream implements RustOpaqueInterface {
-                    /// Poll for the next escrow-mode-changed event.
-///
-/// A lagged receiver skips the dropped snapshots and continues: the value
-/// is a current-state snapshot, so only the latest one matters.
- Future<EscrowModeInfo>  next();
-
-
-
-                    
-                }
-                
-            
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EscrowModeStream>>
+abstract class EscrowModeStream implements RustOpaqueInterface {
+  /// Poll for the next escrow-mode-changed event.
+  ///
+  /// A lagged receiver skips the dropped snapshots and continues: the value
+  /// is a current-state snapshot, so only the latest one matters.
+  Future<EscrowModeInfo> next();
+}

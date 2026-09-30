@@ -7,12 +7,10 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
-
-            // These functions are ignored because they are not marked as `pub`: `new`, `notify`, `wallet_store`
+// These functions are ignored because they are not marked as `pub`: `new`, `notify`, `wallet_store`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `WalletStore`
 
-
-            /// Parse and connect a NWC wallet.
+/// Parse and connect a NWC wallet.
 ///
 /// **URI format**: `nostr+walletconnect://<pubkey>?relay=<url>&secret=<hex>`
 ///
@@ -20,25 +18,29 @@ import 'types.dart';
 /// connectivity, and stores the client in memory.
 ///
 /// **Errors**: `InvalidNwcUri`, `ConnectionFailed`.
-Future<NwcWalletInfo>  connectWallet({required String nwcUri }) => RustLib.instance.api.crateApiNwcConnectWallet(nwcUri: nwcUri);
+Future<NwcWalletInfo> connectWallet({required String nwcUri}) =>
+    RustLib.instance.api.crateApiNwcConnectWallet(nwcUri: nwcUri);
 
 /// Disconnect the current wallet and clear stored credentials.
 ///
 /// **Errors**: `NoWalletConnected`.
-Future<void>  disconnectWallet() => RustLib.instance.api.crateApiNwcDisconnectWallet();
+Future<void> disconnectWallet() =>
+    RustLib.instance.api.crateApiNwcDisconnectWallet();
 
 /// Return current wallet info, or `None` if no wallet is connected.
-Future<NwcWalletInfo?>  getWallet() => RustLib.instance.api.crateApiNwcGetWallet();
+Future<NwcWalletInfo?> getWallet() =>
+    RustLib.instance.api.crateApiNwcGetWallet();
 
 /// Query wallet balance in satoshis (live from the wallet, not cached).
 ///
 /// **Errors**: `NoWalletConnected`, `WalletError`.
-Future<BigInt?>  getBalance() => RustLib.instance.api.crateApiNwcGetBalance();
+Future<BigInt?> getBalance() => RustLib.instance.api.crateApiNwcGetBalance();
 
 /// Pay a BOLT-11 invoice via the connected NWC wallet.
 ///
 /// **Errors**: `NoWalletConnected`, `InvoiceInvalid`.
-Future<PaymentResult>  payInvoice({required String bolt11 }) => RustLib.instance.api.crateApiNwcPayInvoice(bolt11: bolt11);
+Future<PaymentResult> payInvoice({required String bolt11}) =>
+    RustLib.instance.api.crateApiNwcPayInvoice(bolt11: bolt11);
 
 /// Request the wallet to create a new Lightning invoice.
 ///
@@ -46,22 +48,20 @@ Future<PaymentResult>  payInvoice({required String bolt11 }) => RustLib.instance
 /// for the NIP-47 request).  Returns the BOLT-11 invoice string.
 ///
 /// **Errors**: `NoWalletConnected`, `WalletError`.
-Future<String>  makeInvoice({required BigInt amountSats , String? description }) => RustLib.instance.api.crateApiNwcMakeInvoice(amountSats: amountSats, description: description);
+Future<String> makeInvoice({required BigInt amountSats, String? description}) =>
+    RustLib.instance.api.crateApiNwcMakeInvoice(
+      amountSats: amountSats,
+      description: description,
+    );
 
 /// Subscribe to wallet status changes.
-Future<WalletStatusStream>  onWalletStatusChanged() => RustLib.instance.api.crateApiNwcOnWalletStatusChanged();
+Future<WalletStatusStream> onWalletStatusChanged() =>
+    RustLib.instance.api.crateApiNwcOnWalletStatusChanged();
 
-            
-                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<WalletStatusStream>>
-                abstract class WalletStatusStream implements RustOpaqueInterface {
-                    /// Poll for the next wallet status change.
-///
-/// `RecvError::Lagged` is handled gracefully.
- Future<NwcWalletInfo?>  next();
-
-
-
-                    
-                }
-                
-            
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<WalletStatusStream>>
+abstract class WalletStatusStream implements RustOpaqueInterface {
+  /// Poll for the next wallet status change.
+  ///
+  /// `RecvError::Lagged` is handled gracefully.
+  Future<NwcWalletInfo?> next();
+}

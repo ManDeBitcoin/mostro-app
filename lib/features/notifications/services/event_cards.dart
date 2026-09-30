@@ -56,6 +56,7 @@ class EventCards {
     required this.identityCreatedAt,
     required this.currentLocation,
     this.disputeIdForTrade = _noDispute,
+    this.onNotificationAlert,
   });
 
   final NotificationsNotifier Function() notifications;
@@ -74,6 +75,15 @@ class EventCards {
   /// solver message is skipped while that chat is on screen (PR #596).
   final String? Function(String tradeId) disputeIdForTrade;
 
+  /// Optional callback to alert the host system (local/web notification)
+  /// when an event arrives and the user is not actively on that screen.
+  final Future<void> Function({
+    required String title,
+    required String body,
+    String? tag,
+    String? orderId,
+  })? onNotificationAlert;
+
   static String? _noDispute(String tradeId) => null;
 
   Future<void> onTradeUpdate(TradeUpdate update) async {
@@ -83,15 +93,69 @@ class EventCards {
     if (!isEnabled(event)) return;
     final at = _secondsToDate(update.occurredAt);
     if (await _predatesIdentity(at)) return;
-    await notifications().addIfNew(
-      NotificationModel.tradeStatus(
-        orderId: update.orderId,
-        status: update.status.name,
-        reason: update.reason?.name,
-        at: at,
-      ),
+    final model = NotificationModel.tradeStatus(
+      orderId: update.orderId,
+      status: update.status.name,
+      reason: update.reason?.name,
+      at: at,
     );
+    await notifications().addIfNew(model);
+    if (onNotificationAlert != null) {
+      if (!_isOrderOnScreen(update.orderId)) {
+        final (title, body) =
+            _tradeNotificationCopy(update.status, update.reason);
+        await onNotificationAlert!(
+          title: title,
+          body: body,
+          tag: 'trade-${update.orderId}',
+          orderId: update.orderId,
+        );
+      }
+    }
   }
+
+  bool _isOrderOnScreen(String orderId) {
+    final location = currentLocation();
+    return location == AppRoute.tradeDetailPath(orderId);
+  }
+
+  static (String, String) _tradeNotificationCopy(
+    OrderStatus status,
+    TradeUpdateReason? reason,
+  ) => switch (status) {
+    OrderStatus.waitingPayment => (
+      'Mostro: Pago requerido',
+      'Se requiere realizar el pago para avanzar con la operación.',
+    ),
+    OrderStatus.waitingBuyerInvoice => (
+      'Mostro: Factura requerida',
+      'Ingresa tu dirección o factura Lightning para recibir los fondos.',
+    ),
+    OrderStatus.fiatSent => (
+      'Mostro: Pago fiat enviado',
+      'La contraparte indicó que ya envió el pago. Por favor verifica tu cuenta.',
+    ),
+    OrderStatus.settledHoldInvoice => (
+      'Mostro: Custodia asegurada',
+      'Los fondos en custodia están confirmados. La operación está activa.',
+    ),
+    OrderStatus.success => (
+      'Mostro: Operación completada',
+      '¡Los satoshis han sido liberados con éxito!',
+    ),
+    OrderStatus.dispute => (
+      'Mostro: Disputa abierta',
+      'Se ha iniciado una disputa en la orden. Un mediador intervendrá.',
+    ),
+    OrderStatus.canceled || OrderStatus.canceledByAdmin => (
+      'Mostro: Orden cancelada',
+      'La operación ha sido cancelada.',
+    ),
+    _ => (
+      'Mostro: Actualización de orden',
+      'Hay una nueva actualización en tu orden de intercambio.',
+    ),
+  };
 
   /// Whether the room a message belongs to is on screen: the P2P chat, or
   /// the dispute chat (under either of its routes) for the solver's.
@@ -143,6 +207,24 @@ class EventCards {
         );
       },
     );
+
+    if (!_isOnScreen(message.tradeId, fromSolver) &&
+        onNotificationAlert != null &&
+        isEnabled(NotificationEvent.newMessages) &&
+        !predatesIdentity) {
+      final shortId = message.tradeId.length > 8
+          ? message.tradeId.substring(0, 8)
+          : message.tradeId;
+      final title =
+          fromSolver ? 'Mostro: Mensaje de mediador' : 'Mostro: Nuevo mensaje';
+      final body = 'Tienes un nuevo mensaje en la orden $shortId';
+      await onNotificationAlert!(
+        title: title,
+        body: body,
+        tag: 'chat-${message.tradeId}',
+        orderId: message.tradeId,
+      );
+    }
   }
 
   Future<bool> _predatesIdentity(DateTime at) async {

@@ -16,6 +16,8 @@ import 'package:mostro/features/trades/models/trades_list_rules.dart'
 import 'package:mostro/features/trades/widgets/trade_card.dart'
     show relativeTimeLabel;
 import 'package:mostro/l10n/app_localizations.dart';
+import 'package:mostro/features/notifications/services/pwa_service.dart';
+import 'package:mostro/features/simple_mode/widgets/a2hs_guide_modal.dart';
 import 'package:mostro/shared/widgets/redesign_app_bar.dart';
 
 /// Push notifications — handoff 10d.
@@ -290,26 +292,45 @@ class _UnsupportedPlatformRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final book = OrderBookPalette.of(context);
+    final pwa = PwaService.instance;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.notifications_off_outlined,
-            size: 17,
-            color: book.textTertiary,
+          Row(
+            children: [
+              Icon(
+                Icons.notifications_off_outlined,
+                size: 17,
+                color: book.textTertiary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  l10n.pushUnsupportedPlatform,
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.4,
+                    color: book.textSecondary,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              l10n.pushUnsupportedPlatform,
-              style: TextStyle(
-                fontSize: 12,
-                height: 1.4,
-                color: book.textSecondary,
+          if (pwa.isWeb && !pwa.isStandalone) ...[
+            const SizedBox(height: 10),
+            TextButton.icon(
+              onPressed: () => A2hsGuideModal.show(context),
+              icon: const Icon(Icons.add_to_home_screen_rounded, size: 16),
+              label: const Text('Cómo agregar a inicio (PWA)'),
+              style: TextButton.styleFrom(
+                foregroundColor: book.limeIcon,
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
               ),
             ),
-          ),
+          ],
         ],
       ),
     );

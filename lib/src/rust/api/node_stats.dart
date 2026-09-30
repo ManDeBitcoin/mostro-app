@@ -7,13 +7,11 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
-
-            // These functions are ignored because they are not marked as `pub`: `apply_info_tags`, `apply_order_counts`, `count_open_orders`, `dedup_latest`, `empty`, `fraction_to_pct`, `is_open`, `load_info_cache`, `merge_info`, `newest_info`, `normalize_pubkeys`, `parse_accepted_currencies`, `parse_authors`, `parse_u64`, `rows_from_cache`, `store_info_best_effort`, `store_info`, `summarize`, `supersedes`, `supersedes`, `tag_value`
+// These functions are ignored because they are not marked as `pub`: `apply_info_tags`, `apply_order_counts`, `count_open_orders`, `dedup_latest`, `empty`, `fraction_to_pct`, `is_open`, `load_info_cache`, `merge_info`, `newest_info`, `normalize_pubkeys`, `parse_accepted_currencies`, `parse_authors`, `parse_u64`, `rows_from_cache`, `store_info_best_effort`, `store_info`, `summarize`, `supersedes`, `supersedes`, `tag_value`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CachedNodeInfo`, `Revision`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`
 
-
-            /// What the selector shows the moment it opens: one row per requested pubkey
+/// What the selector shows the moment it opens: one row per requested pubkey
 /// (64-char hex), in request order, built from the persisted kind 38385 cache
 /// alone — no relay is asked. A node never seen comes back as an empty row.
 ///
@@ -21,7 +19,11 @@ import 'types.dart';
 /// `latest_order_at == None` regardless of the node's real book) and
 /// `info_seen_at` is as old as the cache: never derive liquidity or
 /// availability from them. [`fetch_mostro_node_stats`] supplies both.
-Future<List<MostroNodeStats>>  cachedMostroNodeStats({required List<String> pubkeys }) => RustLib.instance.api.crateApiNodeStatsCachedMostroNodeStats(pubkeys: pubkeys);
+Future<List<MostroNodeStats>> cachedMostroNodeStats({
+  required List<String> pubkeys,
+}) => RustLib.instance.api.crateApiNodeStatsCachedMostroNodeStats(
+  pubkeys: pubkeys,
+);
 
 /// Download the kind 38385 event of every node in the registry (trusted and
 /// user-added) and persist the newest per node. Called once at startup, in
@@ -31,7 +33,8 @@ Future<List<MostroNodeStats>>  cachedMostroNodeStats({required List<String> pubk
 /// Best-effort: nodes that did not answer within the window keep their cached
 /// event. Only an outright query failure is an error, and then the cache is
 /// untouched.
-Future<void>  refreshMostroNodeInfoCache() => RustLib.instance.api.crateApiNodeStatsRefreshMostroNodeInfoCache();
+Future<void> refreshMostroNodeInfoCache() =>
+    RustLib.instance.api.crateApiNodeStatsRefreshMostroNodeInfoCache();
 
 /// Fetch decision data for every node in `pubkeys` (64-char hex) with three
 /// relay queries — their kind 38385 instance events, their `pending` kind
@@ -52,90 +55,133 @@ Future<void>  refreshMostroNodeInfoCache() => RustLib.instance.api.crateApiNodeS
 ///
 /// The kind 38385 events it received refresh the persisted cache behind
 /// [`cached_mostro_node_stats`] (best effort, written only on a change).
-Future<List<MostroNodeStats>>  fetchMostroNodeStats({required List<String> pubkeys }) => RustLib.instance.api.crateApiNodeStatsFetchMostroNodeStats(pubkeys: pubkeys);
+Future<List<MostroNodeStats>> fetchMostroNodeStats({
+  required List<String> pubkeys,
+}) => RustLib.instance.api.crateApiNodeStatsFetchMostroNodeStats(
+  pubkeys: pubkeys,
+);
 
-            /// Open orders of one fiat currency on one node.
-class FiatOrderCount  {
-                /// ISO 4217 code as published in the `f` tag, upper-cased.
-final String fiatCode;
-final int count;
+/// Open orders of one fiat currency on one node.
+class FiatOrderCount {
+  /// ISO 4217 code as published in the `f` tag, upper-cased.
+  final String fiatCode;
+  final int count;
 
-                const FiatOrderCount({required this.fiatCode ,required this.count ,});
+  const FiatOrderCount({required this.fiatCode, required this.count});
 
-                
-                
+  @override
+  int get hashCode => fiatCode.hashCode ^ count.hashCode;
 
-                
-        @override
-        int get hashCode => fiatCode.hashCode^count.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is FiatOrderCount &&
-                runtimeType == other.runtimeType
-                && fiatCode == other.fiatCode&& count == other.count;
-        
-            }
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FiatOrderCount &&
+          runtimeType == other.runtimeType &&
+          fiatCode == other.fiatCode &&
+          count == other.count;
+}
 
 /// What the selector shows for one node. Every field is optional on purpose:
 /// a missing tag renders as `—` in the UI, never as an invented value.
-class MostroNodeStats  {
-                /// Node pubkey, 64-char lowercase hex.
-final String pubkey;
-/// `created_at` of the node's kind 38385 event, `None` when none was
-/// found. The daemon republishes it periodically, so it doubles as a
-/// liveness signal.
-final PlatformInt64? infoSeenAt;
-/// `created_at` of the newest pending order, `None` when there are none.
-final PlatformInt64? latestOrderAt;
-/// Fee the node charges, **in percent** (`0.6` = 0.6 %). The wire `fee`
-/// tag is a fraction (`0.006`); converted here so Dart never divides.
-final double? feePct;
-final BigInt? minOrderAmount;
-final BigInt? maxOrderAmount;
-/// `fiat_currencies_accepted`, split on commas, trimmed, upper-cased,
-/// deduplicated, in the node's order. Empty when the tag is absent.
-final List<String> acceptedCurrencies;
-/// Stable marker: `unknown` / `lightning` / `cashu`
-/// (see [`escrow_mode::EscrowMode::as_marker`]).
-final String escrowMode;
-/// Mint the node pins for Cashu escrow; only set when the mode is Cashu.
-final String? cashuMintUrl;
-/// The node's full anti-abuse bond policy (`docs/ANTI_ABUSE_BOND.md`
-/// §3.4): three-state, with every parameter gated on `Enabled`.
-final BondPolicyInfo bond;
-/// `bond_enabled` tag: `Some(true)` when the node requires a bond,
-/// `Some(false)` when it explicitly does not, `None` when the daemon
-/// predates bonds. Derived from [`Self::bond`] for the node card.
-final bool? bondRequired;
-/// `bond_amount_pct`, **in percent**; only set when `bond_required` is
-/// `Some(true)`. Derived from [`Self::bond`] for the node card.
-final double? bondPct;
-/// Pending orders per fiat currency, sorted by code.
-final List<FiatOrderCount> ordersByFiat;
-/// Sum of [`Self::orders_by_fiat`].
-final int totalOrders;
+class MostroNodeStats {
+  /// Node pubkey, 64-char lowercase hex.
+  final String pubkey;
 
-                const MostroNodeStats({required this.pubkey ,this.infoSeenAt ,this.latestOrderAt ,this.feePct ,this.minOrderAmount ,this.maxOrderAmount ,required this.acceptedCurrencies ,required this.escrowMode ,this.cashuMintUrl ,required this.bond ,this.bondRequired ,this.bondPct ,required this.ordersByFiat ,required this.totalOrders ,});
+  /// `created_at` of the node's kind 38385 event, `None` when none was
+  /// found. The daemon republishes it periodically, so it doubles as a
+  /// liveness signal.
+  final PlatformInt64? infoSeenAt;
 
-                
-                
+  /// `created_at` of the newest pending order, `None` when there are none.
+  final PlatformInt64? latestOrderAt;
 
-                
-        @override
-        int get hashCode => pubkey.hashCode^infoSeenAt.hashCode^latestOrderAt.hashCode^feePct.hashCode^minOrderAmount.hashCode^maxOrderAmount.hashCode^acceptedCurrencies.hashCode^escrowMode.hashCode^cashuMintUrl.hashCode^bond.hashCode^bondRequired.hashCode^bondPct.hashCode^ordersByFiat.hashCode^totalOrders.hashCode;
-        
+  /// Fee the node charges, **in percent** (`0.6` = 0.6 %). The wire `fee`
+  /// tag is a fraction (`0.006`); converted here so Dart never divides.
+  final double? feePct;
+  final BigInt? minOrderAmount;
+  final BigInt? maxOrderAmount;
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is MostroNodeStats &&
-                runtimeType == other.runtimeType
-                && pubkey == other.pubkey&& infoSeenAt == other.infoSeenAt&& latestOrderAt == other.latestOrderAt&& feePct == other.feePct&& minOrderAmount == other.minOrderAmount&& maxOrderAmount == other.maxOrderAmount&& acceptedCurrencies == other.acceptedCurrencies&& escrowMode == other.escrowMode&& cashuMintUrl == other.cashuMintUrl&& bond == other.bond&& bondRequired == other.bondRequired&& bondPct == other.bondPct&& ordersByFiat == other.ordersByFiat&& totalOrders == other.totalOrders;
-        
-            }
-            
+  /// `fiat_currencies_accepted`, split on commas, trimmed, upper-cased,
+  /// deduplicated, in the node's order. Empty when the tag is absent.
+  final List<String> acceptedCurrencies;
+
+  /// Stable marker: `unknown` / `lightning` / `cashu`
+  /// (see [`escrow_mode::EscrowMode::as_marker`]).
+  final String escrowMode;
+
+  /// Mint the node pins for Cashu escrow; only set when the mode is Cashu.
+  final String? cashuMintUrl;
+
+  /// The node's full anti-abuse bond policy (`docs/ANTI_ABUSE_BOND.md`
+  /// §3.4): three-state, with every parameter gated on `Enabled`.
+  final BondPolicyInfo bond;
+
+  /// `bond_enabled` tag: `Some(true)` when the node requires a bond,
+  /// `Some(false)` when it explicitly does not, `None` when the daemon
+  /// predates bonds. Derived from [`Self::bond`] for the node card.
+  final bool? bondRequired;
+
+  /// `bond_amount_pct`, **in percent**; only set when `bond_required` is
+  /// `Some(true)`. Derived from [`Self::bond`] for the node card.
+  final double? bondPct;
+
+  /// Pending orders per fiat currency, sorted by code.
+  final List<FiatOrderCount> ordersByFiat;
+
+  /// Sum of [`Self::orders_by_fiat`].
+  final int totalOrders;
+
+  const MostroNodeStats({
+    required this.pubkey,
+    this.infoSeenAt,
+    this.latestOrderAt,
+    this.feePct,
+    this.minOrderAmount,
+    this.maxOrderAmount,
+    required this.acceptedCurrencies,
+    required this.escrowMode,
+    this.cashuMintUrl,
+    required this.bond,
+    this.bondRequired,
+    this.bondPct,
+    required this.ordersByFiat,
+    required this.totalOrders,
+  });
+
+  @override
+  int get hashCode =>
+      pubkey.hashCode ^
+      infoSeenAt.hashCode ^
+      latestOrderAt.hashCode ^
+      feePct.hashCode ^
+      minOrderAmount.hashCode ^
+      maxOrderAmount.hashCode ^
+      acceptedCurrencies.hashCode ^
+      escrowMode.hashCode ^
+      cashuMintUrl.hashCode ^
+      bond.hashCode ^
+      bondRequired.hashCode ^
+      bondPct.hashCode ^
+      ordersByFiat.hashCode ^
+      totalOrders.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MostroNodeStats &&
+          runtimeType == other.runtimeType &&
+          pubkey == other.pubkey &&
+          infoSeenAt == other.infoSeenAt &&
+          latestOrderAt == other.latestOrderAt &&
+          feePct == other.feePct &&
+          minOrderAmount == other.minOrderAmount &&
+          maxOrderAmount == other.maxOrderAmount &&
+          acceptedCurrencies == other.acceptedCurrencies &&
+          escrowMode == other.escrowMode &&
+          cashuMintUrl == other.cashuMintUrl &&
+          bond == other.bond &&
+          bondRequired == other.bondRequired &&
+          bondPct == other.bondPct &&
+          ordersByFiat == other.ordersByFiat &&
+          totalOrders == other.totalOrders;
+}

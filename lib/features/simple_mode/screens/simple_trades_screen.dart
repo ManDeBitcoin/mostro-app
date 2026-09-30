@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mostro/core/app_routes.dart';
 import 'package:mostro/core/order_book_palette.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
+import 'package:mostro/features/simple_mode/widgets/pwa_prompt_banner.dart';
 import 'package:mostro/features/trades/models/trades_list_rules.dart';
 import 'package:mostro/features/trades/providers/trade_rows_provider.dart';
 
@@ -27,6 +28,7 @@ class _SimpleTradesScreenState extends ConsumerState<SimpleTradesScreen> {
 
     return Column(
       children: [
+        const PwaPromptBanner(),
         // Tab selector
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),

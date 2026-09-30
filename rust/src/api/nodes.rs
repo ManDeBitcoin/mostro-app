@@ -285,6 +285,38 @@ pub async fn add_custom_mostro_node(
     ))
 }
 
+/// Register or update a custom node linked via a community profile.
+/// Saves only the pubkey and name, leaving variant parameters (bond, fees) dynamic.
+pub(crate) async fn register_linked_node(
+    db: &impl Storage,
+    pubkey: &str,
+    name: Option<&str>,
+) -> Result<()> {
+    let clean_pk = pubkey.trim().to_lowercase();
+    if is_trusted_pubkey(&clean_pk) {
+        return Ok(());
+    }
+    let _guard = registry_lock().lock().await;
+    let mut custom = load_custom_nodes(db).await.unwrap_or_default();
+    let clean_name = name
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty() && *s != "Community Node")
+        .map(str::to_string);
+
+    if let Some(existing) = custom.iter_mut().find(|n| n.pubkey == clean_pk) {
+        if clean_name.is_some() {
+            existing.name = clean_name;
+        }
+    } else {
+        custom.push(CustomNode {
+            pubkey: clean_pk,
+            name: clean_name,
+            added_at: crate::rt::unix_now(),
+        });
+    }
+    save_custom_nodes(db, &custom).await
+}
+
 /// Remove a user-added node. Removing an absent node is a no-op.
 ///
 /// **Errors**: `CannotRemoveActiveNode` (switch away first),

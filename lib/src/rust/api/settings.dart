@@ -7,31 +7,36 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
-
-            // These functions are ignored because they are not marked as `pub`: `new`, `notify`, `read`, `store`, `validate_fiat_code`, `validate_lightning_address`, `validate_locale`, `write_with`
+// These functions are ignored because they are not marked as `pub`: `new`, `notify`, `read`, `store`, `validate_fiat_code`, `validate_lightning_address`, `validate_locale`, `write_with`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SettingsStore`
 
-
-            /// Return current settings with `privacy_mode` mirrored from the Identity layer.
-Future<AppSettings>  getSettings() => RustLib.instance.api.crateApiSettingsGetSettings();
+/// Return current settings with `privacy_mode` mirrored from the Identity layer.
+Future<AppSettings> getSettings() =>
+    RustLib.instance.api.crateApiSettingsGetSettings();
 
 /// Update the application theme.
-Future<void>  setTheme({required ThemeMode theme }) => RustLib.instance.api.crateApiSettingsSetTheme(theme: theme);
+Future<void> setTheme({required ThemeMode theme}) =>
+    RustLib.instance.api.crateApiSettingsSetTheme(theme: theme);
 
 /// Update the display language.
 ///
 /// **Errors**: `UnsupportedLocale` if `locale` is not one of `en|es|it|fr|de|nl`.
-Future<void>  setLanguage({required String locale }) => RustLib.instance.api.crateApiSettingsSetLanguage(locale: locale);
+Future<void> setLanguage({required String locale}) =>
+    RustLib.instance.api.crateApiSettingsSetLanguage(locale: locale);
 
 /// Set or clear the default fiat currency code.
 ///
 /// **Errors**: `InvalidFiatCode` if `code` is Some but not exactly 3 uppercase letters (ISO 4217).
-Future<void>  setDefaultFiatCode({String? code }) => RustLib.instance.api.crateApiSettingsSetDefaultFiatCode(code: code);
+Future<void> setDefaultFiatCode({String? code}) =>
+    RustLib.instance.api.crateApiSettingsSetDefaultFiatCode(code: code);
 
 /// Set or clear the default Lightning Address.
 ///
 /// **Errors**: `InvalidLightningAddress` if `address` is Some but malformed.
-Future<void>  setDefaultLightningAddress({String? address }) => RustLib.instance.api.crateApiSettingsSetDefaultLightningAddress(address: address);
+Future<void> setDefaultLightningAddress({String? address}) => RustLib
+    .instance
+    .api
+    .crateApiSettingsSetDefaultLightningAddress(address: address);
 
 /// Return the currently active Mostro node pubkey (override or default).
 /// Mortsom test environment only: every order this client creates asks
@@ -39,9 +44,11 @@ Future<void>  setDefaultLightningAddress({String? address }) => RustLib.instance
 /// so a scenario about the daemon's pending-order clock does not wait out
 /// the daemon's hour-granular default. `None` restores that default. The
 /// daemon caps the value by its `max_expiration_days`.
-Future<void>  setTestOrderExpiry({BigInt? secs }) => RustLib.instance.api.crateApiSettingsSetTestOrderExpiry(secs: secs);
+Future<void> setTestOrderExpiry({BigInt? secs}) =>
+    RustLib.instance.api.crateApiSettingsSetTestOrderExpiry(secs: secs);
 
-Future<String>  getMostroPubkey() => RustLib.instance.api.crateApiSettingsGetMostroPubkey();
+Future<String> getMostroPubkey() =>
+    RustLib.instance.api.crateApiSettingsGetMostroPubkey();
 
 /// Activate a Mostro node by pubkey — the single entry point for node selection.
 ///
@@ -53,7 +60,8 @@ Future<String>  getMostroPubkey() => RustLib.instance.api.crateApiSettingsGetMos
 /// Pass `DEFAULT_MOSTRO_PUBKEY` to return to the default node.
 ///
 /// **Errors**: `InvalidPubkey` if `pubkey` is not a valid 64-char hex key.
-Future<void>  setActiveMostroNode({required String pubkey }) => RustLib.instance.api.crateApiSettingsSetActiveMostroNode(pubkey: pubkey);
+Future<void> setActiveMostroNode({required String pubkey}) =>
+    RustLib.instance.api.crateApiSettingsSetActiveMostroNode(pubkey: pubkey);
 
 /// Load the persisted active Mostro node pubkey into the in-memory override.
 ///
@@ -61,7 +69,8 @@ Future<void>  setActiveMostroNode({required String pubkey }) => RustLib.instance
 /// subscribing, so the first order-book / Mostro-reply subscription already
 /// targets the user's selected node. No-op when nothing has been persisted
 /// (the compiled-in default then applies) or when the DB is unavailable.
-Future<void>  rehydrateActiveMostroNode() => RustLib.instance.api.crateApiSettingsRehydrateActiveMostroNode();
+Future<void> rehydrateActiveMostroNode() =>
+    RustLib.instance.api.crateApiSettingsRehydrateActiveMostroNode();
 
 /// Toggle the in-memory logging flag (not persisted to disk).
 ///
@@ -73,23 +82,18 @@ Future<void>  rehydrateActiveMostroNode() => RustLib.instance.api.crateApiSettin
 /// runtime (e.g. during synchronous tests) we fall back to a blocking write;
 /// the broadcast notification is skipped in that path but the flag is always
 /// set.
-Future<void>  setLoggingEnabled({required bool enabled }) => RustLib.instance.api.crateApiSettingsSetLoggingEnabled(enabled: enabled);
+Future<void> setLoggingEnabled({required bool enabled}) =>
+    RustLib.instance.api.crateApiSettingsSetLoggingEnabled(enabled: enabled);
 
 /// Subscribe to settings-changed events.
-Future<SettingsStream>  onSettingsChanged() => RustLib.instance.api.crateApiSettingsOnSettingsChanged();
+Future<SettingsStream> onSettingsChanged() =>
+    RustLib.instance.api.crateApiSettingsOnSettingsChanged();
 
-            
-                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SettingsStream>>
-                abstract class SettingsStream implements RustOpaqueInterface {
-                    /// Poll for the next settings-changed event.
-///
-/// [`RecvError::Lagged`] is handled gracefully — dropped snapshots are
-/// skipped and the loop continues rather than terminating the stream.
- Future<AppSettings>  next();
-
-
-
-                    
-                }
-                
-            
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SettingsStream>>
+abstract class SettingsStream implements RustOpaqueInterface {
+  /// Poll for the next settings-changed event.
+  ///
+  /// [`RecvError::Lagged`] is handled gracefully — dropped snapshots are
+  /// skipped and the loop continues rather than terminating the stream.
+  Future<AppSettings> next();
+}

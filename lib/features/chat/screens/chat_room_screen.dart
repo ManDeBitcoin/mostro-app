@@ -16,6 +16,7 @@ import 'package:mostro/features/chat/widgets/trade_state_header.dart';
 import 'package:mostro/features/chat/widgets/upload_bubble.dart';
 import 'package:mostro/features/notifications/models/notification_model.dart';
 import 'package:mostro/features/notifications/providers/notifications_provider.dart';
+import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/widgets/bottom_nav_bar.dart';
@@ -276,7 +277,17 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     final sent = await ref
         .read(chatUploadsProvider(widget.orderId).notifier)
         .send(picked.name, picked.bytes);
-    if (sent != null && mounted) _addOwnMessage(sent);
+    if (sent != null && mounted) {
+      _addOwnMessage(sent);
+    } else if (mounted) {
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.attachmentReadFailed),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _retryUpload(String uploadId) async {
@@ -507,6 +518,24 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
         // Sticky trade-state header — pinned below the app bar, does not
         // scroll with messages. Hides itself when the order can't be resolved.
         TradeStateHeader(orderId: widget.orderId),
+
+        if (room.peerPubkey.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: Colors.amber.withValues(alpha: 0.15),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, size: 18, color: Colors.amber),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    SimpleL10n.chatWaitingPeer(context),
+                    style: const TextStyle(fontSize: 12, color: Colors.amber),
+                  ),
+                ),
+              ],
+            ),
+          ),
 
         // Info panels (mobile only)
         if (!showSidePanel)
