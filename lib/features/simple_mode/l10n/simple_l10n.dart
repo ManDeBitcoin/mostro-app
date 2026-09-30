@@ -725,4 +725,157 @@ class SimpleL10n {
         'nl' => 'Vraag hulp aan',
         _ => 'Request Assistance',
       };
+
+  static String referencePrice(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Cotización de mercado (1 BTC)',
+        'fr' => 'Cours du marché (1 BTC)',
+        'de' => 'Marktpreis (1 BTC)',
+        'it' => 'Prezzo di mercato (1 BTC)',
+        'nl' => 'Marktprijs (1 BTC)',
+        _ => 'Market Price (1 BTC)',
+      };
+
+  static String fixedOrder(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Monto fijo',
+        'fr' => 'Montant fixe',
+        'de' => 'Fester Betrag',
+        'it' => 'Importo fisso',
+        'nl' => 'Vast bedrag',
+        _ => 'Fixed Amount',
+      };
+
+  static String rangeOrder(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Rango de precios',
+        'fr' => 'Fourchette de prix',
+        'de' => 'Preisspanne',
+        'it' => 'Intervallo di prezzo',
+        'nl' => 'Prijsbereik',
+        _ => 'Price Range',
+      };
+
+  static String matchingOffers(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Ofertas compatibles con tu monto',
+        'fr' => 'Offres correspondant à votre montant',
+        'de' => 'Angebote passend zu Ihrem Betrag',
+        'it' => 'Offerte corrispondenti al tuo importo',
+        'nl' => 'Aanbiedingen die passen bij uw bedrag',
+        _ => 'Offers matching your amount',
+      };
+
+  static String showAllOffers(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Ver todas las ofertas',
+        'fr' => 'Voir toutes les offres',
+        'de' => 'Alle Angebote anzeigen',
+        'it' => 'Mostra tutte le offerte',
+        'nl' => 'Bekijk alle aanbiedingen',
+        _ => 'Show all offers',
+      };
+
+  static String sellPremium(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Prima / Margen sobre mercado',
+        'fr' => 'Prime / Marge sur le marché',
+        'de' => 'Aufschlag / Marge auf den Marktpreis',
+        'it' => 'Premio / Margine sul mercato',
+        'nl' => 'Premie / Marge op de markt',
+        _ => 'Premium / Margin over market',
+      };
+
+  static String sellPremiumTooltip(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Porcentaje adicional que cobrarás sobre la cotización actual',
+        'fr' => 'Pourcentage supplémentaire que vous recevrez par rapport au cours actuel',
+        'de' => 'Zusätzlicher Prozentsatz, den Sie über den aktuellen Kurs berechnen',
+        'it' => 'Percentuale aggiuntiva che riceverai rispetto alla quotazione attuale',
+        'nl' => 'Extra percentage dat u ontvangt bovenop de huidige marktprijs',
+        _ => 'Additional percentage charged over current market rate',
+      };
+
+  static String effectivePrice(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Precio efectivo de venta',
+        'fr' => 'Prix effectif de vente',
+        'de' => 'Effektiver Verkaufspreis',
+        'it' => 'Prezzo effettivo di vendita',
+        'nl' => 'Effectieve verkoopprijs',
+        _ => 'Effective Selling Price',
+      };
+
+  static String atMarketPrice(BuildContext context) => switch (_lang(context)) {
+        'es' => '0% (Mercado)',
+        'fr' => '0% (Marché)',
+        'de' => '0% (Markt)',
+        'it' => '0% (Mercato)',
+        'nl' => '0% (Markt)',
+        _ => '0% (Market)',
+      };
+
+  static String chatWaitingPeer(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Esperando a que la contraparte tome la orden para habilitar el chat simultáneo y envío de archivos.',
+        'fr' => 'En attente que la contrepartie prenne l\'ordre pour activer le chat en direct et l\'envoi de fichiers.',
+        'de' => 'Warten auf die Übernahme der Order durch den Handelspartner zur Freischaltung des Chats.',
+        'it' => 'In attesa che la controparte accetti l\'ordine per abilitare la chat in tempo reale e i file.',
+        'nl' => 'Wachten tot de tegenpartij de order overneemt om realtime chat en bestanden in te schakelen.',
+        _ => 'Waiting for the counterparty to take the order to enable real-time chat and file attachments.',
+      };
+
+  static String sellerProfile(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Perfil del vendedor',
+        'fr' => 'Profil du vendeur',
+        'de' => 'Verkäuferprofil',
+        'it' => 'Profilo del venditore',
+        'nl' => 'Verkoper profiel',
+        _ => 'Seller Profile',
+      };
+
+  static String counterpartyTrades(int count, BuildContext context) => switch (_lang(context)) {
+        'es' => '$count operaciones',
+        'fr' => '$count opérations',
+        'de' => '$count Trades',
+        'it' => '$count operazioni',
+        'nl' => '$count transacties',
+        _ => '$count trades',
+      };
+
+  static String newTrader(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Usuario nuevo (sin operaciones)',
+        'fr' => 'Nouvel utilisateur (aucun échange)',
+        'de' => 'Neuer Benutzer (keine Trades)',
+        'it' => 'Nuovo utente (nessun trade)',
+        'nl' => 'Nieuwe gebruiker (geen trades)',
+        _ => 'New user (no trades yet)',
+      };
+
+  static String daysActive(int days, BuildContext context) => switch (_lang(context)) {
+        'es' => '$days d en Mostro',
+        'fr' => '$days j sur Mostro',
+        'de' => '$days T. auf Mostro',
+        'it' => '$days gg su Mostro',
+        'nl' => '$days d op Mostro',
+        _ => '$days d on Mostro',
+      };
+
+  static String marketRateZero(BuildContext context) => switch (_lang(context)) {
+        'es' => 'Al mercado (0% prima)',
+        'fr' => 'Au marché (0% marge)',
+        'de' => 'Zum Marktpreis (0% Aufschlag)',
+        'it' => 'Al prezzo di mercato (0% margine)',
+        'nl' => 'Tegen marktprijs (0% premie)',
+        _ => 'Market price (0% premium)',
+      };
+
+  static String premiumAbove(String pct, BuildContext context) => switch (_lang(context)) {
+        'es' => '+$pct% sobre mercado',
+        'fr' => '+$pct% au-dessus du marché',
+        'de' => '+$pct% über Marktpreis',
+        'it' => '+$pct% sopra mercato',
+        'nl' => '+$pct% boven marktprijs',
+        _ => '+$pct% above market',
+      };
+
+  static String premiumBelow(String pct, BuildContext context) => switch (_lang(context)) {
+        'es' => '$pct% bajo mercado',
+        'fr' => '$pct% sous le marché',
+        'de' => '$pct% unter Marktpreis',
+        'it' => '$pct% sotto mercato',
+        'nl' => '$pct% onder marktprijs',
+        _ => '$pct% below market',
+      };
 }

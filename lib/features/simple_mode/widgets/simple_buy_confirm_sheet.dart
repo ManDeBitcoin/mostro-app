@@ -8,6 +8,8 @@ import 'package:mostro/features/order/providers/trade_state_provider.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart'
     show refreshTrades;
+import 'package:mostro/shared/providers/peer_nym_provider.dart';
+import 'package:mostro/shared/widgets/nym_avatar.dart';
 import 'package:mostro/src/rust/api/types.dart';
 
 /// Modal bottom sheet for confirming a Buy order in Simple Mode.
@@ -79,6 +81,7 @@ class _SimpleBuyConfirmSheetState extends ConsumerState<SimpleBuyConfirmSheet> {
   Widget build(BuildContext context) {
     final pal = OrderBookPalette.of(context);
     final theme = Theme.of(context);
+    final nym = ref.watch(peerNymProvider(widget.order.creatorPubkey)).valueOrNull;
 
     return SafeArea(
       child: Padding(
@@ -107,7 +110,115 @@ class _SimpleBuyConfirmSheetState extends ConsumerState<SimpleBuyConfirmSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
+
+            // Seller Profile Card
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: pal.surfaceCard,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: pal.navBorder),
+              ),
+              child: Row(
+                children: [
+                  if (nym != null)
+                    NymAvatar(
+                      iconIndex: nym.iconIndex,
+                      colorHue: nym.colorHue,
+                      size: 38,
+                    )
+                  else
+                    CircleAvatar(
+                      backgroundColor: pal.navBorder,
+                      radius: 19,
+                      child: Icon(Icons.person, size: 20, color: pal.limeText),
+                    ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                nym?.pseudonym ?? SimpleL10n.sellerProfile(context),
+                                style: TextStyle(
+                                  color: pal.textTitle,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: widget.order.premium <= 0
+                                    ? pal.limeBorder.withValues(alpha: 0.15)
+                                    : Colors.orangeAccent.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                widget.order.premium == 0
+                                    ? SimpleL10n.marketRateZero(context)
+                                    : (widget.order.premium > 0
+                                        ? SimpleL10n.premiumAbove(widget.order.premium.toStringAsFixed(1), context)
+                                        : SimpleL10n.premiumBelow(widget.order.premium.toStringAsFixed(1), context)),
+                                style: TextStyle(
+                                  color: widget.order.premium <= 0 ? pal.limeText : Colors.orangeAccent,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.star_rounded,
+                              size: 15,
+                              color: widget.order.rating > 0 ? Colors.amber : pal.textTertiary,
+                            ),
+                            const SizedBox(width: 4),
+                            if (widget.order.tradeCount > 0) ...[
+                              Text(
+                                widget.order.rating.toStringAsFixed(1),
+                                style: TextStyle(
+                                  color: pal.textTitle,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                ' (${SimpleL10n.counterpartyTrades(widget.order.tradeCount, context)} · ${SimpleL10n.daysActive(widget.order.daysActive, context)})',
+                                style: TextStyle(
+                                  color: pal.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ] else ...[
+                              Text(
+                                '${SimpleL10n.newTrader(context)} · ${SimpleL10n.daysActive(widget.order.daysActive, context)}',
+                                style: TextStyle(
+                                  color: pal.textTertiary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
 
             // Summary Card
             Container(

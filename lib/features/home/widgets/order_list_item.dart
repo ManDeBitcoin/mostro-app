@@ -222,6 +222,12 @@ class _HeaderRow extends StatelessWidget {
                       code: order.fiatCode,
                       palette: palette,
                     ),
+                    _Chip(
+                      label: order.isRange ? l10n.amountModeRange : l10n.priceTypeFixed,
+                      color: order.isRange ? palette.limeText : palette.textSecondary,
+                      fill: order.isRange ? palette.reputableChipFill : palette.currencyChipFill,
+                      border: order.isRange ? palette.limeBorder : palette.border,
+                    ),
                     // Own-order chip before the highlight: on an own order it
                     // must always be readable.
                     if (mineLabel != null)
@@ -396,8 +402,10 @@ class _AmountRow extends StatelessWidget {
                   style: captionStyle,
                   palette: palette,
                 )
+              else if (order.isRange)
+                Text('${l10n.amountModeRange} · ${l10n.marketPriceCaption}', style: captionStyle)
               else
-                Text(l10n.marketPriceCaption, style: captionStyle),
+                Text('${l10n.priceTypeFixed} · ${l10n.marketPriceCaption}', style: captionStyle),
             ],
           ),
         ),

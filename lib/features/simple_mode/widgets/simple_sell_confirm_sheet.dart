@@ -19,6 +19,7 @@ class SimpleSellConfirmSheet extends ConsumerStatefulWidget {
     required this.fiatCode,
     required this.paymentMethod,
     required this.paymentDetails,
+    this.premium = 0.0,
     this.estimatedSats,
     this.bondPercent = 3,
   });
@@ -27,6 +28,7 @@ class SimpleSellConfirmSheet extends ConsumerStatefulWidget {
   final String fiatCode;
   final String paymentMethod;
   final String paymentDetails;
+  final double premium;
   final int? estimatedSats;
   final int bondPercent;
 
@@ -52,7 +54,7 @@ class _SimpleSellConfirmSheetState extends ConsumerState<SimpleSellConfirmSheet>
         fiatAmount: widget.fiatAmount,
         fiatCode: widget.fiatCode,
         paymentMethod: widget.paymentMethod,
-        premium: 0.0,
+        premium: widget.premium,
         amountSats: widget.estimatedSats != null
             ? BigInt.from(widget.estimatedSats!)
             : null,
@@ -136,6 +138,14 @@ class _SimpleSellConfirmSheetState extends ConsumerState<SimpleSellConfirmSheet>
                     value: widget.estimatedSats != null
                         ? '~${widget.estimatedSats} sats'
                         : SimpleL10n.calculatingRate(context),
+                    pal: pal,
+                  ),
+                  const Divider(height: 20),
+                  _buildRow(
+                    label: 'Prima / Margen',
+                    value: widget.premium == 0
+                        ? SimpleL10n.atMarketPrice(context)
+                        : '+${widget.premium.toStringAsFixed(1)}%',
                     pal: pal,
                   ),
                   const Divider(height: 20),
