@@ -26,9 +26,8 @@ use crate::attachments::MAX_BLOB_BYTES;
 pub const BLOSSOM_SERVERS: &[&str] = &[
     "https://cdn.hzrd149.com",
     "https://nostr.download",
-    "https://blossom-01.uid.ovh",
-    "https://files.sovbit.host",
     "https://blssm.us",
+    "https://blossom.primal.net",
 ];
 
 /// How long one upload or download may take: 25 MB on a slow mobile link.
