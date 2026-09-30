@@ -45,6 +45,7 @@ import 'package:mostro/features/trades/providers/trades_providers.dart'
     show rawTradesProvider;
 import 'package:mostro/features/notifications/providers/notifications_provider.dart';
 import 'package:mostro/features/notifications/services/event_cards.dart';
+import 'package:mostro/features/notifications/services/local_notifications.dart';
 import 'package:mostro/core/app_routes.dart' show appRouter;
 import 'package:mostro/src/rust/api/messages.dart' as messages_api;
 
@@ -263,6 +264,18 @@ Future<void> bootstrapAndRun({List<String> seedRelays = const []}) async {
     currentLocation: _currentLocation,
     disputeIdForTrade:
         (tradeId) => container.read(disputeByTradeIdProvider(tradeId))?.id,
+    onNotificationAlert: ({
+      required title,
+      required body,
+      tag,
+      orderId,
+    }) =>
+        showNotificationAlert(
+          title: title,
+          body: body,
+          tag: tag,
+          payload: orderId,
+        ),
   );
   pumpEvents('trade-cards', tradeUpdateStream.next, eventCards.onTradeUpdate);
   pumpEvents('chat-cards', chatMessageStream.next, eventCards.onChatMessage);

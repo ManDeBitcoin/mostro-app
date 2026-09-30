@@ -100,3 +100,23 @@ void onWebNotificationTap(void Function() open) {
   );
   container.startMessages();
 }
+
+/// Show a browser notification when permission is granted.
+void showWebNotification(String title, {String? body, String? tag}) {
+  if (!browserSupportsPush()) return;
+  try {
+    if (!globalContext.has('Notification')) return;
+    final notifClass = globalContext['Notification'] as JSObject;
+    final perm = (notifClass['permission'] as JSString?)?.toDart;
+    if (perm != 'granted') return;
+
+    final options = JSObject();
+    if (body != null) options['body'] = body.toJS;
+    if (tag != null) options['tag'] = tag.toJS;
+    options['icon'] = 'icons/Icon-192.png'.toJS;
+
+    (notifClass as JSFunction).callAsConstructor<JSObject>(title.toJS, options);
+  } catch (e) {
+    debugPrint('[web_push] showWebNotification failed: $e');
+  }
+}

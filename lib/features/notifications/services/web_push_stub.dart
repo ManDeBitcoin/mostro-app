@@ -9,3 +9,6 @@ Future<String?> webPushToken(String vapidKey) async => null;
 
 /// No worker to hear from off web.
 void onWebNotificationTap(void Function() open) {}
+
+/// No-op off web.
+void showWebNotification(String title, {String? body, String? tag}) {}

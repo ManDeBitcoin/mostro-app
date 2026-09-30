@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:mostro/features/notifications/services/web_push.dart';
 
 /// The Android channel the push server's visible notification names
 /// (docs/PUSH_NOTIFICATIONS.md §3.2, `android.notification.channel_id`).
@@ -57,6 +58,37 @@ Future<void> showChatWakeNotification(String title, String body) async {
       ),
       iOS: DarwinNotificationDetails(threadIdentifier: _kChatWakeTag),
     ),
+  );
+}
+
+/// Displays a cross-platform notification (mobile local notification or web browser notification).
+Future<void> showNotificationAlert({
+  required String title,
+  required String body,
+  int? id,
+  String? tag,
+  String? payload,
+}) async {
+  if (kIsWeb) {
+    showWebNotification(title, body: body, tag: tag);
+    return;
+  }
+  await _initialize();
+  await _plugin.show(
+    id ?? (tag?.hashCode.abs() ?? kChatWakeNotificationId),
+    title,
+    body,
+    NotificationDetails(
+      android: AndroidNotificationDetails(
+        kPushChannelId,
+        kPushChannelName,
+        importance: Importance.high,
+        priority: Priority.high,
+        tag: tag,
+      ),
+      iOS: DarwinNotificationDetails(threadIdentifier: tag),
+    ),
+    payload: payload,
   );
 }
 
