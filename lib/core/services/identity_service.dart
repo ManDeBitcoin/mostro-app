@@ -171,9 +171,15 @@ class IdentityService {
   /// Import an identity from an nsec key and persist it.
   ///
   /// Replaces any currently loaded identity.
-  static Future<void> importNsecAndStore(String nsec) async {
+  static Future<void> importNsecAndStore(
+    String nsec, {
+    @visibleForTesting
+    Future<IdentityInfo> Function({required String nsec})? importNsec,
+  }) async {
+    // Validate that the nsec can be parsed by Rust before wiping existing identity.
+    await (importNsec ?? identity_api.importFromNsec)(nsec: nsec);
     await identity_api.deleteIdentity();
-    await identity_api.importFromNsec(nsec: nsec);
+    await (importNsec ?? identity_api.importFromNsec)(nsec: nsec);
 
     await _storage.write(key: _kMnemonic, value: nsec);
     await Future.wait([
@@ -327,8 +333,10 @@ class IdentityService {
     StoredIdentity stored, {
     Future<void> Function(StoredIdentity stored)? load,
     Future<void> Function(bool enabled)? applyPrivacyMode,
+    @visibleForTesting
+    Future<IdentityInfo> Function({required String nsec})? importNsec,
   }) async {
-    await (load ?? _loadIntoCore)(stored);
+    await (load ?? (s) => _loadIntoCore(s, importNsec: importNsec))(stored);
     await (applyPrivacyMode ?? _applyPrivacyMode)(stored.privacyMode);
     return stored.words;
   }
@@ -336,10 +344,15 @@ class IdentityService {
   static Future<void> _applyPrivacyMode(bool enabled) =>
       reputation_api.setPrivacyMode(enabled: enabled);
 
-  static Future<void> _loadIntoCore(StoredIdentity stored) async {
+  static Future<void> _loadIntoCore(
+    StoredIdentity stored, {
+    Future<IdentityInfo> Function({required String nsec})? importNsec,
+  }) async {
     final createdAt = stored.createdAtMillis;
     if (stored.words.length == 1 && stored.words.first.startsWith('nsec1')) {
-      final info = await identity_api.importFromNsec(nsec: stored.words.first);
+      final info = await (importNsec ?? identity_api.importFromNsec)(
+        nsec: stored.words.first,
+      );
       debugPrint(
         '[identity] identity loaded from nsec — pubkey=${info.publicKey}',
       );
