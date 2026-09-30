@@ -594,14 +594,16 @@ class __$$InvoiceVerdict_ValidImplCopyWithImpl<$Res>
   $Res call({Object? sats = null, Object? expiresAt = null}) {
     return _then(
       _$InvoiceVerdict_ValidImpl(
-        sats: null == sats
-            ? _value.sats
-            : sats // ignore: cast_nullable_to_non_nullable
-                  as BigInt,
-        expiresAt: null == expiresAt
-            ? _value.expiresAt
-            : expiresAt // ignore: cast_nullable_to_non_nullable
-                  as BigInt,
+        sats:
+            null == sats
+                ? _value.sats
+                : sats // ignore: cast_nullable_to_non_nullable
+                    as BigInt,
+        expiresAt:
+            null == expiresAt
+                ? _value.expiresAt
+                : expiresAt // ignore: cast_nullable_to_non_nullable
+                    as BigInt,
       ),
     );
   }
@@ -812,30 +814,36 @@ class __$$InvoiceVerdict_RejectedImplCopyWithImpl<$Res>
   }) {
     return _then(
       _$InvoiceVerdict_RejectedImpl(
-        problem: null == problem
-            ? _value.problem
-            : problem // ignore: cast_nullable_to_non_nullable
-                  as InvoiceProblem,
-        actualMsat: freezed == actualMsat
-            ? _value.actualMsat
-            : actualMsat // ignore: cast_nullable_to_non_nullable
-                  as BigInt?,
-        expectedSats: freezed == expectedSats
-            ? _value.expectedSats
-            : expectedSats // ignore: cast_nullable_to_non_nullable
-                  as BigInt?,
-        invoiceNetwork: freezed == invoiceNetwork
-            ? _value.invoiceNetwork
-            : invoiceNetwork // ignore: cast_nullable_to_non_nullable
-                  as String?,
-        nodeNetwork: freezed == nodeNetwork
-            ? _value.nodeNetwork
-            : nodeNetwork // ignore: cast_nullable_to_non_nullable
-                  as String?,
-        minRemainingSecs: freezed == minRemainingSecs
-            ? _value.minRemainingSecs
-            : minRemainingSecs // ignore: cast_nullable_to_non_nullable
-                  as BigInt?,
+        problem:
+            null == problem
+                ? _value.problem
+                : problem // ignore: cast_nullable_to_non_nullable
+                    as InvoiceProblem,
+        actualMsat:
+            freezed == actualMsat
+                ? _value.actualMsat
+                : actualMsat // ignore: cast_nullable_to_non_nullable
+                    as BigInt?,
+        expectedSats:
+            freezed == expectedSats
+                ? _value.expectedSats
+                : expectedSats // ignore: cast_nullable_to_non_nullable
+                    as BigInt?,
+        invoiceNetwork:
+            freezed == invoiceNetwork
+                ? _value.invoiceNetwork
+                : invoiceNetwork // ignore: cast_nullable_to_non_nullable
+                    as String?,
+        nodeNetwork:
+            freezed == nodeNetwork
+                ? _value.nodeNetwork
+                : nodeNetwork // ignore: cast_nullable_to_non_nullable
+                    as String?,
+        minRemainingSecs:
+            freezed == minRemainingSecs
+                ? _value.minRemainingSecs
+                : minRemainingSecs // ignore: cast_nullable_to_non_nullable
+                    as BigInt?,
       ),
     );
   }
@@ -917,10 +925,9 @@ class _$InvoiceVerdict_RejectedImpl extends InvoiceVerdict_Rejected {
   @override
   @pragma('vm:prefer-inline')
   _$$InvoiceVerdict_RejectedImplCopyWith<_$InvoiceVerdict_RejectedImpl>
-  get copyWith =>
-      __$$InvoiceVerdict_RejectedImplCopyWithImpl<
-        _$InvoiceVerdict_RejectedImpl
-      >(this, _$identity);
+  get copyWith => __$$InvoiceVerdict_RejectedImplCopyWithImpl<
+    _$InvoiceVerdict_RejectedImpl
+  >(this, _$identity);
 
   @override
   @optionalTypeArgs
@@ -1180,14 +1187,16 @@ class __$$OrderDelta_UpsertedImplCopyWithImpl<$Res>
   $Res call({Object? revision = null, Object? order = null}) {
     return _then(
       _$OrderDelta_UpsertedImpl(
-        revision: null == revision
-            ? _value.revision
-            : revision // ignore: cast_nullable_to_non_nullable
-                  as int,
-        order: null == order
-            ? _value.order
-            : order // ignore: cast_nullable_to_non_nullable
-                  as OrderInfo,
+        revision:
+            null == revision
+                ? _value.revision
+                : revision // ignore: cast_nullable_to_non_nullable
+                    as int,
+        order:
+            null == order
+                ? _value.order
+                : order // ignore: cast_nullable_to_non_nullable
+                    as OrderInfo,
       ),
     );
   }
@@ -1351,14 +1360,16 @@ class __$$OrderDelta_RemovedImplCopyWithImpl<$Res>
   $Res call({Object? revision = null, Object? orderId = null}) {
     return _then(
       _$OrderDelta_RemovedImpl(
-        revision: null == revision
-            ? _value.revision
-            : revision // ignore: cast_nullable_to_non_nullable
-                  as int,
-        orderId: null == orderId
-            ? _value.orderId
-            : orderId // ignore: cast_nullable_to_non_nullable
-                  as String,
+        revision:
+            null == revision
+                ? _value.revision
+                : revision // ignore: cast_nullable_to_non_nullable
+                    as int,
+        orderId:
+            null == orderId
+                ? _value.orderId
+                : orderId // ignore: cast_nullable_to_non_nullable
+                    as String,
       ),
     );
   }
@@ -1982,7 +1993,7 @@ class __$$PaymentDestination_Bolt11ImplCopyWithImpl<$Res>
         null == field0
             ? _value.field0
             : field0 // ignore: cast_nullable_to_non_nullable
-                  as Bolt11Summary,
+                as Bolt11Summary,
       ),
     );
   }
@@ -2018,10 +2029,9 @@ class _$PaymentDestination_Bolt11Impl extends PaymentDestination_Bolt11 {
   @override
   @pragma('vm:prefer-inline')
   _$$PaymentDestination_Bolt11ImplCopyWith<_$PaymentDestination_Bolt11Impl>
-  get copyWith =>
-      __$$PaymentDestination_Bolt11ImplCopyWithImpl<
-        _$PaymentDestination_Bolt11Impl
-      >(this, _$identity);
+  get copyWith => __$$PaymentDestination_Bolt11ImplCopyWithImpl<
+    _$PaymentDestination_Bolt11Impl
+  >(this, _$identity);
 
   @override
   @optionalTypeArgs
@@ -2294,7 +2304,7 @@ class __$$PaymentDestination_LightningAddressImplCopyWithImpl<$Res>
         null == field0
             ? _value.field0
             : field0 // ignore: cast_nullable_to_non_nullable
-                  as String,
+                as String,
       ),
     );
   }
@@ -2333,10 +2343,9 @@ class _$PaymentDestination_LightningAddressImpl
   _$$PaymentDestination_LightningAddressImplCopyWith<
     _$PaymentDestination_LightningAddressImpl
   >
-  get copyWith =>
-      __$$PaymentDestination_LightningAddressImplCopyWithImpl<
-        _$PaymentDestination_LightningAddressImpl
-      >(this, _$identity);
+  get copyWith => __$$PaymentDestination_LightningAddressImplCopyWithImpl<
+    _$PaymentDestination_LightningAddressImpl
+  >(this, _$identity);
 
   @override
   @optionalTypeArgs
@@ -2778,14 +2787,16 @@ class __$$RestoreProgress_FoundImplCopyWithImpl<$Res>
   $Res call({Object? found = null, Object? toLoad = null}) {
     return _then(
       _$RestoreProgress_FoundImpl(
-        found: null == found
-            ? _value.found
-            : found // ignore: cast_nullable_to_non_nullable
-                  as int,
-        toLoad: null == toLoad
-            ? _value.toLoad
-            : toLoad // ignore: cast_nullable_to_non_nullable
-                  as int,
+        found:
+            null == found
+                ? _value.found
+                : found // ignore: cast_nullable_to_non_nullable
+                    as int,
+        toLoad:
+            null == toLoad
+                ? _value.toLoad
+                : toLoad // ignore: cast_nullable_to_non_nullable
+                    as int,
       ),
     );
   }
@@ -2943,14 +2954,16 @@ class __$$RestoreProgress_LoadedImplCopyWithImpl<$Res>
   $Res call({Object? done = null, Object? toLoad = null}) {
     return _then(
       _$RestoreProgress_LoadedImpl(
-        done: null == done
-            ? _value.done
-            : done // ignore: cast_nullable_to_non_nullable
-                  as int,
-        toLoad: null == toLoad
-            ? _value.toLoad
-            : toLoad // ignore: cast_nullable_to_non_nullable
-                  as int,
+        done:
+            null == done
+                ? _value.done
+                : done // ignore: cast_nullable_to_non_nullable
+                    as int,
+        toLoad:
+            null == toLoad
+                ? _value.toLoad
+                : toLoad // ignore: cast_nullable_to_non_nullable
+                    as int,
       ),
     );
   }
@@ -3173,7 +3186,7 @@ class __$$TradeStep_BuyerImplCopyWithImpl<$Res>
         null == field0
             ? _value.field0
             : field0 // ignore: cast_nullable_to_non_nullable
-                  as BuyerStep,
+                as BuyerStep,
       ),
     );
   }
@@ -3325,7 +3338,7 @@ class __$$TradeStep_SellerImplCopyWithImpl<$Res>
         null == field0
             ? _value.field0
             : field0 // ignore: cast_nullable_to_non_nullable
-                  as SellerStep,
+                as SellerStep,
       ),
     );
   }

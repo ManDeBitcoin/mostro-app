@@ -40,100 +40,99 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   });
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_AnyMessageStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnyMessageStreamPtr;
+  get rust_arc_decrement_strong_count_AnyMessageStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnyMessageStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_AttachmentProgressStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAttachmentProgressStreamPtr;
+  get rust_arc_decrement_strong_count_AttachmentProgressStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAttachmentProgressStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_BondClaimStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBondClaimStreamPtr;
+  get rust_arc_decrement_strong_count_BondClaimStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBondClaimStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_BondSlashedStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBondSlashedStreamPtr;
+  get rust_arc_decrement_strong_count_BondSlashedStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBondSlashedStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_CashuWalletStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCashuWalletStreamPtr;
+  get rust_arc_decrement_strong_count_CashuWalletStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCashuWalletStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_ConnectionStateStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerConnectionStateStreamPtr;
+  get rust_arc_decrement_strong_count_ConnectionStateStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerConnectionStateStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_DisputeStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDisputeStreamPtr;
+  get rust_arc_decrement_strong_count_DisputeStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDisputeStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_EscrowModeStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEscrowModeStreamPtr;
+  get rust_arc_decrement_strong_count_EscrowModeStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEscrowModeStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_LogEntryStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLogEntryStreamPtr;
+  get rust_arc_decrement_strong_count_LogEntryStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLogEntryStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_MessageStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageStreamPtr;
+  get rust_arc_decrement_strong_count_MessageStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageStreamPtr;
+
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_OrderBookPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrderBookPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_OrderBookPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrderBookPtr;
+  get rust_arc_decrement_strong_count_OrderDeltaStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrderDeltaStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_OrderDeltaStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrderDeltaStreamPtr;
+  get rust_arc_decrement_strong_count_OrdersStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrdersStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_OrdersStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrdersStreamPtr;
+  get rust_arc_decrement_strong_count_PushStatusStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPushStatusStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_PushStatusStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPushStatusStreamPtr;
+  get rust_arc_decrement_strong_count_RatingStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRatingStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_RatingStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRatingStreamPtr;
+  get rust_arc_decrement_strong_count_RelayAutoSyncStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRelayAutoSyncStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_RelayAutoSyncStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRelayAutoSyncStreamPtr;
+  get rust_arc_decrement_strong_count_RelayStatusStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRelayStatusStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_RelayStatusStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRelayStatusStreamPtr;
+  get rust_arc_decrement_strong_count_RestoreProgressStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRestoreProgressStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_RestoreProgressStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRestoreProgressStreamPtr;
+  get rust_arc_decrement_strong_count_SettingsStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_SettingsStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsStreamPtr;
+  get rust_arc_decrement_strong_count_TradeKeyIndexStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeKeyIndexStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_TradeKeyIndexStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeKeyIndexStreamPtr;
+  get rust_arc_decrement_strong_count_TradeTouchStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeTouchStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_TradeTouchStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeTouchStreamPtr;
+  get rust_arc_decrement_strong_count_TradeUpdatesStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeUpdatesStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_TradeUpdatesStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeUpdatesStreamPtr;
+  get rust_arc_decrement_strong_count_UnreadCountStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUnreadCountStreamPtr;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_UnreadCountStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUnreadCountStreamPtr;
-
-  CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_WalletStatusStreamPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWalletStatusStreamPtr;
+  get rust_arc_decrement_strong_count_WalletStatusStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWalletStatusStreamPtr;
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);

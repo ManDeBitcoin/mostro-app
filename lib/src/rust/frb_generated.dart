@@ -6562,196 +6562,196 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_AnyMessageStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnyMessageStream;
+  get rust_arc_increment_strong_count_AnyMessageStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnyMessageStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_AnyMessageStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnyMessageStream;
+  get rust_arc_decrement_strong_count_AnyMessageStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnyMessageStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_AttachmentProgressStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAttachmentProgressStream;
+  get rust_arc_increment_strong_count_AttachmentProgressStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAttachmentProgressStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_AttachmentProgressStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAttachmentProgressStream;
+  get rust_arc_decrement_strong_count_AttachmentProgressStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAttachmentProgressStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_BondClaimStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBondClaimStream;
+  get rust_arc_increment_strong_count_BondClaimStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBondClaimStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_BondClaimStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBondClaimStream;
+  get rust_arc_decrement_strong_count_BondClaimStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBondClaimStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_BondSlashedStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBondSlashedStream;
+  get rust_arc_increment_strong_count_BondSlashedStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBondSlashedStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_BondSlashedStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBondSlashedStream;
+  get rust_arc_decrement_strong_count_BondSlashedStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBondSlashedStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_CashuWalletStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCashuWalletStream;
+  get rust_arc_increment_strong_count_CashuWalletStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCashuWalletStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_CashuWalletStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCashuWalletStream;
+  get rust_arc_decrement_strong_count_CashuWalletStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCashuWalletStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_ConnectionStateStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerConnectionStateStream;
+  get rust_arc_increment_strong_count_ConnectionStateStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerConnectionStateStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_ConnectionStateStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerConnectionStateStream;
+  get rust_arc_decrement_strong_count_ConnectionStateStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerConnectionStateStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_DisputeStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDisputeStream;
+  get rust_arc_increment_strong_count_DisputeStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDisputeStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_DisputeStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDisputeStream;
+  get rust_arc_decrement_strong_count_DisputeStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDisputeStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_EscrowModeStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEscrowModeStream;
+  get rust_arc_increment_strong_count_EscrowModeStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEscrowModeStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_EscrowModeStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEscrowModeStream;
+  get rust_arc_decrement_strong_count_EscrowModeStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEscrowModeStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_LogEntryStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLogEntryStream;
+  get rust_arc_increment_strong_count_LogEntryStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLogEntryStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_LogEntryStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLogEntryStream;
+  get rust_arc_decrement_strong_count_LogEntryStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLogEntryStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_MessageStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageStream;
+  get rust_arc_increment_strong_count_MessageStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_MessageStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageStream;
+  get rust_arc_decrement_strong_count_MessageStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_OrderBook => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrderBook;
+  get rust_arc_increment_strong_count_OrderBook =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrderBook;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_OrderBook => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrderBook;
+  get rust_arc_decrement_strong_count_OrderBook =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrderBook;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_OrderDeltaStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrderDeltaStream;
+  get rust_arc_increment_strong_count_OrderDeltaStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrderDeltaStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_OrderDeltaStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrderDeltaStream;
+  get rust_arc_decrement_strong_count_OrderDeltaStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrderDeltaStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_OrdersStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrdersStream;
+  get rust_arc_increment_strong_count_OrdersStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrdersStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_OrdersStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrdersStream;
+  get rust_arc_decrement_strong_count_OrdersStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrdersStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_PushStatusStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPushStatusStream;
+  get rust_arc_increment_strong_count_PushStatusStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPushStatusStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_PushStatusStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPushStatusStream;
+  get rust_arc_decrement_strong_count_PushStatusStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPushStatusStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_RatingStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRatingStream;
+  get rust_arc_increment_strong_count_RatingStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRatingStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_RatingStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRatingStream;
+  get rust_arc_decrement_strong_count_RatingStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRatingStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_RelayAutoSyncStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRelayAutoSyncStream;
+  get rust_arc_increment_strong_count_RelayAutoSyncStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRelayAutoSyncStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_RelayAutoSyncStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRelayAutoSyncStream;
+  get rust_arc_decrement_strong_count_RelayAutoSyncStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRelayAutoSyncStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_RelayStatusStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRelayStatusStream;
+  get rust_arc_increment_strong_count_RelayStatusStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRelayStatusStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_RelayStatusStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRelayStatusStream;
+  get rust_arc_decrement_strong_count_RelayStatusStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRelayStatusStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_RestoreProgressStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRestoreProgressStream;
+  get rust_arc_increment_strong_count_RestoreProgressStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRestoreProgressStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_RestoreProgressStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRestoreProgressStream;
+  get rust_arc_decrement_strong_count_RestoreProgressStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRestoreProgressStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_SettingsStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsStream;
+  get rust_arc_increment_strong_count_SettingsStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_SettingsStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsStream;
+  get rust_arc_decrement_strong_count_SettingsStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_TradeKeyIndexStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeKeyIndexStream;
+  get rust_arc_increment_strong_count_TradeKeyIndexStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeKeyIndexStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_TradeKeyIndexStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeKeyIndexStream;
+  get rust_arc_decrement_strong_count_TradeKeyIndexStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeKeyIndexStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_TradeTouchStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeTouchStream;
+  get rust_arc_increment_strong_count_TradeTouchStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeTouchStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_TradeTouchStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeTouchStream;
+  get rust_arc_decrement_strong_count_TradeTouchStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeTouchStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_TradeUpdatesStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeUpdatesStream;
+  get rust_arc_increment_strong_count_TradeUpdatesStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeUpdatesStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_TradeUpdatesStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeUpdatesStream;
+  get rust_arc_decrement_strong_count_TradeUpdatesStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTradeUpdatesStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_UnreadCountStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUnreadCountStream;
+  get rust_arc_increment_strong_count_UnreadCountStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUnreadCountStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_UnreadCountStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUnreadCountStream;
+  get rust_arc_decrement_strong_count_UnreadCountStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUnreadCountStream;
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_WalletStatusStream => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWalletStatusStream;
+  get rust_arc_increment_strong_count_WalletStatusStream =>
+      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWalletStatusStream;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_WalletStatusStream => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWalletStatusStream;
+  get rust_arc_decrement_strong_count_WalletStatusStream =>
+      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWalletStatusStream;
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
@@ -14670,10 +14670,11 @@ class AnyMessageStreamImpl extends RustOpaque implements AnyMessageStream {
         RustLib.instance.api.rust_arc_increment_strong_count_AnyMessageStream,
     rustArcDecrementStrongCount:
         RustLib.instance.api.rust_arc_decrement_strong_count_AnyMessageStream,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_AnyMessageStreamPtr,
+    rustArcDecrementStrongCountPtr:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_AnyMessageStreamPtr,
   );
 
   Future<ChatMessage?> next() =>
@@ -14694,18 +14695,21 @@ class AttachmentProgressStreamImpl extends RustOpaque
   ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount: RustLib
-        .instance
-        .api
-        .rust_arc_increment_strong_count_AttachmentProgressStream,
-    rustArcDecrementStrongCount: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_AttachmentProgressStream,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_AttachmentProgressStreamPtr,
+    rustArcIncrementStrongCount:
+        RustLib
+            .instance
+            .api
+            .rust_arc_increment_strong_count_AttachmentProgressStream,
+    rustArcDecrementStrongCount:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_AttachmentProgressStream,
+    rustArcDecrementStrongCountPtr:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_AttachmentProgressStreamPtr,
   );
 
   Future<double?> next() => RustLib.instance.api
@@ -14753,10 +14757,11 @@ class BondSlashedStreamImpl extends RustOpaque implements BondSlashedStream {
         RustLib.instance.api.rust_arc_increment_strong_count_BondSlashedStream,
     rustArcDecrementStrongCount:
         RustLib.instance.api.rust_arc_decrement_strong_count_BondSlashedStream,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_BondSlashedStreamPtr,
+    rustArcDecrementStrongCountPtr:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_BondSlashedStreamPtr,
   );
 
   /// Poll for the next incoming bond-slashed notice.
@@ -14783,10 +14788,11 @@ class CashuWalletStreamImpl extends RustOpaque implements CashuWalletStream {
         RustLib.instance.api.rust_arc_increment_strong_count_CashuWalletStream,
     rustArcDecrementStrongCount:
         RustLib.instance.api.rust_arc_decrement_strong_count_CashuWalletStream,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_CashuWalletStreamPtr,
+    rustArcDecrementStrongCountPtr:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_CashuWalletStreamPtr,
   );
 
   /// Poll for the next wallet-changed event.
@@ -14811,18 +14817,21 @@ class ConnectionStateStreamImpl extends RustOpaque
   ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount: RustLib
-        .instance
-        .api
-        .rust_arc_increment_strong_count_ConnectionStateStream,
-    rustArcDecrementStrongCount: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_ConnectionStateStream,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_ConnectionStateStreamPtr,
+    rustArcIncrementStrongCount:
+        RustLib
+            .instance
+            .api
+            .rust_arc_increment_strong_count_ConnectionStateStream,
+    rustArcDecrementStrongCount:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_ConnectionStateStream,
+    rustArcDecrementStrongCountPtr:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_ConnectionStateStreamPtr,
   );
 
   Future<ConnectionState?> next() =>
@@ -14874,10 +14883,11 @@ class EscrowModeStreamImpl extends RustOpaque implements EscrowModeStream {
         RustLib.instance.api.rust_arc_increment_strong_count_EscrowModeStream,
     rustArcDecrementStrongCount:
         RustLib.instance.api.rust_arc_decrement_strong_count_EscrowModeStream,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_EscrowModeStreamPtr,
+    rustArcDecrementStrongCountPtr:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_EscrowModeStreamPtr,
   );
 
   /// Poll for the next escrow-mode-changed event.
@@ -15016,10 +15026,11 @@ class OrderDeltaStreamImpl extends RustOpaque implements OrderDeltaStream {
         RustLib.instance.api.rust_arc_increment_strong_count_OrderDeltaStream,
     rustArcDecrementStrongCount:
         RustLib.instance.api.rust_arc_decrement_strong_count_OrderDeltaStream,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_OrderDeltaStreamPtr,
+    rustArcDecrementStrongCountPtr:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_OrderDeltaStreamPtr,
   );
 
   Future<OrderDelta?> next() =>
@@ -15066,10 +15077,11 @@ class PushStatusStreamImpl extends RustOpaque implements PushStatusStream {
         RustLib.instance.api.rust_arc_increment_strong_count_PushStatusStream,
     rustArcDecrementStrongCount:
         RustLib.instance.api.rust_arc_decrement_strong_count_PushStatusStream,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_PushStatusStreamPtr,
+    rustArcDecrementStrongCountPtr:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_PushStatusStreamPtr,
   );
 
   /// The next status; a lag skips ahead rather than ending the stream.
@@ -15118,18 +15130,21 @@ class RelayAutoSyncStreamImpl extends RustOpaque
   ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount: RustLib
-        .instance
-        .api
-        .rust_arc_increment_strong_count_RelayAutoSyncStream,
-    rustArcDecrementStrongCount: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_RelayAutoSyncStream,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_RelayAutoSyncStreamPtr,
+    rustArcIncrementStrongCount:
+        RustLib
+            .instance
+            .api
+            .rust_arc_increment_strong_count_RelayAutoSyncStream,
+    rustArcDecrementStrongCount:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_RelayAutoSyncStream,
+    rustArcDecrementStrongCountPtr:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_RelayAutoSyncStreamPtr,
   );
 
   Future<List<String>?> next() =>
@@ -15153,10 +15168,11 @@ class RelayStatusStreamImpl extends RustOpaque implements RelayStatusStream {
         RustLib.instance.api.rust_arc_increment_strong_count_RelayStatusStream,
     rustArcDecrementStrongCount:
         RustLib.instance.api.rust_arc_decrement_strong_count_RelayStatusStream,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_RelayStatusStreamPtr,
+    rustArcDecrementStrongCountPtr:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_RelayStatusStreamPtr,
   );
 
   Future<RelayInfo?> next() =>
@@ -15177,18 +15193,21 @@ class RestoreProgressStreamImpl extends RustOpaque
   ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount: RustLib
-        .instance
-        .api
-        .rust_arc_increment_strong_count_RestoreProgressStream,
-    rustArcDecrementStrongCount: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_RestoreProgressStream,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_RestoreProgressStreamPtr,
+    rustArcIncrementStrongCount:
+        RustLib
+            .instance
+            .api
+            .rust_arc_increment_strong_count_RestoreProgressStream,
+    rustArcDecrementStrongCount:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_RestoreProgressStream,
+    rustArcDecrementStrongCountPtr:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_RestoreProgressStreamPtr,
   );
 
   Future<RestoreProgress?> next() => RustLib.instance.api
@@ -15236,18 +15255,21 @@ class TradeKeyIndexStreamImpl extends RustOpaque
   ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount: RustLib
-        .instance
-        .api
-        .rust_arc_increment_strong_count_TradeKeyIndexStream,
-    rustArcDecrementStrongCount: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_TradeKeyIndexStream,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_TradeKeyIndexStreamPtr,
+    rustArcIncrementStrongCount:
+        RustLib
+            .instance
+            .api
+            .rust_arc_increment_strong_count_TradeKeyIndexStream,
+    rustArcDecrementStrongCount:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_TradeKeyIndexStream,
+    rustArcDecrementStrongCountPtr:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_TradeKeyIndexStreamPtr,
   );
 
   /// Poll for the next consumed index.
@@ -15275,10 +15297,11 @@ class TradeTouchStreamImpl extends RustOpaque implements TradeTouchStream {
         RustLib.instance.api.rust_arc_increment_strong_count_TradeTouchStream,
     rustArcDecrementStrongCount:
         RustLib.instance.api.rust_arc_decrement_strong_count_TradeTouchStream,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_TradeTouchStreamPtr,
+    rustArcDecrementStrongCountPtr:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_TradeTouchStreamPtr,
   );
 
   Future<TradeTouch?> next() =>
@@ -15302,10 +15325,11 @@ class TradeUpdatesStreamImpl extends RustOpaque implements TradeUpdatesStream {
         RustLib.instance.api.rust_arc_increment_strong_count_TradeUpdatesStream,
     rustArcDecrementStrongCount:
         RustLib.instance.api.rust_arc_decrement_strong_count_TradeUpdatesStream,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_TradeUpdatesStreamPtr,
+    rustArcDecrementStrongCountPtr:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_TradeUpdatesStreamPtr,
   );
 
   Future<TradeUpdate?> next() =>
@@ -15329,10 +15353,11 @@ class UnreadCountStreamImpl extends RustOpaque implements UnreadCountStream {
         RustLib.instance.api.rust_arc_increment_strong_count_UnreadCountStream,
     rustArcDecrementStrongCount:
         RustLib.instance.api.rust_arc_decrement_strong_count_UnreadCountStream,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_UnreadCountStreamPtr,
+    rustArcDecrementStrongCountPtr:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_UnreadCountStreamPtr,
   );
 
   Future<int?> next() =>
@@ -15356,10 +15381,11 @@ class WalletStatusStreamImpl extends RustOpaque implements WalletStatusStream {
         RustLib.instance.api.rust_arc_increment_strong_count_WalletStatusStream,
     rustArcDecrementStrongCount:
         RustLib.instance.api.rust_arc_decrement_strong_count_WalletStatusStream,
-    rustArcDecrementStrongCountPtr: RustLib
-        .instance
-        .api
-        .rust_arc_decrement_strong_count_WalletStatusStreamPtr,
+    rustArcDecrementStrongCountPtr:
+        RustLib
+            .instance
+            .api
+            .rust_arc_decrement_strong_count_WalletStatusStreamPtr,
   );
 
   /// Poll for the next wallet status change.
