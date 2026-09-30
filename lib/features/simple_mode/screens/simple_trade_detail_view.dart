@@ -75,9 +75,9 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _markingPaid = false);
     }
@@ -96,9 +96,9 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al liberar: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error al liberar: $e')));
     }
   }
 
@@ -106,10 +106,29 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
   Widget build(BuildContext context) {
     final pal = OrderBookPalette.of(context);
     final isDisputed = widget.status == OrderStatus.dispute;
-    final isSuccess = widget.status == OrderStatus.success ||
+    final isSuccess =
+        widget.status == OrderStatus.success ||
         widget.status == OrderStatus.settledHoldInvoice;
 
     final title = widget.isBuyer ? 'Compra de Bitcoin' : 'Venta de Bitcoin';
+
+    final isChatAvailable =
+        widget.status == OrderStatus.active ||
+        widget.status == OrderStatus.fiatSent ||
+        widget.status == OrderStatus.dispute;
+
+    void onChatPressed() {
+      if (isChatAvailable) {
+        context.push(AppRoute.chatRoomPath(widget.orderId));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(SimpleL10n.chatWillUnlockWhenActive(context)),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
 
     return Scaffold(
       backgroundColor: pal.bg,
@@ -129,13 +148,15 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
           ),
         ),
         actions: [
-          // Quick Chat Button
           IconButton(
-            icon: Icon(Icons.chat_bubble_outline_rounded, color: pal.limeText),
-            tooltip: SimpleL10n.chatWithCounterpart(context),
-            onPressed: () {
-              context.push(AppRoute.chatRoomPath(widget.orderId));
-            },
+            icon: Icon(
+              Icons.chat_bubble_outline_rounded,
+              color: isChatAvailable ? pal.limeText : pal.textSecondary,
+            ),
+            tooltip: isChatAvailable
+                ? SimpleL10n.chatWithCounterpart(context)
+                : SimpleL10n.chatWaitingPeer(context),
+            onPressed: onChatPressed,
           ),
         ],
       ),
@@ -178,14 +199,16 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
                   ),
                 ),
                 OutlinedButton.icon(
-                  onPressed: () {
-                    context.push(AppRoute.chatRoomPath(widget.orderId));
-                  },
+                  onPressed: onChatPressed,
                   icon: const Icon(Icons.chat_rounded, size: 16),
-                  label: const Text('Chat'),
+                  label: Text(isChatAvailable ? 'Chat' : 'Chat (En espera)'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: pal.limeText,
-                    side: BorderSide(color: pal.limeBorder),
+                    foregroundColor: isChatAvailable
+                        ? pal.limeText
+                        : pal.textSecondary,
+                    side: BorderSide(
+                      color: isChatAvailable ? pal.limeBorder : pal.navBorder,
+                    ),
                   ),
                 ),
               ],
@@ -193,6 +216,257 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
           ),
 
           const SizedBox(height: 16),
+
+          // 1. ACTION NEEDED: Waiting Buyer Invoice
+          if (widget.status == OrderStatus.waitingBuyerInvoice) ...[
+            if (widget.isBuyer) ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: pal.surfaceCard,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: pal.limeBorder, width: 1.5),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.receipt_long_rounded,
+                          color: pal.limeText,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Factura Lightning requerida',
+                            style: TextStyle(
+                              color: pal.textTitle,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      SimpleL10n.uploadInvoiceDesc(context),
+                      style: TextStyle(color: pal.textSecondary, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () =>
+                    context.push(AppRoute.addInvoicePath(widget.orderId)),
+                icon: const Icon(Icons.receipt_long_rounded),
+                label: Text(
+                  SimpleL10n.uploadInvoiceAction(context),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: pal.limeText,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ] else ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: pal.surfaceCard,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: pal.navBorder),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.amber,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        SimpleL10n.waitingBuyerInvoiceDesc(context),
+                        style: TextStyle(color: pal.textTitle, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ],
+
+          // 2. ACTION NEEDED: Waiting Escrow Payment (Seller hold invoice)
+          if (widget.status == OrderStatus.waitingPayment) ...[
+            if (!widget.isBuyer) ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: pal.surfaceCard,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: pal.limeBorder, width: 1.5),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.bolt_rounded, color: pal.limeText, size: 22),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Depósito de custodia requerido',
+                            style: TextStyle(
+                              color: pal.textTitle,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      SimpleL10n.payEscrowHoldDesc(context),
+                      style: TextStyle(color: pal.textSecondary, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () =>
+                    context.push(AppRoute.payInvoicePath(widget.orderId)),
+                icon: const Icon(Icons.bolt_rounded),
+                label: Text(
+                  SimpleL10n.payEscrowHoldAction(context),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: pal.limeText,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ] else ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: pal.surfaceCard,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: pal.navBorder),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.amber,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        SimpleL10n.waitingSellerEscrowDesc(context),
+                        style: TextStyle(color: pal.textTitle, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ],
+
+          // 3. ACTION NEEDED: Waiting Security Bond
+          if (widget.status == OrderStatus.waitingMakerBond ||
+              widget.status == OrderStatus.waitingTakerBond) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: pal.surfaceCard,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: pal.limeBorder, width: 1.5),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.lock_outline_rounded,
+                        color: pal.limeText,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Depósito de fianza requerido',
+                          style: TextStyle(
+                            color: pal.textTitle,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    SimpleL10n.payBondDesc(context),
+                    style: TextStyle(color: pal.textSecondary, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () =>
+                  context.push(AppRoute.payBondPath(widget.orderId)),
+              icon: const Icon(Icons.lock_outline_rounded),
+              label: Text(
+                SimpleL10n.payBondAction(context),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: pal.limeText,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // Payment Details Card (if Buyer and active)
           if (widget.isBuyer &&
@@ -210,15 +484,20 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.payment_rounded,
-                          color: pal.limeText, size: 20),
+                      Icon(
+                        Icons.payment_rounded,
+                        color: pal.limeText,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Envía ${widget.fiatAmount} ${widget.fiatCode}',
-                        style: TextStyle(
-                          color: pal.textTitle,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
+                      Expanded(
+                        child: Text(
+                          'Envía ${widget.fiatAmount} ${widget.fiatCode}',
+                          style: TextStyle(
+                            color: pal.textTitle,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
                         ),
                       ),
                     ],
@@ -227,9 +506,10 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
                   Text(
                     'Método: ${widget.paymentMethod}',
                     style: TextStyle(
-                        color: pal.textSecondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600),
+                      color: pal.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   if (widget.paymentDetails != null &&
                       widget.paymentDetails!.isNotEmpty) ...[
@@ -262,6 +542,45 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
             const SizedBox(height: 16),
           ],
 
+          // Waiting fiat payment (if Seller and active)
+          if (!widget.isBuyer &&
+              (widget.status == OrderStatus.active ||
+                  widget.status == OrderStatus.inProgress)) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: pal.surfaceCard,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: pal.navBorder),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.amber,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      SimpleL10n.waitingFiatPaymentDesc(
+                        widget.fiatAmount?.toString() ?? '—',
+                        widget.fiatCode,
+                        widget.paymentMethod,
+                        context,
+                      ),
+                      style: TextStyle(color: pal.textTitle, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           // Seller Safety Notice (if Seller and fiatSent)
           if (!widget.isBuyer && widget.status == OrderStatus.fiatSent) ...[
             Container(
@@ -276,8 +595,11 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.warning_amber_rounded,
-                          color: Colors.amber, size: 22),
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.amber,
+                        size: 22,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -298,6 +620,35 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
                       color: pal.textSecondary,
                       fontSize: 12,
                       height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Buyer waiting release (if Buyer and fiatSent)
+          if (widget.isBuyer && widget.status == OrderStatus.fiatSent) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: pal.surfaceCard,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: pal.limeBorder),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.check_circle_outline_rounded,
+                    color: pal.limeText,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      SimpleL10n.waitingFiatConfirmationDesc(context),
+                      style: TextStyle(color: pal.textTitle, fontSize: 13),
                     ),
                   ),
                 ],
@@ -334,7 +685,9 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.black),
+                        strokeWidth: 2,
+                        color: Colors.black,
+                      ),
                     )
                   : Text(
                       SimpleL10n.iHavePaid(context),
@@ -376,8 +729,11 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
               ),
               child: Column(
                 children: [
-                  Icon(Icons.check_circle_rounded,
-                      color: pal.limeText, size: 40),
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: pal.limeText,
+                    size: 40,
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     SimpleL10n.tradeCompleted(context),
@@ -404,8 +760,11 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.help_outline_rounded,
-                      color: pal.textSecondary, size: 20),
+                  Icon(
+                    Icons.help_outline_rounded,
+                    color: pal.textSecondary,
+                    size: 20,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -420,13 +779,16 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
                   OutlinedButton(
                     onPressed: () async {
                       final submitted = await SimpleRequestHelpDialog.show(
-                          context, widget.orderId);
+                        context,
+                        widget.orderId,
+                      );
                       if (!context.mounted) return;
                       if (submitted == true) {
                         ref.invalidate(tradeStatusProvider(widget.orderId));
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text('Solicitud de ayuda enviada')),
+                            content: Text('Solicitud de ayuda enviada'),
+                          ),
                         );
                       }
                     },

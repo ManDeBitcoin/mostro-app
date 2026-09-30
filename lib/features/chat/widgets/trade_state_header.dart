@@ -96,12 +96,28 @@ class TradeStateHeader extends ConsumerWidget {
         ref.watch(tradeRoleFromDbProvider(orderId)).valueOrNull ??
         _deriveIsBuyer(order);
 
-    final amountLabel =
-        order.amountSats != null
-            ? (isBuyer
-                ? l10n.buyingSatsAmount(_fmtSats(order.amountSats!))
-                : l10n.sellingSatsAmount(_fmtSats(order.amountSats!)))
-            : (isBuyer ? l10n.buyingBitcoin : l10n.sellingBitcoin);
+    final amountLabel = order.amountSats != null
+        ? (isBuyer
+              ? l10n.buyingSatsAmount(_fmtSats(order.amountSats!))
+              : l10n.sellingSatsAmount(_fmtSats(order.amountSats!)))
+        : (isBuyer ? l10n.buyingBitcoin : l10n.sellingBitcoin);
+
+    final currentStatus = liveStatus ?? order.status;
+    final (actionLabel, actionPath) = switch (currentStatus) {
+      OrderStatus.waitingBuyerInvoice when isBuyer => (
+        'Subir factura Lightning',
+        AppRoute.addInvoicePath(orderId),
+      ),
+      OrderStatus.waitingPayment when !isBuyer => (
+        'Pagar factura de custodia',
+        AppRoute.payInvoicePath(orderId),
+      ),
+      OrderStatus.waitingMakerBond || OrderStatus.waitingTakerBond => (
+        'Pagar fianza de garantía',
+        AppRoute.payBondPath(orderId),
+      ),
+      _ => (null, null),
+    };
 
     final dot = Text(
       '·',
@@ -196,6 +212,42 @@ class TradeStateHeader extends ConsumerWidget {
                     Icon(Icons.north_east, size: 11, color: green),
                   ],
                 ),
+                if (actionLabel != null && actionPath != null) ...[
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () => context.push(actionPath),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: green.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: green, width: 1),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.touch_app_rounded, size: 14, color: green),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              actionLabel,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: green,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

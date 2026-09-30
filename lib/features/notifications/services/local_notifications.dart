@@ -61,6 +61,9 @@ Future<void> showChatWakeNotification(String title, String body) async {
   );
 }
 
+/// Track recently displayed notification keys and their timestamp to debounce duplicates.
+final Map<String, DateTime> _recentAlertTimestamps = {};
+
 /// Displays a cross-platform notification (mobile local notification or web browser notification).
 Future<void> showNotificationAlert({
   required String title,
@@ -69,6 +72,20 @@ Future<void> showNotificationAlert({
   String? tag,
   String? payload,
 }) async {
+  final dedupKey = '${tag ?? ""}:$title:$body';
+  final now = DateTime.now();
+  final lastTime = _recentAlertTimestamps[dedupKey];
+  if (lastTime != null && now.difference(lastTime).inSeconds < 10) {
+    debugPrint('[notifications] Suppressing duplicate alert: $dedupKey');
+    return;
+  }
+  _recentAlertTimestamps[dedupKey] = now;
+  if (_recentAlertTimestamps.length > 50) {
+    _recentAlertTimestamps.removeWhere(
+      (_, time) => now.difference(time).inSeconds > 60,
+    );
+  }
+
   if (kIsWeb) {
     showWebNotification(title, body: body, tag: tag);
     return;

@@ -12,19 +12,10 @@ import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
 import 'package:mostro/features/simple_mode/providers/community_provider.dart';
 import 'package:mostro/features/notifications/services/pwa_service.dart';
 import 'package:mostro/features/notifications/services/push_notification_service.dart';
+import 'package:mostro/features/simple_mode/providers/simple_identity_provider.dart';
 import 'package:mostro/features/simple_mode/widgets/a2hs_guide_modal.dart';
-import 'package:mostro/shared/providers/peer_nym_provider.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
 import 'package:mostro/shared/widgets/nym_avatar.dart';
-import 'package:mostro/src/rust/api/identity.dart' as identity_api;
-
-final _myPubkeyProvider = FutureProvider<String?>((ref) async {
-  try {
-    return (await identity_api.getIdentity())?.publicKey;
-  } catch (_) {
-    return null;
-  }
-});
 
 /// Simple Mode: Profile Screen.
 /// Clean, non-technical overview of user reputation, connected wallet,
@@ -100,7 +91,10 @@ class SimpleProfileScreen extends ConsumerWidget {
               }
               final parts = input.split('@');
               if (parts.length != 2 || parts[0].isEmpty || parts[1].isEmpty) {
-                setDialogState(() => errorText = 'Formato inválido (debe ser usuario@dominio.com)');
+                setDialogState(
+                  () => errorText =
+                      'Formato inválido (debe ser usuario@dominio.com)',
+                );
                 return;
               }
               ref
@@ -126,10 +120,7 @@ class SimpleProfileScreen extends ConsumerWidget {
     final lightningAddress = settings.defaultLightningAddress;
     final isBackedUp = ref.watch(backupCompletedProvider);
 
-    final myPubkey = ref.watch(_myPubkeyProvider).valueOrNull ?? '';
-    final nym = myPubkey.isNotEmpty
-        ? ref.watch(peerNymProvider(myPubkey)).valueOrNull
-        : null;
+    final nym = ref.watch(myNymProvider).valueOrNull;
 
     final pwa = PwaService.instance;
     final areNotifsGranted = pwa.areNotificationsGranted;
@@ -174,7 +165,11 @@ class SimpleProfileScreen extends ConsumerWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+                        const Icon(
+                          Icons.star_rounded,
+                          color: Colors.amber,
+                          size: 16,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'Identidad P2P',
@@ -220,7 +215,9 @@ class SimpleProfileScreen extends ConsumerWidget {
                 children: [
                   Icon(
                     Icons.bolt_rounded,
-                    color: lightningAddress != null ? pal.limeText : Colors.orangeAccent,
+                    color: lightningAddress != null
+                        ? pal.limeText
+                        : Colors.orangeAccent,
                     size: 24,
                   ),
                   const SizedBox(width: 10),
@@ -253,10 +250,21 @@ class SimpleProfileScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
-                onPressed: () => _showEditLightningAddressDialog(context, ref, lightningAddress),
-                icon: Icon(lightningAddress != null ? Icons.edit_outlined : Icons.add_rounded, size: 18),
+                onPressed: () => _showEditLightningAddressDialog(
+                  context,
+                  ref,
+                  lightningAddress,
+                ),
+                icon: Icon(
+                  lightningAddress != null
+                      ? Icons.edit_outlined
+                      : Icons.add_rounded,
+                  size: 18,
+                ),
                 label: Text(
-                  lightningAddress != null ? 'Modificar dirección' : 'Configurar dirección',
+                  lightningAddress != null
+                      ? 'Modificar dirección'
+                      : 'Configurar dirección',
                 ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: pal.limeText,
@@ -399,7 +407,9 @@ class SimpleProfileScreen extends ConsumerWidget {
             color: pal.surfaceCard,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: isBackedUp ? pal.navBorder : Colors.amber.withValues(alpha: 0.5),
+              color: isBackedUp
+                  ? pal.navBorder
+                  : Colors.amber.withValues(alpha: 0.5),
             ),
           ),
           child: Column(
@@ -408,7 +418,9 @@ class SimpleProfileScreen extends ConsumerWidget {
               Row(
                 children: [
                   Icon(
-                    isBackedUp ? Icons.verified_user_rounded : Icons.warning_amber_rounded,
+                    isBackedUp
+                        ? Icons.verified_user_rounded
+                        : Icons.warning_amber_rounded,
                     color: isBackedUp ? pal.limeText : Colors.amber,
                     size: 24,
                   ),
@@ -455,9 +467,15 @@ class SimpleProfileScreen extends ConsumerWidget {
                         }
                       },
                       icon: const Icon(Icons.key_rounded, size: 18),
-                      label: Text(isBackedUp ? 'Ver palabras secretas' : 'Respaldar ahora'),
+                      label: Text(
+                        isBackedUp
+                            ? 'Ver palabras secretas'
+                            : 'Respaldar ahora',
+                      ),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: isBackedUp ? pal.textTitle : Colors.amber,
+                        foregroundColor: isBackedUp
+                            ? pal.textTitle
+                            : Colors.amber,
                         side: BorderSide(
                           color: isBackedUp ? pal.navBorder : Colors.amber,
                         ),
@@ -473,7 +491,11 @@ class SimpleProfileScreen extends ConsumerWidget {
         const SizedBox(height: 20),
 
         // Notifications & PWA Section
-        _buildSectionHeader(context, 'Notificaciones y Acceso Rápido (PWA)', pal),
+        _buildSectionHeader(
+          context,
+          'Notificaciones y Acceso Rápido (PWA)',
+          pal,
+        ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(16),
@@ -535,17 +557,23 @@ class SimpleProfileScreen extends ConsumerWidget {
                         final ok = await pwa.requestNotificationPermission();
                         if (context.mounted) {
                           if (ok) {
-                            await PushNotificationService.instance.retryInitialize();
+                            await PushNotificationService.instance
+                                .retryInitialize();
                             if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('¡Notificaciones activadas con éxito!'),
+                                content: Text(
+                                  '¡Notificaciones activadas con éxito!',
+                                ),
                               ),
                             );
                           }
                         }
                       },
-                      icon: const Icon(Icons.notifications_active_outlined, size: 16),
+                      icon: const Icon(
+                        Icons.notifications_active_outlined,
+                        size: 16,
+                      ),
                       label: const Text('Activar alertas'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: pal.limeText,
@@ -555,7 +583,10 @@ class SimpleProfileScreen extends ConsumerWidget {
                   if (pwa.isWeb && !pwa.isStandalone)
                     OutlinedButton.icon(
                       onPressed: () => A2hsGuideModal.show(context),
-                      icon: const Icon(Icons.add_to_home_screen_rounded, size: 16),
+                      icon: const Icon(
+                        Icons.add_to_home_screen_rounded,
+                        size: 16,
+                      ),
                       label: const Text('Cómo agregar a inicio'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: pal.textTitle,
@@ -563,7 +594,8 @@ class SimpleProfileScreen extends ConsumerWidget {
                       ),
                     ),
                   OutlinedButton.icon(
-                    onPressed: () => context.push(AppRoute.notificationSettings),
+                    onPressed: () =>
+                        context.push(AppRoute.notificationSettings),
                     icon: const Icon(Icons.tune_rounded, size: 16),
                     label: const Text('Ajustes de alertas'),
                     style: OutlinedButton.styleFrom(
@@ -595,8 +627,11 @@ class SimpleProfileScreen extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.terminal_rounded,
-                          size: 20, color: pal.textSecondary),
+                      Icon(
+                        Icons.terminal_rounded,
+                        size: 20,
+                        color: pal.textSecondary,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Modo Avanzado',
@@ -635,7 +670,10 @@ class SimpleProfileScreen extends ConsumerWidget {
   }
 
   Widget _buildSectionHeader(
-      BuildContext context, String title, OrderBookPalette pal) {
+    BuildContext context,
+    String title,
+    OrderBookPalette pal,
+  ) {
     return Text(
       title,
       style: TextStyle(

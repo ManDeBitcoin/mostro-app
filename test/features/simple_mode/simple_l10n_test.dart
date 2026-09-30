@@ -70,6 +70,32 @@ void main() {
       expect(SimpleL10n.confirmAndBuy(capturedContext), isNotEmpty);
       expect(SimpleL10n.confirmAndPublish(capturedContext), isNotEmpty);
       expect(SimpleL10n.calculatingRate(capturedContext), isNotEmpty);
+
+      // Verify trade actions and waiting strings
+      expect(SimpleL10n.yourOffer(capturedContext), isNotEmpty);
+      expect(SimpleL10n.publishingAs(capturedContext), isNotEmpty);
+      expect(SimpleL10n.uploadInvoiceAction(capturedContext), isNotEmpty);
+      expect(SimpleL10n.uploadInvoiceDesc(capturedContext), isNotEmpty);
+      expect(SimpleL10n.payEscrowHoldAction(capturedContext), isNotEmpty);
+      expect(SimpleL10n.payEscrowHoldDesc(capturedContext), isNotEmpty);
+      expect(SimpleL10n.payBondAction(capturedContext), isNotEmpty);
+      expect(SimpleL10n.payBondDesc(capturedContext), isNotEmpty);
+      expect(SimpleL10n.waitingBuyerInvoiceDesc(capturedContext), isNotEmpty);
+      expect(SimpleL10n.waitingSellerEscrowDesc(capturedContext), isNotEmpty);
+      expect(
+        SimpleL10n.waitingFiatPaymentDesc(
+          '50',
+          'USD',
+          'Zelle',
+          capturedContext,
+        ),
+        isNotEmpty,
+      );
+      expect(
+        SimpleL10n.waitingFiatConfirmationDesc(capturedContext),
+        isNotEmpty,
+      );
+      expect(SimpleL10n.chatWillUnlockWhenActive(capturedContext), isNotEmpty);
     });
   }
 }
