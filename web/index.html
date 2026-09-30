@@ -46,6 +46,27 @@
       navigator.serviceWorker
         .register('firebase-messaging-sw.js', { scope: 'firebase-cloud-messaging-push-scope' })
         .catch(function (e) { console.warn('messaging worker not registered', e); });
+
+      // Clean up legacy Flutter service worker if previously registered at root scope
+      navigator.serviceWorker.getRegistrations().then(function (registrations) {
+        for (var i = 0; i < registrations.length; i++) {
+          var reg = registrations[i];
+          if (reg.active && reg.active.scriptURL && reg.active.scriptURL.indexOf('flutter_service_worker.js') !== -1) {
+            reg.unregister();
+          }
+        }
+      }).catch(function () {});
+    }
+
+    // Clean up legacy Flutter app cache
+    if ('caches' in window) {
+      caches.keys().then(function (names) {
+        for (var i = 0; i < names.length; i++) {
+          if (names[i].indexOf('flutter-app-cache') !== -1) {
+            caches.delete(names[i]);
+          }
+        }
+      }).catch(function () {});
     }
   </script>
 
