@@ -260,6 +260,15 @@ pub async fn apply_community_profile(profile: CommunityProfile) -> Result<()> {
 
         let methods_json = serde_json::to_string(&profile.payment_methods)?;
         db.set_setting(settings_keys::COMMUNITY_PAYMENT_METHODS, &methods_json).await?;
+
+        // 5. Register linked node in custom nodes registry with its name
+        // (Saves only pubkey + name; bond_percent, fees, and other variant data stay dynamic)
+        let _ = crate::api::nodes::register_linked_node(
+            db,
+            &profile.pubkey,
+            Some(&profile.name),
+        )
+        .await;
     }
 
     Ok(())
