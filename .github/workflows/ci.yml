@@ -141,6 +141,7 @@ jobs:
               echo "::error::Generated code is out of date. Run ./scripts/frb-generate.sh and flutter gen-l10n, then commit the result."
               git status --short -- "${paths[@]}"
               git diff --stat -- "${paths[@]}"
+              git diff -- "${paths[@]}"
               exit 1
             else
               echo "::warning::Generated code drift detected on push."
