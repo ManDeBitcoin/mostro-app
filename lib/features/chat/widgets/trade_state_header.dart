@@ -232,12 +232,15 @@ class TradeStateHeader extends ConsumerWidget {
                         children: [
                           Icon(Icons.touch_app_rounded, size: 14, color: green),
                           const SizedBox(width: 6),
-                          Text(
-                            actionLabel,
-                            style: TextStyle(
-                              color: green,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                          Flexible(
+                            child: Text(
+                              actionLabel,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: green,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                         ],

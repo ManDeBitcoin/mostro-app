@@ -238,12 +238,14 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
                           size: 22,
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          'Factura Lightning requerida',
-                          style: TextStyle(
-                            color: pal.textTitle,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
+                        Expanded(
+                          child: Text(
+                            'Factura Lightning requerida',
+                            style: TextStyle(
+                              color: pal.textTitle,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
                           ),
                         ),
                       ],
@@ -327,12 +329,14 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
                       children: [
                         Icon(Icons.bolt_rounded, color: pal.limeText, size: 22),
                         const SizedBox(width: 8),
-                        Text(
-                          'Depósito de custodia requerido',
-                          style: TextStyle(
-                            color: pal.textTitle,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
+                        Expanded(
+                          child: Text(
+                            'Depósito de custodia requerido',
+                            style: TextStyle(
+                              color: pal.textTitle,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
                           ),
                         ),
                       ],
@@ -420,12 +424,14 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
                         size: 22,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Depósito de fianza requerido',
-                        style: TextStyle(
-                          color: pal.textTitle,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
+                      Expanded(
+                        child: Text(
+                          'Depósito de fianza requerido',
+                          style: TextStyle(
+                            color: pal.textTitle,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
                         ),
                       ),
                     ],
@@ -484,12 +490,14 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
                         size: 20,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Envía ${widget.fiatAmount} ${widget.fiatCode}',
-                        style: TextStyle(
-                          color: pal.textTitle,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
+                      Expanded(
+                        child: Text(
+                          'Envía ${widget.fiatAmount} ${widget.fiatCode}',
+                          style: TextStyle(
+                            color: pal.textTitle,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
                         ),
                       ),
                     ],
