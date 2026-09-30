@@ -7,14 +7,13 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
-
-            // These functions are ignored because they are not marked as `pub`: `current_bip39_seed`, `delete_identity_inner`, `derive_trade_key_with`, `ensure_trade_key_index_at_least_with`, `ensure_trade_key_index_at_least`, `forget_identity_state`, `get_active_keys`, `get_active_trade_keys_up_to`, `get_active_trade_keys`, `get_transport_identity_keys`, `identity_generation`, `identity_lock`, `publish_index`, `reconcile_and_publish_to`, `reconcile_trade_key_index`, `require_durable_storage`, `trade_key_index_tx`, `while_identity_current`
+// These functions are ignored because they are not marked as `pub`: `current_bip39_seed`, `delete_identity_inner`, `derive_trade_key_with`, `ensure_trade_key_index_at_least_with`, `ensure_trade_key_index_at_least`, `forget_identity_state`, `get_active_keys`, `get_active_trade_keys_up_to`, `get_active_trade_keys`, `get_transport_identity_keys`, `identity_generation`, `identity_lock`, `publish_index`, `reconcile_and_publish_to`, `reconcile_trade_key_index`, `require_durable_storage`, `trade_key_index_tx`, `while_identity_current`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `IdentityState`, `RecoveryProgress`
 
-
-            /// Subscribe to consumed trade-key indices. Flutter calls this once at startup
+/// Subscribe to consumed trade-key indices. Flutter calls this once at startup
 /// and writes every value it receives to secure storage.
-Future<TradeKeyIndexStream>  onTradeKeyIndexChanged() => RustLib.instance.api.crateApiIdentityOnTradeKeyIndexChanged();
+Future<TradeKeyIndexStream> onTradeKeyIndexChanged() =>
+    RustLib.instance.api.crateApiIdentityOnTradeKeyIndexChanged();
 
 /// Create a brand-new identity. Generates a 12-word mnemonic, derives the
 /// identity key, and loads it into the in-memory state.
@@ -23,7 +22,8 @@ Future<TradeKeyIndexStream>  onTradeKeyIndexChanged() => RustLib.instance.api.cr
 /// Flutter MUST persist it in `flutter_secure_storage` before displaying it.
 ///
 /// Returns `Err("AlreadyExists")` if an identity is already loaded.
-Future<IdentityCreationResult>  createIdentity() => RustLib.instance.api.crateApiIdentityCreateIdentity();
+Future<IdentityCreationResult> createIdentity() =>
+    RustLib.instance.api.crateApiIdentityCreateIdentity();
 
 /// Load an existing identity from a BIP-39 mnemonic (called on every launch
 /// after the first, reading from Flutter's `flutter_secure_storage`).
@@ -31,25 +31,40 @@ Future<IdentityCreationResult>  createIdentity() => RustLib.instance.api.crateAp
 /// Pass the `trade_key_index` previously stored so the key counter is restored.
 /// Pass `created_at` from the persisted value so the original creation timestamp
 /// is preserved; pass `None` (or `0`) to fall back to the current time.
-Future<IdentityInfo>  loadIdentityFromMnemonic({required List<String> words , required int tradeKeyIndex , required bool privacyMode , PlatformInt64? createdAt }) => RustLib.instance.api.crateApiIdentityLoadIdentityFromMnemonic(words: words, tradeKeyIndex: tradeKeyIndex, privacyMode: privacyMode, createdAt: createdAt);
+Future<IdentityInfo> loadIdentityFromMnemonic(
+        {required List<String> words,
+        required int tradeKeyIndex,
+        required bool privacyMode,
+        PlatformInt64? createdAt}) =>
+    RustLib.instance.api.crateApiIdentityLoadIdentityFromMnemonic(
+        words: words,
+        tradeKeyIndex: tradeKeyIndex,
+        privacyMode: privacyMode,
+        createdAt: createdAt);
 
 /// Import identity from a BIP-39 mnemonic phrase (user-entered recovery).
 ///
 /// When `recover = true`, the daemon recovery flow is triggered (Phase 7).
 /// Currently this validates and loads the mnemonic; recovery contacts are
 /// initiated separately via the daemon API.
-Future<IdentityInfo>  importFromMnemonic({required List<String> words , required bool recover }) => RustLib.instance.api.crateApiIdentityImportFromMnemonic(words: words, recover: recover);
+Future<IdentityInfo> importFromMnemonic(
+        {required List<String> words, required bool recover}) =>
+    RustLib.instance.api
+        .crateApiIdentityImportFromMnemonic(words: words, recover: recover);
 
 /// Import identity from an nsec (bech32-encoded Nostr secret key).
 /// Note: nsec import produces a single key with no BIP-39 mnemonic backup.
-Future<IdentityInfo>  importFromNsec({required String nsec }) => RustLib.instance.api.crateApiIdentityImportFromNsec(nsec: nsec);
+Future<IdentityInfo> importFromNsec({required String nsec}) =>
+    RustLib.instance.api.crateApiIdentityImportFromNsec(nsec: nsec);
 
 /// Get current identity info. Returns `None` if no identity is loaded.
-Future<IdentityInfo?>  getIdentity() => RustLib.instance.api.crateApiIdentityGetIdentity();
+Future<IdentityInfo?> getIdentity() =>
+    RustLib.instance.api.crateApiIdentityGetIdentity();
 
 /// Delete the in-memory identity state. Flutter must also clear
 /// `flutter_secure_storage` after calling this.
-Future<void>  deleteIdentity() => RustLib.instance.api.crateApiIdentityDeleteIdentity();
+Future<void> deleteIdentity() =>
+    RustLib.instance.api.crateApiIdentityDeleteIdentity();
 
 /// What the current identity would lose if it were replaced now: locked
 /// escrow, locked or payable bonds, open payout claims, live trades — most
@@ -59,17 +74,21 @@ Future<void>  deleteIdentity() => RustLib.instance.api.crateApiIdentityDeleteIde
 /// seed, and warns. It reads the local rows only: no relay round trip sits
 /// between the user and the dialog. With no database there is nothing to
 /// lose track of, so that reads as empty.
-Future<List<FundsAtRisk>>  fundsAtRisk() => RustLib.instance.api.crateApiIdentityFundsAtRisk();
+Future<List<FundsAtRisk>> fundsAtRisk() =>
+    RustLib.instance.api.crateApiIdentityFundsAtRisk();
 
 /// Derive a new trade key, auto-incrementing the index.
 /// Returns the new key's info and updates the stored `trade_key_index`.
-Future<TradeKeyInfo>  deriveTradeKey() => RustLib.instance.api.crateApiIdentityDeriveTradeKey();
+Future<TradeKeyInfo> deriveTradeKey() =>
+    RustLib.instance.api.crateApiIdentityDeriveTradeKey();
 
 /// Re-derive an existing trade key by index.
-Future<TradeKeyInfo>  getTradeKey({required int index }) => RustLib.instance.api.crateApiIdentityGetTradeKey(index: index);
+Future<TradeKeyInfo> getTradeKey({required int index}) =>
+    RustLib.instance.api.crateApiIdentityGetTradeKey(index: index);
 
 /// Derive the deterministic nym identity for any public key.
-Future<NymIdentity>  getNymIdentity({required String pubkeyHex }) => RustLib.instance.api.crateApiIdentityGetNymIdentity(pubkeyHex: pubkeyHex);
+Future<NymIdentity> getNymIdentity({required String pubkeyHex}) =>
+    RustLib.instance.api.crateApiIdentityGetNymIdentity(pubkeyHex: pubkeyHex);
 
 /// Export an encrypted backup of the mnemonic using ChaCha20-Poly1305.
 ///
@@ -83,73 +102,63 @@ Future<NymIdentity>  getNymIdentity({required String pubkeyHex }) => RustLib.ins
 /// Output format (base64-encoded): `[12-byte nonce][ciphertext+tag]`
 /// The nonce is randomly generated per call and prepended so that the
 /// same passphrase never reuses a nonce.
-Future<String>  exportEncryptedBackup({required String passphrase }) => RustLib.instance.api.crateApiIdentityExportEncryptedBackup(passphrase: passphrase);
+Future<String> exportEncryptedBackup({required String passphrase}) =>
+    RustLib.instance.api
+        .crateApiIdentityExportEncryptedBackup(passphrase: passphrase);
 
-            
-                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TradeKeyIndexStream>>
-                abstract class TradeKeyIndexStream implements RustOpaqueInterface {
-                    /// Poll for the next consumed index.
-///
-/// `RecvError::Lagged` is skipped: the counter only moves forward, so the
-/// next value received is at least as high as the one missed.
- Future<int>  next();
-
-
-
-                    
-                }
-                
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TradeKeyIndexStream>>
+abstract class TradeKeyIndexStream implements RustOpaqueInterface {
+  /// Poll for the next consumed index.
+  ///
+  /// `RecvError::Lagged` is skipped: the counter only moves forward, so the
+  /// next value received is at least as high as the one missed.
+  Future<int> next();
+}
 
 /// Returned by `create_identity`. Mnemonic is shown **once** — Flutter must
 /// persist it in `flutter_secure_storage` immediately.
-class IdentityCreationResult  {
-                /// Hex-encoded Nostr public key (x-only, 64 chars).
-final String publicKey;
-/// 12-word BIP-39 mnemonic — show once, must be backed up.
-final List<String> mnemonicWords;
+class IdentityCreationResult {
+  /// Hex-encoded Nostr public key (x-only, 64 chars).
+  final String publicKey;
 
-                const IdentityCreationResult({required this.publicKey ,required this.mnemonicWords ,});
+  /// 12-word BIP-39 mnemonic — show once, must be backed up.
+  final List<String> mnemonicWords;
 
-                
-                
+  const IdentityCreationResult({
+    required this.publicKey,
+    required this.mnemonicWords,
+  });
 
-                
-        @override
-        int get hashCode => publicKey.hashCode^mnemonicWords.hashCode;
-        
+  @override
+  int get hashCode => publicKey.hashCode ^ mnemonicWords.hashCode;
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is IdentityCreationResult &&
-                runtimeType == other.runtimeType
-                && publicKey == other.publicKey&& mnemonicWords == other.mnemonicWords;
-        
-            }
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is IdentityCreationResult &&
+          runtimeType == other.runtimeType &&
+          publicKey == other.publicKey &&
+          mnemonicWords == other.mnemonicWords;
+}
 
 /// Info about a single BIP-32 trade key.
-class TradeKeyInfo  {
-                final int index;
-final String publicKey;
+class TradeKeyInfo {
+  final int index;
+  final String publicKey;
 
-                const TradeKeyInfo({required this.index ,required this.publicKey ,});
+  const TradeKeyInfo({
+    required this.index,
+    required this.publicKey,
+  });
 
-                
-                
+  @override
+  int get hashCode => index.hashCode ^ publicKey.hashCode;
 
-                
-        @override
-        int get hashCode => index.hashCode^publicKey.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is TradeKeyInfo &&
-                runtimeType == other.runtimeType
-                && index == other.index&& publicKey == other.publicKey;
-        
-            }
-            
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TradeKeyInfo &&
+          runtimeType == other.runtimeType &&
+          index == other.index &&
+          publicKey == other.publicKey;
+}

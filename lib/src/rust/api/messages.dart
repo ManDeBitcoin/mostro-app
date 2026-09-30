@@ -7,13 +7,11 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
-
-            // These functions are ignored because they are not marked as `pub`: `active_chats`, `add_message`, `admin_chat_context`, `advance_cursor`, `attachment_blob`, `attachment_key_for`, `budget_ok`, `cache_attachment_blob`, `chat_context`, `chat_is_current`, `chat_still_relevant`, `chat_subscription_id`, `claim_chat`, `clear`, `conversation_of`, `counterpart_of`, `cursor_key`, `ensure_durable`, `ensure_hydrated`, `forget_identity_chats`, `get_messages`, `guard_key`, `handle_chat_event`, `id_prefix`, `insert`, `is_known`, `load_chat_cursor`, `mark_as_read`, `message_store`, `message_type`, `new`, `new`, `new`, `new`, `new`, `next_from`, `notification_backlog`, `notification_candidate_now`, `notification_candidate`, `parse_chat_payload`, `peer_to_wake`, `publish_chat_payload_for`, `publish_chat_payload`, `quota_exceeded`, `rebuild_session`, `reject`, `release_chat`, `resubscribe_active_chats`, `run_chat_subscription`, `send_attachment`, `session_or_rebuild`, `set_download_status`, `stop_chat_subscriptions`, `store_chat_cursor`, `store_outgoing_admin_message`, `subscribe_incoming_chat`, `try_take`, `unread_count_inner`
+// These functions are ignored because they are not marked as `pub`: `active_chats`, `add_message`, `admin_chat_context`, `advance_cursor`, `attachment_blob`, `attachment_key_for`, `budget_ok`, `cache_attachment_blob`, `chat_context`, `chat_is_current`, `chat_still_relevant`, `chat_subscription_id`, `claim_chat`, `clear`, `conversation_of`, `counterpart_of`, `cursor_key`, `ensure_durable`, `ensure_hydrated`, `forget_identity_chats`, `get_messages`, `guard_key`, `handle_chat_event`, `id_prefix`, `insert`, `is_known`, `load_chat_cursor`, `mark_as_read`, `message_store`, `message_type`, `new`, `new`, `new`, `new`, `new`, `next_from`, `notification_backlog`, `notification_candidate_now`, `notification_candidate`, `parse_chat_payload`, `peer_to_wake`, `publish_chat_payload_for`, `publish_chat_payload`, `quota_exceeded`, `rebuild_session`, `reject`, `release_chat`, `resubscribe_active_chats`, `run_chat_subscription`, `send_attachment`, `session_or_rebuild`, `set_download_status`, `stop_chat_subscriptions`, `store_chat_cursor`, `store_outgoing_admin_message`, `subscribe_incoming_chat`, `try_take`, `unread_count_inner`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `AttachmentTarget`, `BoundedIdSet`, `ChatChannel`, `ChatContext`, `ChatRxState`, `MessageStore`, `PublishedChat`, `TokenBucket`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`
 
-
-            /// Send an encrypted text message to the trade counterparty.
+/// Send an encrypted text message to the trade counterparty.
 ///
 /// Validates that `content` is non-empty, wraps it in the chat envelope
 /// (kind 14 signed with `K_sign`, inner kind 1 signed with the trade key) and
@@ -22,18 +20,24 @@ import 'types.dart';
 /// before, chat never throws for transport reasons.
 ///
 /// Returns the sent `ChatMessage` (with `is_mine: true`).
-Future<ChatMessage>  sendMessage({required String tradeId , required String content }) => RustLib.instance.api.crateApiMessagesSendMessage(tradeId: tradeId, content: content);
+Future<ChatMessage> sendMessage(
+        {required String tradeId, required String content}) =>
+    RustLib.instance.api
+        .crateApiMessagesSendMessage(tradeId: tradeId, content: content);
 
 /// Get all messages for a trade, ordered by creation time (oldest first).
-Future<List<ChatMessage>>  getMessages({required String tradeId }) => RustLib.instance.api.crateApiMessagesGetMessages(tradeId: tradeId);
+Future<List<ChatMessage>> getMessages({required String tradeId}) =>
+    RustLib.instance.api.crateApiMessagesGetMessages(tradeId: tradeId);
 
 /// Mark all messages in a trade as read.
 ///
 /// Emits on the `on_unread_count_changed` stream after updating.
-Future<void>  markAsRead({required String tradeId }) => RustLib.instance.api.crateApiMessagesMarkAsRead(tradeId: tradeId);
+Future<void> markAsRead({required String tradeId}) =>
+    RustLib.instance.api.crateApiMessagesMarkAsRead(tradeId: tradeId);
 
 /// Get total unread message count across all trades.
-Future<int>  getUnreadCount() => RustLib.instance.api.crateApiMessagesGetUnreadCount();
+Future<int> getUnreadCount() =>
+    RustLib.instance.api.crateApiMessagesGetUnreadCount();
 
 /// Encrypt, upload and send an image or PDF in the P2P chat (#589).
 ///
@@ -48,7 +52,16 @@ Future<int>  getUnreadCount() => RustLib.instance.api.crateApiMessagesGetUnreadC
 ///
 /// Errors are markers: `FileTooLarge`, `UnsupportedFileType`, `InvalidImage`,
 /// `SessionNotFound`, `PeerUnknown`, `UploadFailed`, `SendFailed`.
-Future<ChatMessage>  sendFile({required String tradeId , required List<int> fileBytes , required String fileName , required String uploadId }) => RustLib.instance.api.crateApiMessagesSendFile(tradeId: tradeId, fileBytes: fileBytes, fileName: fileName, uploadId: uploadId);
+Future<ChatMessage> sendFile(
+        {required String tradeId,
+        required List<int> fileBytes,
+        required String fileName,
+        required String uploadId}) =>
+    RustLib.instance.api.crateApiMessagesSendFile(
+        tradeId: tradeId,
+        fileBytes: fileBytes,
+        fileName: fileName,
+        uploadId: uploadId);
 
 /// Fetch and decrypt the attachment of `message_id` (#589).
 ///
@@ -60,7 +73,9 @@ Future<ChatMessage>  sendFile({required String tradeId , required List<int> file
 ///
 /// Errors are markers: `AttachmentNotFound`, `SessionNotFound`, `PeerUnknown`,
 /// `DownloadFailed`, `DecryptionFailed`.
-Future<AttachmentData>  downloadAttachment({required String messageId }) => RustLib.instance.api.crateApiMessagesDownloadAttachment(messageId: messageId);
+Future<AttachmentData> downloadAttachment({required String messageId}) =>
+    RustLib.instance.api
+        .crateApiMessagesDownloadAttachment(messageId: messageId);
 
 /// The web smoke test's attachment round trip (#589 phase 4): encrypt random
 /// bytes, upload them to `server`, download them back, cache and decrypt
@@ -68,13 +83,17 @@ Future<AttachmentData>  downloadAttachment({required String messageId }) => Rust
 /// the app's uploads always go to the fixed server list.
 ///
 /// Errors: `StorageUnavailable` before `init_db`, else the first step's.
-Future<void>  attachmentWebProbe({required String server }) => RustLib.instance.api.crateApiMessagesAttachmentWebProbe(server: server);
+Future<void> attachmentWebProbe({required String server}) =>
+    RustLib.instance.api.crateApiMessagesAttachmentWebProbe(server: server);
 
 /// Get the attachment download status for a message.
-Future<DownloadStatus?>  getAttachmentStatus({required String messageId }) => RustLib.instance.api.crateApiMessagesGetAttachmentStatus(messageId: messageId);
+Future<DownloadStatus?> getAttachmentStatus({required String messageId}) =>
+    RustLib.instance.api
+        .crateApiMessagesGetAttachmentStatus(messageId: messageId);
 
 /// Stream that emits new messages for a specific trade.
-Future<MessageStream>  onNewMessage({required String tradeId }) => RustLib.instance.api.crateApiMessagesOnNewMessage(tradeId: tradeId);
+Future<MessageStream> onNewMessage({required String tradeId}) =>
+    RustLib.instance.api.crateApiMessagesOnNewMessage(tradeId: tradeId);
 
 /// Incoming unread messages for notification cards, with at-least-once
 /// delivery. Replays durable unread history on startup, channel lag and
@@ -82,87 +101,67 @@ Future<MessageStream>  onNewMessage({required String tradeId }) => RustLib.insta
 /// or a crash between the Rust and Dart commits is retried without a relay.
 /// Consumers must deduplicate by message id, including deliberately suppressed
 /// messages. Per-screen consumers want [`on_new_message`] instead.
-Future<AnyMessageStream>  onAnyNewMessage() => RustLib.instance.api.crateApiMessagesOnAnyNewMessage();
+Future<AnyMessageStream> onAnyNewMessage() =>
+    RustLib.instance.api.crateApiMessagesOnAnyNewMessage();
 
 /// Stream that emits the updated global unread count after any read/write.
-Future<UnreadCountStream>  onUnreadCountChanged() => RustLib.instance.api.crateApiMessagesOnUnreadCountChanged();
+Future<UnreadCountStream> onUnreadCountChanged() =>
+    RustLib.instance.api.crateApiMessagesOnUnreadCountChanged();
 
 /// Stream that emits attachment upload/download progress (0.0–1.0).
-Future<AttachmentProgressStream>  onAttachmentProgress({required String messageId }) => RustLib.instance.api.crateApiMessagesOnAttachmentProgress(messageId: messageId);
+Future<AttachmentProgressStream> onAttachmentProgress(
+        {required String messageId}) =>
+    RustLib.instance.api
+        .crateApiMessagesOnAttachmentProgress(messageId: messageId);
 
-            
-                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AnyMessageStream>>
-                abstract class AnyMessageStream implements RustOpaqueInterface {
-                     Future<ChatMessage?>  next();
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AnyMessageStream>>
+abstract class AnyMessageStream implements RustOpaqueInterface {
+  Future<ChatMessage?> next();
+}
 
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AttachmentProgressStream>>
+abstract class AttachmentProgressStream implements RustOpaqueInterface {
+  Future<double?> next();
+}
 
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MessageStream>>
+abstract class MessageStream implements RustOpaqueInterface {
+  Future<ChatMessage?> next();
+}
 
-                    
-                }
-                
-
-
-                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AttachmentProgressStream>>
-                abstract class AttachmentProgressStream implements RustOpaqueInterface {
-                     Future<double?>  next();
-
-
-
-                    
-                }
-                
-
-
-                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MessageStream>>
-                abstract class MessageStream implements RustOpaqueInterface {
-                     Future<ChatMessage?>  next();
-
-
-
-                    
-                }
-                
-
-
-                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<UnreadCountStream>>
-                abstract class UnreadCountStream implements RustOpaqueInterface {
-                     Future<int?>  next();
-
-
-
-                    
-                }
-                
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<UnreadCountStream>>
+abstract class UnreadCountStream implements RustOpaqueInterface {
+  Future<int?> next();
+}
 
 /// A decrypted attachment, returned by [`download_attachment`].
 ///
 /// Handed over in memory: the plaintext never touches the disk here. Dart
 /// renders it, or writes a temporary file only for an explicit "open with…".
-class AttachmentData  {
-                final Uint8List bytes;
-final String fileName;
-/// What the bytes are, sniffed after decrypting (JPEG, PNG, PDF); for any
-/// other type, the MIME the sender declared — or `application/octet-stream`
-/// when the sender declared JPEG, PNG or PDF and the bytes are not.
-final String mimeType;
+class AttachmentData {
+  final Uint8List bytes;
+  final String fileName;
 
-                const AttachmentData({required this.bytes ,required this.fileName ,required this.mimeType ,});
+  /// What the bytes are, sniffed after decrypting (JPEG, PNG, PDF); for any
+  /// other type, the MIME the sender declared — or `application/octet-stream`
+  /// when the sender declared JPEG, PNG or PDF and the bytes are not.
+  final String mimeType;
 
-                
-                
+  const AttachmentData({
+    required this.bytes,
+    required this.fileName,
+    required this.mimeType,
+  });
 
-                
-        @override
-        int get hashCode => bytes.hashCode^fileName.hashCode^mimeType.hashCode;
-        
+  @override
+  int get hashCode => bytes.hashCode ^ fileName.hashCode ^ mimeType.hashCode;
 
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is AttachmentData &&
-                runtimeType == other.runtimeType
-                && bytes == other.bytes&& fileName == other.fileName&& mimeType == other.mimeType;
-        
-            }
-            
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AttachmentData &&
+          runtimeType == other.runtimeType &&
+          bytes == other.bytes &&
+          fileName == other.fileName &&
+          mimeType == other.mimeType;
+}

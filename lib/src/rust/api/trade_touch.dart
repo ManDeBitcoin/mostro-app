@@ -7,21 +7,13 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
+// These functions are ignored because they are not marked as `pub`: `sender`, `touch_trade`
 
-            // These functions are ignored because they are not marked as `pub`: `sender`, `touch_trade`
+/// Stream of trade touches; see the module docs.
+Future<TradeTouchStream> onTradeTouched() =>
+    RustLib.instance.api.crateApiTradeTouchOnTradeTouched();
 
-
-            /// Stream of trade touches; see the module docs.
-Future<TradeTouchStream>  onTradeTouched() => RustLib.instance.api.crateApiTradeTouchOnTradeTouched();
-
-            
-                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TradeTouchStream>>
-                abstract class TradeTouchStream implements RustOpaqueInterface {
-                     Future<TradeTouch?>  next();
-
-
-
-                    
-                }
-                
-            
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TradeTouchStream>>
+abstract class TradeTouchStream implements RustOpaqueInterface {
+  Future<TradeTouch?> next();
+}

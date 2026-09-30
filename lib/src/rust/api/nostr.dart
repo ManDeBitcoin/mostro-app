@@ -7,38 +7,42 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
-
-            // These functions are ignored because they are not marked as `pub`: `apply_node_capabilities`, `apply_relay_list_event`, `default_relays`, `fetch_and_set_node_capabilities`, `generation_is_newer`, `get_pool`, `load_persisted_relays`, `new`, `note_relay_list_generation`, `on_pool_online`, `persist_relay`, `pool`, `relay_list_seen`, `relay_sync_tx`, `removal_effect`, `resync_with`, `run_resync`, `seed_default_relays`, `select_rates_event`, `tag_value`, `unpersist_relay`, `watch_connection_state`
+// These functions are ignored because they are not marked as `pub`: `apply_node_capabilities`, `apply_relay_list_event`, `default_relays`, `fetch_and_set_node_capabilities`, `generation_is_newer`, `get_pool`, `load_persisted_relays`, `new`, `note_relay_list_generation`, `on_pool_online`, `persist_relay`, `pool`, `relay_list_seen`, `relay_sync_tx`, `removal_effect`, `resync_with`, `run_resync`, `seed_default_relays`, `select_rates_event`, `tag_value`, `unpersist_relay`, `watch_connection_state`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ResyncState`
 
-
-            /// Initialize the Nostr client with a relay list.
+/// Initialize the Nostr client with a relay list.
 ///
 /// If `relays` is empty or `None`, uses the persisted relay set — every
 /// active relay the user or a Mostro node's kind 10002 list added, with the
 /// user's removals of announced relays restored as the blacklist — and,
 /// when nothing is persisted yet, the compiled-in defaults (which are then
 /// seeded so later runs read them back).
-Future<void>  initialize({List<String>? relays }) => RustLib.instance.api.crateApiNostrInitialize(relays: relays);
+Future<void> initialize({List<String>? relays}) =>
+    RustLib.instance.api.crateApiNostrInitialize(relays: relays);
 
 /// Add a new relay and connect to it.
-Future<RelayInfo>  addRelay({required String url }) => RustLib.instance.api.crateApiNostrAddRelay(url: url);
+Future<RelayInfo> addRelay({required String url}) =>
+    RustLib.instance.api.crateApiNostrAddRelay(url: url);
 
 /// Remove a relay and disconnect.
 ///
 /// A relay a Mostro node announced stays persisted as blacklisted, so the
 /// node's list cannot bring it back on the next start either.
-Future<void>  removeRelay({required String url }) => RustLib.instance.api.crateApiNostrRemoveRelay(url: url);
+Future<void> removeRelay({required String url}) =>
+    RustLib.instance.api.crateApiNostrRemoveRelay(url: url);
 
 /// Stream of relay URLs auto-added from the active node's kind 10002 relay
 /// list, one emission per applied event (only when something was added).
-Future<RelayAutoSyncStream>  onRelayAutoSynced() => RustLib.instance.api.crateApiNostrOnRelayAutoSynced();
+Future<RelayAutoSyncStream> onRelayAutoSynced() =>
+    RustLib.instance.api.crateApiNostrOnRelayAutoSynced();
 
 /// Get all configured relays with current status.
-Future<List<RelayInfo>>  getRelays() => RustLib.instance.api.crateApiNostrGetRelays();
+Future<List<RelayInfo>> getRelays() =>
+    RustLib.instance.api.crateApiNostrGetRelays();
 
 /// Get overall connection state.
-Future<ConnectionState>  getConnectionState() => RustLib.instance.api.crateApiNostrGetConnectionState();
+Future<ConnectionState> getConnectionState() =>
+    RustLib.instance.api.crateApiNostrGetConnectionState();
 
 /// Attempt to send all queued offline messages.
 ///
@@ -47,7 +51,8 @@ Future<ConnectionState>  getConnectionState() => RustLib.instance.api.crateApiNo
 /// sent or after [`MAX_RETRIES`] failures.
 ///
 /// Returns the count of messages successfully published in this pass.
-Future<int>  flushMessageQueue() => RustLib.instance.api.crateApiNostrFlushMessageQueue();
+Future<int> flushMessageQueue() =>
+    RustLib.instance.api.crateApiNostrFlushMessageQueue();
 
 /// Bring the core back in step with the relays after the process was
 /// suspended (docs/PUSH_NOTIFICATIONS.md §10, issue #308).
@@ -75,13 +80,15 @@ Future<int>  flushMessageQueue() => RustLib.instance.api.crateApiNostrFlushMessa
 /// report its outcome rather than starting another (`coalesced = true`).
 /// Idempotent: a second pass over a healthy core changes nothing. Before the
 /// pool exists (startup, tests) it reports offline and does nothing.
-Future<ResyncOutcome>  resync() => RustLib.instance.api.crateApiNostrResync();
+Future<ResyncOutcome> resync() => RustLib.instance.api.crateApiNostrResync();
 
 /// Stream that emits when overall connection state changes.
-Future<ConnectionStateStream>  onConnectionStateChanged() => RustLib.instance.api.crateApiNostrOnConnectionStateChanged();
+Future<ConnectionStateStream> onConnectionStateChanged() =>
+    RustLib.instance.api.crateApiNostrOnConnectionStateChanged();
 
 /// Stream that emits when any individual relay's status changes.
-Future<RelayStatusStream>  onRelayStatusChanged() => RustLib.instance.api.crateApiNostrOnRelayStatusChanged();
+Future<RelayStatusStream> onRelayStatusChanged() =>
+    RustLib.instance.api.crateApiNostrOnRelayStatusChanged();
 
 /// Fetch the Mostro daemon's Kind 38385 (instance status) tags.
 ///
@@ -91,7 +98,10 @@ Future<RelayStatusStream>  onRelayStatusChanged() => RustLib.instance.api.crateA
 ///
 /// Returns `None` if no matching event arrives within 10 seconds (relay
 /// not reachable, or daemon has never published a Kind 38385 event).
-Future<List<List<String>>?>  fetchMostroInstanceTags({required String mostroPubkeyHex }) => RustLib.instance.api.crateApiNostrFetchMostroInstanceTags(mostroPubkeyHex: mostroPubkeyHex);
+Future<List<List<String>>?> fetchMostroInstanceTags(
+        {required String mostroPubkeyHex}) =>
+    RustLib.instance.api
+        .crateApiNostrFetchMostroInstanceTags(mostroPubkeyHex: mostroPubkeyHex);
 
 /// Price of one BTC in `fiat_code`, as published by `mostro_pubkey_hex` in its
 /// Kind 30078 (`d` = `mostro-rates`) event.
@@ -111,38 +121,22 @@ Future<List<List<String>>?>  fetchMostroInstanceTags({required String mostroPubk
 ///
 /// Answers from a per-node cache bounded by the event's own NIP-40 expiration,
 /// so the three amount fields of a range order cost one relay query, not three.
-Future<double?>  fetchExchangeRate({required String mostroPubkeyHex , required String fiatCode }) => RustLib.instance.api.crateApiNostrFetchExchangeRate(mostroPubkeyHex: mostroPubkeyHex, fiatCode: fiatCode);
+Future<double?> fetchExchangeRate(
+        {required String mostroPubkeyHex, required String fiatCode}) =>
+    RustLib.instance.api.crateApiNostrFetchExchangeRate(
+        mostroPubkeyHex: mostroPubkeyHex, fiatCode: fiatCode);
 
-            
-                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ConnectionStateStream>>
-                abstract class ConnectionStateStream implements RustOpaqueInterface {
-                     Future<ConnectionState?>  next();
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ConnectionStateStream>>
+abstract class ConnectionStateStream implements RustOpaqueInterface {
+  Future<ConnectionState?> next();
+}
 
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RelayAutoSyncStream>>
+abstract class RelayAutoSyncStream implements RustOpaqueInterface {
+  Future<List<String>?> next();
+}
 
-
-                    
-                }
-                
-
-
-                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RelayAutoSyncStream>>
-                abstract class RelayAutoSyncStream implements RustOpaqueInterface {
-                     Future<List<String>?>  next();
-
-
-
-                    
-                }
-                
-
-
-                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RelayStatusStream>>
-                abstract class RelayStatusStream implements RustOpaqueInterface {
-                     Future<RelayInfo?>  next();
-
-
-
-                    
-                }
-                
-            
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RelayStatusStream>>
+abstract class RelayStatusStream implements RustOpaqueInterface {
+  Future<RelayInfo?> next();
+}

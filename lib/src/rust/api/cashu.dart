@@ -7,12 +7,10 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
-
-            // These functions are ignored because they are not marked as `pub`: `active_wallet`, `build_and_record_escrow`, `changes`, `ensure_enabled`, `escrow_op_lock`, `forget_held_escrow`, `held_escrows`, `hold_unrecorded_escrow`, `lifecycle_lock`, `load_trade`, `notify`, `now_secs`, `proof_store_path`, `record_escrow_token`, `recorded_or_held_escrow`, `resubmit_pending_escrows`, `retire_escrow_token`, `same_mint`, `settle_escrow_rejection`, `sibling_store_path`, `snapshot`, `submit_escrow`, `wallet_lock`
+// These functions are ignored because they are not marked as `pub`: `active_wallet`, `build_and_record_escrow`, `changes`, `ensure_enabled`, `escrow_op_lock`, `forget_held_escrow`, `held_escrows`, `hold_unrecorded_escrow`, `lifecycle_lock`, `load_trade`, `notify`, `now_secs`, `proof_store_path`, `record_escrow_token`, `recorded_or_held_escrow`, `resubmit_pending_escrows`, `retire_escrow_token`, `same_mint`, `settle_escrow_rejection`, `sibling_store_path`, `snapshot`, `submit_escrow`, `wallet_lock`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SubmitError`
 
-
-            /// Connect the wallet to the mint the active node pins, unless already connected.
+/// Connect the wallet to the mint the active node pins, unless already connected.
 ///
 /// Lazy by design: nothing connects at startup, so a Lightning user never opens
 /// a proof store or contacts a mint. Repeat calls are cheap — an already
@@ -22,28 +20,33 @@ import 'types.dart';
 /// `NoIdentity` before an identity is loaded, `CashuNoMnemonic` for an
 /// nsec-imported identity (there is no seed to derive), plus the markers from
 /// [`CashuWallet::connect`].
-Future<CashuWalletStatus>  cashuConnect() => RustLib.instance.api.crateApiCashuCashuConnect();
+Future<CashuWalletStatus> cashuConnect() =>
+    RustLib.instance.api.crateApiCashuCashuConnect();
 
 /// Current wallet status. Safe to call on any node — a Lightning node simply
 /// reports "not connected".
-Future<CashuWalletStatus>  cashuStatus() => RustLib.instance.api.crateApiCashuCashuStatus();
+Future<CashuWalletStatus> cashuStatus() =>
+    RustLib.instance.api.crateApiCashuCashuStatus();
 
 /// Spendable balance in satoshis.
 ///
 /// **Errors**: `CashuNotEnabled`, `CashuNotConnected`.
-Future<BigInt>  cashuGetBalance() => RustLib.instance.api.crateApiCashuCashuGetBalance();
+Future<BigInt> cashuGetBalance() =>
+    RustLib.instance.api.crateApiCashuCashuGetBalance();
 
 /// Redeem an encoded Cashu token into the wallet, returning the amount received.
 ///
 /// **Errors**: `CashuNotEnabled`, `CashuNotConnected`, `CashuReceiveFailed`
 /// (wrong mint, already spent, malformed).
-Future<BigInt>  cashuReceiveToken({required String encoded }) => RustLib.instance.api.crateApiCashuCashuReceiveToken(encoded: encoded);
+Future<BigInt> cashuReceiveToken({required String encoded}) =>
+    RustLib.instance.api.crateApiCashuCashuReceiveToken(encoded: encoded);
 
 /// Export `amount_sats` from the wallet as an encoded token.
 ///
 /// **Errors**: `CashuNotEnabled`, `CashuNotConnected`, `CashuAmountZero`,
 /// `CashuSendFailed` (insufficient funds included).
-Future<String>  cashuCreateToken({required BigInt amountSats }) => RustLib.instance.api.crateApiCashuCashuCreateToken(amountSats: amountSats);
+Future<String> cashuCreateToken({required BigInt amountSats}) =>
+    RustLib.instance.api.crateApiCashuCashuCreateToken(amountSats: amountSats);
 
 /// Reconcile the proof store with the mint: proofs the mint reports spent are
 /// forgotten, and the new balance is broadcast.
@@ -55,12 +58,14 @@ Future<String>  cashuCreateToken({required BigInt amountSats }) => RustLib.insta
 /// token back is phase C10.
 ///
 /// **Errors**: `CashuNotEnabled`, `CashuNotConnected`, `CashuMintChanged`.
-Future<void>  cashuSweepSpentProofs() => RustLib.instance.api.crateApiCashuCashuSweepSpentProofs();
+Future<void> cashuSweepSpentProofs() =>
+    RustLib.instance.api.crateApiCashuCashuSweepSpentProofs();
 
 /// Drop the in-memory wallet. Proofs stay on disk — this is a disconnect, not a
 /// wipe. Called when the active node changes, so a wallet bound to one node's
 /// mint never serves another's.
-Future<void>  cashuDisconnect() => RustLib.instance.api.crateApiCashuCashuDisconnect();
+Future<void> cashuDisconnect() =>
+    RustLib.instance.api.crateApiCashuCashuDisconnect();
 
 /// What the seller is about to lock, so the UI can show it before they commit.
 ///
@@ -73,7 +78,8 @@ Future<void>  cashuDisconnect() => RustLib.instance.api.crateApiCashuCashuDiscon
 ///
 /// **Errors**: `CashuNotEnabled`, `CashuOrderAmountUnknown`, `CashuMintUnknown`,
 /// `CashuNotConnected`, `CashuBalanceUnknown`.
-Future<CashuEscrowQuote>  cashuEscrowQuote({required String orderId }) => RustLib.instance.api.crateApiCashuCashuEscrowQuote(orderId: orderId);
+Future<CashuEscrowQuote> cashuEscrowQuote({required String orderId}) =>
+    RustLib.instance.api.crateApiCashuCashuEscrowQuote(orderId: orderId);
 
 /// Seller: fund the 2-of-3 escrow for `order_id` and submit it to the daemon.
 ///
@@ -98,23 +104,18 @@ Future<CashuEscrowQuote>  cashuEscrowQuote({required String orderId }) => RustLi
 /// `CashuEscrowRequestMissing`, `CashuWrongTradeKey`, `DeviceClockInvalid`,
 /// `CashuEscrowNotPersisted`, `CashuEscrowRejected: <reason>`,
 /// `NoDaemonResponse`, plus the `CashuLockFailed` markers from construction.
-Future<void>  lockEscrow({required String orderId }) => RustLib.instance.api.crateApiCashuLockEscrow(orderId: orderId);
+Future<void> lockEscrow({required String orderId}) =>
+    RustLib.instance.api.crateApiCashuLockEscrow(orderId: orderId);
 
 /// Subscribe to wallet changes.
-Future<CashuWalletStream>  onCashuWalletChanged() => RustLib.instance.api.crateApiCashuOnCashuWalletChanged();
+Future<CashuWalletStream> onCashuWalletChanged() =>
+    RustLib.instance.api.crateApiCashuOnCashuWalletChanged();
 
-            
-                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<CashuWalletStream>>
-                abstract class CashuWalletStream implements RustOpaqueInterface {
-                    /// Poll for the next wallet-changed event.
-///
-/// A lagged receiver skips dropped snapshots: the value is current state,
-/// so only the newest one matters.
- Future<CashuWalletStatus>  next();
-
-
-
-                    
-                }
-                
-            
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<CashuWalletStream>>
+abstract class CashuWalletStream implements RustOpaqueInterface {
+  /// Poll for the next wallet-changed event.
+  ///
+  /// A lagged receiver skips dropped snapshots: the value is current state,
+  /// so only the newest one matters.
+  Future<CashuWalletStatus> next();
+}

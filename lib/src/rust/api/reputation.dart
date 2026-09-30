@@ -7,12 +7,10 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
-
-            // These functions are ignored because they are not marked as `pub`: `forget_identity_ratings`, `get`, `has_mine`, `hydrate_mine_from_db`, `hydrate_mine`, `insert_peer`, `new`, `rating_store`, `remove_mine`, `try_insert_mine`
+// These functions are ignored because they are not marked as `pub`: `forget_identity_ratings`, `get`, `has_mine`, `hydrate_mine_from_db`, `hydrate_mine`, `insert_peer`, `new`, `rating_store`, `remove_mine`, `try_insert_mine`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `RatingStore`, `TradeRatings`
 
-
-            /// Submit a star rating for the counterparty of a completed trade.
+/// Submit a star rating for the counterparty of a completed trade.
 ///
 /// **Preconditions**:
 /// - `score` MUST be in the range 1–5.
@@ -23,10 +21,13 @@ import 'types.dart';
 /// transport v2 (deferred to Phase 14+ once bridge bindings are ready).
 ///
 /// **Errors**: `InvalidScore`, `PrivacyModeEnabled`, `AlreadyRated`.
-Future<void>  submitRating({required String tradeId , required int score }) => RustLib.instance.api.crateApiReputationSubmitRating(tradeId: tradeId, score: score);
+Future<void> submitRating({required String tradeId, required int score}) =>
+    RustLib.instance.api
+        .crateApiReputationSubmitRating(tradeId: tradeId, score: score);
 
 /// Check whether privacy mode is currently enabled.
-Future<bool>  getPrivacyMode() => RustLib.instance.api.crateApiReputationGetPrivacyMode();
+Future<bool> getPrivacyMode() =>
+    RustLib.instance.api.crateApiReputationGetPrivacyMode();
 
 /// Enable or disable privacy mode.
 ///
@@ -34,12 +35,14 @@ Future<bool>  getPrivacyMode() => RustLib.instance.api.crateApiReputationGetPriv
 /// session recovery becomes unavailable.
 ///
 /// **Errors**: `NoIdentity` (identity check deferred to Phase 14+ bridge).
-Future<void>  setPrivacyMode({required bool enabled }) => RustLib.instance.api.crateApiReputationSetPrivacyMode(enabled: enabled);
+Future<void> setPrivacyMode({required bool enabled}) =>
+    RustLib.instance.api.crateApiReputationSetPrivacyMode(enabled: enabled);
 
 /// Get the rating submitted or received for a specific trade.
 ///
 /// Returns `None` if no rating exists for the given trade.
-Future<RatingInfo?>  getRatingForTrade({required String tradeId }) => RustLib.instance.api.crateApiReputationGetRatingForTrade(tradeId: tradeId);
+Future<RatingInfo?> getRatingForTrade({required String tradeId}) =>
+    RustLib.instance.api.crateApiReputationGetRatingForTrade(tradeId: tradeId);
 
 /// Handle an incoming rating event from the counterparty.
 ///
@@ -47,23 +50,22 @@ Future<RatingInfo?>  getRatingForTrade({required String tradeId }) => RustLib.in
 ///
 /// No-ops silently when privacy mode is active — incoming reputation data is
 /// discarded in both directions when the user has opted out.
-Future<void>  handleRatingReceived({required String tradeId , required int score , required String fromPubkey }) => RustLib.instance.api.crateApiReputationHandleRatingReceived(tradeId: tradeId, score: score, fromPubkey: fromPubkey);
+Future<void> handleRatingReceived(
+        {required String tradeId,
+        required int score,
+        required String fromPubkey}) =>
+    RustLib.instance.api.crateApiReputationHandleRatingReceived(
+        tradeId: tradeId, score: score, fromPubkey: fromPubkey);
 
 /// Subscribe to incoming rating events.
-Future<RatingStream>  onRatingReceived() => RustLib.instance.api.crateApiReputationOnRatingReceived();
+Future<RatingStream> onRatingReceived() =>
+    RustLib.instance.api.crateApiReputationOnRatingReceived();
 
-            
-                // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RatingStream>>
-                abstract class RatingStream implements RustOpaqueInterface {
-                    /// Poll for the next incoming rating event.
-///
-/// `RecvError::Lagged` is handled gracefully: dropped messages are skipped
-/// and the loop continues rather than terminating the stream.
- Future<RatingReceivedEvent>  next();
-
-
-
-                    
-                }
-                
-            
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RatingStream>>
+abstract class RatingStream implements RustOpaqueInterface {
+  /// Poll for the next incoming rating event.
+  ///
+  /// `RecvError::Lagged` is handled gracefully: dropped messages are skipped
+  /// and the loop continues rather than terminating the stream.
+  Future<RatingReceivedEvent> next();
+}

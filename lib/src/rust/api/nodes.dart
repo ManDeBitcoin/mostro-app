@@ -7,34 +7,37 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
-
-            // These functions are ignored because they are not marked as `pub`: `drop_promoted_customs`, `entry_from`, `is_trusted_pubkey`, `load_custom_nodes`, `load_metadata_cache`, `needs_auto_import`, `normalize_name`, `parse_node_pubkey`, `register_linked_node`, `registry_lock`, `sanitize_https_url`, `save_custom_nodes`, `save_metadata_cache`
+// These functions are ignored because they are not marked as `pub`: `drop_promoted_customs`, `entry_from`, `is_trusted_pubkey`, `load_custom_nodes`, `load_metadata_cache`, `needs_auto_import`, `normalize_name`, `parse_node_pubkey`, `register_linked_node`, `registry_lock`, `sanitize_https_url`, `save_custom_nodes`, `save_metadata_cache`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CustomNode`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`
 
-
-            /// Return the full node registry: trusted nodes first (registry order), then
+/// Return the full node registry: trusted nodes first (registry order), then
 /// user-added nodes (insertion order), each merged with cached kind 0 metadata
 /// and flagged with `is_active`.
 ///
 /// If the active pubkey is not in the registry (selected before this feature
 /// existed, or on another device), it is auto-imported as a custom node so the
 /// selector always shows what the app is actually using.
-Future<List<MostroNodeEntry>>  listMostroNodes() => RustLib.instance.api.crateApiNodesListMostroNodes();
+Future<List<MostroNodeEntry>> listMostroNodes() =>
+    RustLib.instance.api.crateApiNodesListMostroNodes();
 
 /// Add a user-defined node by pubkey (64-char hex or `npub1…`) with an
 /// optional display name, persist it, and return its registry entry.
 ///
 /// **Errors**: `PrivateKeyNotAllowed`, `InvalidPubkey`, `NodeAlreadyExists`
 /// (already trusted or already added), `NotInitialized` (no storage yet).
-Future<MostroNodeEntry>  addCustomMostroNode({required String input , String? name }) => RustLib.instance.api.crateApiNodesAddCustomMostroNode(input: input, name: name);
+Future<MostroNodeEntry> addCustomMostroNode(
+        {required String input, String? name}) =>
+    RustLib.instance.api
+        .crateApiNodesAddCustomMostroNode(input: input, name: name);
 
 /// Remove a user-added node. Removing an absent node is a no-op.
 ///
 /// **Errors**: `CannotRemoveActiveNode` (switch away first),
 /// `NodeIsTrusted` (compiled-in entries cannot be removed),
 /// `NotInitialized` (no storage yet).
-Future<void>  removeCustomMostroNode({required String pubkey }) => RustLib.instance.api.crateApiNodesRemoveCustomMostroNode(pubkey: pubkey);
+Future<void> removeCustomMostroNode({required String pubkey}) =>
+    RustLib.instance.api.crateApiNodesRemoveCustomMostroNode(pubkey: pubkey);
 
 /// Fetch kind 0 profile events for every known node in one relay query,
 /// update the persisted metadata cache, and return the refreshed registry.
@@ -44,35 +47,38 @@ Future<void>  removeCustomMostroNode({required String pubkey }) => RustLib.insta
 /// every author answered — and nodes without a kind 0 event keep their cached
 /// (or empty) metadata. Only an outright query failure returns an error, and
 /// then the cache is untouched.
-Future<List<MostroNodeEntry>>  refreshMostroNodeMetadata() => RustLib.instance.api.crateApiNodesRefreshMostroNodeMetadata();
+Future<List<MostroNodeEntry>> refreshMostroNodeMetadata() =>
+    RustLib.instance.api.crateApiNodesRefreshMostroNodeMetadata();
 
-            /// Cached kind 0 profile fields, persisted under
+/// Cached kind 0 profile fields, persisted under
 /// [`settings_keys::MOSTRO_NODE_METADATA`] as a pubkey → metadata map.
-class NodeMetadata  {
-                final String? name;
-final String? picture;
-final String? about;
-final String? website;
+class NodeMetadata {
+  final String? name;
+  final String? picture;
+  final String? about;
+  final String? website;
 
-                const NodeMetadata({this.name ,this.picture ,this.about ,this.website ,});
+  const NodeMetadata({
+    this.name,
+    this.picture,
+    this.about,
+    this.website,
+  });
 
-                static Future<NodeMetadata>  default_()=>RustLib.instance.api.crateApiNodesNodeMetadataDefault();
+  static Future<NodeMetadata> default_() =>
+      RustLib.instance.api.crateApiNodesNodeMetadataDefault();
 
+  @override
+  int get hashCode =>
+      name.hashCode ^ picture.hashCode ^ about.hashCode ^ website.hashCode;
 
-                
-
-                
-        @override
-        int get hashCode => name.hashCode^picture.hashCode^about.hashCode^website.hashCode;
-        
-
-                
-        @override
-        bool operator ==(Object other) =>
-            identical(this, other) ||
-            other is NodeMetadata &&
-                runtimeType == other.runtimeType
-                && name == other.name&& picture == other.picture&& about == other.about&& website == other.website;
-        
-            }
-            
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NodeMetadata &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          picture == other.picture &&
+          about == other.about &&
+          website == other.website;
+}

@@ -30,9 +30,9 @@ mixin _$InvoiceVerdict {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )
-    rejected,
-  }) => throw _privateConstructorUsedError;
+    ) rejected,
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? empty,
@@ -46,9 +46,9 @@ mixin _$InvoiceVerdict {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )?
-    rejected,
-  }) => throw _privateConstructorUsedError;
+    )? rejected,
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? empty,
@@ -62,10 +62,10 @@ mixin _$InvoiceVerdict {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )?
-    rejected,
+    )? rejected,
     required TResult orElse(),
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult map<TResult extends Object?>({
     required TResult Function(InvoiceVerdict_Empty value) empty,
@@ -73,7 +73,8 @@ mixin _$InvoiceVerdict {
     required TResult Function(InvoiceVerdict_Address value) address,
     required TResult Function(InvoiceVerdict_Valid value) valid,
     required TResult Function(InvoiceVerdict_Rejected value) rejected,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(InvoiceVerdict_Empty value)? empty,
@@ -81,7 +82,8 @@ mixin _$InvoiceVerdict {
     TResult? Function(InvoiceVerdict_Address value)? address,
     TResult? Function(InvoiceVerdict_Valid value)? valid,
     TResult? Function(InvoiceVerdict_Rejected value)? rejected,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
     TResult Function(InvoiceVerdict_Empty value)? empty,
@@ -90,7 +92,8 @@ mixin _$InvoiceVerdict {
     TResult Function(InvoiceVerdict_Valid value)? valid,
     TResult Function(InvoiceVerdict_Rejected value)? rejected,
     required TResult orElse(),
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -170,8 +173,7 @@ class _$InvoiceVerdict_EmptyImpl extends InvoiceVerdict_Empty {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )
-    rejected,
+    ) rejected,
   }) {
     return empty();
   }
@@ -190,8 +192,7 @@ class _$InvoiceVerdict_EmptyImpl extends InvoiceVerdict_Empty {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )?
-    rejected,
+    )? rejected,
   }) {
     return empty?.call();
   }
@@ -210,8 +211,7 @@ class _$InvoiceVerdict_EmptyImpl extends InvoiceVerdict_Empty {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )?
-    rejected,
+    )? rejected,
     required TResult orElse(),
   }) {
     if (empty != null) {
@@ -321,8 +321,7 @@ class _$InvoiceVerdict_UnverifiedImpl extends InvoiceVerdict_Unverified {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )
-    rejected,
+    ) rejected,
   }) {
     return unverified();
   }
@@ -341,8 +340,7 @@ class _$InvoiceVerdict_UnverifiedImpl extends InvoiceVerdict_Unverified {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )?
-    rejected,
+    )? rejected,
   }) {
     return unverified?.call();
   }
@@ -361,8 +359,7 @@ class _$InvoiceVerdict_UnverifiedImpl extends InvoiceVerdict_Unverified {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )?
-    rejected,
+    )? rejected,
     required TResult orElse(),
   }) {
     if (unverified != null) {
@@ -472,8 +469,7 @@ class _$InvoiceVerdict_AddressImpl extends InvoiceVerdict_Address {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )
-    rejected,
+    ) rejected,
   }) {
     return address();
   }
@@ -492,8 +488,7 @@ class _$InvoiceVerdict_AddressImpl extends InvoiceVerdict_Address {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )?
-    rejected,
+    )? rejected,
   }) {
     return address?.call();
   }
@@ -512,8 +507,7 @@ class _$InvoiceVerdict_AddressImpl extends InvoiceVerdict_Address {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )?
-    rejected,
+    )? rejected,
     required TResult orElse(),
   }) {
     if (address != null) {
@@ -594,16 +588,14 @@ class __$$InvoiceVerdict_ValidImplCopyWithImpl<$Res>
   $Res call({Object? sats = null, Object? expiresAt = null}) {
     return _then(
       _$InvoiceVerdict_ValidImpl(
-        sats:
-            null == sats
-                ? _value.sats
-                : sats // ignore: cast_nullable_to_non_nullable
-                    as BigInt,
-        expiresAt:
-            null == expiresAt
-                ? _value.expiresAt
-                : expiresAt // ignore: cast_nullable_to_non_nullable
-                    as BigInt,
+        sats: null == sats
+            ? _value.sats
+            : sats // ignore: cast_nullable_to_non_nullable
+                as BigInt,
+        expiresAt: null == expiresAt
+            ? _value.expiresAt
+            : expiresAt // ignore: cast_nullable_to_non_nullable
+                as BigInt,
       ),
     );
   }
@@ -646,11 +638,11 @@ class _$InvoiceVerdict_ValidImpl extends InvoiceVerdict_Valid {
   @override
   @pragma('vm:prefer-inline')
   _$$InvoiceVerdict_ValidImplCopyWith<_$InvoiceVerdict_ValidImpl>
-  get copyWith =>
-      __$$InvoiceVerdict_ValidImplCopyWithImpl<_$InvoiceVerdict_ValidImpl>(
-        this,
-        _$identity,
-      );
+      get copyWith =>
+          __$$InvoiceVerdict_ValidImplCopyWithImpl<_$InvoiceVerdict_ValidImpl>(
+            this,
+            _$identity,
+          );
 
   @override
   @optionalTypeArgs
@@ -666,8 +658,7 @@ class _$InvoiceVerdict_ValidImpl extends InvoiceVerdict_Valid {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )
-    rejected,
+    ) rejected,
   }) {
     return valid(sats, expiresAt);
   }
@@ -686,8 +677,7 @@ class _$InvoiceVerdict_ValidImpl extends InvoiceVerdict_Valid {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )?
-    rejected,
+    )? rejected,
   }) {
     return valid?.call(sats, expiresAt);
   }
@@ -706,8 +696,7 @@ class _$InvoiceVerdict_ValidImpl extends InvoiceVerdict_Valid {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )?
-    rejected,
+    )? rejected,
     required TResult orElse(),
   }) {
     if (valid != null) {
@@ -771,7 +760,7 @@ abstract class InvoiceVerdict_Valid extends InvoiceVerdict {
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$InvoiceVerdict_ValidImplCopyWith<_$InvoiceVerdict_ValidImpl>
-  get copyWith => throw _privateConstructorUsedError;
+      get copyWith => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -814,36 +803,30 @@ class __$$InvoiceVerdict_RejectedImplCopyWithImpl<$Res>
   }) {
     return _then(
       _$InvoiceVerdict_RejectedImpl(
-        problem:
-            null == problem
-                ? _value.problem
-                : problem // ignore: cast_nullable_to_non_nullable
-                    as InvoiceProblem,
-        actualMsat:
-            freezed == actualMsat
-                ? _value.actualMsat
-                : actualMsat // ignore: cast_nullable_to_non_nullable
-                    as BigInt?,
-        expectedSats:
-            freezed == expectedSats
-                ? _value.expectedSats
-                : expectedSats // ignore: cast_nullable_to_non_nullable
-                    as BigInt?,
-        invoiceNetwork:
-            freezed == invoiceNetwork
-                ? _value.invoiceNetwork
-                : invoiceNetwork // ignore: cast_nullable_to_non_nullable
-                    as String?,
-        nodeNetwork:
-            freezed == nodeNetwork
-                ? _value.nodeNetwork
-                : nodeNetwork // ignore: cast_nullable_to_non_nullable
-                    as String?,
-        minRemainingSecs:
-            freezed == minRemainingSecs
-                ? _value.minRemainingSecs
-                : minRemainingSecs // ignore: cast_nullable_to_non_nullable
-                    as BigInt?,
+        problem: null == problem
+            ? _value.problem
+            : problem // ignore: cast_nullable_to_non_nullable
+                as InvoiceProblem,
+        actualMsat: freezed == actualMsat
+            ? _value.actualMsat
+            : actualMsat // ignore: cast_nullable_to_non_nullable
+                as BigInt?,
+        expectedSats: freezed == expectedSats
+            ? _value.expectedSats
+            : expectedSats // ignore: cast_nullable_to_non_nullable
+                as BigInt?,
+        invoiceNetwork: freezed == invoiceNetwork
+            ? _value.invoiceNetwork
+            : invoiceNetwork // ignore: cast_nullable_to_non_nullable
+                as String?,
+        nodeNetwork: freezed == nodeNetwork
+            ? _value.nodeNetwork
+            : nodeNetwork // ignore: cast_nullable_to_non_nullable
+                as String?,
+        minRemainingSecs: freezed == minRemainingSecs
+            ? _value.minRemainingSecs
+            : minRemainingSecs // ignore: cast_nullable_to_non_nullable
+                as BigInt?,
       ),
     );
   }
@@ -910,14 +893,14 @@ class _$InvoiceVerdict_RejectedImpl extends InvoiceVerdict_Rejected {
 
   @override
   int get hashCode => Object.hash(
-    runtimeType,
-    problem,
-    actualMsat,
-    expectedSats,
-    invoiceNetwork,
-    nodeNetwork,
-    minRemainingSecs,
-  );
+        runtimeType,
+        problem,
+        actualMsat,
+        expectedSats,
+        invoiceNetwork,
+        nodeNetwork,
+        minRemainingSecs,
+      );
 
   /// Create a copy of InvoiceVerdict
   /// with the given fields replaced by the non-null parameter values.
@@ -925,9 +908,8 @@ class _$InvoiceVerdict_RejectedImpl extends InvoiceVerdict_Rejected {
   @override
   @pragma('vm:prefer-inline')
   _$$InvoiceVerdict_RejectedImplCopyWith<_$InvoiceVerdict_RejectedImpl>
-  get copyWith => __$$InvoiceVerdict_RejectedImplCopyWithImpl<
-    _$InvoiceVerdict_RejectedImpl
-  >(this, _$identity);
+      get copyWith => __$$InvoiceVerdict_RejectedImplCopyWithImpl<
+          _$InvoiceVerdict_RejectedImpl>(this, _$identity);
 
   @override
   @optionalTypeArgs
@@ -943,8 +925,7 @@ class _$InvoiceVerdict_RejectedImpl extends InvoiceVerdict_Rejected {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )
-    rejected,
+    ) rejected,
   }) {
     return rejected(
       problem,
@@ -970,8 +951,7 @@ class _$InvoiceVerdict_RejectedImpl extends InvoiceVerdict_Rejected {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )?
-    rejected,
+    )? rejected,
   }) {
     return rejected?.call(
       problem,
@@ -997,8 +977,7 @@ class _$InvoiceVerdict_RejectedImpl extends InvoiceVerdict_Rejected {
       String? invoiceNetwork,
       String? nodeNetwork,
       BigInt? minRemainingSecs,
-    )?
-    rejected,
+    )? rejected,
     required TResult orElse(),
   }) {
     if (rejected != null) {
@@ -1088,7 +1067,7 @@ abstract class InvoiceVerdict_Rejected extends InvoiceVerdict {
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$InvoiceVerdict_RejectedImplCopyWith<_$InvoiceVerdict_RejectedImpl>
-  get copyWith => throw _privateConstructorUsedError;
+      get copyWith => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -1099,14 +1078,16 @@ mixin _$OrderDelta {
     required TResult Function(int revision, String orderId) removed,
     required TResult Function() resync,
     required TResult Function() loaded,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function(int revision, OrderInfo order)? upserted,
     TResult? Function(int revision, String orderId)? removed,
     TResult? Function()? resync,
     TResult? Function()? loaded,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function(int revision, OrderInfo order)? upserted,
@@ -1114,21 +1095,24 @@ mixin _$OrderDelta {
     TResult Function()? resync,
     TResult Function()? loaded,
     required TResult orElse(),
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult map<TResult extends Object?>({
     required TResult Function(OrderDelta_Upserted value) upserted,
     required TResult Function(OrderDelta_Removed value) removed,
     required TResult Function(OrderDelta_Resync value) resync,
     required TResult Function(OrderDelta_Loaded value) loaded,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(OrderDelta_Upserted value)? upserted,
     TResult? Function(OrderDelta_Removed value)? removed,
     TResult? Function(OrderDelta_Resync value)? resync,
     TResult? Function(OrderDelta_Loaded value)? loaded,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
     TResult Function(OrderDelta_Upserted value)? upserted,
@@ -1136,7 +1120,8 @@ mixin _$OrderDelta {
     TResult Function(OrderDelta_Resync value)? resync,
     TResult Function(OrderDelta_Loaded value)? loaded,
     required TResult orElse(),
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -1187,16 +1172,14 @@ class __$$OrderDelta_UpsertedImplCopyWithImpl<$Res>
   $Res call({Object? revision = null, Object? order = null}) {
     return _then(
       _$OrderDelta_UpsertedImpl(
-        revision:
-            null == revision
-                ? _value.revision
-                : revision // ignore: cast_nullable_to_non_nullable
-                    as int,
-        order:
-            null == order
-                ? _value.order
-                : order // ignore: cast_nullable_to_non_nullable
-                    as OrderInfo,
+        revision: null == revision
+            ? _value.revision
+            : revision // ignore: cast_nullable_to_non_nullable
+                as int,
+        order: null == order
+            ? _value.order
+            : order // ignore: cast_nullable_to_non_nullable
+                as OrderInfo,
       ),
     );
   }
@@ -1206,7 +1189,7 @@ class __$$OrderDelta_UpsertedImplCopyWithImpl<$Res>
 
 class _$OrderDelta_UpsertedImpl extends OrderDelta_Upserted {
   const _$OrderDelta_UpsertedImpl({required this.revision, required this.order})
-    : super._();
+      : super._();
 
   @override
   final int revision;
@@ -1360,16 +1343,14 @@ class __$$OrderDelta_RemovedImplCopyWithImpl<$Res>
   $Res call({Object? revision = null, Object? orderId = null}) {
     return _then(
       _$OrderDelta_RemovedImpl(
-        revision:
-            null == revision
-                ? _value.revision
-                : revision // ignore: cast_nullable_to_non_nullable
-                    as int,
-        orderId:
-            null == orderId
-                ? _value.orderId
-                : orderId // ignore: cast_nullable_to_non_nullable
-                    as String,
+        revision: null == revision
+            ? _value.revision
+            : revision // ignore: cast_nullable_to_non_nullable
+                as int,
+        orderId: null == orderId
+            ? _value.orderId
+            : orderId // ignore: cast_nullable_to_non_nullable
+                as String,
       ),
     );
   }
@@ -1758,7 +1739,8 @@ mixin _$PaymentDestination {
     required TResult Function() malformedBolt11,
     required TResult Function(String field0) lightningAddress,
     required TResult Function() unknown,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? empty,
@@ -1766,7 +1748,8 @@ mixin _$PaymentDestination {
     TResult? Function()? malformedBolt11,
     TResult? Function(String field0)? lightningAddress,
     TResult? Function()? unknown,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? empty,
@@ -1775,37 +1758,41 @@ mixin _$PaymentDestination {
     TResult Function(String field0)? lightningAddress,
     TResult Function()? unknown,
     required TResult orElse(),
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult map<TResult extends Object?>({
     required TResult Function(PaymentDestination_Empty value) empty,
     required TResult Function(PaymentDestination_Bolt11 value) bolt11,
     required TResult Function(PaymentDestination_MalformedBolt11 value)
-    malformedBolt11,
+        malformedBolt11,
     required TResult Function(PaymentDestination_LightningAddress value)
-    lightningAddress,
+        lightningAddress,
     required TResult Function(PaymentDestination_Unknown value) unknown,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(PaymentDestination_Empty value)? empty,
     TResult? Function(PaymentDestination_Bolt11 value)? bolt11,
     TResult? Function(PaymentDestination_MalformedBolt11 value)?
-    malformedBolt11,
+        malformedBolt11,
     TResult? Function(PaymentDestination_LightningAddress value)?
-    lightningAddress,
+        lightningAddress,
     TResult? Function(PaymentDestination_Unknown value)? unknown,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
     TResult Function(PaymentDestination_Empty value)? empty,
     TResult Function(PaymentDestination_Bolt11 value)? bolt11,
     TResult Function(PaymentDestination_MalformedBolt11 value)? malformedBolt11,
     TResult Function(PaymentDestination_LightningAddress value)?
-    lightningAddress,
+        lightningAddress,
     TResult Function(PaymentDestination_Unknown value)? unknown,
     required TResult orElse(),
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -1840,8 +1827,8 @@ abstract class _$$PaymentDestination_EmptyImplCopyWith<$Res> {
 
 /// @nodoc
 class __$$PaymentDestination_EmptyImplCopyWithImpl<$Res>
-    extends
-        _$PaymentDestinationCopyWithImpl<$Res, _$PaymentDestination_EmptyImpl>
+    extends _$PaymentDestinationCopyWithImpl<$Res,
+        _$PaymentDestination_EmptyImpl>
     implements _$$PaymentDestination_EmptyImplCopyWith<$Res> {
   __$$PaymentDestination_EmptyImplCopyWithImpl(
     _$PaymentDestination_EmptyImpl _value,
@@ -1918,9 +1905,9 @@ class _$PaymentDestination_EmptyImpl extends PaymentDestination_Empty {
     required TResult Function(PaymentDestination_Empty value) empty,
     required TResult Function(PaymentDestination_Bolt11 value) bolt11,
     required TResult Function(PaymentDestination_MalformedBolt11 value)
-    malformedBolt11,
+        malformedBolt11,
     required TResult Function(PaymentDestination_LightningAddress value)
-    lightningAddress,
+        lightningAddress,
     required TResult Function(PaymentDestination_Unknown value) unknown,
   }) {
     return empty(this);
@@ -1932,9 +1919,9 @@ class _$PaymentDestination_EmptyImpl extends PaymentDestination_Empty {
     TResult? Function(PaymentDestination_Empty value)? empty,
     TResult? Function(PaymentDestination_Bolt11 value)? bolt11,
     TResult? Function(PaymentDestination_MalformedBolt11 value)?
-    malformedBolt11,
+        malformedBolt11,
     TResult? Function(PaymentDestination_LightningAddress value)?
-    lightningAddress,
+        lightningAddress,
     TResult? Function(PaymentDestination_Unknown value)? unknown,
   }) {
     return empty?.call(this);
@@ -1947,7 +1934,7 @@ class _$PaymentDestination_EmptyImpl extends PaymentDestination_Empty {
     TResult Function(PaymentDestination_Bolt11 value)? bolt11,
     TResult Function(PaymentDestination_MalformedBolt11 value)? malformedBolt11,
     TResult Function(PaymentDestination_LightningAddress value)?
-    lightningAddress,
+        lightningAddress,
     TResult Function(PaymentDestination_Unknown value)? unknown,
     required TResult orElse(),
   }) {
@@ -1975,8 +1962,8 @@ abstract class _$$PaymentDestination_Bolt11ImplCopyWith<$Res> {
 
 /// @nodoc
 class __$$PaymentDestination_Bolt11ImplCopyWithImpl<$Res>
-    extends
-        _$PaymentDestinationCopyWithImpl<$Res, _$PaymentDestination_Bolt11Impl>
+    extends _$PaymentDestinationCopyWithImpl<$Res,
+        _$PaymentDestination_Bolt11Impl>
     implements _$$PaymentDestination_Bolt11ImplCopyWith<$Res> {
   __$$PaymentDestination_Bolt11ImplCopyWithImpl(
     _$PaymentDestination_Bolt11Impl _value,
@@ -2029,9 +2016,8 @@ class _$PaymentDestination_Bolt11Impl extends PaymentDestination_Bolt11 {
   @override
   @pragma('vm:prefer-inline')
   _$$PaymentDestination_Bolt11ImplCopyWith<_$PaymentDestination_Bolt11Impl>
-  get copyWith => __$$PaymentDestination_Bolt11ImplCopyWithImpl<
-    _$PaymentDestination_Bolt11Impl
-  >(this, _$identity);
+      get copyWith => __$$PaymentDestination_Bolt11ImplCopyWithImpl<
+          _$PaymentDestination_Bolt11Impl>(this, _$identity);
 
   @override
   @optionalTypeArgs
@@ -2079,9 +2065,9 @@ class _$PaymentDestination_Bolt11Impl extends PaymentDestination_Bolt11 {
     required TResult Function(PaymentDestination_Empty value) empty,
     required TResult Function(PaymentDestination_Bolt11 value) bolt11,
     required TResult Function(PaymentDestination_MalformedBolt11 value)
-    malformedBolt11,
+        malformedBolt11,
     required TResult Function(PaymentDestination_LightningAddress value)
-    lightningAddress,
+        lightningAddress,
     required TResult Function(PaymentDestination_Unknown value) unknown,
   }) {
     return bolt11(this);
@@ -2093,9 +2079,9 @@ class _$PaymentDestination_Bolt11Impl extends PaymentDestination_Bolt11 {
     TResult? Function(PaymentDestination_Empty value)? empty,
     TResult? Function(PaymentDestination_Bolt11 value)? bolt11,
     TResult? Function(PaymentDestination_MalformedBolt11 value)?
-    malformedBolt11,
+        malformedBolt11,
     TResult? Function(PaymentDestination_LightningAddress value)?
-    lightningAddress,
+        lightningAddress,
     TResult? Function(PaymentDestination_Unknown value)? unknown,
   }) {
     return bolt11?.call(this);
@@ -2108,7 +2094,7 @@ class _$PaymentDestination_Bolt11Impl extends PaymentDestination_Bolt11 {
     TResult Function(PaymentDestination_Bolt11 value)? bolt11,
     TResult Function(PaymentDestination_MalformedBolt11 value)? malformedBolt11,
     TResult Function(PaymentDestination_LightningAddress value)?
-    lightningAddress,
+        lightningAddress,
     TResult Function(PaymentDestination_Unknown value)? unknown,
     required TResult orElse(),
   }) {
@@ -2130,7 +2116,7 @@ abstract class PaymentDestination_Bolt11 extends PaymentDestination {
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PaymentDestination_Bolt11ImplCopyWith<_$PaymentDestination_Bolt11Impl>
-  get copyWith => throw _privateConstructorUsedError;
+      get copyWith => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -2143,11 +2129,8 @@ abstract class _$$PaymentDestination_MalformedBolt11ImplCopyWith<$Res> {
 
 /// @nodoc
 class __$$PaymentDestination_MalformedBolt11ImplCopyWithImpl<$Res>
-    extends
-        _$PaymentDestinationCopyWithImpl<
-          $Res,
-          _$PaymentDestination_MalformedBolt11Impl
-        >
+    extends _$PaymentDestinationCopyWithImpl<$Res,
+        _$PaymentDestination_MalformedBolt11Impl>
     implements _$$PaymentDestination_MalformedBolt11ImplCopyWith<$Res> {
   __$$PaymentDestination_MalformedBolt11ImplCopyWithImpl(
     _$PaymentDestination_MalformedBolt11Impl _value,
@@ -2225,9 +2208,9 @@ class _$PaymentDestination_MalformedBolt11Impl
     required TResult Function(PaymentDestination_Empty value) empty,
     required TResult Function(PaymentDestination_Bolt11 value) bolt11,
     required TResult Function(PaymentDestination_MalformedBolt11 value)
-    malformedBolt11,
+        malformedBolt11,
     required TResult Function(PaymentDestination_LightningAddress value)
-    lightningAddress,
+        lightningAddress,
     required TResult Function(PaymentDestination_Unknown value) unknown,
   }) {
     return malformedBolt11(this);
@@ -2239,9 +2222,9 @@ class _$PaymentDestination_MalformedBolt11Impl
     TResult? Function(PaymentDestination_Empty value)? empty,
     TResult? Function(PaymentDestination_Bolt11 value)? bolt11,
     TResult? Function(PaymentDestination_MalformedBolt11 value)?
-    malformedBolt11,
+        malformedBolt11,
     TResult? Function(PaymentDestination_LightningAddress value)?
-    lightningAddress,
+        lightningAddress,
     TResult? Function(PaymentDestination_Unknown value)? unknown,
   }) {
     return malformedBolt11?.call(this);
@@ -2254,7 +2237,7 @@ class _$PaymentDestination_MalformedBolt11Impl
     TResult Function(PaymentDestination_Bolt11 value)? bolt11,
     TResult Function(PaymentDestination_MalformedBolt11 value)? malformedBolt11,
     TResult Function(PaymentDestination_LightningAddress value)?
-    lightningAddress,
+        lightningAddress,
     TResult Function(PaymentDestination_Unknown value)? unknown,
     required TResult orElse(),
   }) {
@@ -2283,11 +2266,8 @@ abstract class _$$PaymentDestination_LightningAddressImplCopyWith<$Res> {
 
 /// @nodoc
 class __$$PaymentDestination_LightningAddressImplCopyWithImpl<$Res>
-    extends
-        _$PaymentDestinationCopyWithImpl<
-          $Res,
-          _$PaymentDestination_LightningAddressImpl
-        >
+    extends _$PaymentDestinationCopyWithImpl<$Res,
+        _$PaymentDestination_LightningAddressImpl>
     implements _$$PaymentDestination_LightningAddressImplCopyWith<$Res> {
   __$$PaymentDestination_LightningAddressImplCopyWithImpl(
     _$PaymentDestination_LightningAddressImpl _value,
@@ -2341,11 +2321,9 @@ class _$PaymentDestination_LightningAddressImpl
   @override
   @pragma('vm:prefer-inline')
   _$$PaymentDestination_LightningAddressImplCopyWith<
-    _$PaymentDestination_LightningAddressImpl
-  >
-  get copyWith => __$$PaymentDestination_LightningAddressImplCopyWithImpl<
-    _$PaymentDestination_LightningAddressImpl
-  >(this, _$identity);
+          _$PaymentDestination_LightningAddressImpl>
+      get copyWith => __$$PaymentDestination_LightningAddressImplCopyWithImpl<
+          _$PaymentDestination_LightningAddressImpl>(this, _$identity);
 
   @override
   @optionalTypeArgs
@@ -2393,9 +2371,9 @@ class _$PaymentDestination_LightningAddressImpl
     required TResult Function(PaymentDestination_Empty value) empty,
     required TResult Function(PaymentDestination_Bolt11 value) bolt11,
     required TResult Function(PaymentDestination_MalformedBolt11 value)
-    malformedBolt11,
+        malformedBolt11,
     required TResult Function(PaymentDestination_LightningAddress value)
-    lightningAddress,
+        lightningAddress,
     required TResult Function(PaymentDestination_Unknown value) unknown,
   }) {
     return lightningAddress(this);
@@ -2407,9 +2385,9 @@ class _$PaymentDestination_LightningAddressImpl
     TResult? Function(PaymentDestination_Empty value)? empty,
     TResult? Function(PaymentDestination_Bolt11 value)? bolt11,
     TResult? Function(PaymentDestination_MalformedBolt11 value)?
-    malformedBolt11,
+        malformedBolt11,
     TResult? Function(PaymentDestination_LightningAddress value)?
-    lightningAddress,
+        lightningAddress,
     TResult? Function(PaymentDestination_Unknown value)? unknown,
   }) {
     return lightningAddress?.call(this);
@@ -2422,7 +2400,7 @@ class _$PaymentDestination_LightningAddressImpl
     TResult Function(PaymentDestination_Bolt11 value)? bolt11,
     TResult Function(PaymentDestination_MalformedBolt11 value)? malformedBolt11,
     TResult Function(PaymentDestination_LightningAddress value)?
-    lightningAddress,
+        lightningAddress,
     TResult Function(PaymentDestination_Unknown value)? unknown,
     required TResult orElse(),
   }) {
@@ -2444,9 +2422,8 @@ abstract class PaymentDestination_LightningAddress extends PaymentDestination {
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PaymentDestination_LightningAddressImplCopyWith<
-    _$PaymentDestination_LightningAddressImpl
-  >
-  get copyWith => throw _privateConstructorUsedError;
+          _$PaymentDestination_LightningAddressImpl>
+      get copyWith => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -2459,8 +2436,8 @@ abstract class _$$PaymentDestination_UnknownImplCopyWith<$Res> {
 
 /// @nodoc
 class __$$PaymentDestination_UnknownImplCopyWithImpl<$Res>
-    extends
-        _$PaymentDestinationCopyWithImpl<$Res, _$PaymentDestination_UnknownImpl>
+    extends _$PaymentDestinationCopyWithImpl<$Res,
+        _$PaymentDestination_UnknownImpl>
     implements _$$PaymentDestination_UnknownImplCopyWith<$Res> {
   __$$PaymentDestination_UnknownImplCopyWithImpl(
     _$PaymentDestination_UnknownImpl _value,
@@ -2537,9 +2514,9 @@ class _$PaymentDestination_UnknownImpl extends PaymentDestination_Unknown {
     required TResult Function(PaymentDestination_Empty value) empty,
     required TResult Function(PaymentDestination_Bolt11 value) bolt11,
     required TResult Function(PaymentDestination_MalformedBolt11 value)
-    malformedBolt11,
+        malformedBolt11,
     required TResult Function(PaymentDestination_LightningAddress value)
-    lightningAddress,
+        lightningAddress,
     required TResult Function(PaymentDestination_Unknown value) unknown,
   }) {
     return unknown(this);
@@ -2551,9 +2528,9 @@ class _$PaymentDestination_UnknownImpl extends PaymentDestination_Unknown {
     TResult? Function(PaymentDestination_Empty value)? empty,
     TResult? Function(PaymentDestination_Bolt11 value)? bolt11,
     TResult? Function(PaymentDestination_MalformedBolt11 value)?
-    malformedBolt11,
+        malformedBolt11,
     TResult? Function(PaymentDestination_LightningAddress value)?
-    lightningAddress,
+        lightningAddress,
     TResult? Function(PaymentDestination_Unknown value)? unknown,
   }) {
     return unknown?.call(this);
@@ -2566,7 +2543,7 @@ class _$PaymentDestination_UnknownImpl extends PaymentDestination_Unknown {
     TResult Function(PaymentDestination_Bolt11 value)? bolt11,
     TResult Function(PaymentDestination_MalformedBolt11 value)? malformedBolt11,
     TResult Function(PaymentDestination_LightningAddress value)?
-    lightningAddress,
+        lightningAddress,
     TResult Function(PaymentDestination_Unknown value)? unknown,
     required TResult orElse(),
   }) {
@@ -2589,39 +2566,45 @@ mixin _$RestoreProgress {
     required TResult Function() connected,
     required TResult Function(int found, int toLoad) found,
     required TResult Function(int done, int toLoad) loaded,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? connected,
     TResult? Function(int found, int toLoad)? found,
     TResult? Function(int done, int toLoad)? loaded,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? connected,
     TResult Function(int found, int toLoad)? found,
     TResult Function(int done, int toLoad)? loaded,
     required TResult orElse(),
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult map<TResult extends Object?>({
     required TResult Function(RestoreProgress_Connected value) connected,
     required TResult Function(RestoreProgress_Found value) found,
     required TResult Function(RestoreProgress_Loaded value) loaded,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(RestoreProgress_Connected value)? connected,
     TResult? Function(RestoreProgress_Found value)? found,
     TResult? Function(RestoreProgress_Loaded value)? loaded,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
     TResult Function(RestoreProgress_Connected value)? connected,
     TResult Function(RestoreProgress_Found value)? found,
     TResult Function(RestoreProgress_Loaded value)? loaded,
     required TResult orElse(),
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -2787,16 +2770,14 @@ class __$$RestoreProgress_FoundImplCopyWithImpl<$Res>
   $Res call({Object? found = null, Object? toLoad = null}) {
     return _then(
       _$RestoreProgress_FoundImpl(
-        found:
-            null == found
-                ? _value.found
-                : found // ignore: cast_nullable_to_non_nullable
-                    as int,
-        toLoad:
-            null == toLoad
-                ? _value.toLoad
-                : toLoad // ignore: cast_nullable_to_non_nullable
-                    as int,
+        found: null == found
+            ? _value.found
+            : found // ignore: cast_nullable_to_non_nullable
+                as int,
+        toLoad: null == toLoad
+            ? _value.toLoad
+            : toLoad // ignore: cast_nullable_to_non_nullable
+                as int,
       ),
     );
   }
@@ -2806,7 +2787,7 @@ class __$$RestoreProgress_FoundImplCopyWithImpl<$Res>
 
 class _$RestoreProgress_FoundImpl extends RestoreProgress_Found {
   const _$RestoreProgress_FoundImpl({required this.found, required this.toLoad})
-    : super._();
+      : super._();
 
   @override
   final int found;
@@ -2836,11 +2817,11 @@ class _$RestoreProgress_FoundImpl extends RestoreProgress_Found {
   @override
   @pragma('vm:prefer-inline')
   _$$RestoreProgress_FoundImplCopyWith<_$RestoreProgress_FoundImpl>
-  get copyWith =>
-      __$$RestoreProgress_FoundImplCopyWithImpl<_$RestoreProgress_FoundImpl>(
-        this,
-        _$identity,
-      );
+      get copyWith => __$$RestoreProgress_FoundImplCopyWithImpl<
+              _$RestoreProgress_FoundImpl>(
+            this,
+            _$identity,
+          );
 
   @override
   @optionalTypeArgs
@@ -2925,7 +2906,7 @@ abstract class RestoreProgress_Found extends RestoreProgress {
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$RestoreProgress_FoundImplCopyWith<_$RestoreProgress_FoundImpl>
-  get copyWith => throw _privateConstructorUsedError;
+      get copyWith => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -2954,16 +2935,14 @@ class __$$RestoreProgress_LoadedImplCopyWithImpl<$Res>
   $Res call({Object? done = null, Object? toLoad = null}) {
     return _then(
       _$RestoreProgress_LoadedImpl(
-        done:
-            null == done
-                ? _value.done
-                : done // ignore: cast_nullable_to_non_nullable
-                    as int,
-        toLoad:
-            null == toLoad
-                ? _value.toLoad
-                : toLoad // ignore: cast_nullable_to_non_nullable
-                    as int,
+        done: null == done
+            ? _value.done
+            : done // ignore: cast_nullable_to_non_nullable
+                as int,
+        toLoad: null == toLoad
+            ? _value.toLoad
+            : toLoad // ignore: cast_nullable_to_non_nullable
+                as int,
       ),
     );
   }
@@ -2973,7 +2952,7 @@ class __$$RestoreProgress_LoadedImplCopyWithImpl<$Res>
 
 class _$RestoreProgress_LoadedImpl extends RestoreProgress_Loaded {
   const _$RestoreProgress_LoadedImpl({required this.done, required this.toLoad})
-    : super._();
+      : super._();
 
   @override
   final int done;
@@ -3003,11 +2982,11 @@ class _$RestoreProgress_LoadedImpl extends RestoreProgress_Loaded {
   @override
   @pragma('vm:prefer-inline')
   _$$RestoreProgress_LoadedImplCopyWith<_$RestoreProgress_LoadedImpl>
-  get copyWith =>
-      __$$RestoreProgress_LoadedImplCopyWithImpl<_$RestoreProgress_LoadedImpl>(
-        this,
-        _$identity,
-      );
+      get copyWith => __$$RestoreProgress_LoadedImplCopyWithImpl<
+              _$RestoreProgress_LoadedImpl>(
+            this,
+            _$identity,
+          );
 
   @override
   @optionalTypeArgs
@@ -3092,7 +3071,7 @@ abstract class RestoreProgress_Loaded extends RestoreProgress {
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$RestoreProgress_LoadedImplCopyWith<_$RestoreProgress_LoadedImpl>
-  get copyWith => throw _privateConstructorUsedError;
+      get copyWith => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -3102,39 +3081,45 @@ mixin _$TradeStep {
     required TResult Function(BuyerStep field0) buyer,
     required TResult Function(SellerStep field0) seller,
     required TResult Function() disputed,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function(BuyerStep field0)? buyer,
     TResult? Function(SellerStep field0)? seller,
     TResult? Function()? disputed,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function(BuyerStep field0)? buyer,
     TResult Function(SellerStep field0)? seller,
     TResult Function()? disputed,
     required TResult orElse(),
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult map<TResult extends Object?>({
     required TResult Function(TradeStep_Buyer value) buyer,
     required TResult Function(TradeStep_Seller value) seller,
     required TResult Function(TradeStep_Disputed value) disputed,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(TradeStep_Buyer value)? buyer,
     TResult? Function(TradeStep_Seller value)? seller,
     TResult? Function(TradeStep_Disputed value)? disputed,
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
     TResult Function(TradeStep_Buyer value)? buyer,
     TResult Function(TradeStep_Seller value)? seller,
     TResult Function(TradeStep_Disputed value)? disputed,
     required TResult orElse(),
-  }) => throw _privateConstructorUsedError;
+  }) =>
+      throw _privateConstructorUsedError;
 }
 
 /// @nodoc
