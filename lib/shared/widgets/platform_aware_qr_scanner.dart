@@ -151,7 +151,6 @@ class _PlatformAwareQrScannerState extends State<PlatformAwareQrScanner> {
           Positioned.fill(
             child: _ScannerOverlay(
               onSwitchToManual: _switchToManual,
-              onToggleTorch: () => _scannerController.toggleTorch(),
             ),
           ),
         ],
@@ -178,11 +177,9 @@ class _PlatformAwareQrScannerState extends State<PlatformAwareQrScanner> {
 class _ScannerOverlay extends StatelessWidget {
   const _ScannerOverlay({
     required this.onSwitchToManual,
-    required this.onToggleTorch,
   });
 
   final VoidCallback onSwitchToManual;
-  final VoidCallback onToggleTorch;
 
   @override
   Widget build(BuildContext context) {
@@ -241,38 +238,26 @@ class _ScannerOverlay extends StatelessWidget {
             ),
           ),
         ),
-        // Bottom toolbar: Manual input toggle + Flashlight toggle
+        // Bottom toolbar: Manual input toggle
         Positioned(
           left: 0,
           right: 0,
           bottom: 24,
           child: SafeArea(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FilledButton.tonalIcon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.black.withValues(alpha: 0.7),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
+            child: Center(
+              child: FilledButton.tonalIcon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.black.withValues(alpha: 0.7),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
                   ),
-                  onPressed: onSwitchToManual,
-                  icon: const Icon(Icons.keyboard_outlined, size: 20),
-                  label: Text(l10n.pasteButtonLabel),
                 ),
-                const SizedBox(width: 12),
-                IconButton.filledTonal(
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.black.withValues(alpha: 0.7),
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: onToggleTorch,
-                  icon: const Icon(Icons.flash_on, size: 20),
-                ),
-              ],
+                onPressed: onSwitchToManual,
+                icon: const Icon(Icons.keyboard_outlined, size: 20),
+                label: Text(l10n.pasteButtonLabel),
+              ),
             ),
           ),
         ),
@@ -363,7 +348,11 @@ class _ScannerCutoutPainter extends CustomPainter {
     final bottomLeft = Path()
       ..moveTo(left, bottom - cornerLength)
       ..lineTo(left, bottom - borderRadius)
-      ..arcToPoint(Offset(left + borderRadius, bottom), radius: radius)
+      ..arcToPoint(
+        Offset(left + borderRadius, bottom),
+        radius: radius,
+        clockwise: false,
+      )
       ..lineTo(left + cornerLength, bottom);
     canvas.drawPath(bottomLeft, cornerPaint);
 
@@ -371,7 +360,11 @@ class _ScannerCutoutPainter extends CustomPainter {
     final bottomRight = Path()
       ..moveTo(right - cornerLength, bottom)
       ..lineTo(right - borderRadius, bottom)
-      ..arcToPoint(Offset(right, bottom - borderRadius), radius: radius)
+      ..arcToPoint(
+        Offset(right, bottom - borderRadius),
+        radius: radius,
+        clockwise: false,
+      )
       ..lineTo(right, bottom - cornerLength);
     canvas.drawPath(bottomRight, cornerPaint);
   }
