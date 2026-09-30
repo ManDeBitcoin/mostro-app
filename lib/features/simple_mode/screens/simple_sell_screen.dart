@@ -139,16 +139,19 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
                 children: [
                   Icon(Icons.bolt_rounded, size: 16, color: pal.limeText),
                   const SizedBox(width: 4),
-                  Text(
-                    estimatedSats != null
-                        ? '≈ $estimatedSats sats'
-                        : (rateAsync.isLoading
-                            ? SimpleL10n.calculatingRate(context)
-                            : 'Cotización al cambio del mercado'),
-                    style: TextStyle(
-                      color: pal.limeText,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
+                  Flexible(
+                    child: Text(
+                      estimatedSats != null
+                          ? '≈ $estimatedSats sats'
+                          : (rateAsync.isLoading
+                              ? SimpleL10n.calculatingRate(context)
+                              : 'Cotización al cambio del mercado'),
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: pal.limeText,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ],

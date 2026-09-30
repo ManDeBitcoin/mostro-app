@@ -153,26 +153,29 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${widget.fiatAmount ?? '—'} ${widget.fiatCode}',
-                      style: TextStyle(
-                        color: pal.limeText,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (widget.amountSats != null && widget.amountSats! > 0)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        '≈ ${widget.amountSats} sats',
+                        '${widget.fiatAmount ?? '—'} ${widget.fiatCode}',
                         style: TextStyle(
-                          color: pal.textSecondary,
-                          fontSize: 13,
+                          color: pal.limeText,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                  ],
+                      if (widget.amountSats != null && widget.amountSats! > 0)
+                        Text(
+                          '≈ ${widget.amountSats} sats',
+                          style: TextStyle(
+                            color: pal.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
                 OutlinedButton.icon(
                   onPressed: () {
