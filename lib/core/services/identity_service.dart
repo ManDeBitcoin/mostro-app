@@ -168,17 +168,30 @@ class IdentityService {
     }
   }
 
+  /// Validate an nsec key against the Rust parser without mutating state.
+  static Future<void> validateNsec(
+    String nsec, {
+    @visibleForTesting Future<void> Function({required String nsec})? validate,
+  }) async {
+    await (validate ?? identity_api.validateNsec)(nsec: nsec);
+  }
+
   /// Import an identity from an nsec key and persist it.
   ///
   /// Replaces any currently loaded identity.
   static Future<void> importNsecAndStore(
     String nsec, {
     @visibleForTesting
+    Future<void> Function({required String nsec})? validateNsec,
+    @visibleForTesting
     Future<IdentityInfo> Function({required String nsec})? importNsec,
+    @visibleForTesting
+    Future<void> Function()? deleteIdentity,
   }) async {
-    // Validate that the nsec can be parsed by Rust before wiping existing identity.
-    await (importNsec ?? identity_api.importFromNsec)(nsec: nsec);
-    await identity_api.deleteIdentity();
+    // Validate the nsec key in a non-mutating step before any deletion occurs.
+    await (validateNsec ?? identity_api.validateNsec)(nsec: nsec);
+
+    await (deleteIdentity ?? identity_api.deleteIdentity)();
     await (importNsec ?? identity_api.importFromNsec)(nsec: nsec);
 
     await _storage.write(key: _kMnemonic, value: nsec);

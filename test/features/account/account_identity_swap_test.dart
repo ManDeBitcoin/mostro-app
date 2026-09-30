@@ -43,6 +43,7 @@ Future<ProviderContainer> _pumpAccount(
   Future<void> Function()? onRegenerate,
   Future<void> Function(List<String> words)? onImport,
   Future<void> Function(String nsec)? onImportNsec,
+  Future<void> Function({required String nsec})? onValidateNsec,
   Future<RecoveryOutcome> Function(ProviderContainer container)? onRecover,
   Future<List<FundsAtRisk>> Function()? fundsAtRisk,
   bool privacyMode = false,
@@ -89,6 +90,7 @@ Future<ProviderContainer> _pumpAccount(
           debugRegenerate: onRegenerate ?? () async {},
           debugImport: onImport ?? (_) async {},
           debugImportNsec: onImportNsec,
+          debugValidateNsec: onValidateNsec,
           debugFundsAtRisk: fundsAtRisk ?? () async => const [],
           debugRecover: () async =>
               await onRecover?.call(container) ??
@@ -681,20 +683,26 @@ void main() {
     const validNsec =
         'nsec1vl029mgpspedva04g90vltkh6fvh240eqtv9xx0q2knsq6egvdtq9fv0wm';
 
-    testWidgets('rejects an nsec key that is too short', (tester) async {
-      var imported = false;
-      await _pumpAccount(
-        tester,
-        reminderArmed: true,
-        backedUp: false,
-        onImportNsec: (_) async => imported = true,
-      );
+    testWidgets(
+      'rejects an invalid nsec key via validator and keeps dialog open',
+      (tester) async {
+        var imported = false;
+        await _pumpAccount(
+          tester,
+          reminderArmed: true,
+          backedUp: false,
+          onValidateNsec: ({required String nsec}) async =>
+              throw StateError('InvalidKey'),
+          onImportNsec: (_) async => imported = true,
+        );
 
-      await _submitImportNsec(tester, l10n, 'nsec1short');
+        await _submitImportNsec(tester, l10n, 'nsec1invalid');
 
-      expect(imported, isFalse);
-      expect(find.text(l10n.enterValidMnemonicError), findsOneWidget);
-    });
+        expect(imported, isFalse);
+        expect(find.text(l10n.enterValidMnemonicError), findsOneWidget);
+        expect(find.byType(TextField), findsOneWidget);
+      },
+    );
 
     testWidgets(
       'imports valid nsec, forgets previous identity, and marks backed up',
@@ -704,6 +712,7 @@ void main() {
           tester,
           reminderArmed: true,
           backedUp: false,
+          onValidateNsec: ({required String nsec}) async {},
           onImportNsec: (nsec) async => importedNsec = nsec,
         );
         await _seedPreviousUser(container);

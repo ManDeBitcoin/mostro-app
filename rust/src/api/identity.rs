@@ -288,11 +288,16 @@ pub async fn import_from_mnemonic(words: Vec<String>, recover: bool) -> Result<I
     Ok(info)
 }
 
+/// Validate an nsec (bech32-encoded Nostr secret key) without mutating loaded identity state.
+pub fn validate_nsec(nsec: String) -> Result<()> {
+    Keys::parse(&nsec).map_err(|e| anyhow!("InvalidKey: {e}"))?;
+    Ok(())
+}
+
 /// Import identity from an nsec (bech32-encoded Nostr secret key).
 /// Note: nsec import produces a single key with no BIP-39 mnemonic backup.
 pub async fn import_from_nsec(nsec: String) -> Result<IdentityInfo> {
-    let keys =
-        Keys::parse(&nsec).map_err(|e| anyhow!("InvalidKey: {e}"))?;
+    let keys = Keys::parse(&nsec).map_err(|e| anyhow!("InvalidKey: {e}"))?;
     let public_key = keys.public_key().to_hex();
 
     let now = unix_now();
@@ -645,7 +650,10 @@ pub async fn get_trade_key(index: u32) -> Result<TradeKeyInfo> {
     }
 
     if index > state.identity_info.trade_key_index {
-        bail!("InvalidIndex: {index} exceeds current trade_key_index {}", state.identity_info.trade_key_index);
+        bail!(
+            "InvalidIndex: {index} exceeds current trade_key_index {}",
+            state.identity_info.trade_key_index
+        );
     }
 
     let trade_keys = key_ops::derive_trade_key(&state.mnemonic_words, index)?;
@@ -719,11 +727,7 @@ pub async fn export_encrypted_backup(passphrase: String) -> Result<String> {
 /// means re-deriving already-consumed keys, which the daemon rejects with
 /// `InvalidTradeIndex`. A stored identity with a different public key is
 /// ignored: its counter belongs to another mnemonic.
-fn reconcile_trade_key_index(
-    passed: u32,
-    stored: Option<&IdentityInfo>,
-    public_key: &str,
-) -> u32 {
+fn reconcile_trade_key_index(passed: u32, stored: Option<&IdentityInfo>, public_key: &str) -> u32 {
     match stored {
         Some(info) if info.public_key == public_key => passed.max(info.trade_key_index),
         _ => passed,
@@ -832,8 +836,8 @@ mod tests {
 
     /// A throwaway SQLite store, named per test so parallel runs never collide.
     async fn temp_store(tag: &str) -> crate::db::sqlite::SqliteStorage {
-        let path = std::env::temp_dir()
-            .join(format!("mostro_identity_{tag}_{}.db", std::process::id()));
+        let path =
+            std::env::temp_dir().join(format!("mostro_identity_{tag}_{}.db", std::process::id()));
         let _ = std::fs::remove_file(&path);
         crate::db::sqlite::SqliteStorage::open(path.to_str().unwrap())
             .await
@@ -978,9 +982,7 @@ mod tests {
         ) -> Result<()> {
             unimplemented!()
         }
-        async fn list_queued_messages(
-            &self,
-        ) -> Result<Vec<crate::queue::outbox::QueuedMessage>> {
+        async fn list_queued_messages(&self) -> Result<Vec<crate::queue::outbox::QueuedMessage>> {
             unimplemented!()
         }
         async fn update_queued_message_status(
@@ -1104,7 +1106,10 @@ mod tests {
         // Already in sync, and a counter belonging to another mnemonic: no
         // publication, so Dart never rewrites a value it already holds.
         assert_eq!(reconcile_and_publish_to(&tx, 22, Some(&stored), "abc"), 22);
-        assert_eq!(reconcile_and_publish_to(&tx, 30, Some(&stored), "other"), 30);
+        assert_eq!(
+            reconcile_and_publish_to(&tx, 30, Some(&stored), "other"),
+            30
+        );
         assert!(
             stream.rx.try_recv().is_err(),
             "nothing further should have been published"
@@ -1132,6 +1137,25 @@ mod tests {
     #[test]
     fn reconcile_without_stored_identity_keeps_passed_index() {
         assert_eq!(reconcile_trade_key_index(7, None, "abc"), 7);
+    }
+
+    #[test]
+    fn validate_nsec_accepts_valid_nsec() {
+        use nostr::prelude::ToBech32;
+        let keys = Keys::generate();
+        let valid_nsec = keys.secret_key().to_bech32().unwrap();
+        assert!(validate_nsec(valid_nsec).is_ok());
+    }
+
+    #[test]
+    fn validate_nsec_rejects_invalid_nsec() {
+        assert!(validate_nsec("nsec1invalid".to_string()).is_err());
+        assert!(validate_nsec("notansec".to_string()).is_err());
+        // bad checksum
+        assert!(validate_nsec(
+            "nsec1vl029mgpspedva04g90vltkh6fvh240eqtv9xx0q2knsq6egvdtq9fv0ww".to_string()
+        )
+        .is_err());
     }
 
     /// Single test for the global identity state (kept as ONE test so
@@ -1174,19 +1198,28 @@ mod tests {
         // shares the single identity_lock lifecycle and can't race it. Uses the
         // `_with` core so publications land on this test's private channel.
         // Never lowers: a floor below current is a no-op — no write, no publish.
-        ensure_trade_key_index_at_least_with(Some(&db), &tx, 10).await.unwrap();
+        ensure_trade_key_index_at_least_with(Some(&db), &tx, 10)
+            .await
+            .unwrap();
         assert_eq!(get_identity().await.unwrap().unwrap().trade_key_index, 22);
         assert!(
             published.rx.try_recv().is_err(),
             "a no-op resync must not publish",
         );
         // Raises to the recovered max, persists, and publishes to the mirror.
-        ensure_trade_key_index_at_least_with(Some(&db), &tx, 50).await.unwrap();
+        ensure_trade_key_index_at_least_with(Some(&db), &tx, 50)
+            .await
+            .unwrap();
         assert_eq!(get_identity().await.unwrap().unwrap().trade_key_index, 50);
         assert_eq!(published.next().await.unwrap(), 50);
-        assert_eq!(db.get_identity().await.unwrap().unwrap().trade_key_index, 50);
+        assert_eq!(
+            db.get_identity().await.unwrap().unwrap().trade_key_index,
+            50
+        );
         // Idempotent: the same floor again changes nothing and publishes nothing.
-        ensure_trade_key_index_at_least_with(Some(&db), &tx, 50).await.unwrap();
+        ensure_trade_key_index_at_least_with(Some(&db), &tx, 50)
+            .await
+            .unwrap();
         assert_eq!(get_identity().await.unwrap().unwrap().trade_key_index, 50);
         assert!(
             published.rx.try_recv().is_err(),
@@ -1196,11 +1229,10 @@ mod tests {
         // counter advanced. Counter is 50 here. Ask for a higher floor (60)
         // against a failing store: the call errors and the counter stays 50.
         let (fx, _frx) = private_channel();
-        let rollback_err =
-            ensure_trade_key_index_at_least_with(Some(&FailingStore), &fx, 60)
-                .await
-                .unwrap_err()
-                .to_string();
+        let rollback_err = ensure_trade_key_index_at_least_with(Some(&FailingStore), &fx, 60)
+            .await
+            .unwrap_err()
+            .to_string();
         assert!(
             rollback_err.contains("StorageError:"),
             "unexpected error: {rollback_err}"
@@ -1221,7 +1253,10 @@ mod tests {
             "retry against a working store must raise and persist",
         );
         assert_eq!(published.next().await.unwrap(), 60);
-        assert_eq!(db.get_identity().await.unwrap().unwrap().trade_key_index, 60);
+        assert_eq!(
+            db.get_identity().await.unwrap().unwrap().trade_key_index,
+            60
+        );
 
         // Regression (the bug #217 fixes): the next derived key is FRESH —
         // index 61, past every recovered trade — not a reused recovered index.

@@ -44,6 +44,7 @@ class AccountScreen extends ConsumerStatefulWidget {
     @visibleForTesting this.debugRegenerate,
     @visibleForTesting this.debugImport,
     @visibleForTesting this.debugImportNsec,
+    @visibleForTesting this.debugValidateNsec,
     @visibleForTesting this.debugRecover,
     @visibleForTesting this.debugFundsAtRisk,
     @visibleForTesting this.debugRestoreRun,
@@ -63,6 +64,7 @@ class AccountScreen extends ConsumerStatefulWidget {
   final Future<void> Function()? debugRegenerate;
   final Future<void> Function(List<String> words)? debugImport;
   final Future<void> Function(String nsec)? debugImportNsec;
+  final Future<void> Function({required String nsec})? debugValidateNsec;
   final Future<RecoveryOutcome> Function()? debugRecover;
   final Future<List<FundsAtRisk>> Function()? debugFundsAtRisk;
 
@@ -413,6 +415,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       context: context,
       builder: (dialogContext) => _ImportMnemonicDialog(
         onImport: (input) => _importIdentity(context, input),
+        validateNsec: widget.debugValidateNsec,
       ),
     );
   }
@@ -1117,9 +1120,13 @@ class _CardHeader extends StatelessWidget {
 /// preventing the controller from being disposed while the [TextField] is
 /// still mounted.
 class _ImportMnemonicDialog extends StatefulWidget {
-  const _ImportMnemonicDialog({required this.onImport});
+  const _ImportMnemonicDialog({
+    required this.onImport,
+    @visibleForTesting this.validateNsec,
+  });
 
   final void Function(String input) onImport;
+  final Future<void> Function({required String nsec})? validateNsec;
 
   @override
   State<_ImportMnemonicDialog> createState() => _ImportMnemonicDialogState();
@@ -1135,15 +1142,20 @@ class _ImportMnemonicDialogState extends State<_ImportMnemonicDialog> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final text = _controller.text.trim();
     if (text.startsWith('nsec1')) {
-      if (text.length < 50) {
-        setState(
-          () => _error = AppLocalizations.of(context).enterValidMnemonicError,
-        );
+      try {
+        await (widget.validateNsec ?? identity_api.validateNsec)(nsec: text);
+      } catch (_) {
+        if (mounted) {
+          setState(
+            () => _error = AppLocalizations.of(context).enterValidMnemonicError,
+          );
+        }
         return;
       }
+      if (!mounted) return;
       Navigator.pop(context);
       widget.onImport(text);
       return;

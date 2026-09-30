@@ -56,6 +56,10 @@ Future<IdentityInfo> importFromMnemonic({
   recover: recover,
 );
 
+/// Validate an nsec (bech32-encoded Nostr secret key) without mutating loaded identity state.
+Future<void> validateNsec({required String nsec}) =>
+    RustLib.instance.api.crateApiIdentityValidateNsec(nsec: nsec);
+
 /// Import identity from an nsec (bech32-encoded Nostr secret key).
 /// Note: nsec import produces a single key with no BIP-39 mnemonic backup.
 Future<IdentityInfo> importFromNsec({required String nsec}) =>

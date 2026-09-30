@@ -3,6 +3,8 @@ import 'package:mostro/core/services/identity_service.dart';
 import 'package:mostro/src/rust/api/identity.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   const testNsec =
       'nsec1vl029mgpspedva04g90vltkh6fvh240eqtv9xx0q2knsq6egvdtq9fv0wm';
 
@@ -62,17 +64,44 @@ void main() {
     },
   );
 
+  test('validateNsec delegates to validate seam', () async {
+    String? passedNsec;
+    await IdentityService.validateNsec(
+      testNsec,
+      validate: ({required String nsec}) async {
+        passedNsec = nsec;
+      },
+    );
+    expect(passedNsec, testNsec);
+  });
+
   test(
-    'importNsecAndStore fails if nsec parser throws and does not proceed',
+    'importNsecAndStore validates nsec before deleting identity or importing',
     () async {
-      expect(
+      var deleted = false;
+      var imported = false;
+
+      await expectLater(
         () => IdentityService.importNsecAndStore(
           'nsec1invalid',
-          importNsec: ({required String nsec}) async =>
+          validateNsec: ({required String nsec}) async =>
               throw StateError('InvalidKey'),
+          deleteIdentity: () async => deleted = true,
+          importNsec: ({required String nsec}) async {
+            imported = true;
+            return const IdentityInfo(
+              publicKey: 'pubkey',
+              privacyMode: false,
+              tradeKeyIndex: 0,
+              createdAt: 1000,
+            );
+          },
         ),
         throwsA(isA<StateError>()),
       );
+
+      expect(deleted, isFalse);
+      expect(imported, isFalse);
     },
   );
 }
