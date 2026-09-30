@@ -65,11 +65,13 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
     final rateAsync = ref.watch(exchangeRateProvider(currency));
     final rate = rateAsync.valueOrNull;
     final double? parsedAmount = double.tryParse(_amountController.text.trim());
-    final int? estimatedSats = (rate != null && rate > 0 && parsedAmount != null && parsedAmount > 0)
+    final int? estimatedSats =
+        (rate != null && rate > 0 && parsedAmount != null && parsedAmount > 0)
         ? (parsedAmount / rate * 100000000).round()
         : null;
 
-    final paymentMethods = community != null && community.paymentMethods.isNotEmpty
+    final paymentMethods =
+        community != null && community.paymentMethods.isNotEmpty
         ? community.paymentMethods
         : const ['Transferencia', 'Efectivo', 'Móvil', 'Zelle'];
 
@@ -82,7 +84,9 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
       if (o.kind != 'sell') return false;
       if (o.fiatCode.toUpperCase() != currency.toUpperCase()) return false;
       if (_selectedMethod != null &&
-          !o.paymentMethod.toLowerCase().contains(_selectedMethod!.toLowerCase())) {
+          !o.paymentMethod.toLowerCase().contains(
+            _selectedMethod!.toLowerCase(),
+          )) {
         return false;
       }
       return true;
@@ -100,7 +104,8 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
     }
 
     final matchingSellOrders = allSellOrders.where(matchesAmount).toList();
-    final displayedSellOrders = (_filterMatchingOnly && parsedAmount != null && parsedAmount > 0)
+    final displayedSellOrders =
+        (_filterMatchingOnly && parsedAmount != null && parsedAmount > 0)
         ? matchingSellOrders
         : allSellOrders;
 
@@ -128,7 +133,11 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
             ),
             child: Row(
               children: [
-                Icon(Icons.candlestick_chart_outlined, color: pal.limeText, size: 18),
+                Icon(
+                  Icons.candlestick_chart_outlined,
+                  color: pal.limeText,
+                  size: 18,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   '${SimpleL10n.referencePrice(context)}: ',
@@ -175,7 +184,9 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
                   Expanded(
                     child: TextField(
                       controller: _amountController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       style: TextStyle(
                         color: pal.textTitle,
                         fontSize: 32,
@@ -201,8 +212,8 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
                     estimatedSats != null
                         ? '≈ $estimatedSats sats'
                         : (rateAsync.isLoading
-                            ? SimpleL10n.calculatingRate(context)
-                            : 'Recibirás Bitcoin al cambio del mercado'),
+                              ? SimpleL10n.calculatingRate(context)
+                              : 'Recibirás Bitcoin al cambio del mercado'),
                     style: TextStyle(
                       color: pal.limeText,
                       fontWeight: FontWeight.w600,
@@ -228,7 +239,9 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
                     selectedColor: pal.limeBorder,
                     labelStyle: TextStyle(
                       color: isSelected ? pal.limeText : pal.textSecondary,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
                   );
                 }).toList(),
@@ -296,10 +309,7 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
                     ),
                     Text(
                       SimpleL10n.temporaryGuaranteeTooltip(context),
-                      style: TextStyle(
-                        color: pal.textSecondary,
-                        fontSize: 11,
-                      ),
+                      style: TextStyle(color: pal.textSecondary, fontSize: 11),
                     ),
                   ],
                 ),
@@ -313,22 +323,27 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              _filterMatchingOnly && parsedAmount != null && parsedAmount > 0
-                  ? SimpleL10n.matchingOffers(context)
-                  : SimpleL10n.viewOffers(context),
+              SimpleL10n.viewOffers(context),
               style: theme.textTheme.titleMedium?.copyWith(
                 color: pal.textTitle,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            if (allSellOrders.length != matchingSellOrders.length && parsedAmount != null && parsedAmount > 0)
+            if (allSellOrders.length != matchingSellOrders.length &&
+                parsedAmount != null &&
+                parsedAmount > 0)
               TextButton(
-                onPressed: () => setState(() => _filterMatchingOnly = !_filterMatchingOnly),
+                onPressed: () =>
+                    setState(() => _filterMatchingOnly = !_filterMatchingOnly),
                 child: Text(
                   _filterMatchingOnly
                       ? '${SimpleL10n.showAllOffers(context)} (${allSellOrders.length})'
                       : '${SimpleL10n.matchingOffers(context)} (${matchingSellOrders.length})',
-                  style: TextStyle(fontSize: 12, color: pal.limeText, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: pal.limeText,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
           ],
@@ -345,7 +360,11 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
             ),
             child: Column(
               children: [
-                Icon(Icons.storefront_outlined, size: 40, color: pal.textTertiary),
+                Icon(
+                  Icons.storefront_outlined,
+                  size: 40,
+                  color: pal.textTertiary,
+                ),
                 const SizedBox(height: 12),
                 Text(
                   'No hay vendedores activos con estos filtros.',
@@ -354,10 +373,14 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
                 if (_filterMatchingOnly && allSellOrders.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   TextButton(
-                    onPressed: () => setState(() => _filterMatchingOnly = false),
+                    onPressed: () =>
+                        setState(() => _filterMatchingOnly = false),
                     child: Text(
                       '${SimpleL10n.showAllOffers(context)} (${allSellOrders.length})',
-                      style: TextStyle(color: pal.limeText, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: pal.limeText,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -379,7 +402,10 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
             final int? orderEstimatedSats = (rate != null && rate > 0)
                 ? (takeFiatAmount / rate * 100000000).round()
                 : null;
-            final bool amountMismatched = !isRange && parsedAmount != null && parsedAmount != order.fiatAmount;
+            final bool amountMismatched =
+                !isRange &&
+                parsedAmount != null &&
+                parsedAmount != order.fiatAmount;
 
             return _SellerOfferCard(
               order: order,
@@ -466,7 +492,10 @@ class _SellerOfferCard extends ConsumerWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              nym?.pseudonym ?? (order.kind == 'sell' ? 'Vendedor' : 'Comprador'),
+                              nym?.pseudonym ??
+                                  (order.kind == 'sell'
+                                      ? 'Vendedor'
+                                      : 'Comprador'),
                               style: TextStyle(
                                 color: pal.textTitle,
                                 fontWeight: FontWeight.bold,
@@ -477,7 +506,10 @@ class _SellerOfferCard extends ConsumerWidget {
                           ),
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: isRange
                                   ? pal.limeBorder.withValues(alpha: 0.15)
@@ -489,7 +521,9 @@ class _SellerOfferCard extends ConsumerWidget {
                                   ? SimpleL10n.rangeOrder(context)
                                   : SimpleL10n.fixedOrder(context),
                               style: TextStyle(
-                                color: isRange ? pal.limeText : pal.textSecondary,
+                                color: isRange
+                                    ? pal.limeText
+                                    : pal.textSecondary,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -502,7 +536,9 @@ class _SellerOfferCard extends ConsumerWidget {
                         children: [
                           Icon(
                             Icons.star_rounded,
-                            color: order.rating > 0 ? Colors.amber : pal.textTertiary,
+                            color: order.rating > 0
+                                ? Colors.amber
+                                : pal.textTertiary,
                             size: 14,
                           ),
                           const SizedBox(width: 4),
@@ -573,30 +609,39 @@ class _SellerOfferCard extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    order.premium <= 0 ? Icons.trending_down : Icons.trending_up,
+                    order.premium <= 0
+                        ? Icons.trending_down
+                        : Icons.trending_up,
                     size: 13,
-                    color: order.premium <= 0 ? pal.limeText : Colors.orangeAccent,
+                    color: order.premium <= 0
+                        ? pal.limeText
+                        : Colors.orangeAccent,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     order.premium == 0
                         ? SimpleL10n.marketRateZero(context)
                         : (order.premium > 0
-                            ? SimpleL10n.premiumAbove(order.premium.toStringAsFixed(1), context)
-                            : SimpleL10n.premiumBelow(order.premium.toStringAsFixed(1), context)),
+                              ? SimpleL10n.premiumAbove(
+                                  order.premium.toStringAsFixed(1),
+                                  context,
+                                )
+                              : SimpleL10n.premiumBelow(
+                                  order.premium.toStringAsFixed(1),
+                                  context,
+                                )),
                     style: TextStyle(
                       fontSize: 11,
-                      color: order.premium <= 0 ? pal.limeText : Colors.orangeAccent,
+                      color: order.premium <= 0
+                          ? pal.limeText
+                          : Colors.orangeAccent,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   if (orderEstimatedSats != null) ...[
                     Text(
                       ' · ≈ $orderEstimatedSats sats',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: pal.textTertiary,
-                      ),
+                      style: TextStyle(fontSize: 11, color: pal.textTertiary),
                     ),
                   ],
                 ],
@@ -605,20 +650,32 @@ class _SellerOfferCard extends ConsumerWidget {
             if (amountMismatched) ...[
               const SizedBox(height: 10),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.amber.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: Colors.amber.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline, size: 14, color: Colors.amber),
+                    const Icon(
+                      Icons.info_outline,
+                      size: 14,
+                      color: Colors.amber,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         'Esta orden es de monto fijo (${order.fiatAmount?.toInt()} ${order.fiatCode}). Para tomarla, debes comprar el total.',
-                        style: const TextStyle(fontSize: 11, color: Colors.amber),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.amber,
+                        ),
                       ),
                     ),
                   ],

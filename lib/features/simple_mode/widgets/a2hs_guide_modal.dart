@@ -10,7 +10,7 @@ class A2hsGuideModal extends StatefulWidget {
   const A2hsGuideModal({super.key});
 
   static Future<void> show(BuildContext context) {
-    return showDialog(
+    return showMostroDialog(
       context: context,
       builder: (ctx) => const A2hsGuideModal(),
     );

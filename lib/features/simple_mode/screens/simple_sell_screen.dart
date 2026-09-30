@@ -77,11 +77,13 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
     final double effectiveRate = (rate != null && rate > 0)
         ? rate * (1 + _premium / 100)
         : 0.0;
-    final int? estimatedSats = (effectiveRate > 0 && parsedAmount != null && parsedAmount > 0)
+    final int? estimatedSats =
+        (effectiveRate > 0 && parsedAmount != null && parsedAmount > 0)
         ? (parsedAmount / effectiveRate * 100000000).round()
         : null;
 
-    final paymentMethods = community != null && community.paymentMethods.isNotEmpty
+    final paymentMethods =
+        community != null && community.paymentMethods.isNotEmpty
         ? community.paymentMethods
         : const ['Transferencia', 'Efectivo', 'Móvil', 'Zelle'];
 
@@ -121,7 +123,11 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
             ),
             child: Row(
               children: [
-                Icon(Icons.candlestick_chart_outlined, color: pal.limeText, size: 18),
+                Icon(
+                  Icons.candlestick_chart_outlined,
+                  color: pal.limeText,
+                  size: 18,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   '${SimpleL10n.referencePrice(context)}: ',
@@ -168,7 +174,9 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
                   Expanded(
                     child: TextField(
                       controller: _amountController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       style: TextStyle(
                         color: pal.textTitle,
                         fontSize: 32,
@@ -195,8 +203,8 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
                       estimatedSats != null
                           ? '≈ $estimatedSats sats'
                           : (rateAsync.isLoading
-                              ? SimpleL10n.calculatingRate(context)
-                              : 'Cotización al cambio del mercado'),
+                                ? SimpleL10n.calculatingRate(context)
+                                : 'Cotización al cambio del mercado'),
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: pal.limeText,
@@ -224,7 +232,9 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
                     selectedColor: pal.limeBorder,
                     labelStyle: TextStyle(
                       color: isSelected ? pal.limeText : pal.textSecondary,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
                   );
                 }).toList(),
@@ -250,17 +260,22 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
                 children: [
                   Icon(Icons.percent_rounded, size: 18, color: pal.limeText),
                   const SizedBox(width: 8),
-                  Text(
-                    SimpleL10n.sellPremium(context),
-                    style: TextStyle(
-                      color: pal.textTitle,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                  Expanded(
+                    child: Text(
+                      SimpleL10n.sellPremium(context),
+                      style: TextStyle(
+                        color: pal.textTitle,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   Text(
-                    _premium == 0 ? SimpleL10n.atMarketPrice(context) : '+${_premium.toStringAsFixed(1)}%',
+                    _premium == 0
+                        ? SimpleL10n.atMarketPrice(context)
+                        : '+${_premium.toStringAsFixed(1)}%',
                     style: TextStyle(
                       color: _premium > 0 ? pal.limeText : pal.textSecondary,
                       fontWeight: FontWeight.bold,
@@ -280,7 +295,9 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
                 runSpacing: 8,
                 children: [0.0, 1.0, 2.0, 3.0, 5.0, 8.0, 10.0].map((val) {
                   final isSelected = _premium == val;
-                  final label = val == 0.0 ? SimpleL10n.atMarketPrice(context) : '+${val.toInt()}%';
+                  final label = val == 0.0
+                      ? SimpleL10n.atMarketPrice(context)
+                      : '+${val.toInt()}%';
                   return ChoiceChip(
                     label: Text(label),
                     selected: isSelected,
@@ -288,7 +305,9 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
                     selectedColor: pal.limeBorder,
                     labelStyle: TextStyle(
                       color: isSelected ? pal.limeText : pal.textSecondary,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                       fontSize: 12,
                     ),
                   );
@@ -466,13 +485,14 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          ...matchingBuyOrders.map((order) => _BuyerOfferCard(
-                order: order,
-                currency: currency,
-                pal: pal,
-                onSellPressed: () =>
-                    context.push(AppRoute.takeBuyPath(order.id)),
-              )),
+          ...matchingBuyOrders.map(
+            (order) => _BuyerOfferCard(
+              order: order,
+              currency: currency,
+              pal: pal,
+              onSellPressed: () => context.push(AppRoute.takeBuyPath(order.id)),
+            ),
+          ),
         ],
       ],
     );
@@ -563,7 +583,9 @@ class _BuyerOfferCard extends ConsumerWidget {
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: order.isRange
                                   ? pal.limeBorder.withValues(alpha: 0.15)
@@ -663,10 +685,14 @@ class _BuyerOfferCard extends ConsumerWidget {
                     order.premium == 0
                         ? SimpleL10n.marketRateZero(context)
                         : (order.premium > 0
-                            ? SimpleL10n.premiumAbove(
-                                order.premium.toStringAsFixed(1), context)
-                            : SimpleL10n.premiumBelow(
-                                order.premium.toStringAsFixed(1), context)),
+                              ? SimpleL10n.premiumAbove(
+                                  order.premium.toStringAsFixed(1),
+                                  context,
+                                )
+                              : SimpleL10n.premiumBelow(
+                                  order.premium.toStringAsFixed(1),
+                                  context,
+                                )),
                     style: TextStyle(
                       fontSize: 11,
                       color: order.premium <= 0
