@@ -643,7 +643,7 @@ class _BuyerOfferCard extends ConsumerWidget {
               margin: const EdgeInsets.only(top: 8),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: pal.surfaceBg,
+                color: pal.surfaceCard,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(

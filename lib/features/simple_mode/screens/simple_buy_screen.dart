@@ -77,6 +77,7 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
       _selectedMethod = paymentMethods.first;
     }
 
+    final allOrders = ref.watch(orderBookProvider).valueOrNull ?? [];
     final allSellOrders = allOrders.where((o) {
       if (o.kind != 'sell') return false;
       if (o.fiatCode.toUpperCase() != currency.toUpperCase()) return false;
@@ -565,7 +566,7 @@ class _SellerOfferCard extends ConsumerWidget {
               margin: const EdgeInsets.only(top: 8),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: pal.surfaceBg,
+                color: pal.surfaceCard,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(

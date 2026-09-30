@@ -99,8 +99,8 @@ class EventCards {
       reason: update.reason?.name,
       at: at,
     );
-    final wasAdded = await notifications().addIfNew(model);
-    if (wasAdded && onNotificationAlert != null) {
+    await notifications().addIfNew(model);
+    if (onNotificationAlert != null) {
       if (!_isOrderOnScreen(update.orderId)) {
         final (title, body) =
             _tradeNotificationCopy(update.status, update.reason);

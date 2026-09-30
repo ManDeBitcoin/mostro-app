@@ -54,7 +54,7 @@ class _A2hsGuideModalState extends State<A2hsGuideModal> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: pal.limeBg,
+                    color: pal.limeBorder.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(

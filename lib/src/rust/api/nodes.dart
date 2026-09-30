@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
 
-            // These functions are ignored because they are not marked as `pub`: `drop_promoted_customs`, `entry_from`, `is_trusted_pubkey`, `load_custom_nodes`, `load_metadata_cache`, `needs_auto_import`, `normalize_name`, `parse_node_pubkey`, `registry_lock`, `sanitize_https_url`, `save_custom_nodes`, `save_metadata_cache`
+            // These functions are ignored because they are not marked as `pub`: `drop_promoted_customs`, `entry_from`, `is_trusted_pubkey`, `load_custom_nodes`, `load_metadata_cache`, `needs_auto_import`, `normalize_name`, `parse_node_pubkey`, `register_linked_node`, `registry_lock`, `sanitize_https_url`, `save_custom_nodes`, `save_metadata_cache`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CustomNode`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`
 

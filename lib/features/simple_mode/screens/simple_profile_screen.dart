@@ -82,7 +82,7 @@ class SimpleProfileScreen extends ConsumerWidget {
                     },
                   ),
                 ]
-              : null,
+              : const [],
           secondary: ModalAction(
             label: 'Cancelar',
             onPressed: () => Navigator.pop(dialogCtx),
