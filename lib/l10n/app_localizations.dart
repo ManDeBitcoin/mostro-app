@@ -562,6 +562,12 @@ abstract class AppLocalizations {
   /// **'The node rejected the request: its parameters are not valid.'**
   String get orderRejectedInvalidParameters;
 
+  /// Simple Mode, Buy tab: the first payment-method chip, which shows the offers of every method
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get simpleAllPaymentMethods;
+
   /// Simple Mode, on a range offer while the amount typed is not one it can be taken for
   ///
   /// In en, this message translates to:

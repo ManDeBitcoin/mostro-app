@@ -214,11 +214,25 @@ one node" under Domain gotchas before touching anything node-related.
   `rust/src/api/` on purpose, so the pin needed no bridge regen.
   `set_active_mostro_node` stays for one caller, the Mortsom seed (`MOSTRO_PUB_KEY`) in
   `app_bootstrap.dart`, so **don't wire a UI to it**. The selector widgets, `api/nodes.rs`
-  add/remove and the parse/apply/clear half of `api/community.rs` are unreachable and awaiting
-  deletion — but `get_active_community_profile` is still read by the Simple Mode Buy, Sell and
-  Help screens (normally `None`, so they use their built-in fallbacks). The switch machinery
-  under them (claim nodes, `refresh_subscriptions_for_active_node`) is upstream's and stays, or
-  every merge from `upstream` conflicts.
+  add/remove and the apply/clear half of `api/community.rs` are unreachable and awaiting
+  deletion — the parser, the signature check and `get_active_community_profile` are not (next
+  entry). The switch machinery under them (claim nodes,
+  `refresh_subscriptions_for_active_node`) is upstream's and stays, or every merge from
+  `upstream` conflicts.
+- **The community's card is read from the node's relays, never scanned.** The operator's
+  panel signs a card (name, currency, payment methods, website, contact) and can publish it as
+  kind 30078, `d = mostro-community-card`, signed by the node. `mostro::community_card` looks
+  for it when the pool comes online — spawned behind `subscribe_orders()` — checks kind, author,
+  `d` and event signature, then the card's own key and BIP-340 signature, and stores it as the
+  profile only when it is newer than the one stored (`community_card_at`). No card on the relays
+  is the normal case, not an error. `get_active_community_profile` serves only a profile the
+  active node signed, and each read starts another look once the last is ten minutes old; Dart
+  re-reads every 45 s (`ActiveCommunityNotifier`), which is how a method the operator adds
+  reaches an open app. From the card come name, methods, currency, website and contact — never
+  the fee or the bond, which are Kind 38385's. In Simple Mode the Sell list is the card's,
+  exactly (`sellPaymentMethods`, a built-in list until a card exists); the Buy filter adds every
+  method on the book and starts on "all" (`buyPaymentMethods`), so no offer hides behind a
+  method the list does not know.
 - **Reputation/ratings come from Kind 38383 event tags, not a DB.** In-memory
   `RATING_STORE`/`DISPUTE_STORE` are correct by design — don't invent "persist to DB" tasks.
   Chat history persists to the `messages` table since #246 — on web to the IndexedDB `messages`

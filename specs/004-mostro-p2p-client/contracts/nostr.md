@@ -259,3 +259,33 @@ for (`docs/PUSH_NOTIFICATIONS.md` §7.1).
 Emits when new relays are auto-synced from daemon's kind 10002 events.
 Payload is the list of newly added relay URLs, in announcement order. Lists
 that add nothing new do not emit.
+
+---
+
+### Community card (kind 30078, `d = mostro-community-card`)
+
+A convention between the operator's panel (Mostro Community Manager) and this
+client, not part of the Mostro protocol. The panel may publish the community's
+signed card — the JSON v1 object with `name`, `pubkey`, `relays`, `currency`,
+`payment_methods`, `fee_bps`, `bond_percent`, `website`, `contact`,
+`signature` — as the content of an addressable event signed by the node's key.
+
+**Reading it** (`rust/src/mostro/community_card.rs`, no bridge call of its own):
+
+- Looked up when the relay pool comes online, detached and behind the order
+  book subscription, and again whenever the stored profile is read and the
+  last look is ten minutes old.
+- The event MUST be kind 30078, authored by the active node, tagged
+  `d = mostro-community-card`, with a valid signature — checked in the client,
+  since a relay is not held to the REQ's filter. The newest valid copy wins.
+- The card MUST be version 1, carry the node's own `pubkey`, and verify under
+  its own BIP-340 signature (`verify_community_signature`).
+- A card replaces the stored profile only when its event is not older than the
+  one the stored profile came from (`community_card_at`).
+- No card on the relays is the normal case and is not an error; an invalid or
+  older one changes nothing. The event says nothing about liveness.
+
+**Using it**: `get_active_community_profile` returns the stored profile only
+when the active node signed it. The client takes `name`, `payment_methods`,
+`currency`, `website` and `contact` from it. It MUST NOT take the fee or the
+bond from the card: those are the info event's (Kind 38385).

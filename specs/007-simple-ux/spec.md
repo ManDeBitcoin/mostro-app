@@ -18,10 +18,15 @@
 > onboarding), **§3.2 / FR-006 – FR-009** (community profiles and deep links),
 > **SC-001**'s QR step and **SC-002**, and the node switcher that User Story 6
 > and **SC-003** list under Advanced Mode. The Simple Mode badge shows the
-> community name and is not a control. With no profile to supply them,
-> **FR-010**'s "community payment methods" are Simple Mode's built-in list.
-> The parser in `rust/src/api/community.rs` is still in the tree with no
-> caller left in the UI: dead code, pending removal.
+> community name and is not a control. **FR-010**'s "community payment
+> methods" are the ones on the community's signed card, which the core now
+> reads from the node's relays instead of from a scan (kind 30078,
+> `d = mostro-community-card`, signed by the node; the card's own signature
+> is checked too): a method the operator adds in the panel appears without a
+> new build. Until the node publishes a card the screens use a built-in list.
+> The Sell tab offers the card's list exactly; the Buy tab filters by that
+> list plus every method an offer on the book carries, and starts on "all",
+> so no offer is hidden behind a method the list does not know.
 
 ## 1. Context & Rationale
 

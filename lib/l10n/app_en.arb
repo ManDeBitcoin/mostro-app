@@ -310,6 +310,8 @@
   "@orderRejectedOtherParty": {"description": "Daemon refusal CantDo InvalidPeer: the action belongs to the counterparty (only the seller releases, only the buyer adds an invoice)"},
   "orderRejectedInvalidParameters": "The node rejected the request: its parameters are not valid.",
   "@orderRejectedInvalidParameters": {"description": "Daemon refusal CantDo InvalidParameters for any cause the app did not rule out before sending (fixed sats with a premium is refused locally and has its own message)"},
+  "simpleAllPaymentMethods": "All",
+  "@simpleAllPaymentMethods": {"description": "Simple Mode, Buy tab: the first payment-method chip, which shows the offers of every method"},
   "simpleRangeAmountHint": "Type a whole amount between {min} and {max} {code} above",
   "@simpleRangeAmountHint": {"description": "Simple Mode, on a range offer while the amount typed is not one it can be taken for", "placeholders": {"min": {"type": "String"}, "max": {"type": "String"}, "code": {"type": "String"}}},
   "simpleTakenWaitingNode": "Trade taken. Waiting for the node's next step…",

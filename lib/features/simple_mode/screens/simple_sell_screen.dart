@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:mostro/core/app_routes.dart';
 import 'package:mostro/core/order_book_palette.dart';
+import 'package:mostro/features/about/providers/mostro_node_provider.dart';
 import 'package:mostro/features/home/providers/home_order_providers.dart';
 import 'package:mostro/features/order/models/order_detail_rules.dart'
     show estimateSats;
@@ -72,7 +73,10 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
     final theme = Theme.of(context);
     final communityAsync = ref.watch(activeCommunityProfileProvider);
     final community = communityAsync.valueOrNull;
-    final currency = community?.currency ?? 'USD';
+    final currency = simpleCurrency(
+      card: community?.currency,
+      accepted: ref.watch(mostroNodeProvider).valueOrNull?.fiatCurrenciesAccepted,
+    );
 
     // Live exchange rate & Satoshi estimation
     final rateAsync = ref.watch(exchangeRateProvider(currency));
@@ -89,14 +93,13 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
         ? rate / (1 - _premium / 100)
         : 0.0;
 
-    final paymentMethods =
-        community != null && community.paymentMethods.isNotEmpty
-        ? community.paymentMethods
-        : const ['Transferencia', 'Efectivo', 'Móvil', 'Zelle'];
-
-    if (_selectedMethod == null && paymentMethods.isNotEmpty) {
-      _selectedMethod = paymentMethods.first;
-    }
+    // The community's own list, exactly; it can change while the screen is
+    // up — the card arrives after startup, the operator edits it — so a
+    // choice that is no longer on it gives way to the first that is.
+    final paymentMethods = sellPaymentMethods(community?.paymentMethods);
+    final selectedMethod = paymentMethods.contains(_selectedMethod)
+        ? _selectedMethod!
+        : paymentMethods.first;
 
     final allOrders = ref.watch(orderBookProvider).valueOrNull ?? [];
     final matchingBuyOrders = allOrders
@@ -349,7 +352,7 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
           spacing: 8,
           runSpacing: 8,
           children: paymentMethods.map((method) {
-            final isSelected = _selectedMethod == method;
+            final isSelected = selectedMethod == method;
             return ChoiceChip(
               label: Text(method),
               selected: isSelected,
@@ -465,7 +468,7 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
                   _openConfirmSheet(
                     fiatAmount: amount.toDouble(),
                     fiatCode: currency,
-                    paymentMethod: _selectedMethod ?? paymentMethods.first,
+                    paymentMethod: selectedMethod,
                     paymentDetails: _detailsController.text.trim(),
                     premium: _premium,
                     estimatedSats: estimatedSats,

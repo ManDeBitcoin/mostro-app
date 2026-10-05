@@ -9,6 +9,7 @@ OrderItem _order({
   double? min,
   double? max,
   String fiatCode = 'USD',
+  String method = 'Transferencia',
   OrderStatus status = OrderStatus.pending,
   bool isMine = false,
 }) => OrderItem(
@@ -18,7 +19,7 @@ OrderItem _order({
   fiatAmountMin: min,
   fiatAmountMax: max,
   fiatCode: fiatCode,
-  paymentMethod: 'Transferencia',
+  paymentMethod: method,
   premium: 0,
   creatorPubkey: 'node',
   createdAt: DateTime.utc(2026),
@@ -27,6 +28,95 @@ OrderItem _order({
 );
 
 void main() {
+  group('sellPaymentMethods', () {
+    test("is the community's own list, exactly and in its order", () {
+      expect(sellPaymentMethods(['Banco Pichincha', 'DeUna', 'Efectivo']), [
+        'Banco Pichincha',
+        'DeUna',
+        'Efectivo',
+      ]);
+    });
+
+    test('is the built-in list while the community has published none', () {
+      expect(sellPaymentMethods(null), simpleFallbackPaymentMethods);
+      expect(sellPaymentMethods(const []), simpleFallbackPaymentMethods);
+      expect(sellPaymentMethods(const ['', '  ']), simpleFallbackPaymentMethods);
+    });
+
+    test('drops blanks and a second spelling of the same method', () {
+      expect(sellPaymentMethods([' Zelle ', '', 'zelle', 'DeUna']), [
+        'Zelle',
+        'DeUna',
+      ]);
+    });
+  });
+
+  group('buyPaymentMethods', () {
+    test('adds what the offers carry to the community list', () {
+      final methods = buyPaymentMethods(
+        official: ['Transferencia', 'DeUna'],
+        offers: [
+          _order(method: 'Venmo,PayPal'),
+          _order(method: 'Banco Pichincha'),
+          // Already on the list, in another case.
+          _order(method: 'transferencia'),
+        ],
+      );
+
+      // The community's first, as it wrote them; the rest alphabetically.
+      expect(methods, [
+        'Transferencia',
+        'DeUna',
+        'Banco Pichincha',
+        'PayPal',
+        'Venmo',
+      ]);
+    });
+
+    test('is the seller list when the book adds nothing', () {
+      expect(
+        buyPaymentMethods(official: ['DeUna'], offers: const []),
+        ['DeUna'],
+      );
+      expect(
+        buyPaymentMethods(official: null, offers: const []),
+        simpleFallbackPaymentMethods,
+      );
+    });
+  });
+
+  group('isPaidBy', () {
+    test('no method is every method', () {
+      expect(isPaidBy(_order(method: 'Venmo'), null), isTrue);
+    });
+
+    test('matches one of the order methods whole, whatever the case', () {
+      final order = _order(method: 'Banco Pichincha, Transferencia');
+      expect(isPaidBy(order, 'Transferencia'), isTrue);
+      expect(isPaidBy(order, 'banco pichincha'), isTrue);
+      expect(isPaidBy(order, 'Venmo'), isFalse);
+      // Not a fragment: `Banco` is not this order's method.
+      expect(isPaidBy(order, 'Banco'), isFalse);
+    });
+  });
+
+  group('simpleCurrency', () {
+    test("is the card's when the community published one", () {
+      expect(simpleCurrency(card: 'usd', accepted: 'EUR'), 'USD');
+    });
+
+    test('is the one currency the node accepts', () {
+      expect(simpleCurrency(card: null, accepted: 'EUR'), 'EUR');
+      expect(simpleCurrency(card: '', accepted: ' eur '), 'EUR');
+    });
+
+    test('is USD when the node takes several, or any', () {
+      expect(simpleCurrency(card: null, accepted: 'USD,EUR'), 'USD');
+      expect(simpleCurrency(card: null, accepted: ''), 'USD');
+      expect(simpleCurrency(card: null, accepted: null), 'USD');
+    });
+  });
+
   group('simpleSellOrder', () {
     test('never carries sats, whatever the premium', () {
       // The node answers fixed sats with a premium with InvalidParameters —

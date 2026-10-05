@@ -68,7 +68,14 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
     final theme = Theme.of(context);
     final communityAsync = ref.watch(activeCommunityProfileProvider);
     final community = communityAsync.valueOrNull;
-    final currency = community?.currency ?? 'USD';
+    // The node's own word, never a default: its currency here, its bond
+    // policy below. With bonds off, or before the node has said, no deposit
+    // is announced.
+    final node = ref.watch(mostroNodeProvider).valueOrNull;
+    final currency = simpleCurrency(
+      card: community?.currency,
+      accepted: node?.fiatCurrenciesAccepted,
+    );
 
     // Live exchange rate & Sats calculation
     final rateAsync = ref.watch(exchangeRateProvider(currency));
@@ -79,36 +86,29 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
         ? null
         : estimateSats(fiat: typedAmount.toDouble(), rate: rate, premium: 0);
 
-    // The node's own policy, never a default: with bonds off, or before the
-    // node has said, no deposit is announced.
-    final node = ref.watch(mostroNodeProvider).valueOrNull;
     final takerBondPercent =
         takerBondApplies(policy: node?.bondPolicy, applyTo: node?.bondApplyTo)
         ? bondSharePercent(node?.bondAmountPct)
         : null;
 
-    final paymentMethods =
-        community != null && community.paymentMethods.isNotEmpty
-        ? community.paymentMethods
-        : const ['Transferencia', 'Efectivo', 'Móvil', 'Zelle'];
-
-    if (_selectedMethod == null && paymentMethods.isNotEmpty) {
-      _selectedMethod = paymentMethods.first;
-    }
-
     final allOrders = ref.watch(orderBookProvider).valueOrNull ?? [];
-    final allSellOrders = allOrders.where((o) {
-      if (!isOfferedInSimpleMode(o, kind: 'sell', currency: currency)) {
-        return false;
-      }
-      if (_selectedMethod != null &&
-          !o.paymentMethod.toLowerCase().contains(
-            _selectedMethod!.toLowerCase(),
-          )) {
-        return false;
-      }
-      return true;
-    }).toList();
+    final offers = allOrders
+        .where((o) => isOfferedInSimpleMode(o, kind: 'sell', currency: currency))
+        .toList();
+    // The community's own methods, then whatever else the offers carry: no
+    // offer is hidden behind a method the list does not know.
+    final paymentMethods = buyPaymentMethods(
+      official: community?.paymentMethods,
+      offers: offers,
+    );
+    // No method chosen is every method. One that left the list — its last
+    // offer was taken — filters nothing any more.
+    final selectedMethod = paymentMethods.contains(_selectedMethod)
+        ? _selectedMethod
+        : null;
+    final allSellOrders = offers
+        .where((o) => isPaidBy(o, selectedMethod))
+        .toList();
 
     bool matchesAmount(OrderItem o) {
       if (typedAmount == null) return true;
@@ -283,21 +283,27 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: paymentMethods.map((method) {
-            final isSelected = _selectedMethod == method;
-            return ChoiceChip(
-              label: Text(method),
-              selected: isSelected,
-              onSelected: (_) {
-                setState(() => _selectedMethod = method);
-              },
-              selectedColor: pal.limeBorder,
-              labelStyle: TextStyle(
-                color: isSelected ? pal.limeText : pal.textSecondary,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          children: [
+            // First, and chosen until another is: every offer, whatever
+            // it is paid with.
+            for (final method in <String?>[null, ...paymentMethods])
+              ChoiceChip(
+                label: Text(
+                  method ?? AppLocalizations.of(context).simpleAllPaymentMethods,
+                ),
+                selected: selectedMethod == method,
+                onSelected: (_) => setState(() => _selectedMethod = method),
+                selectedColor: pal.limeBorder,
+                labelStyle: TextStyle(
+                  color: selectedMethod == method
+                      ? pal.limeText
+                      : pal.textSecondary,
+                  fontWeight: selectedMethod == method
+                      ? FontWeight.bold
+                      : FontWeight.normal,
+                ),
               ),
-            );
-          }).toList(),
+          ],
         ),
 
         const SizedBox(height: 20),

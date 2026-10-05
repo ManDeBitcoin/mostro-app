@@ -289,6 +289,9 @@ class AppLocalizationsNl extends AppLocalizations {
       'De node heeft het verzoek geweigerd: de parameters zijn ongeldig.';
 
   @override
+  String get simpleAllPaymentMethods => 'Alle';
+
+  @override
   String simpleRangeAmountHint(String min, String max, String code) {
     return 'Vul hierboven een heel bedrag tussen $min en $max $code in';
   }

@@ -291,6 +291,9 @@ class AppLocalizationsFr extends AppLocalizations {
       'Le nœud a refusé la demande : ses paramètres ne sont pas valides.';
 
   @override
+  String get simpleAllPaymentMethods => 'Tous';
+
+  @override
   String simpleRangeAmountHint(String min, String max, String code) {
     return 'Saisissez ci-dessus un montant entier entre $min et $max $code';
   }

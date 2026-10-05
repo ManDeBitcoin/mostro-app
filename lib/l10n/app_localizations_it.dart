@@ -290,6 +290,9 @@ class AppLocalizationsIt extends AppLocalizations {
       'Il nodo ha rifiutato la richiesta: i parametri non sono validi.';
 
   @override
+  String get simpleAllPaymentMethods => 'Tutti';
+
+  @override
   String simpleRangeAmountHint(String min, String max, String code) {
     return 'Scrivi sopra un importo intero tra $min e $max $code';
   }

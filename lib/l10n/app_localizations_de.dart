@@ -290,6 +290,9 @@ class AppLocalizationsDe extends AppLocalizations {
       'Der Node hat die Anfrage abgelehnt: Ihre Parameter sind ungültig.';
 
   @override
+  String get simpleAllPaymentMethods => 'Alle';
+
+  @override
   String simpleRangeAmountHint(String min, String max, String code) {
     return 'Gib oben einen ganzen Betrag zwischen $min und $max $code ein';
   }

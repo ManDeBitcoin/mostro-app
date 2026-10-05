@@ -12,6 +12,7 @@ OrderItem _sell({
   double? max,
   OrderStatus status = OrderStatus.pending,
   bool isMine = false,
+  String method = 'Transferencia',
 }) => OrderItem(
   id: id,
   kind: 'sell',
@@ -19,7 +20,7 @@ OrderItem _sell({
   fiatAmountMin: min,
   fiatAmountMax: max,
   fiatCode: 'USD',
-  paymentMethod: 'Transferencia',
+  paymentMethod: method,
   premium: 0,
   creatorPubkey: 'node',
   createdAt: DateTime.utc(2026),
@@ -99,6 +100,41 @@ void main() {
     ]);
 
     expect(find.text('COMPRAR 50 USD'), findsOneWidget);
+  });
+
+  testWidgets('SimpleBuyScreen hides no offer behind a payment method', (
+    tester,
+  ) async {
+    // Both for the amount the field starts with, so neither is filtered
+    // out by amount.
+    await _pumpBuy(tester, [
+      _sell(id: 'a', fiat: 50, method: 'Transferencia'),
+      // A method the built-in list does not know: with a method always
+      // selected, this offer could never be seen.
+      _sell(id: 'b', fiat: 50, method: 'Banco Pichincha'),
+    ]);
+
+    // Every offer to begin with, and a chip for each method on the book.
+    expect(find.text('Pago: Transferencia'), findsOneWidget);
+    expect(find.text('Pago: Banco Pichincha'), findsOneWidget);
+    expect(find.widgetWithText(ChoiceChip, 'Todos'), findsOneWidget);
+    expect(find.widgetWithText(ChoiceChip, 'Banco Pichincha'), findsOneWidget);
+    expect(
+      tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Todos')).selected,
+      isTrue,
+    );
+
+    // One method chosen: only its offers.
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Banco Pichincha'));
+    await tester.pump();
+    expect(find.text('Pago: Banco Pichincha'), findsOneWidget);
+    expect(find.text('Pago: Transferencia'), findsNothing);
+
+    // And back to all of them.
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Todos'));
+    await tester.pump();
+    expect(find.text('Pago: Transferencia'), findsOneWidget);
+    expect(find.text('Pago: Banco Pichincha'), findsOneWidget);
   });
 
   testWidgets('SimpleBuyScreen takes a range order only for a valid amount',

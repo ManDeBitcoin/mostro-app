@@ -288,6 +288,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'The node rejected the request: its parameters are not valid.';
 
   @override
+  String get simpleAllPaymentMethods => 'All';
+
+  @override
   String simpleRangeAmountHint(String min, String max, String code) {
     return 'Type a whole amount between $min and $max $code above';
   }

@@ -77,6 +77,7 @@
   "orderRejectedNotYourAction": "Cette action ne vous revient pas sur cet ordre.",
   "orderRejectedOtherParty": "Cette action revient à l'autre partie.",
   "orderRejectedInvalidParameters": "Le nœud a refusé la demande : ses paramètres ne sont pas valides.",
+  "simpleAllPaymentMethods": "Tous",
   "simpleRangeAmountHint": "Saisissez ci-dessus un montant entier entre {min} et {max} {code}",
   "simpleTakenWaitingNode": "Échange pris. En attente de la prochaine étape du nœud…",
   "simpleDoNotPayYet": "N'envoyez pas encore l'argent : le Bitcoin n'est pas encore sécurisé.",
