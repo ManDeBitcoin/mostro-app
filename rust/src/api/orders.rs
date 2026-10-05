@@ -1154,6 +1154,9 @@ async fn create_order_once(params: NewOrderParams) -> Result<OrderInfo> {
     if params.payment_method.trim().is_empty() {
         return Err(anyhow::anyhow!("payment_method must not be empty"));
     }
+    // Whole amounts, and fixed sats or a premium but never both: what the
+    // daemon refuses, or the wire would truncate, is refused here by marker.
+    crate::mostro::actions::validate_new_order(&params)?;
 
     // Build a local OrderInfo representing the newly created order.
     // In Phase 7, this will be replaced by the actual Mostro response
@@ -1195,6 +1198,16 @@ async fn create_order_once(params: NewOrderParams) -> Result<OrderInfo> {
         total_reviews: 0,
         days_active: 0,
     };
+
+    // Liveness preflight, ahead of the compatibility one for the same reason
+    // that one sits here: nothing has been derived or persisted yet. A node
+    // that stopped announcing itself keeps its last info event on the relays,
+    // so the check below passes and the order goes out to nobody; a node with
+    // no info event at all leaves that check waiting ten seconds for a
+    // capability fetch nothing was going to repeat. This one takes a fresh
+    // look first and answers by marker — `NodeNotAnnouncing`, or
+    // `MaintenanceMode` when the node says it is draining.
+    crate::mostro::node_liveness::ensure_live(&active_mostro_pubkey()).await?;
 
     // Compatibility preflight (PR #252 review): refuse an unsupported node
     // BEFORE deriving or persisting anything. The wrap re-checks as a defense,
@@ -1451,7 +1464,9 @@ async fn take_order_once(
     }
 
     if order.status != OrderStatus::Pending {
-        return Err(anyhow::anyhow!("OrderAlreadyTaken"));
+        return Err(anyhow::anyhow!(
+            crate::mostro::pending::ORDER_ALREADY_TAKEN
+        ));
     }
 
     // Validate range amount when order has a range.
@@ -1460,6 +1475,13 @@ async fn take_order_once(
         let amt = fiat_amount.ok_or_else(|| anyhow::anyhow!("FiatAmountRequired"))?;
         if !amt.is_finite() || amt <= 0.0 {
             return Err(anyhow::anyhow!("fiat_amount must be positive and finite"));
+        }
+        // The amount travels as an integer (`take_order_impl` casts it), so
+        // a fraction would be dropped on the way: 50.9 would be traded as 50
+        // while the row below kept 50.9. Same rule, same marker, as a new
+        // order's amounts.
+        if !actions::is_whole_amount(amt) {
+            return Err(anyhow::anyhow!(actions::FIAT_AMOUNT_NOT_WHOLE));
         }
         let min = order.fiat_amount_min.unwrap();
         let max = order.fiat_amount_max.unwrap();
@@ -1478,6 +1500,12 @@ async fn take_order_once(
     if role != expected_role {
         return Err(anyhow::anyhow!("InvalidRole"));
     }
+
+    // A node that stopped announcing itself, or announces maintenance, will
+    // not answer this take: say so now, by marker, rather than after ten
+    // seconds of silence — and before a trade key index is spent on it.
+    // After the local checks above, which need no relay to fail.
+    crate::mostro::node_liveness::ensure_live(&active_mostro_pubkey()).await?;
 
     // Derive a fresh trade key so each take uses a unique Nostr identity.
     let trade_key_info = crate::api::identity::derive_trade_key().await?;
@@ -1548,7 +1576,10 @@ async fn take_order_once(
             PendingRequest {
                 request_id,
                 trade_index,
-                kind: PendingRequestKind::Take,
+                // With the amount the order is taken at: if the reply
+                // outruns the wait below, the dispatcher builds the row and
+                // has nobody else to ask.
+                kind: PendingRequestKind::Take { fiat_amount },
                 tx: Some(conf_tx),
             },
         );
@@ -1574,8 +1605,10 @@ async fn take_order_once(
 
     // Wait for the daemon's verdict — the trade only exists once the daemon
     // acknowledges the take. On timeout, detach only the waiter and leave the
-    // record: a genuine late reply is logged, a stale replay still can't
-    // consume it, and the record dies with the per-trade subscription.
+    // record: a genuine late reply finds it and the dispatcher then persists
+    // the trade this call no longer can (see the take interception in
+    // `dispatch_mostro_message`), a stale replay still can't consume it, and
+    // the record dies with the per-trade subscription.
     let reply = crate::rt::time::timeout(std::time::Duration::from_secs(10), conf_rx).await;
     if !matches!(reply, Ok(Ok(_))) {
         detach_request_waiter(&trade_pk_hex, request_id);
@@ -1608,7 +1641,12 @@ async fn take_order_once(
                 "orders",
                 format!("take_order rejected: {reason} — {message}"),
             );
-            return Err(anyhow::anyhow!("{message}"));
+            // `InvalidOrderStatus` on a take means somebody else got the
+            // order first: the same marker as the local check above, which
+            // only fires when the book already had the news.
+            return Err(anyhow::anyhow!(
+                crate::mostro::pending::take_refusal_error(&reason, &message)
+            ));
         }
         Ok(Ok(Wake {
             reply: DaemonReply::Confirmed { .. },
@@ -1633,23 +1671,6 @@ async fn take_order_once(
     // Accepted: build the trade from the daemon's actual reply instead of
     // optimistic assumptions, then persist and wire up the trade session.
     let now = crate::rt::unix_now();
-    let initial_step = match role {
-        TradeRole::Buyer => TradeStep::Buyer(BuyerStep::OrderTaken),
-        TradeRole::Seller => TradeStep::Seller(SellerStep::TakerFound),
-    };
-
-    let mut order_info = order.clone();
-    if let Some(s) = status.clone() {
-        order_info.status = s;
-    }
-    if amount_sats.is_some() {
-        order_info.amount_sats = amount_sats;
-    }
-    // A range order is taken at one amount: the row remembers it, so a
-    // same-take re-request (request_bond_invoice_again) sends the same one.
-    if fiat_amount.is_some() {
-        order_info.fiat_amount = fiat_amount;
-    }
 
     // The anti-abuse bond (docs/ANTI_ABUSE_BOND.md §6.1): the daemon parks
     // the take until this bolt11 is paid. Its expiry is the invoice's own —
@@ -1658,38 +1679,26 @@ async fn take_order_once(
     let bond = bond_request.map(|b| bond_requested(BondRole::Taker, b, now));
     let waiting_bond = bond.is_some();
 
-    let mut trade = TradeInfo {
-        id: uuid::Uuid::new_v4().to_string(),
-        order: order_info,
+    // The row itself is built in one place for this call and for the
+    // dispatcher, which persists the same take when the reply outruns the
+    // wait above. A range order is taken at one amount (`fiat_amount`): the
+    // row remembers it, so a same-take re-request
+    // (request_bond_invoice_again) sends the same one. The counterparty is
+    // not seeded from the book order — its `creator_pubkey` is the Mostro
+    // node (#334); the real one arrives via `maybe_capture_peer_reveal` and
+    // is persisted below when already known.
+    let mut trade = crate::mostro::pending::taken_trade(
+        &order,
         role,
-        // Not the peer's trade pubkey: `creator_pubkey` on a book order is the
-        // Mostro node itself (the 38383 event author) — seeding it here poisons
-        // the durable peer record (#334). The real counterparty arrives via
-        // `maybe_capture_peer_reveal` and is persisted below when already known.
-        counterparty_pubkey: String::new(),
-        current_step: initial_step,
+        trade_index,
+        status.clone(),
+        amount_sats,
+        fiat_amount,
         hold_invoice,
-        buyer_invoice: None,
-        trade_key_index: trade_index,
-        cooperative_cancel_state: None,
-        timeout_at: if waiting_bond { None } else { Some(now + 900) },
-        started_at: now,
-        completed_at: None,
-        outcome: None,
-        peer_rating: None,
-        peer_reviews: None,
-        peer_days: None,
-        rated_at: None,
         bond,
-        // From the daemon's reply, not from the order book: this is the only
-        // source of the counterparty's per-order trade key (C5).
-        buyer_trade_pubkey: trade_pubkeys.buyer.clone(),
-        seller_trade_pubkey: trade_pubkeys.seller.clone(),
-        cashu_mint_url: None,
-        cashu_escrow_token: None,
-        cashu_locked_at: None,
-        cashu_rejected_escrow_tokens: Vec::new(),
-    };
+        &trade_pubkeys,
+        now,
+    );
 
     // The other side of the race guarded in `dispatch_mostro_message`: this
     // block is the "retake is accepted and persists its state" step. Taking the
@@ -2471,13 +2480,187 @@ pub async fn cancel_order(order_id: String) -> Result<()> {
     let sender_keys = crate::api::identity::get_active_trade_keys(trade_index).await?;
     let identity_keys = crate::api::identity::get_transport_identity_keys(&sender_keys).await?;
     let mostro_pubkey = nostr_sdk::prelude::PublicKey::from_hex(&active_mostro_pubkey())?;
+
+    // A trade still waiting on its first step is cancelled at once by the
+    // daemon — or refused: v0.19.2 answers `cant-do not_allowed_by_status`
+    // when the seller has just paid the hold invoice, and the trade goes
+    // active. Sent without a nonce, that refusal matched no pending record
+    // and was dropped, so the user read "cancel request sent" about a trade
+    // that went on to hold their funds. From a waiting step the cancel
+    // carries a nonce and this call waits for the verdict, through the same
+    // registry the maker's bond-window cancel uses; the `canceled` and
+    // `cant-do` arms of the dispatcher already answer it.
+    //
+    // Only the two waiting steps (`cancel_awaits_verdict`): everything else
+    // goes out as before, below.
+    let waiting_row = match crate::db::app_db::db() {
+        Some(db) => match db.get_trade_by_order_id(&order_id).await {
+            Ok(Some(trade))
+                if crate::mostro::status::cancel_awaits_verdict(&trade.order.status) =>
+            {
+                Some(trade)
+            }
+            _ => None,
+        },
+        None => None,
+    };
+    if let Some(row) = waiting_row {
+        use crate::mostro::pending::{
+            publish_and_await_cancel, CancelVerdict, CANCEL_REPLY_WINDOW,
+        };
+        let request_id: u64 = {
+            use rand::RngCore;
+            rand::rngs::OsRng.next_u64().max(1) // 0 is indistinguishable from "unset"
+        };
+        let event_json = actions::cancel(
+            &identity_keys,
+            &sender_keys,
+            &mostro_pubkey,
+            &order_id,
+            trade_index,
+            Some(request_id),
+        )
+        .await?;
+        let trade_pk_hex = sender_keys.public_key().to_hex();
+        let short = crate::api::logging::short_id(&order_id);
+        crate::api::logging::blog_info(
+            "orders",
+            format!(
+                "cancel for order={short} trade_index={trade_index} status={:?} goes out \
+                 with a nonce — waiting for the daemon's verdict",
+                row.order.status,
+            ),
+        );
+        // Never under the order's guard: the reply is delivered by the
+        // dispatcher, which takes it.
+        let verdict = publish_and_await_cancel(
+            &trade_pk_hex,
+            request_id,
+            || publish_event_json(&event_json),
+            CANCEL_REPLY_WINDOW,
+        )
+        .await?;
+        return match verdict {
+            // The `canceled` arm has wiped the never-active row, dropped its
+            // session and — for a take — handed the entry back to the public
+            // book. A maker's order died with the cancel and its entry is
+            // left to the Kind 38383 `canceled`: taken out here as before,
+            // unless that event already wrote the order's final view.
+            CancelVerdict::Canceled => {
+                crate::api::logging::blog_info(
+                    "orders",
+                    format!("cancel confirmed by daemon for order={short}"),
+                );
+                if row.order.is_mine
+                    && order_book()
+                        .get_order(&order_id)
+                        .await
+                        .is_some_and(|entry| !is_hard_terminal(&entry.status))
+                {
+                    order_book().remove_order(&order_id).await;
+                    // The entry is what a maker's screen reads for its own
+                    // order: ring, so it reads the order gone now and not at
+                    // its next safety read.
+                    crate::api::trade_touch::touch_trade(&order_id);
+                }
+                Ok(())
+            }
+            // Nothing was cancelled and the trade goes on: the row and the
+            // book entry stay exactly as they are, and the caller is told.
+            CancelVerdict::Refused(error) => {
+                crate::api::logging::blog_warn(
+                    "orders",
+                    format!("cancel refused by daemon for order={short}: {error}"),
+                );
+                Err(anyhow::anyhow!(error))
+            }
+            // No answer in time: what a cancel has always done once it is
+            // published. A late `canceled` still settles the row.
+            CancelVerdict::Unanswered => {
+                crate::api::logging::blog_warn(
+                    "orders",
+                    format!(
+                        "cancel: no daemon verdict within {}s for order={short} — \
+                         a late reply still applies",
+                        CANCEL_REPLY_WINDOW.as_secs()
+                    ),
+                );
+                // The daemon's `canceled` may be going through the
+                // dispatcher at this very moment: its arm takes the cancel's
+                // record on the way in and wakes the waiter on the way out.
+                // That arm settles everything, a taker's entry handed back
+                // to the public book included — and taking the order out of
+                // the book after it would hide an order that is live. So the
+                // local half waits for the arm and runs only when the row is
+                // still there.
+                let _order_guard = lock_order(&order_id).await;
+                let row_remains = match crate::db::app_db::db() {
+                    Some(db) => !matches!(db.get_trade_by_order_id(&order_id).await, Ok(None)),
+                    None => true,
+                };
+                if row_remains {
+                    apply_local_cancel(&order_id).await;
+                } else if row.order.is_mine
+                    && order_book()
+                        .get_order(&order_id)
+                        .await
+                        .is_some_and(|entry| !is_hard_terminal(&entry.status))
+                {
+                    // The `canceled` got in as the wait ran out: what the
+                    // confirmed cancel above does for a maker's entry.
+                    order_book().remove_order(&order_id).await;
+                    crate::api::trade_touch::touch_trade(&order_id);
+                }
+                Ok(())
+            }
+            // The seller's payment landed first: the trade was active when
+            // the cancel arrived and the daemon opened a cooperative cancel
+            // (`cooperative-cancel-initiated-by-you`, echoing this nonce).
+            // That arm recorded the request; the local half is the one every
+            // cancel of an active trade runs.
+            CancelVerdict::Cooperative => {
+                crate::api::logging::blog_info(
+                    "orders",
+                    format!(
+                        "cancel: order={short} had gone active — the daemon opened a \
+                         cooperative cancel"
+                    ),
+                );
+                apply_local_cancel(&order_id).await;
+                Ok(())
+            }
+            // Cancelled already when this cancel reached the daemon: the
+            // other side's cancel, or the daemon's own timeout, got there
+            // first. The outcome is the one asked for, so the caller is told
+            // it worked, and the local half runs as it does for a cancel
+            // nobody answered — the daemon's own `canceled` for that earlier
+            // cancel settles the row if it has not already.
+            CancelVerdict::AlreadyCanceled => {
+                crate::api::logging::blog_info(
+                    "orders",
+                    format!("cancel: order={short} was already canceled at the daemon"),
+                );
+                apply_local_cancel(&order_id).await;
+                Ok(())
+            }
+        };
+    }
+
+    // Not waited on, but a request id of its own all the same, as every
+    // request to the node carries. No waiter is registered under it, and the
+    // registries match a reply by its exact id, so the replies to this cancel
+    // are handled as they always were.
+    let request_id: u64 = {
+        use rand::RngCore;
+        rand::rngs::OsRng.next_u64().max(1) // 0 is indistinguishable from "unset"
+    };
     let event_json = actions::cancel(
         &identity_keys,
         &sender_keys,
         &mostro_pubkey,
         &order_id,
         trade_index,
-        None,
+        Some(request_id),
     )
     .await?;
     // During the taker's bond window the daemon's `canceled` has causes the
@@ -3306,7 +3489,21 @@ async fn dispatch_mostro_message(
     // keeps the arms from double-processing it.
     if kind.action != Action::CantDo {
         if let Some(pending) = take_matching_take(trade_pubkey_hex, kind.request_id) {
-            let reply = classify_take_reply(&kind.action, &kind.payload);
+            let mut reply = classify_take_reply(&kind.action, &kind.payload);
+            // The reply decides the trade's status — in the woken
+            // `take_order`, or below for a late one — and no arm will see it,
+            // so it dates the order here, before the write it gates, as
+            // every status arm does. A take is answered by more than one
+            // message echoing its nonce: one with the invoice attached gets
+            // `waiting-seller-to-pay` and then, once the seller has paid,
+            // `hold-invoice-payment-accepted`. Whichever arrives first
+            // consumes the record, and on a newest-first replay that is the
+            // newer one. Left undated, the older one then went through its
+            // own arm, met no cursor and walked the row back from `Active`
+            // to `WaitingPayment`.
+            if let Some(order_id) = &kind.id {
+                record_status_event(&order_id.to_string(), event_ts).await;
+            }
             // This message opens the taker's first step and no arm will ever
             // see it, so the start is recorded here or not at all. Without it
             // the screen fell back to the row's `started_at` — the local clock
@@ -3344,26 +3541,251 @@ async fn dispatch_mostro_message(
                 // here, a second daemon message already queued on the mutex
                 // would beat the woken task to it (tokio's Mutex is FIFO) and
                 // run its arm against a trade row and session that do not
-                // exist yet. A failed send (the waiter timed out) returns the
-                // Wake, dropping the guard right here.
-                let _ = tx.send(crate::mostro::pending::Wake {
+                // exist yet.
+                match tx.send(crate::mostro::pending::Wake {
                     reply,
                     order_guard: order_guard.take(),
-                });
-            } else {
-                // Genuine reply after the 10s timeout: the caller already
-                // returned NoDaemonResponse and persisted nothing, so there
-                // is nothing to reconcile for a take — just log it.
+                }) {
+                    Ok(()) => return,
+                    // The waiter gave up between the match above and this
+                    // send (it timed out while the step start was being
+                    // recorded). The reply is this take's all the same: take
+                    // it back, with the guard, and persist it below as the
+                    // late reply it now is.
+                    Err(wake) => {
+                        reply = wake.reply;
+                        order_guard = wake.order_guard;
+                    }
+                }
+            }
+
+            // Genuine reply after the 10 s timeout. `take_order` already
+            // returned NoDaemonResponse and persisted nothing — but the daemon
+            // accepted the take and holds it: its window is running, and a
+            // retry is refused with `PendingOrderExists`. This reply is the
+            // only record of that trade there is, so the row the call would
+            // have persisted is persisted here instead, the same way and
+            // under the guard this dispatcher already holds.
+            //
+            // Only ever a reply to OUR take, in this very process: the record
+            // it matched is in memory, keyed by the fresh trade key that take
+            // derived, and consumed by the echo of its nonce alone. A replay
+            // from an earlier life of a key finds no record (the map is empty
+            // after a restart) and never gets here.
+            let trade_short = &trade_pubkey_hex[..8];
+            let Some(oid) = kind.id.map(|id| id.to_string()) else {
                 crate::api::logging::blog_info(
                     "daemon-msg",
                     format!(
-                        "{:?}: late reply for timed-out take on trade={} — ignoring",
+                        "{:?}: late reply for timed-out take on trade={trade_short} names no \
+                         order — nothing to persist",
                         kind.action,
-                        &trade_pubkey_hex[..8]
                     ),
                 );
+                return;
+            };
+            let oid_short = crate::api::logging::short_id(&oid).to_string();
+            // What is already here decides what the reply may still do.
+            let same_take_has_a_row = matches!(
+                &row_state,
+                RowState::Exists(row) if row.trade_key_index == trade_index
+            );
+            let may_persist = match &row_state {
+                // Never written, or the leftover of an earlier take of this
+                // order — which a prompt take replaces as well
+                // (`persist_confirmed_take`). A row on a LATER key belongs to
+                // a newer take: this reply is behind it and says nothing.
+                RowState::NeverWritten => true,
+                RowState::Exists(row) => row.trade_key_index < trade_index,
+                // Wiped on purpose for this generation, or no store to tell:
+                // nothing to build on, as before.
+                RowState::Wiped | RowState::Unknown => false,
+            };
+            if same_take_has_a_row {
+                // The row of this very take is there already (a same-take
+                // re-request, or a later message rebuilt it first): the
+                // reply is a plain status message now, and the arms below
+                // apply it as one — a bond bolt11 refreshes the row's.
+                crate::api::logging::blog_info(
+                    "daemon-msg",
+                    format!(
+                        "{:?}: late reply for timed-out take on trade={trade_short} \
+                         order={oid_short} — its row exists, applying as a status message",
+                        kind.action,
+                    ),
+                );
+            } else if !may_persist {
+                crate::api::logging::blog_info(
+                    "daemon-msg",
+                    format!(
+                        "{:?}: late reply for timed-out take on trade={trade_short} \
+                         order={oid_short} — row wiped, superseded or no store, ignoring",
+                        kind.action,
+                    ),
+                );
+                return;
+            } else if status_write_blocked(&oid, &kind.action, event_ts).await {
+                // Something newer was already heard about this order — its
+                // `canceled`, which advances the cursor even with no row: the
+                // take this reply accepted is over.
+                crate::api::logging::blog_info(
+                    "daemon-msg",
+                    format!(
+                        "{:?}: late reply for timed-out take on trade={trade_short} \
+                         order={oid_short} is older than what the order already heard — ignoring",
+                        kind.action,
+                    ),
+                );
+                return;
+            } else if event_age_secs > crate::mostro::pending::TAKE_WINDOW_SECS {
+                // The reply is older than the window it opened: the daemon
+                // has since cancelled that take or moved it on, and either
+                // way a later message says so. Building the first step now
+                // would show a take that is gone if its `canceled` never
+                // arrives.
+                crate::api::logging::blog_info(
+                    "daemon-msg",
+                    format!(
+                        "{:?}: late reply for timed-out take on trade={trade_short} \
+                         order={oid_short} is {event_age_secs}s old, past the take window — ignoring",
+                        kind.action,
+                    ),
+                );
+                return;
+            } else {
+                // The order as the book holds it — what `take_order` built
+                // its row from. An order we made is never one we took.
+                let book_order = order_book().get_order(&oid).await;
+                match (reply, book_order) {
+                    (
+                        DaemonReply::TakeAccepted {
+                            action,
+                            status: Some(status),
+                            amount_sats,
+                            hold_invoice,
+                            bond,
+                            trade_pubkeys,
+                        },
+                        Some(order),
+                    ) if !order.is_mine && !is_hard_terminal(&status) => {
+                        let role = match order.kind {
+                            OrderKind::Buy => TradeRole::Seller,
+                            OrderKind::Sell => TradeRole::Buyer,
+                        };
+                        // Dated by the reply, which is when the daemon's
+                        // window opened — never later than now.
+                        let taken_at = event_ts.min(crate::rt::unix_now());
+                        let bond = bond.map(|request| {
+                            bond_requested(crate::api::types::BondRole::Taker, request, taken_at)
+                        });
+                        let waiting_bond = bond.is_some();
+                        // The amount the user took the order at travelled
+                        // with the take's record: a reply that carries no
+                        // order cannot say it.
+                        let taken_fiat_amount = match pending.kind {
+                            PendingRequestKind::Take { fiat_amount } => fiat_amount,
+                            _ => None,
+                        };
+                        let trade = crate::mostro::pending::taken_trade(
+                            &order,
+                            role,
+                            trade_index,
+                            Some(status.clone()),
+                            amount_sats,
+                            taken_fiat_amount,
+                            hold_invoice,
+                            bond,
+                            &trade_pubkeys,
+                            taken_at,
+                        );
+                        store_trade_key_index(&oid, trade_index).await;
+                        // While a bond is outstanding the order is still
+                        // `pending` on the wire and takeable by anyone
+                        // (§2.7): the book keeps showing it.
+                        if !waiting_bond {
+                            let mut entry = order;
+                            entry.status = status.clone();
+                            if amount_sats.is_some() {
+                                entry.amount_sats = amount_sats;
+                            }
+                            order_book().upsert_order(entry).await;
+                        }
+                        persist_confirmed_take(&trade).await;
+                        subscribe_single_order(&oid).await;
+                        if let Err(e) = crate::mostro::session::session_manager()
+                            .install_session(
+                                oid.clone(),
+                                trade.role.clone(),
+                                trade_index,
+                                trade.order.clone(),
+                            )
+                            .await
+                        {
+                            crate::api::logging::blog_warn(
+                                "orders",
+                                format!("late take: install_session failed: {e}"),
+                            );
+                        }
+                        // A reveal that ran before the row existed wrote its
+                        // peer to nothing: replay it from the session (#334).
+                        if let Some(peer) = crate::mostro::session::session_manager()
+                            .get_session(&oid)
+                            .await
+                            .and_then(|session| session.peer_pubkey)
+                            .filter(|peer| !peer.is_empty())
+                        {
+                            if let Some(db) = crate::db::app_db::db() {
+                                if let Err(e) = db.update_trade_counterparty(&oid, &peer).await {
+                                    log::warn!(
+                                        "[orders] late take: failed to persist counterparty: {e}"
+                                    );
+                                }
+                            }
+                        }
+                        crate::api::logging::blog_info(
+                            "orders",
+                            format!(
+                                "late take reply persisted order={oid_short} role={:?} \
+                                 status={status:?} trade_index={trade_index} src=kind14/{action:?}",
+                                trade.role,
+                            ),
+                        );
+                        // The caller was told the take failed: this is the
+                        // news that it did not. After the row, so whoever
+                        // reacts reads a trade that exists.
+                        emit_trade_update_at(&oid, status, None, event_ts);
+                        return;
+                    }
+                    // The book no longer holds the order: the reply is still
+                    // the trade's proof, and the rebuild below reads it when
+                    // its payload names the order (#394). Only for a row
+                    // never written — an earlier take's leftover must not
+                    // have a newer take's status written over it.
+                    (DaemonReply::TakeAccepted { .. }, None)
+                        if matches!(row_state, RowState::NeverWritten) =>
+                    {
+                        crate::api::logging::blog_info(
+                            "daemon-msg",
+                            format!(
+                                "{:?}: late reply for timed-out take on trade={trade_short} \
+                                 order={oid_short} — not in the book, rebuilding from the message",
+                                kind.action,
+                            ),
+                        );
+                    }
+                    _ => {
+                        crate::api::logging::blog_info(
+                            "daemon-msg",
+                            format!(
+                                "{:?}: late reply for timed-out take on trade={trade_short} \
+                                 order={oid_short} accepts nothing this client can persist — ignoring",
+                                kind.action,
+                            ),
+                        );
+                        return;
+                    }
+                }
             }
-            return;
         }
 
         // A payout claim's acknowledgement (`bond-invoice-accepted`)
@@ -4168,6 +4590,38 @@ async fn dispatch_mostro_message(
                     }
                     None => true,
                 };
+                // The node's id for the dispute travels in this message and
+                // in no other: `dispute-initiated-by-you` for whoever opened
+                // it, `-by-peer` for the other party. Dropped here, the
+                // party that did not open the dispute had no record of it
+                // until a solver took it — and then one with a made-up id —
+                // and the one that did lost the id with the process. It is
+                // kept now (with the origin, for the initiator), after the
+                // row reads `Dispute` and before the update below, so
+                // whoever reacts to that update finds the dispute. The
+                // record is then brought in line with the keys just kept,
+                // for this one order: built when there is none, and given
+                // the node's id when it was created without it — a solver's
+                // assignment read first, which is the order a newest-first
+                // replay delivers the two in. An `open_dispute` still in
+                // flight keeps its own.
+                if matches!(
+                    kind.action,
+                    Action::DisputeInitiatedByYou | Action::DisputeInitiatedByPeer
+                ) {
+                    let opened_by_me = kind.action == Action::DisputeInitiatedByYou;
+                    let dispute_id = dispute_id_from_payload(kind.payload.as_ref());
+                    if crate::mostro::dispute_ids::remember(
+                        &order_id,
+                        dispute_id.as_deref(),
+                        opened_by_me,
+                    )
+                    .await
+                    {
+                        crate::api::disputes::rehydrate_disputes_from_storage(Some(&order_id))
+                            .await;
+                    }
+                }
                 if is_hard_terminal(&status) {
                     // Finished without a wipe: the note has no reader left.
                     order_book().forget_wire_order(&order_id);
@@ -4206,6 +4660,18 @@ async fn dispatch_mostro_message(
         // own status — dropping these as "no status change" left the
         // requester unconfirmed and the counterparty unaware.
         Action::CooperativeCancelInitiatedByYou | Action::CooperativeCancelInitiatedByPeer => {
+            // The answer to a cancel sent from a waiting step, when the
+            // trade went active before it arrived: the daemon echoes the
+            // cancel's nonce here instead of in a `canceled`. Its waiter is
+            // woken when this arm returns, whichever way — after the request
+            // is recorded below.
+            let _own_cancel = crate::mostro::pending::CooperativeCancelWake(
+                if kind.action == Action::CooperativeCancelInitiatedByYou {
+                    crate::mostro::pending::take_maker_cancel(trade_pubkey_hex, kind.request_id)
+                } else {
+                    None
+                },
+            );
             let order_id = match &kind.id {
                 Some(id) => id.to_string(),
                 None => {
@@ -4333,13 +4799,16 @@ async fn dispatch_mostro_message(
 
             // A refused maker cancel (mostro#996) has its own record: the
             // create's, on the same key, still waits for its `new-order`.
+            // A cancel sent from a waiting step waits in the same registry
+            // (`publish_and_await_cancel`), so this is also where the
+            // refusal of a cancel that met a just-paid hold invoice lands.
             if let Some(waiter) = crate::mostro::pending::take_maker_cancel_refusal(
                 trade_pubkey_hex,
                 kind.request_id,
             ) {
                 crate::api::logging::blog_warn(
                     "daemon-msg",
-                    format!("CantDo: reason={reason} — answering the maker's bond cancel"),
+                    format!("CantDo: reason={reason} — answering the waiting cancel"),
                 );
                 if let Some(tx) = waiter {
                     let _ = tx.send(crate::mostro::pending::MakerCancelReply::Rejected {
@@ -5901,7 +6370,7 @@ pub async fn request_bond_invoice_again(
             PendingRequest {
                 request_id,
                 trade_index,
-                kind: PendingRequestKind::Take,
+                kind: PendingRequestKind::Take { fiat_amount },
                 tx: Some(conf_tx),
             },
         );
@@ -6115,6 +6584,38 @@ async fn resync_republished_maker_order(
         return false;
     };
     if !is_maker_waiting_step(&local) {
+        // Our own order, already `Pending`: the message moves nothing, but
+        // it dates the order, and that date must be kept. When a take and
+        // its abandonment both happen with the app closed, the next start
+        // replays the feed newest first — this republication, then the
+        // take's own messages (`waiting-buyer-invoice`, `pay-invoice`, …),
+        // then the create's acknowledgement. With no mark left here those
+        // older messages met no cursor and were applied: the row ended at a
+        // waiting step with a cancelled hold invoice while the order sat
+        // free on the book. Same rule as a `Canceled` that finds no row:
+        // it still advances the cursor.
+        //
+        // The row is read, not `local`, which falls back to the book: only
+        // a maker row of ours that is itself `Pending` is dated. With no
+        // row, the cursor would also refuse the create's acknowledgement
+        // that `adopt_range_remainder` rebuilds a never-written maker row
+        // from. `record_status_event` only ever moves the mark forward, so
+        // the acknowledgement of a fresh order cannot refuse a later take:
+        // nothing about an order is older than its own creation, and equal
+        // timestamps pass.
+        if local == OrderStatus::Pending {
+            let own_pending_row = match crate::db::app_db::db() {
+                Some(db) => matches!(
+                    db.get_trade_by_order_id(order_id).await,
+                    Ok(Some(trade))
+                        if trade.order.is_mine && trade.order.status == OrderStatus::Pending
+                ),
+                None => false,
+            };
+            if own_pending_row {
+                record_status_event(order_id, event_ts).await;
+            }
+        }
         return false;
     }
     if status_write_blocked(order_id, &kind.action, event_ts).await {
@@ -7865,11 +8366,40 @@ async fn run_stale_sweep_once() {
             None => fetch_public_order_status(&oid).await,
         };
 
-        match sweep_action(
+        let action = sweep_action(
             trade.order.is_mine,
             &trade.order.status,
             book_status.as_ref(),
-        ) {
+        );
+        // A public `pending` is no republish for our own sell order once
+        // its hold invoice is out: a take with the invoice attached never
+        // publishes `in-progress`, so `pending` is all the book ever says
+        // about it (`holds_against_public_pending`). Resetting the row on it
+        // took the pay step away from a seller whose trade was live, and the
+        // daemon then cancelled it at `expiration_seconds`. The row waits
+        // for the daemon's own `new-order` or `canceled` instead. The entry
+        // is kept at the row's status by the book feed, so this is reached
+        // when the book has no entry and the relays answer `pending`.
+        let action = if action == SweepAction::SyncPending
+            && crate::mostro::status::holds_against_public_pending(
+                trade.order.is_mine,
+                &trade.order.kind,
+                &trade.order.status,
+            ) {
+            crate::api::logging::blog_info(
+                "orders",
+                format!(
+                    "sweep: order={} is ours and at {:?} — a public pending says nothing \
+                     about it, left for the daemon's own message",
+                    crate::api::logging::short_id(&oid),
+                    trade.order.status,
+                ),
+            );
+            SweepAction::Keep
+        } else {
+            action
+        };
+        match action {
             SweepAction::SyncSuccess => {
                 apply_payout_completed(&oid).await;
                 log::info!("[orders] sweep: payout completed for order={oid}");
@@ -8639,13 +9169,46 @@ async fn classify_ingested_order(mut info: OrderInfo, book: &OrderBook) -> Inges
     // never noted this is a single map lookup.
     book.refresh_wire_order(&info);
     let final_view = is_hard_terminal(&info.status);
+    // The one `pending` this feed does not write into the entry: our own
+    // sell order from its hold-invoice step on. A sell order taken with the
+    // buyer's invoice attached is never published as `in-progress`
+    // (`holds_against_public_pending` has the daemon's rule), so its public
+    // event keeps saying `pending` for the whole trade — and written here it
+    // showed the seller an untaken order with nothing to pay, or nothing to
+    // release, while the trade row held the truth. The entry keeps the row's
+    // status instead; the daemon's own `new-order` or `canceled` is what
+    // moves it back. Asked only for a `pending` order already known to be
+    // ours, so the firehose of everybody else's pending orders still pays
+    // for no row read.
+    let held_status = if info.status == crate::api::types::OrderStatus::Pending && info.is_mine {
+        match crate::db::app_db::db() {
+            Some(db) => match db.get_trade_by_order_id(&info.id).await {
+                Ok(Some(trade))
+                    if crate::mostro::status::holds_against_public_pending(
+                        trade.order.is_mine,
+                        &trade.order.kind,
+                        &trade.order.status,
+                    ) =>
+                {
+                    Some(trade.order.status)
+                }
+                _ => None,
+            },
+            None => None,
+        }
+    } else {
+        None
+    };
     // Sync trade status in DB for own orders so My Trades
     // reflects status changes even without daemon-message delivery.
     // A `canceled` that ends a trade of ours before it went active —
     // maker or taker — wipes it instead, and leaves nothing local to
     // sync or to hold the entry at (`wipe_on_public_cancel`; one more
     // indexed row lookup, for `canceled` events only).
-    if info.status != crate::api::types::OrderStatus::Pending
+    if let Some(local) = held_status {
+        log_wire_status_sync(&info.id, &info.status, Some(&local), false, "38383/book");
+        info.status = local;
+    } else if info.status != crate::api::types::OrderStatus::Pending
         && !wipe_on_public_cancel(&info.id, &info.status).await
     {
         let local = local_trade_status(&info.id).await;
@@ -10348,7 +10911,7 @@ mod tests {
             PendingRequest {
                 request_id: 5,
                 trade_index: 9,
-                kind: PendingRequestKind::Take,
+                kind: PendingRequestKind::Take { fiat_amount: None },
                 tx: None,
             },
         );
@@ -11956,7 +12519,7 @@ mod tests {
             PendingRequest {
                 request_id,
                 trade_index: 4,
-                kind: PendingRequestKind::Take,
+                kind: PendingRequestKind::Take { fiat_amount: None },
                 tx: Some(tx),
             },
         );
@@ -12085,7 +12648,7 @@ mod tests {
         assert!(take_matching_take(take_key, Some(99)).is_none());
         assert!(pending_requests().lock().unwrap().contains_key(take_key));
         let pending = take_matching_take(take_key, Some(42)).expect("must match");
-        assert!(matches!(pending.kind, PendingRequestKind::Take));
+        assert!(matches!(pending.kind, PendingRequestKind::Take { .. }));
         assert!(!pending_requests().lock().unwrap().contains_key(take_key));
 
         pending_requests().lock().unwrap().remove(create_key);
@@ -20627,6 +21190,2150 @@ mod tests {
             order_lock_is_free(&order_id),
             "a failed handoff must release the lock, not strand it"
         );
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // Tests built from mostrod v0.19.2 captures
+    // ═════════════════════════════════════════════════════════════════════
+    //
+    // Every daemon message below is the first element of a kind-14
+    // plaintext captured from the official mostrod v0.19.2 binary in
+    // regtest (`protocol-flows.json` of the node manager's fixtures), byte
+    // for byte. `captured` swaps the capture's order id for a fresh one —
+    // the store, the book and the pending registries are process-wide and
+    // tests run in parallel — and `captured_echoing` also swaps the
+    // capture's `request_id` for the test's own nonce, where the test plays
+    // the party that sent the request.
+
+    /// Order ids of the captured flows, as the captures carry them.
+    const TAKER_LEAVES: &str = "b231d85e-e789-4e0f-97b4-93976be15d19";
+    const TAKE_TIMEOUT: &str = "c8687ae3-c630-473a-b170-7066539fbed5";
+    const BUY_TAKEN: &str = "531dda85-7867-48c3-93b9-7254fb58e30f";
+    const INLINE_TAKE: &str = "bc404264-3e9d-4605-9ada-85b16e44a700";
+    const DISPUTED: &str = "deb9ccdf-4f5c-43a3-9988-0dc630bb8c5f";
+    /// The dispute id the node gave both parties of `dispute_admin_cancel`.
+    const NODE_DISPUTE_ID: &str = "1b84909d-bbf5-405a-ae1e-3e2beafa5458";
+
+    /// `taker_leaves` at=0, to the seller: the acknowledgement of their `new-order`.
+    const TAKER_LEAVES_ACK: &str = r#"{"order":{"version":2,"request_id":3101201,"trade_index":null,"id":"b231d85e-e789-4e0f-97b4-93976be15d19","action":"new-order","payload":{"order":{"id":"b231d85e-e789-4e0f-97b4-93976be15d19","kind":"sell","status":"pending","amount":0,"fiat_code":"USD","min_amount":null,"max_amount":null,"fiat_amount":30,"payment_method":"Transferencia bancaria","premium":0,"created_at":1791131013,"expires_at":1791217413}}}}"#;
+
+    /// `taker_leaves` at=0, to the buyer: the reply to a `take-sell` with no invoice attached.
+    const TAKER_LEAVES_TAKE_REPLY: &str = r#"{"order":{"version":2,"request_id":3101203,"trade_index":0,"id":"b231d85e-e789-4e0f-97b4-93976be15d19","action":"add-invoice","payload":{"order":{"id":"b231d85e-e789-4e0f-97b4-93976be15d19","kind":"sell","status":"waiting-buyer-invoice","amount":35078,"fiat_code":"USD","min_amount":null,"max_amount":null,"fiat_amount":30,"payment_method":"Transferencia bancaria","premium":0,"created_at":1791131013,"expires_at":null}}}}"#;
+
+    /// `taker_leaves` at=1, to the seller: their order was taken.
+    const TAKER_LEAVES_WAITING_BUYER_INVOICE: &str = r#"{"order":{"version":2,"request_id":3101203,"trade_index":null,"id":"b231d85e-e789-4e0f-97b4-93976be15d19","action":"waiting-buyer-invoice","payload":null}}"#;
+
+    /// `taker_leaves` at=1, to a second buyer: the order is no longer `pending`.
+    const TAKER_LEAVES_SECOND_TAKE_REFUSED: &str = r#"{"cant-do":{"version":2,"request_id":3101204,"trade_index":null,"id":"b231d85e-e789-4e0f-97b4-93976be15d19","action":"cant-do","payload":{"cant_do":"invalid_order_status"}}}"#;
+
+    /// `taker_leaves` at=2, to the buyer: the answer to their own `cancel`, echoing its nonce.
+    const TAKER_LEAVES_TAKER_CANCELED: &str = r#"{"order":{"version":2,"request_id":3101205,"trade_index":null,"id":"b231d85e-e789-4e0f-97b4-93976be15d19","action":"canceled","payload":null}}"#;
+
+    /// `taker_leaves` at=2, to the seller: the taker left and the order is back on the book,
+    /// under the taker's `cancel` nonce and with the maker's trade key in it.
+    const TAKER_LEAVES_REPUBLISHED: &str = r#"{"order":{"version":2,"request_id":3101205,"trade_index":null,"id":"b231d85e-e789-4e0f-97b4-93976be15d19","action":"new-order","payload":{"order":{"id":"b231d85e-e789-4e0f-97b4-93976be15d19","kind":"sell","status":"pending","amount":0,"fiat_code":"USD","min_amount":null,"max_amount":null,"fiat_amount":30,"payment_method":"Transferencia bancaria","premium":0,"seller_trade_pubkey":"c0299ed69463c7a581d20ee45d68a79f99192cc587645c81ffdf8dff02abfd57","created_at":1791131013,"expires_at":1791217413}}}}"#;
+
+    /// `taker_leaves` at=3, to the seller: the answer to their own `cancel`.
+    const TAKER_LEAVES_MAKER_CANCELED: &str = r#"{"order":{"version":2,"request_id":3101206,"trade_index":null,"id":"b231d85e-e789-4e0f-97b4-93976be15d19","action":"canceled","payload":null}}"#;
+
+    /// `take_timeout` at=0, to the seller: the maker's bond, asked before the order exists.
+    const TAKE_TIMEOUT_MAKER_BOND: &str = r#"{"order":{"version":2,"request_id":3368401,"trade_index":null,"id":"c8687ae3-c630-473a-b170-7066539fbed5","action":"pay-bond-invoice","payload":{"payment_request":[{"id":"c8687ae3-c630-473a-b170-7066539fbed5","kind":"sell","status":"pending","amount":1054,"fiat_code":"USD","min_amount":null,"max_amount":null,"fiat_amount":30,"payment_method":"Transferencia bancaria","premium":0,"created_at":null,"expires_at":null},"lnbcrt10540n1p4v9pl5pp58quz3qzgaugcw5cxv9a9yktzly5aneuqpxku8waymhpdq7h08grsdzud4hhxarjdusxymmwvssx7unyv4e976ty843nsd3cxask2vedvvmrxvpdxsmnxcfdvgcnwvpdxucrvd34xvukvcn9vs6scqzysxqzuysp5d4klwgvety6fc9xr37uu4zjszc80gllzm8e5m0pmm37ztvuvc28s9qxpqysgq5ft9greyz7f2lysj2anc6tccgs900wmhlnpc63m0qdk5qwedduzjuft4t4l4ssvjf3elvxdrevcplqwxu3y6zg0ugv9ahy425uqkhtspphryxz",null]}}}"#;
+
+    /// `take_timeout` at=1, to the seller: the bond locked, the order is published.
+    const TAKE_TIMEOUT_ACK: &str = r#"{"order":{"version":2,"request_id":3368401,"trade_index":null,"id":"c8687ae3-c630-473a-b170-7066539fbed5","action":"new-order","payload":{"order":{"id":"c8687ae3-c630-473a-b170-7066539fbed5","kind":"sell","status":"pending","amount":0,"fiat_code":"USD","min_amount":null,"max_amount":null,"fiat_amount":30,"payment_method":"Transferencia bancaria","premium":0,"created_at":1791133684,"expires_at":1791220084}}}}"#;
+
+    /// `take_timeout` at=2, to the seller: their order was taken.
+    const TAKE_TIMEOUT_WAITING_BUYER_INVOICE: &str = r#"{"order":{"version":2,"request_id":3368402,"trade_index":null,"id":"c8687ae3-c630-473a-b170-7066539fbed5","action":"waiting-buyer-invoice","payload":null}}"#;
+
+    /// `take_timeout` at=908, to the seller: the taker let the window lapse and the daemon put
+    /// the order back on its own — no `request_id` at all.
+    const TAKE_TIMEOUT_REPUBLISHED: &str = r#"{"order":{"version":2,"request_id":null,"trade_index":null,"id":"c8687ae3-c630-473a-b170-7066539fbed5","action":"new-order","payload":{"order":{"id":"c8687ae3-c630-473a-b170-7066539fbed5","kind":"sell","status":"pending","amount":0,"fiat_code":"USD","min_amount":null,"max_amount":null,"fiat_amount":30,"payment_method":"Transferencia bancaria","premium":0,"seller_trade_pubkey":"1e179116dee3568ad67d6a7b0881cc33b1492ffd0f8109dd5e84c452cd75d92c","created_at":1791133684,"expires_at":1791220084}}}}"#;
+
+    /// `buy_order_taken` at=0, to the buyer: the acknowledgement of their `new-order`.
+    const BUY_TAKEN_ACK: &str = r#"{"order":{"version":2,"request_id":3095007,"trade_index":null,"id":"531dda85-7867-48c3-93b9-7254fb58e30f","action":"new-order","payload":{"order":{"id":"531dda85-7867-48c3-93b9-7254fb58e30f","kind":"buy","status":"pending","amount":0,"fiat_code":"USD","min_amount":null,"max_amount":null,"fiat_amount":30,"payment_method":"Transferencia bancaria","premium":0,"created_at":1791130958,"expires_at":1791217358}}}}"#;
+
+    /// `buy_order_taken` at=0, to the seller: the reply to their `take-buy`, the hold invoice.
+    const BUY_TAKEN_TAKE_REPLY: &str = r#"{"order":{"version":2,"request_id":3095008,"trade_index":0,"id":"531dda85-7867-48c3-93b9-7254fb58e30f","action":"pay-invoice","payload":{"payment_request":[{"id":"531dda85-7867-48c3-93b9-7254fb58e30f","kind":"buy","status":"waiting-payment","amount":35290,"fiat_code":"USD","min_amount":null,"max_amount":null,"fiat_amount":30,"payment_method":"Transferencia bancaria","premium":0,"created_at":1791130958,"expires_at":1791217358},"lnbcrt352900n1p4vyl2wpp59mvwtd4ws3dlh0wnjnxp0e0qep7ty7takk5y6vfzkpx2ew76kgfqdf4g4ekxun0wusxzmt0w4h8ggz0wfjx2u3qyv6nxvtyv3snsdfdxuurvdedxsuxxved8yekywfdxuer2drxvg6nsefnxpnr5gzng4xycgzz23pjqen0wgs9256yyqenqgpdypyhggzhf9xycgzx2fz52kj9ypy5ugzhg9xyc3259csyjapqwa5kcmpqwfjkcetpwdjjqmmwvdjjq7t0w5s8yetvv4shxefwypyhggrhd9kxcgrjv4682unwyp5kvgrzw4uk2u3qv3hk2ueqdehhggrrdahxv6tjd5s8g6r9ypcxz7tdv4h8gcqzysxqyz5vqsp56cqhvlxsqe0xgyl2vm58zcflk6lypj0494cv4qhmczn3zjk8jm6q9qxpqysgqh6685a6f7ah96e8yt6px9smdlne7pn5shymp6up2hhsgktjh8wpxsacgjek6zvutnf9vcw8gfwrkmts6ccccmwg4xtlp443kvhr28eqqeddla9",null]}}}"#;
+
+    /// `buy_order_taken` at=1, to the buyer: their order was taken.
+    const BUY_TAKEN_WAITING_SELLER_TO_PAY: &str = r#"{"order":{"version":2,"request_id":3095008,"trade_index":null,"id":"531dda85-7867-48c3-93b9-7254fb58e30f","action":"waiting-seller-to-pay","payload":null}}"#;
+
+    /// `inline_invoice_take` at=1, to the seller: the acknowledgement of their `new-order`.
+    const INLINE_TAKE_ACK: &str = r#"{"order":{"version":2,"request_id":3093301,"trade_index":null,"id":"bc404264-3e9d-4605-9ada-85b16e44a700","action":"new-order","payload":{"order":{"id":"bc404264-3e9d-4605-9ada-85b16e44a700","kind":"sell","status":"pending","amount":0,"fiat_code":"USD","min_amount":null,"max_amount":null,"fiat_amount":30,"payment_method":"Transferencia bancaria","premium":0,"created_at":1791130933,"expires_at":1791217333}}}}"#;
+
+    /// `inline_invoice_take` at=1, to the seller: the only `pay-invoice` of a take that came with
+    /// the buyer's invoice attached.
+    const INLINE_TAKE_PAY_INVOICE: &str = r#"{"order":{"version":2,"request_id":3093302,"trade_index":null,"id":"bc404264-3e9d-4605-9ada-85b16e44a700","action":"pay-invoice","payload":{"payment_request":[{"id":"bc404264-3e9d-4605-9ada-85b16e44a700","kind":"sell","status":"waiting-payment","amount":35290,"fiat_code":"USD","min_amount":null,"max_amount":null,"fiat_amount":30,"payment_method":"Transferencia bancaria","premium":0,"created_at":1791130933,"expires_at":1791217333},"lnbcrt352900n1p4vylfkpp5apz89962sd68jxtd8qcgpunn3lgm34w9nz4dac9ksc758uj6t2wsdf4g4ekxun0wusxzmt0w4h8ggz0wfjx2u3qyd3xxdpsxservdpdxdjnjepdxsmrqdfd89skgcfd8q6kyvfkv56rgcfhxqcr5gzng4xycgzz23pjqen0wgs9256yyqenqgpdypyhggzhf9xycgzx2fz52kj9ypy5ugzhg9xyc3259csyjapqwa5kcmpqwfjkcetpwdjjqmmwvdjjq7t0w5s8yetvv4shxefwypyhggrhd9kxcgrjv4682unwyp5kvgrzw4uk2u3qv3hk2ueqdehhggrrdahxv6tjd5s8g6r9ypcxz7tdv4h8gcqzysxqyz5vqsp5ppxlcl09kx59mu9ce695pcd80plvgh4dv6wtea6y3p2qjx0ckvxq9qxpqysgqzxn43qqd8jwlrtkwm5ra72p6ccmvh295nwg43zkrpl453q25jff5m5swxxkmegykqqg2jjl3gwezus9960ca9tarclvlktxuvg0km7sq3naf48",null]}}}"#;
+
+    /// `inline_invoice_take` at=1, to the buyer: the reply to a `take-sell` with the invoice attached —
+    /// no payload at all.
+    const INLINE_TAKE_TAKE_REPLY: &str = r#"{"order":{"version":2,"request_id":3093302,"trade_index":0,"id":"bc404264-3e9d-4605-9ada-85b16e44a700","action":"waiting-seller-to-pay","payload":null}}"#;
+
+    /// `inline_invoice_take` at=2, to the seller: the hold invoice was paid, the trade is active.
+    /// The buyer's second message of that flow, two seconds after the first
+    /// and echoing the same take nonce: the seller has paid the hold invoice.
+    const INLINE_TAKE_HOLD_INVOICE_ACCEPTED: &str = r#"{"order":{"version":2,"request_id":3093302,"trade_index":null,"id":"bc404264-3e9d-4605-9ada-85b16e44a700","action":"hold-invoice-payment-accepted","payload":{"order":{"id":"bc404264-3e9d-4605-9ada-85b16e44a700","kind":"sell","status":"active","amount":35078,"fiat_code":"USD","min_amount":null,"max_amount":null,"fiat_amount":30,"payment_method":"Transferencia bancaria","premium":0,"buyer_trade_pubkey":"29a8e9c3423a167fb1fe76fe1d336410eb915a79a946ddfc5bfb949525610e6e","seller_trade_pubkey":"6945eb8db988f19faf4f8fdb3a9f8f35d35ad1366e1f0c775c19fff9ad010f3a","created_at":1791130933,"expires_at":1791217333}}}}"#;
+    const INLINE_TAKE_BUYER_TOOK_ORDER: &str = r#"{"order":{"version":2,"request_id":3093302,"trade_index":null,"id":"bc404264-3e9d-4605-9ada-85b16e44a700","action":"buyer-took-order","payload":{"order":{"id":"bc404264-3e9d-4605-9ada-85b16e44a700","kind":"sell","status":"active","amount":35290,"fiat_code":"USD","min_amount":null,"max_amount":null,"fiat_amount":30,"payment_method":"Transferencia bancaria","premium":0,"buyer_trade_pubkey":"29a8e9c3423a167fb1fe76fe1d336410eb915a79a946ddfc5bfb949525610e6e","seller_trade_pubkey":"6945eb8db988f19faf4f8fdb3a9f8f35d35ad1366e1f0c775c19fff9ad010f3a","created_at":1791130933,"expires_at":1791217333}}}}"#;
+
+    /// `dispute_admin_cancel` at=3, to the buyer: the seller opened a dispute.
+    const DISPUTE_INITIATED_BY_PEER: &str = r#"{"order":{"version":2,"request_id":3099005,"trade_index":null,"id":"deb9ccdf-4f5c-43a3-9988-0dc630bb8c5f","action":"dispute-initiated-by-peer","payload":{"dispute":["1b84909d-bbf5-405a-ae1e-3e2beafa5458",null]}}}"#;
+
+    /// `dispute_admin_cancel` at=4, to the seller: their dispute was opened.
+    const DISPUTE_INITIATED_BY_YOU: &str = r#"{"order":{"version":2,"request_id":3099005,"trade_index":null,"id":"deb9ccdf-4f5c-43a3-9988-0dc630bb8c5f","action":"dispute-initiated-by-you","payload":{"dispute":["1b84909d-bbf5-405a-ae1e-3e2beafa5458",null]}}}"#;
+
+    /// `dispute_admin_cancel` at=4, to the buyer: a solver took the dispute.
+    const DISPUTE_ADMIN_TOOK: &str = r#"{"order":{"version":2,"request_id":3099006,"trade_index":null,"id":"deb9ccdf-4f5c-43a3-9988-0dc630bb8c5f","action":"admin-took-dispute","payload":{"peer":{"pubkey":"30b0b9ab6043de1b6ceeff85e1c0e9dc5302d9ffce71eda6aa38a3a992ca5e33","reputation":null}}}}"#;
+    fn captured(
+        json: &str,
+        captured_order: &str,
+        order_uuid: uuid::Uuid,
+        created_at: i64,
+    ) -> mostro_core::transport::UnwrappedMessage {
+        assert!(
+            json.contains(captured_order),
+            "the capture does not name order {captured_order}"
+        );
+        let json = json.replace(captured_order, &order_uuid.to_string());
+        let message = mostro_core::message::Message::from_json(&json)
+            .ok()
+            .unwrap_or_else(|| panic!("a captured message must parse: {json}"));
+        let sender = nostr_sdk::prelude::PublicKey::from_hex(&active_mostro_pubkey())
+            .expect("valid mostro pubkey");
+        mostro_core::transport::UnwrappedMessage {
+            message,
+            signature: None,
+            sender,
+            identity: sender,
+            created_at: nostr_sdk::prelude::Timestamp::from(created_at as u64),
+        }
+    }
+
+    /// [`captured`], with the capture's `request_id` replaced by `nonce`.
+    fn captured_echoing(
+        json: &str,
+        captured_order: &str,
+        order_uuid: uuid::Uuid,
+        captured_nonce: u64,
+        nonce: u64,
+        created_at: i64,
+    ) -> mostro_core::transport::UnwrappedMessage {
+        let needle = format!("\"request_id\":{captured_nonce},");
+        assert!(json.contains(&needle), "the capture does not echo {captured_nonce}");
+        captured(
+            &json.replace(&needle, &format!("\"request_id\":{nonce},")),
+            captured_order,
+            order_uuid,
+            created_at,
+        )
+    }
+
+    /// A maker's trade row for an order of `kind`, at `status`, on trade key
+    /// `trade_key_index` — old enough for the stale sweep to look at it.
+    fn maker_row(
+        order_id: &str,
+        kind: OrderKind,
+        status: OrderStatus,
+        trade_key_index: u32,
+    ) -> crate::api::types::TradeInfo {
+        use crate::api::types::{BuyerStep, SellerStep, TradeStep};
+        let mut order = dummy_order_info(order_id);
+        order.kind = kind.clone();
+        order.status = status;
+        order.is_mine = true;
+        order.fiat_amount = Some(30.0);
+        order.payment_method = "Transferencia bancaria".to_string();
+        let mut row = cancel_test_row(order);
+        (row.role, row.current_step) = match kind {
+            OrderKind::Sell => (
+                TradeRole::Seller,
+                TradeStep::Seller(SellerStep::OrderPublished),
+            ),
+            OrderKind::Buy => (TradeRole::Buyer, TradeStep::Buyer(BuyerStep::OrderTaken)),
+        };
+        row.trade_key_index = trade_key_index;
+        row
+    }
+
+    async fn row_of(order_id: &str) -> Option<crate::api::types::TradeInfo> {
+        crate::db::app_db::db()
+            .expect("store initialised")
+            .get_trade_by_order_id(order_id)
+            .await
+            .expect("trade lookup")
+    }
+
+    async fn row_status(order_id: &str) -> Option<OrderStatus> {
+        row_of(order_id).await.map(|row| row.order.status)
+    }
+
+    // ── A: a take's amount, and a take somebody else won ────────────────────
+
+    /// A range order is taken at a whole amount or not at all. The wire
+    /// carries it as an integer, so 30.5 would have been traded as 30 while
+    /// the trade row kept 30.5. Refused before a key is derived or anything
+    /// is sent, with the marker a new order's amounts already use.
+    #[tokio::test]
+    async fn a_range_take_at_a_fraction_is_refused_before_anything_is_sent() {
+        // Arrange: the range order of flow `range_order` (20–60 USD).
+        let order_id = uuid::Uuid::new_v4().to_string();
+        let mut range = dummy_order_info(&order_id);
+        range.kind = OrderKind::Sell;
+        range.fiat_amount = None;
+        range.fiat_amount_min = Some(20.0);
+        range.fiat_amount_max = Some(60.0);
+        order_book().upsert_order(range).await;
+
+        // Act + assert: each refusal is local and names its own cause.
+        for (amount, expected) in [
+            (Some(30.5), "FiatAmountNotWhole"),
+            (Some(20.000_1), "FiatAmountNotWhole"),
+            // Outside the range and fractional: the amount itself is wrong
+            // before its size is.
+            (Some(60.5), "FiatAmountNotWhole"),
+            (Some(61.0), "OutOfRange"),
+            (Some(19.0), "OutOfRange"),
+            (Some(f64::NAN), "fiat_amount must be positive and finite"),
+            (Some(0.0), "fiat_amount must be positive and finite"),
+            (None, "FiatAmountRequired"),
+        ] {
+            let err = take_order_once(order_id.clone(), TradeRole::Buyer, amount)
+                .await
+                .expect_err("the take must be refused");
+            assert_eq!(err.to_string(), expected, "amount {amount:?}");
+        }
+        assert_eq!(
+            lookup_trade_key_index(&order_id).await,
+            None,
+            "a refused take binds no trade key"
+        );
+        order_book().remove_order(&order_id).await;
+    }
+
+    /// Two ways to learn that somebody else took the order first, one
+    /// marker: the book already shows it taken (local), or the daemon
+    /// refuses the take with `cant-do invalid_order_status` — what v0.19.2
+    /// sent the second buyer of `taker_leaves`.
+    #[tokio::test]
+    async fn a_take_somebody_else_won_is_an_order_already_taken_either_way() {
+        // The book has the news.
+        let taken_id = uuid::Uuid::new_v4().to_string();
+        let mut taken = dummy_order_info(&taken_id);
+        taken.kind = OrderKind::Sell;
+        taken.status = OrderStatus::InProgress;
+        order_book().upsert_order(taken).await;
+        let err = take_order_once(taken_id.clone(), TradeRole::Buyer, None)
+            .await
+            .expect_err("a taken order cannot be taken");
+        assert_eq!(err.to_string(), "OrderAlreadyTaken");
+        order_book().remove_order(&taken_id).await;
+
+        // The daemon has it: the refusal reaches the waiting take through
+        // the real dispatcher, and the take turns it into the same marker.
+        let order_uuid = uuid::Uuid::new_v4();
+        let trade_key = "a2a2a2a2-second-take-refused";
+        let nonce = 4_210_001_u64;
+        let mut waiter = insert_pending_take(trade_key, nonce);
+        dispatch_mostro_message(
+            captured_echoing(
+                TAKER_LEAVES_SECOND_TAKE_REFUSED,
+                TAKER_LEAVES,
+                order_uuid,
+                3101204,
+                nonce,
+                crate::rt::unix_now(),
+            ),
+            &format!("test-a2-refused-{order_uuid}"),
+            trade_key,
+            4,
+        )
+        .await;
+        let wake = waiter.try_recv().expect("the take must be answered");
+        let DaemonReply::Rejected { reason, message } = wake.reply else {
+            panic!("a cant-do must reject the take");
+        };
+        assert_eq!(reason, "InvalidOrderStatus");
+        assert_eq!(
+            crate::mostro::pending::take_refusal_error(&reason, &message),
+            "OrderAlreadyTaken"
+        );
+    }
+
+    // ── B1: a replayed abandoned take ───────────────────────────────────────
+
+    /// Replays `messages` (newest first, as given) to the maker's trade key
+    /// 7 of `order_uuid`, `t0` being the flow's first second.
+    async fn replay_to_maker(
+        tag: &str,
+        captured_order: &str,
+        order_uuid: uuid::Uuid,
+        t0: i64,
+        messages: &[(&str, i64)],
+    ) {
+        for (n, (json, at)) in messages.iter().enumerate() {
+            dispatch_mostro_message(
+                captured(json, captured_order, order_uuid, t0 + at),
+                &format!("test-{tag}-{n}-{order_uuid}"),
+                "b1b1b107",
+                7,
+            )
+            .await;
+        }
+    }
+
+    async fn status_cursor_of(order_id: &str) -> Option<i64> {
+        load_status_cursor(order_id).await
+    }
+
+    /// The take and its abandonment both happened with the app closed. On
+    /// the next start the feed replays newest first: the republication, then
+    /// the take's own messages, then the create's acknowledgement. The
+    /// republication used to leave no mark on a row that was still
+    /// `Pending`, so the older take messages were applied after it and the
+    /// order came back as taken — with a dead hold invoice, while it sat
+    /// free on the book. Flow `taker_leaves`, as the seller received it.
+    #[tokio::test]
+    async fn a_replayed_abandoned_take_leaves_a_pending_sell_order_pending() {
+        // Arrange: our own sell order, never seen taken, no cursor yet.
+        let db = bond_test_db().await;
+        let order_uuid = uuid::Uuid::new_v4();
+        let order_id = order_uuid.to_string();
+        let row = maker_row(&order_id, OrderKind::Sell, OrderStatus::Pending, 7);
+        order_book().upsert_order(row.order.clone()).await;
+        db.save_trade(&row).await.expect("save the maker's row");
+        assert_eq!(status_cursor_of(&order_id).await, None);
+        let mut rx = trade_updates_tx().subscribe();
+
+        // Act: the backlog, newest first, at the capture's own spacing.
+        let t0 = crate::rt::unix_now() - 3_600;
+        replay_to_maker(
+            "b1-sell",
+            TAKER_LEAVES,
+            order_uuid,
+            t0,
+            &[
+                (TAKER_LEAVES_REPUBLISHED, 2),
+                (TAKER_LEAVES_WAITING_BUYER_INVOICE, 1),
+                (TAKER_LEAVES_ACK, 0),
+            ],
+        )
+        .await;
+
+        // Assert: nothing of the abandoned take stuck, anywhere.
+        assert_eq!(row_status(&order_id).await, Some(OrderStatus::Pending));
+        assert_eq!(book_status(&order_id).await, Some(OrderStatus::Pending));
+        assert_eq!(
+            status_cursor_of(&order_id).await,
+            Some(t0 + 2),
+            "the republication dates the order"
+        );
+        assert_eq!(
+            crate::api::invoice::trade_step_started_at(order_id.clone()).await,
+            None,
+            "no step was opened"
+        );
+        assert!(
+            drain_updates(&mut rx, &order_id).is_empty(),
+            "a refused replay must not announce a take that is over"
+        );
+    }
+
+    /// The same, when the taker let the window lapse on a node that asks the
+    /// maker for a bond: flow `take_timeout`. The republication comes 908 s
+    /// in with no `request_id`, and the backlog also holds the maker's own
+    /// `pay-bond-invoice`.
+    #[tokio::test]
+    async fn a_replayed_take_timeout_leaves_a_pending_sell_order_pending() {
+        let db = bond_test_db().await;
+        let order_uuid = uuid::Uuid::new_v4();
+        let order_id = order_uuid.to_string();
+        let row = maker_row(&order_id, OrderKind::Sell, OrderStatus::Pending, 7);
+        order_book().upsert_order(row.order.clone()).await;
+        db.save_trade(&row).await.expect("save the maker's row");
+        let mut rx = trade_updates_tx().subscribe();
+
+        let t0 = crate::rt::unix_now() - 7_200;
+        replay_to_maker(
+            "b1-timeout",
+            TAKE_TIMEOUT,
+            order_uuid,
+            t0,
+            &[
+                (TAKE_TIMEOUT_REPUBLISHED, 908),
+                (TAKE_TIMEOUT_WAITING_BUYER_INVOICE, 2),
+                (TAKE_TIMEOUT_ACK, 1),
+                (TAKE_TIMEOUT_MAKER_BOND, 0),
+            ],
+        )
+        .await;
+
+        let row = row_of(&order_id).await.expect("the maker's row is kept");
+        assert_eq!(row.order.status, OrderStatus::Pending);
+        assert!(row.hold_invoice.is_none() && row.bond.is_none());
+        assert_eq!(book_status(&order_id).await, Some(OrderStatus::Pending));
+        assert_eq!(status_cursor_of(&order_id).await, Some(t0 + 908));
+        assert!(drain_updates(&mut rx, &order_id).is_empty());
+    }
+
+    /// The buy side of the same replay. The captures hold no abandoned take
+    /// of a buy order, so its republication is the acknowledgement of
+    /// `buy_order_taken` re-sent the way `take_timeout` re-sends a sell
+    /// order's: no `request_id`, and the maker's own trade key in the order.
+    #[tokio::test]
+    async fn a_replayed_abandoned_take_leaves_a_pending_buy_order_pending() {
+        let db = bond_test_db().await;
+        let order_uuid = uuid::Uuid::new_v4();
+        let order_id = order_uuid.to_string();
+        let row = maker_row(&order_id, OrderKind::Buy, OrderStatus::Pending, 7);
+        order_book().upsert_order(row.order.clone()).await;
+        db.save_trade(&row).await.expect("save the maker's row");
+        let mut rx = trade_updates_tx().subscribe();
+
+        let republished = BUY_TAKEN_ACK
+            .replace("\"request_id\":3095007,", "\"request_id\":null,")
+            .replace(
+                "\"premium\":0,",
+                "\"premium\":0,\"buyer_trade_pubkey\":\
+                 \"65f54b7fff52ea16d57e6aa3aade7ecd95cd69d3119c7b66b27691641bc07cb6\",",
+            );
+        assert_ne!(republished, BUY_TAKEN_ACK);
+
+        let t0 = crate::rt::unix_now() - 3_600;
+        replay_to_maker(
+            "b1-buy",
+            BUY_TAKEN,
+            order_uuid,
+            t0,
+            &[
+                (republished.as_str(), 908),
+                (BUY_TAKEN_WAITING_SELLER_TO_PAY, 1),
+                (BUY_TAKEN_ACK, 0),
+            ],
+        )
+        .await;
+
+        assert_eq!(row_status(&order_id).await, Some(OrderStatus::Pending));
+        assert_eq!(book_status(&order_id).await, Some(OrderStatus::Pending));
+        assert_eq!(status_cursor_of(&order_id).await, Some(t0 + 908));
+        assert!(drain_updates(&mut rx, &order_id).is_empty());
+    }
+
+    /// The mark the replay leaves must not cost a fresh order its first
+    /// take. After a restart the create's acknowledgement is replayed onto
+    /// the `Pending` row and dates it; the take that follows is newer, or —
+    /// as in `inline_invoice_take`, taken within the second it was created —
+    /// exactly as old, and both must be applied.
+    #[tokio::test]
+    async fn the_acknowledgement_of_a_fresh_order_does_not_refuse_its_first_take() {
+        let db = bond_test_db().await;
+        let t0 = crate::rt::unix_now() - 600;
+
+        for (label, take_at) in [("a later take", 5), ("a take in the same second", 0)] {
+            let order_uuid = uuid::Uuid::new_v4();
+            let order_id = order_uuid.to_string();
+            let row = maker_row(&order_id, OrderKind::Sell, OrderStatus::Pending, 7);
+            order_book().upsert_order(row.order.clone()).await;
+            db.save_trade(&row).await.expect("save the maker's row");
+
+            // The restart: only the acknowledgement is on the relays.
+            replay_to_maker(
+                "b1-fresh-ack",
+                INLINE_TAKE,
+                order_uuid,
+                t0,
+                &[(INLINE_TAKE_ACK, 0)],
+            )
+            .await;
+            assert_eq!(status_cursor_of(&order_id).await, Some(t0), "{label}");
+            assert_eq!(row_status(&order_id).await, Some(OrderStatus::Pending));
+
+            // The first, genuine take.
+            replay_to_maker(
+                "b1-fresh-take",
+                INLINE_TAKE,
+                order_uuid,
+                t0,
+                &[(INLINE_TAKE_PAY_INVOICE, take_at)],
+            )
+            .await;
+            let row = row_of(&order_id).await.expect("the maker's row");
+            assert_eq!(row.order.status, OrderStatus::WaitingPayment, "{label}");
+            assert!(row.hold_invoice.is_some(), "{label}: the hold invoice landed");
+            assert_eq!(row.order.amount_sats, Some(35_290), "{label}");
+        }
+    }
+
+    /// The mark is left only on a maker row of ours that is itself
+    /// `Pending`. With no row at all — the create's confirmation timed out
+    /// and nothing was written — the acknowledgement that follows on the
+    /// replay is what `adopt_range_remainder` rebuilds the row from, and a
+    /// cursor left by the republication ahead of it would refuse that.
+    #[tokio::test]
+    async fn a_republication_with_no_row_leaves_no_mark() {
+        let _db = bond_test_db().await;
+        let order_uuid = uuid::Uuid::new_v4();
+        let order_id = order_uuid.to_string();
+        // The book knows the order as anybody's pending order.
+        let mut public = dummy_order_info(&order_id);
+        public.kind = OrderKind::Sell;
+        order_book().upsert_order(public).await;
+
+        replay_to_maker(
+            "b1-no-row",
+            TAKER_LEAVES,
+            order_uuid,
+            crate::rt::unix_now() - 3_600,
+            &[(TAKER_LEAVES_REPUBLISHED, 2)],
+        )
+        .await;
+
+        assert_eq!(status_cursor_of(&order_id).await, None);
+        assert!(row_of(&order_id).await.is_none());
+        order_book().remove_order(&order_id).await;
+    }
+
+    // ── B2: a sell order taken with the invoice attached ────────────────────
+
+    /// The Kind 38383 revision mostrod v0.19.2 kept on the relays for the
+    /// order of flow `inline_invoice_take` from its creation until
+    /// `success` — it never published `in-progress` (`public-events-2.json`,
+    /// `orders.inline_invoice_take[0]`). Same tags, with `order_id` in place
+    /// of the capture's and a throwaway signer: the book feed is handed the
+    /// event after the author check.
+    fn inline_take_public_pending(order_id: &str) -> nostr_sdk::prelude::Event {
+        use nostr::event::FinalizeEvent;
+        use nostr_sdk::prelude::{EventBuilder, Keys, Kind, Tag, Timestamp};
+        let source = format!(
+            "mostro:{order_id}?relays=ws://127.0.0.1:39777&mostro=\
+             30b0b9ab6043de1b6ceeff85e1c0e9dc5302d9ffce71eda6aa38a3a992ca5e33"
+        );
+        EventBuilder::new(Kind::from(38383u16), "")
+            .tags([
+                Tag::parse(["d", order_id]).unwrap(),
+                Tag::parse(["k", "sell"]).unwrap(),
+                Tag::parse(["f", "USD"]).unwrap(),
+                Tag::parse(["s", "pending"]).unwrap(),
+                Tag::parse(["amt", "0"]).unwrap(),
+                Tag::parse(["fa", "30"]).unwrap(),
+                Tag::parse(["pm", "Transferencia bancaria"]).unwrap(),
+                Tag::parse(["premium", "0"]).unwrap(),
+                Tag::parse([
+                    "rating",
+                    "[\"rating\",{\"days\":0,\"total_rating\":0.0,\"total_reviews\":0}]",
+                ])
+                .unwrap(),
+                Tag::parse(["source", source.as_str()]).unwrap(),
+                Tag::parse(["network", "regtest"]).unwrap(),
+                Tag::parse(["layer", "lightning"]).unwrap(),
+                Tag::parse(["published_at", "1791130933"]).unwrap(),
+                Tag::parse(["expires_at", "1791217333"]).unwrap(),
+                Tag::parse(["expiration", "1791217333"]).unwrap(),
+                Tag::parse(["y", "mostro", "BitMaxis - Regtest"]).unwrap(),
+                Tag::parse(["z", "order"]).unwrap(),
+            ])
+            .custom_created_at(Timestamp::from_secs(1_791_130_933))
+            .finalize(&Keys::generate())
+            .unwrap()
+    }
+
+    /// Our own sell order, as `create_order` leaves it and as the book then
+    /// shows it: the maker row on trade key 7, its binding, and the public
+    /// `pending` entry marked as ours.
+    async fn published_sell_order() -> (uuid::Uuid, String) {
+        let db = bond_test_db().await;
+        let order_uuid = uuid::Uuid::new_v4();
+        let order_id = order_uuid.to_string();
+        let row = maker_row(&order_id, OrderKind::Sell, OrderStatus::Pending, 7);
+        persist_trade_row(db, &row).await.expect("save the maker's row");
+        store_trade_key_index(&order_id, 7).await;
+        ingest_order_event_with(
+            &inline_take_public_pending(&order_id),
+            Publish::WhenBatchEnds,
+        )
+        .await;
+        let entry = order_book()
+            .get_order(&order_id)
+            .await
+            .expect("the public event put the order in the book");
+        assert!(entry.is_mine, "precondition: the entry is marked as ours");
+        assert_eq!(entry.status, OrderStatus::Pending);
+        (order_uuid, order_id)
+    }
+
+    /// [`published_sell_order`], then the private `pay-invoice` of a take
+    /// that came with the buyer's invoice attached.
+    async fn sell_order_holding_a_hold_invoice() -> (uuid::Uuid, String, i64) {
+        let (order_uuid, order_id) = published_sell_order().await;
+        let taken_at = crate::rt::unix_now() - 30;
+        dispatch_mostro_message(
+            captured(INLINE_TAKE_PAY_INVOICE, INLINE_TAKE, order_uuid, taken_at),
+            &format!("test-b2-pay-invoice-{order_id}"),
+            "b2b2b207",
+            7,
+        )
+        .await;
+        let row = row_of(&order_id).await.expect("the maker's row");
+        assert_eq!(row.order.status, OrderStatus::WaitingPayment);
+        assert!(
+            row.hold_invoice.as_deref().is_some_and(|i| i.starts_with("lnbcrt352900n1")),
+            "precondition: the row holds the hold invoice"
+        );
+        assert_eq!(
+            book_status(&order_id).await,
+            Some(OrderStatus::WaitingPayment)
+        );
+        (order_uuid, order_id, taken_at)
+    }
+
+    /// The seller's screen reads the book entry. After the private
+    /// `pay-invoice`, the public event still says `pending` — the daemon
+    /// publishes nothing for a sell order that went straight to
+    /// `waiting-payment` — and every re-ingest of it (a refresh, a restart,
+    /// a relay sending it again) wrote `Pending` over the entry: an untaken
+    /// order with nothing to pay, while the hold invoice was running out.
+    #[tokio::test]
+    async fn a_public_pending_does_not_hide_the_hold_invoice_step_of_our_sell_order() {
+        let (_, order_id, _) = sell_order_holding_a_hold_invoice().await;
+        let public = inline_take_public_pending(&order_id);
+
+        // Act: the public event comes round again.
+        ingest_order_event_with(&public, Publish::WhenBatchEnds).await;
+
+        // Assert: the entry and the row both keep the private step.
+        let entry = order_book().get_order(&order_id).await.expect("entry kept");
+        assert_eq!(entry.status, OrderStatus::WaitingPayment);
+        assert!(entry.is_mine);
+        let row = row_of(&order_id).await.expect("the maker's row");
+        assert_eq!(row.order.status, OrderStatus::WaitingPayment);
+        assert!(row.hold_invoice.is_some());
+
+        // The same when the book had lost the entry (a node switch and
+        // back, a restart whose kind-14 replay ran first): the event must
+        // not bring the order back as `pending` either.
+        order_book().remove_order(&order_id).await;
+        ingest_order_event_with(&public, Publish::WhenBatchEnds).await;
+        let entry = order_book().get_order(&order_id).await.expect("entry back");
+        assert_eq!(entry.status, OrderStatus::WaitingPayment);
+        assert!(entry.is_mine);
+    }
+
+    /// The public event keeps saying `pending` for the whole trade, not
+    /// only for its first step: after `buyer-took-order` the seller must
+    /// keep seeing an active trade, with its release ahead.
+    #[tokio::test]
+    async fn a_public_pending_does_not_hide_an_active_trade_of_our_sell_order() {
+        let (order_uuid, order_id, taken_at) = sell_order_holding_a_hold_invoice().await;
+        dispatch_mostro_message(
+            captured(
+                INLINE_TAKE_BUYER_TOOK_ORDER,
+                INLINE_TAKE,
+                order_uuid,
+                taken_at + 1,
+            ),
+            &format!("test-b2-buyer-took-{order_id}"),
+            "b2b2b207",
+            7,
+        )
+        .await;
+        assert_eq!(row_status(&order_id).await, Some(OrderStatus::Active));
+
+        ingest_order_event_with(
+            &inline_take_public_pending(&order_id),
+            Publish::WhenBatchEnds,
+        )
+        .await;
+
+        assert_eq!(book_status(&order_id).await, Some(OrderStatus::Active));
+        assert_eq!(row_status(&order_id).await, Some(OrderStatus::Active));
+    }
+
+    /// The daemon's own messages stay the authority over that step: its
+    /// `new-order` puts the order back to `Pending` — row and entry — and
+    /// its `canceled` ends it.
+    #[tokio::test]
+    async fn a_private_republication_or_cancel_still_moves_a_held_sell_order() {
+        // The taker walked away: `new-order` again, as in `taker_leaves`.
+        let (order_uuid, order_id, taken_at) = sell_order_holding_a_hold_invoice().await;
+        ingest_order_event_with(
+            &inline_take_public_pending(&order_id),
+            Publish::WhenBatchEnds,
+        )
+        .await;
+        let mut rx = trade_updates_tx().subscribe();
+        dispatch_mostro_message(
+            captured(TAKER_LEAVES_REPUBLISHED, TAKER_LEAVES, order_uuid, taken_at + 10),
+            &format!("test-b2-republished-{order_id}"),
+            "b2b2b207",
+            7,
+        )
+        .await;
+        assert_eq!(row_status(&order_id).await, Some(OrderStatus::Pending));
+        assert_eq!(book_status(&order_id).await, Some(OrderStatus::Pending));
+        assert_eq!(
+            crate::api::invoice::trade_step_started_at(order_id.clone()).await,
+            None,
+            "the step that ended must not date the next take"
+        );
+        assert_eq!(
+            drain_updates(&mut rx, &order_id),
+            vec![OrderStatus::Pending]
+        );
+        // And from here the public `pending` is the truth again.
+        ingest_order_event_with(
+            &inline_take_public_pending(&order_id),
+            Publish::WhenBatchEnds,
+        )
+        .await;
+        assert_eq!(book_status(&order_id).await, Some(OrderStatus::Pending));
+
+        // The order was cancelled: `canceled`, as the maker of
+        // `taker_leaves` received it.
+        let (order_uuid, order_id, taken_at) = sell_order_holding_a_hold_invoice().await;
+        dispatch_mostro_message(
+            captured(
+                TAKER_LEAVES_MAKER_CANCELED,
+                TAKER_LEAVES,
+                order_uuid,
+                taken_at + 10,
+            ),
+            &format!("test-b2-canceled-{order_id}"),
+            "b2b2b207",
+            7,
+        )
+        .await;
+        assert!(
+            row_of(&order_id).await.is_none(),
+            "a never-active trade ends with its row"
+        );
+    }
+
+    /// What the fix must leave alone on the book feed. A sell order taken
+    /// *without* an invoice attached did publish `in-progress`, so `pending`
+    /// again means its taker left: the entry follows the wire, as it always
+    /// did (and is what the sweep then reads). So does a taker's entry —
+    /// the lost-take restore reads the same public `pending`.
+    #[tokio::test]
+    async fn a_public_pending_still_reaches_the_entries_it_always_reached() {
+        let db = bond_test_db().await;
+
+        // Our sell order, taken with no invoice attached: the maker's row is
+        // at `waiting-buyer-invoice`.
+        let (order_uuid, order_id) = published_sell_order().await;
+        dispatch_mostro_message(
+            captured(
+                TAKER_LEAVES_WAITING_BUYER_INVOICE,
+                TAKER_LEAVES,
+                order_uuid,
+                crate::rt::unix_now() - 30,
+            ),
+            &format!("test-b2-normal-take-{order_id}"),
+            "b2b2b207",
+            7,
+        )
+        .await;
+        assert_eq!(
+            book_status(&order_id).await,
+            Some(OrderStatus::WaitingBuyerInvoice)
+        );
+        ingest_order_event_with(
+            &inline_take_public_pending(&order_id),
+            Publish::WhenBatchEnds,
+        )
+        .await;
+        assert_eq!(
+            book_status(&order_id).await,
+            Some(OrderStatus::Pending),
+            "a republished order must still show as pending in the book"
+        );
+
+        // Somebody else's sell order that we took with the invoice attached
+        // (the buyer's side of `inline_invoice_take`): a taker's entry.
+        let taken_id = uuid::Uuid::new_v4().to_string();
+        let mut taken = dummy_order_info(&taken_id);
+        taken.kind = OrderKind::Sell;
+        taken.status = OrderStatus::WaitingPayment;
+        order_book().upsert_order(taken.clone()).await;
+        db.save_trade(&cancel_test_row(taken))
+            .await
+            .expect("save the taker's row");
+        store_trade_key_index(&taken_id, 1).await;
+        ingest_order_event_with(
+            &inline_take_public_pending(&taken_id),
+            Publish::WhenBatchEnds,
+        )
+        .await;
+        assert_eq!(book_status(&taken_id).await, Some(OrderStatus::Pending));
+    }
+
+    /// The stale sweep reads a public `pending` as "the order is back" and
+    /// resets a maker's waiting row to `Pending` once it is old enough —
+    /// for a maker that is 900 s after the order was *created*. One pass
+    /// over three makers whose book says `pending`:
+    ///
+    /// * our sell order at `waiting-payment` (a take with the invoice
+    ///   attached, which never publishes `in-progress`): kept, hold invoice
+    ///   and step start included;
+    /// * our sell order at `waiting-buyer-invoice` (a take without one, so
+    ///   `pending` again is a republish): reset, as before;
+    /// * our buy order at `waiting-payment` (its take always publishes
+    ///   `in-progress`): reset, as before.
+    #[tokio::test]
+    async fn the_sweep_keeps_our_sell_order_at_its_hold_invoice_step() {
+        // Arrange
+        let db = bond_test_db().await;
+        let mut ids = Vec::new();
+        for (kind, status) in [
+            (OrderKind::Sell, OrderStatus::WaitingPayment),
+            (OrderKind::Sell, OrderStatus::WaitingBuyerInvoice),
+            (OrderKind::Buy, OrderStatus::WaitingPayment),
+        ] {
+            let order_id = uuid::Uuid::new_v4().to_string();
+            let mut row = maker_row(&order_id, kind, status.clone(), 7);
+            row.hold_invoice = Some("lnbcrt352900n1hold".to_string());
+            row.started_at = crate::rt::unix_now() - SWEEP_MIN_AGE_SECS - 60;
+            row.timeout_at = None;
+            db.save_trade(&row).await.expect("save the maker's row");
+            crate::api::invoice::record_invoice_step_start(
+                &order_id,
+                &format!("{status:?}"),
+                row.started_at,
+                7,
+            )
+            .await;
+            // What the relays say about each of them, as the sweep reads it.
+            let mut public = row.order.clone();
+            public.status = OrderStatus::Pending;
+            order_book().upsert_order(public).await;
+            ids.push(order_id);
+        }
+        let (held, republished_sell, republished_buy) = (&ids[0], &ids[1], &ids[2]);
+
+        // Act
+        run_stale_sweep_once().await;
+
+        // Assert
+        let kept = row_of(held).await.expect("the row is kept");
+        assert_eq!(
+            kept.order.status,
+            OrderStatus::WaitingPayment,
+            "a live hold-invoice step must survive the sweep"
+        );
+        assert_eq!(kept.hold_invoice.as_deref(), Some("lnbcrt352900n1hold"));
+        assert!(
+            crate::api::invoice::trade_step_started_at(held.clone())
+                .await
+                .is_some(),
+            "and so must the deadline it is counting to"
+        );
+        for order_id in [republished_sell, republished_buy] {
+            assert_eq!(
+                row_status(order_id).await,
+                Some(OrderStatus::Pending),
+                "a genuinely republished order still goes back to pending"
+            );
+            assert_eq!(
+                crate::api::invoice::trade_step_started_at(order_id.clone()).await,
+                None
+            );
+        }
+        for order_id in &ids {
+            order_book().remove_order(order_id).await;
+        }
+    }
+
+    // ── B3: a cancel the daemon refuses ─────────────────────────────────────
+
+    /// v0.19.2 refuses a cancel that meets a hold invoice the seller has
+    /// just paid with `cant-do not_allowed_by_status`, echoing the cancel's
+    /// nonce. The shape is the `cant-do` of `taker_leaves`; the reason is
+    /// the one mostro-core serialises for `NotAllowedByStatus`.
+    fn cancel_refused(order_uuid: uuid::Uuid, nonce: u64) -> mostro_core::transport::UnwrappedMessage {
+        let json = TAKER_LEAVES_SECOND_TAKE_REFUSED
+            .replace("invalid_order_status", "not_allowed_by_status");
+        captured_echoing(
+            &json,
+            TAKER_LEAVES,
+            order_uuid,
+            3101204,
+            nonce,
+            crate::rt::unix_now(),
+        )
+    }
+
+    /// The seller cancels while the daemon is locking the hold invoice they
+    /// just paid. The refusal used to match nothing and vanish; the caller
+    /// was told "cancel sent" and the trade went active. Now the cancel
+    /// waits, the refusal reaches it by marker, and nothing local moved.
+    #[tokio::test]
+    async fn a_refused_cancel_reaches_its_caller_and_changes_nothing() {
+        use crate::mostro::pending::{publish_and_await_cancel, CancelVerdict};
+
+        // Arrange: our sell order at its hold-invoice step.
+        let (order_uuid, order_id, _) = sell_order_holding_a_hold_invoice().await;
+        let before = row_of(&order_id).await.expect("the maker's row");
+        let mut rx = trade_updates_tx().subscribe();
+        let trade_key = "b3b3b3b3-cancel-refused";
+        let nonce = 4_230_001_u64;
+
+        // Act: the cancel goes out; the daemon answers through the feed.
+        let event_id = format!("test-b3-refused-{order_id}");
+        let verdict = publish_and_await_cancel(
+            trade_key,
+            nonce,
+            || async {
+                dispatch_mostro_message(cancel_refused(order_uuid, nonce), &event_id, trade_key, 7)
+                    .await;
+                Ok(())
+            },
+            std::time::Duration::from_secs(5),
+        )
+        .await
+        .expect("the cancel was published");
+
+        // Assert
+        assert_eq!(
+            verdict,
+            CancelVerdict::Refused("NotAllowedByStatus".to_string())
+        );
+        let after = row_of(&order_id).await.expect("the row must still be there");
+        assert_eq!(after.order.status, OrderStatus::WaitingPayment);
+        assert_eq!(after.hold_invoice, before.hold_invoice);
+        assert_eq!(after.cooperative_cancel_state, None);
+        assert_eq!(
+            book_status(&order_id).await,
+            Some(OrderStatus::WaitingPayment),
+            "the book entry is not taken out for a cancel that did not happen"
+        );
+        assert!(
+            drain_updates(&mut rx, &order_id).is_empty(),
+            "nothing was cancelled: nothing to announce"
+        );
+    }
+
+    /// Flow `cooperative_cancel`: the seller's `cancel` of an active trade,
+    /// answered with the same nonce.
+    const COOPERATIVE_CANCEL: &str = "d429c866-aae5-4e1e-adef-bd926dadaf46";
+    const COOPERATIVE_CANCEL_BY_YOU: &str = r#"{"order":{"version":2,"request_id":3099011,"trade_index":null,"id":"d429c866-aae5-4e1e-adef-bd926dadaf46","action":"cooperative-cancel-initiated-by-you","payload":null}}"#;
+
+    /// The other way the race ends: the seller's payment landed first, the
+    /// trade was active when the cancel arrived, and the daemon opened a
+    /// cooperative cancel instead — echoing the cancel's nonce. The caller
+    /// hears it at once rather than after ten seconds of silence, and the
+    /// request is on the row before it does.
+    #[tokio::test]
+    async fn a_cancel_that_met_an_active_trade_hears_of_the_cooperative_request() {
+        use crate::mostro::pending::{publish_and_await_cancel, CancelVerdict};
+
+        // Arrange: our sell order, active by the time the cancel gets there.
+        let (order_uuid, order_id) = trade_in(OrderStatus::Active, true, 7).await;
+        let trade_key = "b3b3b3b3-cancel-cooperative";
+        let nonce = 4_230_011_u64;
+
+        // Act
+        let event_id = format!("test-b3-cooperative-{order_id}");
+        let verdict = publish_and_await_cancel(
+            trade_key,
+            nonce,
+            || async {
+                dispatch_mostro_message(
+                    captured_echoing(
+                        COOPERATIVE_CANCEL_BY_YOU,
+                        COOPERATIVE_CANCEL,
+                        order_uuid,
+                        3099011,
+                        nonce,
+                        crate::rt::unix_now(),
+                    ),
+                    &event_id,
+                    trade_key,
+                    7,
+                )
+                .await;
+                Ok(())
+            },
+            std::time::Duration::from_secs(5),
+        )
+        .await
+        .expect("the cancel was published");
+
+        // Assert
+        assert_eq!(verdict, CancelVerdict::Cooperative);
+        let row = row_of(&order_id).await.expect("an active trade keeps its row");
+        assert_eq!(row.order.status, OrderStatus::Active);
+        assert_eq!(
+            row.cooperative_cancel_state,
+            Some(crate::api::types::CooperativeCancelState::RequestedByMe)
+        );
+        assert!(
+            crate::mostro::pending::take_maker_cancel(trade_key, Some(nonce)).is_none(),
+            "the cancel's record was this reply's to consume"
+        );
+
+        order_book().remove_order(&order_id).await;
+    }
+
+    /// The counterparty's request carries no nonce of ours and answers no
+    /// cancel: a cancel of this key still waiting keeps waiting.
+    #[tokio::test]
+    async fn the_peers_cooperative_request_answers_no_cancel_of_ours() {
+        use crate::mostro::pending::{register_maker_cancel, remove_maker_cancel, take_maker_cancel};
+
+        let (order_uuid, order_id) = trade_in(OrderStatus::Active, true, 7).await;
+        let trade_key = "b3b3b3b3-cancel-peer-request";
+        let nonce = 4_230_012_u64;
+        let _rx = register_maker_cancel(trade_key, nonce);
+
+        let by_peer = COOPERATIVE_CANCEL_BY_YOU
+            .replace("initiated-by-you", "initiated-by-peer")
+            .replace("\"request_id\":3099011,", &format!("\"request_id\":{nonce},"));
+        dispatch_mostro_message(
+            captured(&by_peer, COOPERATIVE_CANCEL, order_uuid, crate::rt::unix_now()),
+            &format!("test-b3-peer-request-{order_id}"),
+            trade_key,
+            7,
+        )
+        .await;
+
+        assert!(
+            take_maker_cancel(trade_key, Some(nonce)).is_some(),
+            "the peer's request must leave our cancel's record alone"
+        );
+        remove_maker_cancel(trade_key, nonce);
+        order_book().remove_order(&order_id).await;
+    }
+
+    /// An accepted cancel: the daemon's `canceled` echoes the nonce (flow
+    /// `taker_leaves`, to the buyer), the `canceled` arm wipes the take and
+    /// hands the order back to the public book, and only then is the caller
+    /// told — so what it reads next is already settled.
+    #[tokio::test]
+    async fn an_accepted_cancel_is_settled_before_its_caller_hears_of_it() {
+        use crate::mostro::pending::{publish_and_await_cancel, CancelVerdict};
+
+        // Arrange: a take of somebody's sell order, waiting on our invoice,
+        // with the public view the d-tag feed noted for it.
+        let db = bond_test_db().await;
+        let order_uuid = uuid::Uuid::new_v4();
+        let order_id = order_uuid.to_string();
+        let mut taken = dummy_order_info(&order_id);
+        taken.kind = OrderKind::Sell;
+        taken.status = OrderStatus::WaitingBuyerInvoice;
+        order_book().upsert_order(taken.clone()).await;
+        let mut row = cancel_test_row(taken.clone());
+        row.trade_key_index = 9;
+        db.save_trade(&row).await.expect("save the take's row");
+        let mut public = taken;
+        public.status = OrderStatus::Pending;
+        order_book().note_wire_order(&public);
+        let mut rx = trade_updates_tx().subscribe();
+        let trade_key = "b3b3b3b3-cancel-accepted";
+        let nonce = 4_230_002_u64;
+
+        // Act
+        let event_id = format!("test-b3-accepted-{order_id}");
+        let verdict = publish_and_await_cancel(
+            trade_key,
+            nonce,
+            || async {
+                dispatch_mostro_message(
+                    captured_echoing(
+                        TAKER_LEAVES_TAKER_CANCELED,
+                        TAKER_LEAVES,
+                        order_uuid,
+                        3101205,
+                        nonce,
+                        crate::rt::unix_now(),
+                    ),
+                    &event_id,
+                    trade_key,
+                    9,
+                )
+                .await;
+                Ok(())
+            },
+            std::time::Duration::from_secs(5),
+        )
+        .await
+        .expect("the cancel was published");
+
+        // Assert
+        assert_eq!(verdict, CancelVerdict::Canceled);
+        assert!(row_of(&order_id).await.is_none(), "the take is wiped");
+        assert_eq!(
+            book_status(&order_id).await,
+            Some(OrderStatus::Pending),
+            "the order is back in the ex-taker's book"
+        );
+        assert_eq!(
+            drain_updates(&mut rx, &order_id),
+            vec![OrderStatus::Canceled]
+        );
+        order_book().remove_order(&order_id).await;
+    }
+
+    /// Silence: the caller stops waiting and does what a cancel always did
+    /// once published. The record stays, so the daemon's late `canceled`
+    /// is still this cancel's and still settles the row.
+    #[tokio::test]
+    async fn an_unanswered_cancel_is_still_settled_by_a_late_canceled() {
+        use crate::mostro::pending::{publish_and_await_cancel, CancelVerdict};
+
+        let (order_uuid, order_id, _) = sell_order_holding_a_hold_invoice().await;
+        let trade_key = "b3b3b3b3-cancel-unanswered";
+        let nonce = 4_230_003_u64;
+
+        let verdict = publish_and_await_cancel(
+            trade_key,
+            nonce,
+            || async { Ok(()) },
+            std::time::Duration::from_millis(40),
+        )
+        .await
+        .expect("the cancel was published");
+        assert_eq!(verdict, CancelVerdict::Unanswered);
+        assert_eq!(
+            row_status(&order_id).await,
+            Some(OrderStatus::WaitingPayment),
+            "nothing is written on a guess"
+        );
+
+        // Today's local half of a cancel, for a never-active trade: the
+        // entry leaves the book, the row waits for the daemon.
+        apply_local_cancel(&order_id).await;
+        assert_eq!(
+            row_status(&order_id).await,
+            Some(OrderStatus::WaitingPayment)
+        );
+
+        // The daemon answers after all.
+        dispatch_mostro_message(
+            captured_echoing(
+                TAKER_LEAVES_MAKER_CANCELED,
+                TAKER_LEAVES,
+                order_uuid,
+                3101206,
+                nonce,
+                crate::rt::unix_now(),
+            ),
+            &format!("test-b3-late-{order_id}"),
+            trade_key,
+            7,
+        )
+        .await;
+        assert!(row_of(&order_id).await.is_none(), "the late canceled wipes");
+        assert!(
+            crate::mostro::pending::take_maker_cancel(trade_key, Some(nonce)).is_none(),
+            "and consumed the cancel's record"
+        );
+    }
+
+    /// The body of `cancel_order`, up to the next top-level item.
+    fn cancel_order_body() -> &'static str {
+        let source = include_str!("orders.rs");
+        let start = source
+            .find("pub async fn cancel_order(")
+            .expect("cancel_order exists");
+        let body = &source[start..];
+        &body[..body.find("\n}\n").expect("cancel_order ends")]
+    }
+
+    /// `cancel_order` itself needs an identity and a relay pool, so what it
+    /// does with each verdict is pinned on its source: the local half of a
+    /// cancel (`apply_local_cancel` takes the order out of the book and marks
+    /// an active trade's request) runs when the daemon stayed silent — what
+    /// a cancel always did once published — and never for a cancel the
+    /// daemon refused, nor again for one it already settled.
+    #[test]
+    fn only_an_unanswered_cancel_applies_the_local_cancel() {
+        let body = cancel_order_body();
+        let waits = body
+            .find("cancel_awaits_verdict(")
+            .expect("a waiting step's cancel is told apart");
+        let canceled = body
+            .find("CancelVerdict::Canceled =>")
+            .expect("handles the daemon's canceled");
+        let refused = body
+            .find("CancelVerdict::Refused(error) =>")
+            .expect("handles the daemon's refusal");
+        let unanswered = body
+            .find("CancelVerdict::Unanswered =>")
+            .expect("handles silence");
+        assert!(waits < canceled && canceled < refused && refused < unanswered);
+        let local = "apply_local_cancel(&order_id).await";
+
+        assert!(
+            !body[canceled..refused].contains(local),
+            "the canceled arm already settled the row and the entry"
+        );
+        // A maker's entry leaves the book there, and the screens are rung
+        // for it — a book entry never changes silently.
+        let removed = body[canceled..refused]
+            .find("order_book().remove_order(&order_id).await;")
+            .map(|at| canceled + at)
+            .expect("a maker's entry is taken out once the cancel is confirmed");
+        assert!(
+            body[removed..refused].contains("trade_touch::touch_trade(&order_id);"),
+            "taking the entry out must ring"
+        );
+        assert!(
+            !body[refused..unanswered].contains(local),
+            "a refused cancel must leave the trade exactly as it is"
+        );
+        assert!(
+            body[refused..unanswered].contains("Err(anyhow::anyhow!(error))"),
+            "and its caller must be told"
+        );
+        // Silence, and every cancel that does not wait: as before.
+        let end_of_wait = body[unanswered..]
+            .find("let event_json = actions::cancel(")
+            .map(|at| unanswered + at)
+            .expect("the cancels that do not wait follow");
+        // An order the daemon says was cancelled already is the cancel done:
+        // the local half runs for it too, and its caller hears no error.
+        let already = body[unanswered..end_of_wait]
+            .find("CancelVerdict::AlreadyCanceled =>")
+            .map(|at| unanswered + at)
+            .expect("handles an order that was cancelled already");
+        // …and for a silent cancel only under the order's lock and while
+        // the row is still there: the `canceled` arm may be settling it.
+        let silent = &body[unanswered..already];
+        let locked = silent
+            .find("lock_order(&order_id).await")
+            .expect("the silent cancel waits for the dispatcher's arm");
+        let checked = silent.find("if row_remains {").expect("and re-reads the row");
+        assert!(locked < checked && checked < silent.find(local).unwrap());
+        // A trade that went active first: the daemon opened a cooperative
+        // cancel, and the local half is the active trade's.
+        let cooperative = silent
+            .find("CancelVerdict::Cooperative =>")
+            .expect("handles a cancel that met an active trade");
+        assert!(silent[cooperative..].contains(local));
+        assert!(body[already..end_of_wait].contains(local));
+        assert!(!body[unanswered..end_of_wait].contains("Err("));
+        assert!(body[end_of_wait..].contains(local));
+        assert_eq!(body.matches(local).count(), 4);
+        // Every cancel carries a request id of its own; only the first one
+        // registers it and waits for the answer.
+        assert!(body[waits..end_of_wait].contains("Some(request_id),"));
+        assert!(body[end_of_wait..].contains("Some(request_id),"));
+        assert!(body[waits..end_of_wait].contains("publish_and_await_cancel("));
+        assert!(!body[end_of_wait..].contains("publish_and_await_cancel("));
+    }
+
+    // ── B4: the node's dispute id ───────────────────────────────────────────
+
+    /// A row of ours in `status`, on trade key `trade_key_index`, with its
+    /// book entry.
+    async fn trade_in(status: OrderStatus, is_maker: bool, trade_key_index: u32) -> (uuid::Uuid, String) {
+        let db = bond_test_db().await;
+        let order_uuid = uuid::Uuid::new_v4();
+        let order_id = order_uuid.to_string();
+        let mut row = maker_row(&order_id, OrderKind::Sell, status, trade_key_index);
+        if !is_maker {
+            row.order.is_mine = false;
+            row.role = TradeRole::Buyer;
+        }
+        order_book().upsert_order(row.order.clone()).await;
+        db.save_trade(&row).await.expect("save the row");
+        (order_uuid, order_id)
+    }
+
+    /// The party that did not open the dispute. `dispute-initiated-by-peer`
+    /// went through the generic status arm, which set `Dispute` and dropped
+    /// the payload: no record until a solver took the dispute, and then one
+    /// with a made-up id. Flow `dispute_admin_cancel`, as the buyer got it.
+    #[tokio::test]
+    async fn the_party_that_did_not_open_a_dispute_holds_the_nodes_id_at_once() {
+        // Arrange: the buyer of a trade whose fiat was sent.
+        let db = bond_test_db().await;
+        let (order_uuid, order_id) = trade_in(OrderStatus::FiatSent, false, 5).await;
+        assert!(crate::api::disputes::get_dispute(order_id.clone())
+            .await
+            .unwrap()
+            .is_none());
+        let opened_at = crate::rt::unix_now() - 20;
+
+        // Act: the seller opens a dispute.
+        dispatch_mostro_message(
+            captured(DISPUTE_INITIATED_BY_PEER, DISPUTED, order_uuid, opened_at),
+            &format!("test-b4-by-peer-{order_id}"),
+            "b4b4b405",
+            5,
+        )
+        .await;
+
+        // Assert: the trade is disputed, and the dispute is there, with the
+        // node's own id, as the counterparty's.
+        assert_eq!(row_status(&order_id).await, Some(OrderStatus::Dispute));
+        let dispute = crate::api::disputes::get_dispute(order_id.clone())
+            .await
+            .unwrap()
+            .expect("the dispute must exist from the moment it opens");
+        assert_eq!(dispute.id, NODE_DISPUTE_ID);
+        assert_eq!(dispute.trade_id, order_id);
+        assert_eq!(dispute.status, crate::api::types::DisputeStatus::Open);
+        assert!(!dispute.initiated_by_me);
+        assert_eq!(dispute.admin_pubkey, None);
+        assert_eq!(
+            db.get_setting(&crate::db::settings_keys::dispute_id(&order_id))
+                .await
+                .unwrap()
+                .as_deref(),
+            Some(NODE_DISPUTE_ID),
+            "kept for the restart"
+        );
+        assert_eq!(
+            db.get_setting(&crate::db::settings_keys::dispute_mine(&order_id))
+                .await
+                .unwrap(),
+            None
+        );
+
+        // A solver takes it: same record, same id, now in review.
+        dispatch_mostro_message(
+            captured(DISPUTE_ADMIN_TOOK, DISPUTED, order_uuid, opened_at + 1),
+            &format!("test-b4-admin-took-{order_id}"),
+            "b4b4b405",
+            5,
+        )
+        .await;
+        let dispute = crate::api::disputes::get_dispute(order_id.clone())
+            .await
+            .unwrap()
+            .expect("still there");
+        assert_eq!(dispute.id, NODE_DISPUTE_ID, "the solver's arrival mints nothing");
+        assert_eq!(dispute.status, crate::api::types::DisputeStatus::InReview);
+        assert_eq!(
+            dispute.admin_pubkey.as_deref(),
+            Some("30b0b9ab6043de1b6ceeff85e1c0e9dc5302d9ffce71eda6aa38a3a992ca5e33")
+        );
+        assert!(!dispute.initiated_by_me);
+    }
+
+    /// A replay delivers newest first: the solver's assignment, then the
+    /// message that opened the dispute. The assignment finds no id kept and
+    /// creates the record with one of its own; the opening, read next, is
+    /// the first news of the node's id — and the record must take it there
+    /// and then, not at the next start. This is also every install that
+    /// upgrades with a dispute already in review.
+    #[tokio::test]
+    async fn a_record_the_solver_created_first_takes_the_nodes_id_from_the_opening() {
+        // Arrange: a disputed trade of the buyer's, nothing kept about it.
+        let db = bond_test_db().await;
+        let (order_uuid, order_id) = trade_in(OrderStatus::Dispute, false, 8).await;
+        let opened_at = crate::rt::unix_now() - 120;
+
+        // Act 1: the newer message first — a solver took the dispute.
+        dispatch_mostro_message(
+            captured(DISPUTE_ADMIN_TOOK, DISPUTED, order_uuid, opened_at + 60),
+            &format!("test-b4-replay-admin-took-{order_id}"),
+            "b4b4b408",
+            8,
+        )
+        .await;
+        let minted = crate::api::disputes::get_dispute(order_id.clone())
+            .await
+            .unwrap()
+            .expect("the assignment creates the record");
+        assert_ne!(minted.id, NODE_DISPUTE_ID, "nothing told it the node's id yet");
+        assert_eq!(minted.status, crate::api::types::DisputeStatus::InReview);
+
+        // Act 2: the older message behind it — the dispute's opening.
+        dispatch_mostro_message(
+            captured(DISPUTE_INITIATED_BY_PEER, DISPUTED, order_uuid, opened_at),
+            &format!("test-b4-replay-by-peer-{order_id}"),
+            "b4b4b408",
+            8,
+        )
+        .await;
+
+        // Assert: the same record, now under the node's id.
+        let dispute = crate::api::disputes::get_dispute(order_id.clone())
+            .await
+            .unwrap()
+            .expect("still there");
+        assert_eq!(dispute.id, NODE_DISPUTE_ID);
+        assert_eq!(dispute.status, crate::api::types::DisputeStatus::InReview);
+        assert_eq!(
+            dispute.admin_pubkey.as_deref(),
+            Some("30b0b9ab6043de1b6ceeff85e1c0e9dc5302d9ffce71eda6aa38a3a992ca5e33"),
+            "the solver is kept"
+        );
+        assert!(!dispute.initiated_by_me);
+        assert_eq!(row_status(&order_id).await, Some(OrderStatus::Dispute));
+        assert_eq!(
+            db.get_setting(&crate::db::settings_keys::dispute_id(&order_id))
+                .await
+                .unwrap()
+                .as_deref(),
+            Some(NODE_DISPUTE_ID)
+        );
+    }
+
+    /// The party that opened it, when no `open_dispute` is there to take the
+    /// reply — a replay after a restart, a restored device. The message is
+    /// addressed to this trade key and says "by you": the record comes back
+    /// as ours, with the node's id.
+    #[tokio::test]
+    async fn the_initiators_dispute_comes_back_as_theirs_with_the_nodes_id() {
+        let db = bond_test_db().await;
+        let (order_uuid, order_id) = trade_in(OrderStatus::FiatSent, true, 6).await;
+
+        dispatch_mostro_message(
+            captured(
+                DISPUTE_INITIATED_BY_YOU,
+                DISPUTED,
+                order_uuid,
+                crate::rt::unix_now() - 20,
+            ),
+            &format!("test-b4-by-you-{order_id}"),
+            "b4b4b406",
+            6,
+        )
+        .await;
+
+        assert_eq!(row_status(&order_id).await, Some(OrderStatus::Dispute));
+        let dispute = crate::api::disputes::get_dispute(order_id.clone())
+            .await
+            .unwrap()
+            .expect("the dispute must exist");
+        assert_eq!(dispute.id, NODE_DISPUTE_ID);
+        assert!(dispute.initiated_by_me, "the message says who opened it");
+        assert_eq!(dispute.status, crate::api::types::DisputeStatus::Open);
+        for key in [
+            crate::db::settings_keys::dispute_id(&order_id),
+            crate::db::settings_keys::dispute_mine(&order_id),
+        ] {
+            assert!(
+                db.get_setting(&key).await.unwrap().is_some(),
+                "{key} must be kept"
+            );
+        }
+    }
+
+    /// A message that names no dispute id announces a trade in dispute and
+    /// nothing else: no record is built on an id nobody gave.
+    #[tokio::test]
+    async fn a_dispute_message_without_an_id_builds_no_record() {
+        use mostro_core::message::Action;
+        let db = bond_test_db().await;
+        let (order_uuid, order_id) = trade_in(OrderStatus::Active, false, 5).await;
+
+        dispatch_mostro_message(
+            daemon_message(
+                order_uuid,
+                Action::DisputeInitiatedByPeer,
+                None,
+                (crate::rt::unix_now() - 20) as u64,
+            ),
+            &format!("test-b4-no-id-{order_id}"),
+            "b4b4b405",
+            5,
+        )
+        .await;
+
+        assert_eq!(row_status(&order_id).await, Some(OrderStatus::Dispute));
+        assert!(crate::api::disputes::get_dispute(order_id.clone())
+            .await
+            .unwrap()
+            .is_none());
+        assert_eq!(
+            db.get_setting(&crate::db::settings_keys::dispute_id(&order_id))
+                .await
+                .unwrap(),
+            None
+        );
+    }
+
+    // ── B5: a take accepted after `take_order` stopped waiting ──────────────
+
+    /// A take as `take_order` leaves it once its ten seconds are up: the
+    /// record still registered under the take's trade key and nonce, nobody
+    /// listening.
+    fn timed_out_take(trade_key: &str, nonce: u64) {
+        drop(insert_pending_take(trade_key, nonce));
+        detach_request_waiter(trade_key, nonce);
+    }
+
+    /// The same, for a take that named the fiat amount it took the order at
+    /// — which `take_order` leaves on the record with everything else.
+    fn timed_out_take_of(trade_key: &str, nonce: u64, fiat_amount: Option<f64>) {
+        pending_requests().lock().unwrap().insert(
+            trade_key.to_string(),
+            PendingRequest {
+                request_id: nonce,
+                trade_index: 4,
+                kind: PendingRequestKind::Take { fiat_amount },
+                tx: None,
+            },
+        );
+    }
+
+    /// Somebody's pending order of `kind`, in the book the way the public
+    /// event of the captured flows put it there.
+    async fn book_order_of(kind: OrderKind) -> (uuid::Uuid, String) {
+        let order_uuid = uuid::Uuid::new_v4();
+        let order_id = order_uuid.to_string();
+        let mut order = dummy_order_info(&order_id);
+        order.kind = kind;
+        order.fiat_amount = Some(30.0);
+        order.payment_method = "Transferencia bancaria".to_string();
+        order.creator_pubkey = active_mostro_pubkey();
+        order_book().upsert_order(order).await;
+        (order_uuid, order_id)
+    }
+
+    /// The buyer's take of a sell order, no invoice attached, answered late
+    /// (flow `taker_leaves`, the reply to `take-sell`). `take_order` had
+    /// returned NoDaemonResponse and persisted nothing, while the daemon
+    /// held the take: the app showed no trade, and a retry met
+    /// `PendingOrderExists`. The late reply now leaves the row a prompt one
+    /// would have.
+    #[tokio::test]
+    async fn a_take_accepted_after_the_wait_still_gets_its_row() {
+        // Arrange
+        let _db = bond_test_db().await;
+        let (order_uuid, order_id) = book_order_of(OrderKind::Sell).await;
+        let trade_key = "b5b5b5b5-late-add-invoice";
+        let nonce = 4_250_001_u64;
+        timed_out_take(trade_key, nonce);
+        let mut rx = trade_updates_tx().subscribe();
+        let mut touches = crate::api::trade_touch::on_trade_touched().await.unwrap();
+        let replied_at = crate::rt::unix_now() - 12;
+
+        // Act
+        dispatch_mostro_message(
+            captured_echoing(
+                TAKER_LEAVES_TAKE_REPLY,
+                TAKER_LEAVES,
+                order_uuid,
+                3101203,
+                nonce,
+                replied_at,
+            ),
+            &format!("test-b5-late-add-invoice-{order_id}"),
+            trade_key,
+            11,
+        )
+        .await;
+
+        // Assert: the row a prompt take persists.
+        let row = row_of(&order_id).await.expect("the late take must get its row");
+        assert_eq!(row.role, TradeRole::Buyer);
+        assert_eq!(row.order.status, OrderStatus::WaitingBuyerInvoice);
+        assert_eq!(row.order.amount_sats, Some(35_078));
+        assert_eq!(row.order.fiat_amount, Some(30.0));
+        assert_eq!(row.order.kind, OrderKind::Sell);
+        assert!(!row.order.is_mine, "a take, not an order of ours");
+        assert_eq!(row.order.creator_pubkey, active_mostro_pubkey());
+        assert_eq!(row.trade_key_index, 11);
+        assert_eq!(row.started_at, replied_at);
+        assert_eq!(
+            row.timeout_at,
+            Some(replied_at + crate::mostro::pending::TAKE_WINDOW_SECS),
+            "the daemon's window, which keeps the sweep off a live take"
+        );
+        assert!(row.counterparty_pubkey.is_empty());
+        // Its key is bound, so the invoice the buyer now sends is signed
+        // with it; the book stops offering the order; the step is dated.
+        assert_eq!(lookup_trade_key_index(&order_id).await, Some(11));
+        let entry = order_book().get_order(&order_id).await.expect("entry");
+        assert_eq!(entry.status, OrderStatus::WaitingBuyerInvoice);
+        assert_eq!(entry.amount_sats, Some(35_078));
+        assert_eq!(
+            crate::api::invoice::trade_step_started_at(order_id.clone()).await,
+            Some(replied_at)
+        );
+        // The user is told, and the screens are rung.
+        let mut updates = Vec::new();
+        while let Ok(update) = rx.try_recv() {
+            if update.order_id == order_id {
+                updates.push((update.status, update.occurred_at));
+            }
+        }
+        assert_eq!(
+            updates,
+            vec![(OrderStatus::WaitingBuyerInvoice, replied_at)]
+        );
+        assert!(rang_for(&mut touches, &order_id).await);
+        // The record was this reply's to consume, once.
+        assert!(take_matching_take(trade_key, Some(nonce)).is_none());
+
+        session_manager().remove_session(&order_id).await;
+        order_book().remove_order(&order_id).await;
+    }
+
+    /// This client attaches the buyer's default Lightning address to every
+    /// take, and the daemon answers such a take with a bare
+    /// `waiting-seller-to-pay` — no order in it (flow `inline_invoice_take`).
+    /// The book's order is what the row is built from, as in `take_order`.
+    #[tokio::test]
+    async fn a_late_reply_to_a_take_with_the_invoice_attached_gets_its_row_too() {
+        let _db = bond_test_db().await;
+        let (order_uuid, order_id) = book_order_of(OrderKind::Sell).await;
+        let trade_key = "b5b5b5b5-late-inline";
+        let nonce = 4_250_002_u64;
+        timed_out_take(trade_key, nonce);
+        let replied_at = crate::rt::unix_now() - 12;
+
+        dispatch_mostro_message(
+            captured_echoing(
+                INLINE_TAKE_TAKE_REPLY,
+                INLINE_TAKE,
+                order_uuid,
+                3093302,
+                nonce,
+                replied_at,
+            ),
+            &format!("test-b5-late-inline-{order_id}"),
+            trade_key,
+            12,
+        )
+        .await;
+
+        let row = row_of(&order_id).await.expect("the late take must get its row");
+        assert_eq!(row.role, TradeRole::Buyer);
+        assert_eq!(row.order.status, OrderStatus::WaitingPayment);
+        assert_eq!(row.order.fiat_amount, Some(30.0));
+        assert_eq!(row.order.payment_method, "Transferencia bancaria");
+        assert!(!row.order.is_mine);
+        assert_eq!(row.trade_key_index, 12);
+        assert_eq!(
+            row.timeout_at,
+            Some(replied_at + crate::mostro::pending::TAKE_WINDOW_SECS)
+        );
+        assert_eq!(
+            book_status(&order_id).await,
+            Some(OrderStatus::WaitingPayment)
+        );
+
+        session_manager().remove_session(&order_id).await;
+        order_book().remove_order(&order_id).await;
+    }
+
+    /// A take with the invoice attached is answered twice with its nonce:
+    /// `waiting-seller-to-pay`, then `hold-invoice-payment-accepted` once
+    /// the seller has paid (flow `inline_invoice_take`, one and three
+    /// seconds in). When the connection drops for longer than the wait and
+    /// the backlog then arrives newest first, the newer one consumes the
+    /// take's record and builds the row at `Active` — and the older one,
+    /// with no record left, goes through the generic status arm. It must
+    /// find the order already dated and be refused: applied, it walked a
+    /// trade with the seller's escrow locked back to "waiting for the
+    /// seller to pay".
+    #[tokio::test]
+    async fn the_older_reply_of_a_late_take_cannot_walk_the_row_back() {
+        // Arrange — a take that timed out, and both replies still to come.
+        let _db = bond_test_db().await;
+        let (order_uuid, order_id) = book_order_of(OrderKind::Sell).await;
+        let trade_key = "b5b5b5b5-late-newest-first";
+        let nonce = 4_250_021_u64;
+        timed_out_take(trade_key, nonce);
+        let accepted_at = crate::rt::unix_now() - 20;
+        let waiting_at = accepted_at - 2;
+
+        // Act — newest first: the seller has paid…
+        dispatch_mostro_message(
+            captured_echoing(
+                INLINE_TAKE_HOLD_INVOICE_ACCEPTED,
+                INLINE_TAKE,
+                order_uuid,
+                3093302,
+                nonce,
+                accepted_at,
+            ),
+            &format!("test-b5-newest-first-accepted-{order_id}"),
+            trade_key,
+            12,
+        )
+        .await;
+
+        // Assert — the late take got its row, where the trade really is, and
+        // the order is dated by that message.
+        assert_eq!(row_status(&order_id).await, Some(OrderStatus::Active));
+        assert_eq!(status_cursor_of(&order_id).await, Some(accepted_at));
+
+        // Act — …then the older reply of the same take.
+        dispatch_mostro_message(
+            captured_echoing(
+                INLINE_TAKE_TAKE_REPLY,
+                INLINE_TAKE,
+                order_uuid,
+                3093302,
+                nonce,
+                waiting_at,
+            ),
+            &format!("test-b5-newest-first-waiting-{order_id}"),
+            trade_key,
+            12,
+        )
+        .await;
+
+        // Assert — refused as older than what the order already heard.
+        assert_eq!(row_status(&order_id).await, Some(OrderStatus::Active));
+        assert_eq!(book_status(&order_id).await, Some(OrderStatus::Active));
+        assert_eq!(status_cursor_of(&order_id).await, Some(accepted_at));
+
+        session_manager().remove_session(&order_id).await;
+        order_book().remove_order(&order_id).await;
+    }
+
+    /// The same two replies in the order they were sent, the first one late:
+    /// the dating must not get in the way of the newer message.
+    #[tokio::test]
+    async fn the_newer_reply_of_a_late_take_still_moves_the_row_on() {
+        let _db = bond_test_db().await;
+        let (order_uuid, order_id) = book_order_of(OrderKind::Sell).await;
+        let trade_key = "b5b5b5b5-late-oldest-first";
+        let nonce = 4_250_022_u64;
+        timed_out_take(trade_key, nonce);
+        let waiting_at = crate::rt::unix_now() - 20;
+        let accepted_at = waiting_at + 2;
+
+        dispatch_mostro_message(
+            captured_echoing(
+                INLINE_TAKE_TAKE_REPLY,
+                INLINE_TAKE,
+                order_uuid,
+                3093302,
+                nonce,
+                waiting_at,
+            ),
+            &format!("test-b5-oldest-first-waiting-{order_id}"),
+            trade_key,
+            12,
+        )
+        .await;
+        assert_eq!(
+            row_status(&order_id).await,
+            Some(OrderStatus::WaitingPayment)
+        );
+        assert_eq!(status_cursor_of(&order_id).await, Some(waiting_at));
+
+        dispatch_mostro_message(
+            captured_echoing(
+                INLINE_TAKE_HOLD_INVOICE_ACCEPTED,
+                INLINE_TAKE,
+                order_uuid,
+                3093302,
+                nonce,
+                accepted_at,
+            ),
+            &format!("test-b5-oldest-first-accepted-{order_id}"),
+            trade_key,
+            12,
+        )
+        .await;
+        assert_eq!(row_status(&order_id).await, Some(OrderStatus::Active));
+        assert_eq!(status_cursor_of(&order_id).await, Some(accepted_at));
+
+        session_manager().remove_session(&order_id).await;
+        order_book().remove_order(&order_id).await;
+    }
+
+    /// A range order is taken at an amount the user chose, and the reply to
+    /// a take with the invoice attached does not repeat it (no payload at
+    /// all). The amount travels on the take's record, so the late row says
+    /// what was taken — as the row of a prompt take does — and not the
+    /// range's bare limits.
+    #[tokio::test]
+    async fn a_late_take_of_a_range_order_keeps_the_amount_it_was_taken_at() {
+        // Arrange: a range sell order, taken at 50 of its 20–100.
+        let _db = bond_test_db().await;
+        let order_uuid = uuid::Uuid::new_v4();
+        let order_id = order_uuid.to_string();
+        let mut order = dummy_order_info(&order_id);
+        order.kind = OrderKind::Sell;
+        order.fiat_amount = None;
+        order.fiat_amount_min = Some(20.0);
+        order.fiat_amount_max = Some(100.0);
+        order.creator_pubkey = active_mostro_pubkey();
+        order_book().upsert_order(order).await;
+        let trade_key = "b5b5b5b5-late-range";
+        let nonce = 4_250_009_u64;
+        timed_out_take_of(trade_key, nonce, Some(50.0));
+        let replied_at = crate::rt::unix_now() - 12;
+
+        // Act: the daemon's bare `waiting-seller-to-pay`, after the wait.
+        dispatch_mostro_message(
+            captured_echoing(
+                INLINE_TAKE_TAKE_REPLY,
+                INLINE_TAKE,
+                order_uuid,
+                3093302,
+                nonce,
+                replied_at,
+            ),
+            &format!("test-b5-late-range-{order_id}"),
+            trade_key,
+            19,
+        )
+        .await;
+
+        // Assert
+        let row = row_of(&order_id).await.expect("the late take must get its row");
+        assert_eq!(row.order.status, OrderStatus::WaitingPayment);
+        assert_eq!(
+            row.order.fiat_amount,
+            Some(50.0),
+            "the amount the order was taken at"
+        );
+        assert_eq!(row.order.fiat_amount_min, Some(20.0));
+        assert_eq!(row.order.fiat_amount_max, Some(100.0));
+        assert_eq!(row.trade_key_index, 19);
+
+        session_manager().remove_session(&order_id).await;
+        order_book().remove_order(&order_id).await;
+    }
+
+    /// That amount is on the record only if every take puts it there. Both
+    /// places that register one need an identity and a relay pool, so this
+    /// reads their source: `take_order` and the same-take re-request each
+    /// register the take with the amount they send, and nothing outside the
+    /// tests registers one without.
+    #[test]
+    fn every_take_registers_the_amount_it_was_sent_with() {
+        let source = include_str!("orders.rs");
+        let production = &source[..source
+            .find("#[cfg(test)]\nmod tests {")
+            .expect("the test module follows the code")];
+        let body_of = |signature: &str| {
+            let start = production.find(signature).expect("the function exists");
+            let body = &production[start..];
+            &body[..body.find("\n}\n").expect("the function ends")]
+        };
+        let registered = "kind: PendingRequestKind::Take { fiat_amount },";
+
+        assert_eq!(body_of("async fn take_order_once(").matches(registered).count(), 1);
+        assert_eq!(
+            body_of("pub async fn request_bond_invoice_again(")
+                .matches(registered)
+                .count(),
+            1
+        );
+        assert_eq!(
+            production.matches("kind: PendingRequestKind::Take").count(),
+            2,
+            "a third place registers a take: it must carry the amount too"
+        );
+    }
+
+    /// The seller's take of a buy order: the late reply is the hold invoice
+    /// (flow `buy_order_taken`), and the row must hold it — it is what the
+    /// seller has fifteen minutes to pay.
+    #[tokio::test]
+    async fn a_late_reply_to_a_take_buy_keeps_the_hold_invoice() {
+        let _db = bond_test_db().await;
+        let (order_uuid, order_id) = book_order_of(OrderKind::Buy).await;
+        let trade_key = "b5b5b5b5-late-take-buy";
+        let nonce = 4_250_003_u64;
+        timed_out_take(trade_key, nonce);
+        let replied_at = crate::rt::unix_now() - 12;
+
+        dispatch_mostro_message(
+            captured_echoing(
+                BUY_TAKEN_TAKE_REPLY,
+                BUY_TAKEN,
+                order_uuid,
+                3095008,
+                nonce,
+                replied_at,
+            ),
+            &format!("test-b5-late-take-buy-{order_id}"),
+            trade_key,
+            13,
+        )
+        .await;
+
+        let row = row_of(&order_id).await.expect("the late take must get its row");
+        assert_eq!(row.role, TradeRole::Seller);
+        assert_eq!(row.order.status, OrderStatus::WaitingPayment);
+        assert_eq!(row.order.amount_sats, Some(35_290));
+        assert!(
+            row.hold_invoice
+                .as_deref()
+                .is_some_and(|invoice| invoice.starts_with("lnbcrt352900n1p4vyl2wpp5")),
+            "the hold invoice of the reply"
+        );
+        assert_eq!(row.trade_key_index, 13);
+        assert_eq!(
+            crate::api::invoice::trade_step_started_at(order_id.clone()).await,
+            Some(replied_at)
+        );
+
+        session_manager().remove_session(&order_id).await;
+        order_book().remove_order(&order_id).await;
+    }
+
+    /// A late reply must not bring back a take that is already over. The
+    /// daemon cancelled it (its window lapsed) and that `canceled` was heard
+    /// first: it advances the cursor even with no row, and the older reply
+    /// behind it is refused.
+    #[tokio::test]
+    async fn a_late_take_reply_older_than_the_orders_cancel_builds_nothing() {
+        let _db = bond_test_db().await;
+        let (order_uuid, order_id) = book_order_of(OrderKind::Sell).await;
+        let trade_key = "b5b5b5b5-late-after-cancel";
+        let nonce = 4_250_004_u64;
+        timed_out_take(trade_key, nonce);
+        // Inside the take window, so only the cursor can refuse the reply.
+        let replied_at = crate::rt::unix_now() - 300;
+
+        // The shape of `take_timeout`'s `canceled` to the buyer — the
+        // daemon's own cancel, no nonce — a few minutes after the reply.
+        dispatch_mostro_message(
+            daemon_message(
+                order_uuid,
+                mostro_core::message::Action::Canceled,
+                None,
+                (replied_at + 200) as u64,
+            ),
+            &format!("test-b5-cancel-first-{order_id}"),
+            trade_key,
+            14,
+        )
+        .await;
+        dispatch_mostro_message(
+            captured_echoing(
+                TAKER_LEAVES_TAKE_REPLY,
+                TAKER_LEAVES,
+                order_uuid,
+                3101203,
+                nonce,
+                replied_at,
+            ),
+            &format!("test-b5-late-after-cancel-{order_id}"),
+            trade_key,
+            14,
+        )
+        .await;
+
+        assert!(row_of(&order_id).await.is_none(), "the take is over");
+        assert_eq!(lookup_trade_key_index(&order_id).await, None);
+        assert_eq!(
+            book_status(&order_id).await,
+            Some(OrderStatus::Pending),
+            "the order stays as the book had it"
+        );
+        order_book().remove_order(&order_id).await;
+    }
+
+    /// Nor one whose window has run out: the daemon gives a taken order's
+    /// first step `expiration_seconds`, and a reply older than that opens a
+    /// step that is over whatever became of the take.
+    #[tokio::test]
+    async fn a_late_take_reply_past_the_take_window_builds_nothing() {
+        let _db = bond_test_db().await;
+        let (order_uuid, order_id) = book_order_of(OrderKind::Sell).await;
+        let trade_key = "b5b5b5b5-late-past-window";
+        let nonce = 4_250_009_u64;
+        timed_out_take(trade_key, nonce);
+
+        dispatch_mostro_message(
+            captured_echoing(
+                TAKER_LEAVES_TAKE_REPLY,
+                TAKER_LEAVES,
+                order_uuid,
+                3101203,
+                nonce,
+                crate::rt::unix_now() - crate::mostro::pending::TAKE_WINDOW_SECS - 30,
+            ),
+            &format!("test-b5-late-past-window-{order_id}"),
+            trade_key,
+            18,
+        )
+        .await;
+
+        assert!(row_of(&order_id).await.is_none());
+        assert_eq!(lookup_trade_key_index(&order_id).await, None);
+        assert_eq!(book_status(&order_id).await, Some(OrderStatus::Pending));
+        order_book().remove_order(&order_id).await;
+    }
+
+    /// Nor one whose row was wiped on purpose for this very generation.
+    #[tokio::test]
+    async fn a_late_take_reply_for_a_wiped_take_builds_nothing() {
+        let db = bond_test_db().await;
+        let (order_uuid, order_id) = book_order_of(OrderKind::Sell).await;
+        let trade_key = "b5b5b5b5-late-wiped";
+        let nonce = 4_250_005_u64;
+        timed_out_take(trade_key, nonce);
+        db.set_setting(
+            &crate::db::settings_keys::trade_wiped(&order_id),
+            &format!("{}:15", crate::rt::unix_now()),
+        )
+        .await
+        .unwrap();
+
+        dispatch_mostro_message(
+            captured_echoing(
+                TAKER_LEAVES_TAKE_REPLY,
+                TAKER_LEAVES,
+                order_uuid,
+                3101203,
+                nonce,
+                crate::rt::unix_now() - 12,
+            ),
+            &format!("test-b5-late-wiped-{order_id}"),
+            trade_key,
+            15,
+        )
+        .await;
+
+        assert!(row_of(&order_id).await.is_none());
+        assert_eq!(book_status(&order_id).await, Some(OrderStatus::Pending));
+        order_book().remove_order(&order_id).await;
+    }
+
+    /// A late reply for a take whose row is already there — a same-take
+    /// re-request whose wait ran out — is a plain status message: the row is
+    /// moved by the arm for its action, never rebuilt or replaced. And a
+    /// reply that is behind a newer take's row moves nothing at all.
+    #[tokio::test]
+    async fn a_late_reply_never_rebuilds_a_row_that_is_already_there() {
+        let db = bond_test_db().await;
+
+        // The row of this very take (same trade key), one step behind.
+        let (order_uuid, order_id) = book_order_of(OrderKind::Sell).await;
+        let mut taken = order_book().get_order(&order_id).await.unwrap();
+        taken.status = OrderStatus::WaitingPayment;
+        let mut row = cancel_test_row(taken);
+        row.trade_key_index = 20;
+        // Inside its window, as a live take is: the stale sweep, which any
+        // test may run over the shared store, leaves it alone.
+        row.timeout_at = Some(crate::rt::unix_now() + 900);
+        db.save_trade(&row).await.expect("save the take's row");
+        let trade_key = "b5b5b5b5-late-same-take";
+        let nonce = 4_250_007_u64;
+        timed_out_take(trade_key, nonce);
+
+        dispatch_mostro_message(
+            captured_echoing(
+                TAKER_LEAVES_TAKE_REPLY,
+                TAKER_LEAVES,
+                order_uuid,
+                3101203,
+                nonce,
+                crate::rt::unix_now() - 12,
+            ),
+            &format!("test-b5-same-take-{order_id}"),
+            trade_key,
+            20,
+        )
+        .await;
+
+        let after = row_of(&order_id).await.expect("the row is still there");
+        assert_eq!(after.id, row.id, "the same row, not a new one");
+        assert_eq!(after.order.status, OrderStatus::WaitingBuyerInvoice);
+        assert_eq!(after.order.amount_sats, Some(35_078));
+        assert_eq!(after.timeout_at, row.timeout_at);
+        order_book().remove_order(&order_id).await;
+
+        // A row on a later trade key: the reply is behind it.
+        let (order_uuid, order_id) = book_order_of(OrderKind::Sell).await;
+        let mut taken = order_book().get_order(&order_id).await.unwrap();
+        taken.status = OrderStatus::WaitingPayment;
+        let mut newer = cancel_test_row(taken);
+        newer.trade_key_index = 30;
+        newer.timeout_at = Some(crate::rt::unix_now() + 900);
+        db.save_trade(&newer).await.expect("save the newer take's row");
+        let trade_key = "b5b5b5b5-late-behind";
+        let nonce = 4_250_008_u64;
+        timed_out_take(trade_key, nonce);
+
+        dispatch_mostro_message(
+            captured_echoing(
+                TAKER_LEAVES_TAKE_REPLY,
+                TAKER_LEAVES,
+                order_uuid,
+                3101203,
+                nonce,
+                crate::rt::unix_now() - 12,
+            ),
+            &format!("test-b5-behind-{order_id}"),
+            trade_key,
+            25,
+        )
+        .await;
+
+        let after = row_of(&order_id).await.expect("the newer row is kept");
+        assert_eq!(after.id, newer.id);
+        assert_eq!(after.trade_key_index, 30);
+        assert_eq!(after.order.status, OrderStatus::WaitingPayment);
+        assert_eq!(after.order.amount_sats, None);
+        order_book().remove_order(&order_id).await;
+    }
+
+    /// Only a reply to a take of THIS process is a late take. The same
+    /// message replayed with no record waiting for it — a later start, when
+    /// the registry is empty — proves no trade by itself: it names no order
+    /// and no party, and nothing is built from the book on its word.
+    #[tokio::test]
+    async fn a_replayed_take_reply_with_no_take_waiting_is_not_a_late_take() {
+        let _db = bond_test_db().await;
+        let (order_uuid, order_id) = book_order_of(OrderKind::Sell).await;
+
+        dispatch_mostro_message(
+            captured(
+                INLINE_TAKE_TAKE_REPLY,
+                INLINE_TAKE,
+                order_uuid,
+                crate::rt::unix_now() - 12,
+            ),
+            &format!("test-b5-replay-{order_id}"),
+            "b5b5b5b5-replay-no-record",
+            16,
+        )
+        .await;
+
+        assert!(
+            row_of(&order_id).await.is_none(),
+            "a bare replay must not adopt an order from the book"
+        );
+        assert_eq!(lookup_trade_key_index(&order_id).await, None);
+        order_book().remove_order(&order_id).await;
+    }
+
+    /// A reply that arrives while `take_order` is still waiting is handed to
+    /// it, as before: the dispatcher persists nothing of its own.
+    #[tokio::test]
+    async fn a_prompt_take_reply_is_still_left_to_the_waiting_take() {
+        let _db = bond_test_db().await;
+        let (order_uuid, order_id) = book_order_of(OrderKind::Sell).await;
+        let trade_key = "b5b5b5b5-prompt";
+        let nonce = 4_250_006_u64;
+        let mut waiter = insert_pending_take(trade_key, nonce);
+
+        dispatch_mostro_message(
+            captured_echoing(
+                TAKER_LEAVES_TAKE_REPLY,
+                TAKER_LEAVES,
+                order_uuid,
+                3101203,
+                nonce,
+                crate::rt::unix_now(),
+            ),
+            &format!("test-b5-prompt-{order_id}"),
+            trade_key,
+            17,
+        )
+        .await;
+
+        let wake = waiter.try_recv().expect("the waiting take is answered");
+        assert!(matches!(
+            wake.reply,
+            DaemonReply::TakeAccepted {
+                status: Some(OrderStatus::WaitingBuyerInvoice),
+                amount_sats: Some(35_078),
+                ..
+            }
+        ));
+        assert!(wake.order_guard.is_some(), "with the order's guard");
+        assert!(
+            row_of(&order_id).await.is_none(),
+            "persisting is the waiting take's job"
+        );
+        drop(wake);
+        order_book().remove_order(&order_id).await;
     }
 }
 

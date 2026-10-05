@@ -29,7 +29,17 @@ static APP_DB_PATH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 /// Subsequent calls are no-ops — the singleton is only written once.
 pub async fn init_db(path: &str) -> Result<()> {
     APP_DB
-        .get_or_try_init(|| async { AppStorage::open(path).await })
+        .get_or_try_init(|| async {
+            let store = AppStorage::open(path).await?;
+            // Best effort: a failed write leaves the old node in place for
+            // this run and the next launch tries again.
+            match crate::db::seeds::pin_active_node(&store).await {
+                Ok(true) => log::info!("[db] active node reset to the one this app serves"),
+                Ok(false) => {}
+                Err(e) => log::warn!("[db] could not pin the active node: {e}"),
+            }
+            anyhow::Ok(store)
+        })
         .await?;
     // Recorded only after the store opened, so a failed init leaves no path
     // behind for a sibling store to build on.

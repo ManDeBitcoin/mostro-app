@@ -4,6 +4,32 @@ import 'package:mostro/src/rust/api/types.dart' as rust_types;
 import 'package:mostro/src/rust/api/types.dart' show InvoiceVerdict;
 
 void main() {
+  group('tradeFeeShare', () {
+    test('is half the node fee of the amount, rounded as the daemon does', () {
+      // The guide's captured trade: 56 076 sats at 0.6 %. The seller paid a
+      // hold invoice of 56 244 and the buyer's invoice got 55 908.
+      expect(tradeFeeShare(sats: 56076, nodeFee: 0.006), 168);
+      expect(56076 + tradeFeeShare(sats: 56076, nodeFee: 0.006)!, 56244);
+      expect(56076 - tradeFeeShare(sats: 56076, nodeFee: 0.006)!, 55908);
+      // BitMaxis today: 0.8 % in all, 0.4 % a side.
+      expect(tradeFeeShare(sats: 100000, nodeFee: 0.008), 400);
+      // Rounded, not truncated: 449.732 is 450.
+      expect(tradeFeeShare(sats: 112433, nodeFee: 0.008), 450);
+    });
+
+    test('is zero on a node that charges nothing', () {
+      expect(tradeFeeShare(sats: 100000, nodeFee: 0), 0);
+    });
+
+    test('is unknown rather than guessed', () {
+      expect(tradeFeeShare(sats: 100000, nodeFee: null), isNull);
+      expect(tradeFeeShare(sats: null, nodeFee: 0.008), isNull);
+      expect(tradeFeeShare(sats: 0, nodeFee: 0.008), isNull);
+      expect(tradeFeeShare(sats: 100000, nodeFee: double.nan), isNull);
+      expect(tradeFeeShare(sats: 100000, nodeFee: -0.01), isNull);
+    });
+  });
+
   group('invoiceOrderTag', () {
     test('keeps the first eight characters behind a hash', () {
       expect(invoiceOrderTag('09150348-1a2b-4c3d'), '#09150348');

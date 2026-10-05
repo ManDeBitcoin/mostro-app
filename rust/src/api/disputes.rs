@@ -573,6 +573,16 @@ pub(crate) async fn record_late_acceptance(trade_id: &str, dispute_id: Option<St
 ///
 /// Returns `None` if no dispute exists.
 pub async fn get_dispute(trade_id: String) -> Result<Option<Dispute>> {
+    if let Some(dispute) = dispute_store().get(&trade_id).await {
+        return Ok(Some(dispute));
+    }
+    // Nothing in memory is not "no dispute": the store is rebuilt from the
+    // persisted keys, and a read can come before the pass that does it for
+    // every trade (a restart, before the pool is online) or right after the
+    // message that announced the dispute. Rebuild this one trade's record
+    // from whatever was kept — the node's dispute id, the solver, the
+    // origin — and answer with what that leaves.
+    rehydrate_disputes_from_storage(Some(&trade_id)).await;
     Ok(dispute_store().get(&trade_id).await)
 }
 
@@ -615,6 +625,10 @@ pub async fn handle_admin_took_dispute(trade_id: String, admin_pubkey: String) -
     // insert fail with its metadata lost.
     let trade_id_for_new = trade_id.clone();
     let admin_for_new = admin_pubkey.clone();
+    // The node's id for this dispute, when `dispute-initiated-by-peer` left
+    // it here. Only without one — a message this client never received —
+    // is an id still minted locally, as before.
+    let known_id = crate::mostro::dispute_ids::recall(&trade_id).await;
     dispute_store()
         .upsert_or_update(
             &trade_id,
@@ -623,7 +637,7 @@ pub async fn handle_admin_took_dispute(trade_id: String, admin_pubkey: String) -
                     "[disputes] created record for peer-opened dispute trade={trade_id_for_new}"
                 );
                 Dispute {
-                    id: uuid::Uuid::new_v4().to_string(),
+                    id: known_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
                     trade_id: trade_id_for_new.clone(),
                     status: DisputeStatus::InReview,
                     initiated_by_me: false,
@@ -769,6 +783,7 @@ async fn clear_dispute_keys(order_id: &str) {
     for key in [
         crate::db::settings_keys::dispute_admin(order_id),
         crate::db::settings_keys::dispute_mine(order_id),
+        crate::db::settings_keys::dispute_id(order_id),
     ] {
         if let Err(e) = db.delete_setting(&key).await {
             crate::api::logging::blog_warn("disputes", format!("could not clear {key}: {e}"));
@@ -884,26 +899,69 @@ async fn derive_admin_shared_key(trade_id: &str, admin_pubkey_hex: &str) -> Resu
 /// the store lookup and the enumeration source are missing there. A browser
 /// reload therefore still loses the solver pubkey; the persistence path lights
 /// up on web once #233 lands trade persistence, with no change needed here.
-async fn rehydrate_disputes_from_storage() {
+pub(crate) async fn rehydrate_disputes_from_storage(only: Option<&str>) {
     let Some(db) = crate::db::app_db::db() else {
         return;
     };
-    let trades = match db.list_trades().await {
-        Ok(t) => t,
-        Err(e) => {
-            crate::api::logging::blog_warn(
-                "disputes",
-                format!("rehydrate: list_trades failed: {e}"),
-            );
-            return;
-        }
+    // Beyond the solver the description above was written for, two more
+    // things come back from storage since the node's dispute id is kept
+    // (`mostro::dispute_ids`): the id itself, in place of one minted here,
+    // and a dispute no solver has taken yet — an `Open` record, for a trade
+    // row that still reads `Dispute`. That second one is what gives the
+    // party that did not open the dispute a record before a solver arrives.
+    //
+    // `only` narrows the pass to one order: the same rules, read for a single
+    // trade row instead of the whole table. Two callers: `get_dispute`, when
+    // memory has nothing for the order it is asked about, and the dispatcher,
+    // right after it kept the id of a dispute that just opened — or of one
+    // whose opening it only now read, behind the solver's assignment.
+    let trades = match only {
+        Some(order_id) => match db.get_trade_by_order_id(order_id).await {
+            Ok(Some(trade)) => vec![trade],
+            Ok(None) => return,
+            Err(e) => {
+                crate::api::logging::blog_warn(
+                    "disputes",
+                    format!("rehydrate: reading trade {order_id} failed: {e}"),
+                );
+                return;
+            }
+        },
+        None => match db.list_trades().await {
+            Ok(t) => t,
+            Err(e) => {
+                crate::api::logging::blog_warn(
+                    "disputes",
+                    format!("rehydrate: list_trades failed: {e}"),
+                );
+                return;
+            }
+        },
     };
 
     for trade in trades {
         let order_id = trade.order.id.clone();
         // Cheap skip only — not the guard. The record can still appear while
         // the reads below await; `upsert_or_update` is what makes it win.
-        if dispute_store().get(&order_id).await.is_some() {
+        //
+        // One thing storage does know better than a record already in
+        // memory: the node's id for the dispute. A record created by
+        // `admin-took-dispute` before `dispute-initiated-by-peer` was read —
+        // the order a newest-first replay delivers them in on a device with
+        // no keys yet — carries a locally minted id; the node's replaces it.
+        if let Some(existing) = dispute_store().get(&order_id).await {
+            if let Some(node_id) = crate::mostro::dispute_ids::recall_in(db, &order_id).await {
+                if existing.id != node_id {
+                    // An update, never an insert: a record gone in between
+                    // (the identity was torn down) must stay gone.
+                    let _ = dispute_store()
+                        .update_conditional(&order_id, move |dispute| {
+                            dispute.id = node_id;
+                            Ok(())
+                        })
+                        .await;
+                }
+            }
             continue;
         }
 
@@ -928,12 +986,23 @@ async fn rehydrate_disputes_from_storage() {
             continue;
         }
 
+        // An `open_dispute` for this order is waiting on the daemon: its own
+        // insert is the record, and one built here first — `Open`, so not a
+        // placeholder it could claim — would make that insert fail with
+        // `DisputeAlreadyOpen` on a dispute the daemon just accepted.
+        if pending_opens()
+            .lock()
+            .map(|opens| opens.contains(&order_id))
+            .unwrap_or(false)
+        {
+            continue;
+        }
+
         let admin_hex = match db
             .get_setting(&crate::db::settings_keys::dispute_admin(&order_id))
             .await
         {
-            Ok(Some(hex)) => hex,
-            Ok(None) => continue,
+            Ok(solver) => solver,
             Err(e) => {
                 crate::api::logging::blog_warn(
                     "disputes",
@@ -941,6 +1010,19 @@ async fn rehydrate_disputes_from_storage() {
                 );
                 continue;
             }
+        };
+        // The node's id for the dispute, kept from the message that opened
+        // it. With it the record is the node's own; and it is what lets a
+        // dispute no solver has taken yet come back at all.
+        let node_id = crate::mostro::dispute_ids::recall_in(db, &order_id).await;
+        // What the keys can prove: a stored solver means one took the
+        // dispute; a stored id with no solver means it is open — but only
+        // while the trade row itself still reads `Dispute`. A row that moved
+        // on (a release during the dispute) is not waiting for a solver.
+        let status = match (&admin_hex, &node_id) {
+            (Some(_), _) => DisputeStatus::InReview,
+            (None, Some(_)) if trade.order.status == OrderStatus::Dispute => DisputeStatus::Open,
+            _ => continue,
         };
 
         let initiated_by_me = match db
@@ -958,16 +1040,19 @@ async fn rehydrate_disputes_from_storage() {
         };
 
         let make_id = order_id.clone();
+        let known_id = node_id.is_some();
         let _ = dispute_store()
             .upsert_or_update(
                 &order_id,
                 || Dispute {
-                    id: uuid::Uuid::new_v4().to_string(),
+                    // Minted here only when the message carrying the node's
+                    // id never reached this client.
+                    id: node_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
                     trade_id: make_id,
-                    status: DisputeStatus::InReview,
+                    status,
                     initiated_by_me,
                     reason: None,
-                    admin_pubkey: Some(admin_hex),
+                    admin_pubkey: admin_hex,
                     resolution: None,
                     opened_at: unix_now(),
                     resolved_at: None,
@@ -984,7 +1069,7 @@ async fn rehydrate_disputes_from_storage() {
         crate::api::logging::blog_info(
             "disputes",
             format!(
-                "rehydrated dispute record order={}",
+                "rehydrated dispute record order={} node_id={known_id}",
                 crate::api::logging::short_id(&order_id)
             ),
         );
@@ -999,6 +1084,7 @@ async fn has_dispute_keys(db: &impl Storage, order_id: &str) -> bool {
     for key in [
         crate::db::settings_keys::dispute_admin(order_id),
         crate::db::settings_keys::dispute_mine(order_id),
+        crate::db::settings_keys::dispute_id(order_id),
     ] {
         match db.get_setting(&key).await {
             Ok(Some(_)) | Err(_) => return true,
@@ -1021,7 +1107,7 @@ pub(crate) async fn resubscribe_active_dispute_chats() {
     // nothing to re-arm. Refill it from the persisted keys first: the origin
     // is never re-derivable, and the solver pubkey only is while the daemon
     // replay still covers the assignment.
-    rehydrate_disputes_from_storage().await;
+    rehydrate_disputes_from_storage(None).await;
 
     for dispute in dispute_store().all().await {
         if dispute.status != DisputeStatus::InReview {
@@ -1396,7 +1482,7 @@ mod tests {
         live_record.status = DisputeStatus::InReview;
         dispute_store().upsert(live_record).await;
 
-        rehydrate_disputes_from_storage().await;
+        rehydrate_disputes_from_storage(None).await;
 
         // 1. The live dispute came back — this is what makes the dispute chat
         //    reachable and `submit_evidence` work again after a restart.
@@ -1979,5 +2065,278 @@ mod tests {
         assert_eq!(d.status, DisputeStatus::Resolved);
         assert_eq!(d.resolution, Some(DisputeResolution::FundsToBuyer));
         assert!(d.resolved_at.is_some());
+    }
+
+    // ── The node's dispute id ────────────────────────────────────────────────
+    //
+    // Every test below rebuilds ONE order's record — through `get_dispute`,
+    // or the single-order pass behind it — and never the whole table: the
+    // store and the dispute map are process-wide, and a full pass run from
+    // here would walk the rows other tests are still arranging.
+
+    /// The dispute id mostrod v0.19.2 gave both parties of the flow
+    /// `dispute_admin_cancel`, in `payload: {"dispute": ["<id>", null]}`.
+    const NODE_DISPUTE_ID: &str = "1b84909d-bbf5-405a-ae1e-3e2beafa5458";
+
+    async fn dispute_id_test_db() -> &'static crate::db::sqlite::SqliteStorage {
+        let path = std::env::temp_dir()
+            .join(format!("mostro_dispute_ids_{}.db", std::process::id()));
+        let _ = crate::db::app_db::init_db(path.to_str().unwrap()).await;
+        crate::db::app_db::db().expect("store initialised")
+    }
+
+    /// What the dispatcher leaves once `dispute-initiated-by-*` was read for
+    /// `order_id`: the trade row at `status` and the node's dispute id — with
+    /// the origin marker when this side opened it.
+    async fn a_dispute_the_dispatcher_recorded(
+        tag: &str,
+        status: OrderStatus,
+        opened_by_me: bool,
+    ) -> String {
+        let db = dispute_id_test_db().await;
+        let order_id = format!("{tag}-{}", uuid::Uuid::new_v4());
+        db.save_trade(&persisted_trade(&order_id, status))
+            .await
+            .unwrap();
+        assert!(
+            crate::mostro::dispute_ids::remember_in(
+                db,
+                &order_id,
+                Some(NODE_DISPUTE_ID),
+                opened_by_me
+            )
+            .await
+        );
+        order_id
+    }
+
+    async fn forget_dispute_test_order(order_id: &str) {
+        clear_dispute_keys(order_id).await;
+        dispute_id_test_db()
+            .await
+            .delete_trade_by_order_id(order_id)
+            .await
+            .unwrap();
+    }
+
+    /// The restart this exists for. Before, a dispute no solver had taken
+    /// left nothing to rebuild a record from: the party that did not open
+    /// it had none, and the one that did lost theirs with the process.
+    #[tokio::test]
+    async fn a_dispute_nobody_took_yet_comes_back_open_with_the_nodes_id() {
+        // The counterparty's dispute: nothing in memory, as after a restart.
+        let theirs =
+            a_dispute_the_dispatcher_recorded("untaken-peer", OrderStatus::Dispute, false).await;
+        let dispute = get_dispute(theirs.clone())
+            .await
+            .unwrap()
+            .expect("the dispute must be there before any solver takes it");
+        assert_eq!(dispute.id, NODE_DISPUTE_ID, "the node's id, not a minted one");
+        assert_eq!(dispute.trade_id, theirs);
+        assert_eq!(dispute.status, DisputeStatus::Open);
+        assert!(!dispute.initiated_by_me);
+        assert_eq!(dispute.admin_pubkey, None);
+        assert!(!dispute.is_read, "an open dispute must surface");
+
+        // Our own: the same, told apart by the persisted origin.
+        let ours =
+            a_dispute_the_dispatcher_recorded("untaken-mine", OrderStatus::Dispute, true).await;
+        let dispute = get_dispute(ours.clone()).await.unwrap().expect("rebuilt");
+        assert_eq!(dispute.id, NODE_DISPUTE_ID);
+        assert!(dispute.initiated_by_me);
+        assert_eq!(dispute.status, DisputeStatus::Open);
+
+        // A second read is the same record, not a second rebuild.
+        let again = get_dispute(ours.clone()).await.unwrap().unwrap();
+        assert_eq!(again.opened_at, dispute.opened_at);
+
+        for order_id in [&theirs, &ours] {
+            forget_dispute_test_order(order_id).await;
+        }
+    }
+
+    /// With a solver on record the dispute comes back in review, as before —
+    /// now under the node's id instead of a freshly minted one.
+    #[tokio::test]
+    async fn a_dispute_a_solver_took_comes_back_with_the_nodes_id() {
+        let db = dispute_id_test_db().await;
+        let solver = "0000000000000000000000000000000000000000000000000000000000000044";
+        let order_id =
+            a_dispute_the_dispatcher_recorded("taken", OrderStatus::Dispute, false).await;
+        db.set_setting(&crate::db::settings_keys::dispute_admin(&order_id), solver)
+            .await
+            .unwrap();
+
+        let dispute = get_dispute(order_id.clone()).await.unwrap().expect("rebuilt");
+        assert_eq!(dispute.id, NODE_DISPUTE_ID);
+        assert_eq!(dispute.status, DisputeStatus::InReview);
+        assert_eq!(dispute.admin_pubkey.as_deref(), Some(solver));
+        assert!(!dispute.initiated_by_me);
+
+        forget_dispute_test_order(&order_id).await;
+    }
+
+    /// `admin-took-dispute` is the first thing this side holds in memory
+    /// when the record was never built: it used to mint the id. It reads the
+    /// one the node gave instead.
+    #[tokio::test]
+    async fn a_solver_assignment_gives_the_record_the_nodes_id() {
+        let solver = "0000000000000000000000000000000000000000000000000000000000000055";
+        let order_id =
+            a_dispute_the_dispatcher_recorded("assigned", OrderStatus::Dispute, false).await;
+        assert!(dispute_store().get(&order_id).await.is_none());
+
+        handle_admin_took_dispute(order_id.clone(), solver.to_string())
+            .await
+            .unwrap();
+
+        let dispute = dispute_store().get(&order_id).await.expect("record created");
+        assert_eq!(dispute.id, NODE_DISPUTE_ID);
+        assert_eq!(dispute.status, DisputeStatus::InReview);
+        assert_eq!(dispute.admin_pubkey.as_deref(), Some(solver));
+
+        forget_dispute_test_order(&order_id).await;
+    }
+
+    /// A newest-first replay on a device with no keys yet delivers the
+    /// solver's assignment before the message that names the dispute: the
+    /// record starts with a locally minted id. Once the node's is known, it
+    /// replaces it — and nothing else about the record changes.
+    #[tokio::test]
+    async fn a_locally_minted_id_gives_way_to_the_nodes() {
+        let db = dispute_id_test_db().await;
+        let solver = "0000000000000000000000000000000000000000000000000000000000000066";
+        let order_id = format!("adopted-{}", uuid::Uuid::new_v4());
+        db.save_trade(&persisted_trade(&order_id, OrderStatus::Dispute))
+            .await
+            .unwrap();
+        handle_admin_took_dispute(order_id.clone(), solver.to_string())
+            .await
+            .unwrap();
+        let minted = dispute_store().get(&order_id).await.unwrap().id;
+        assert_ne!(minted, NODE_DISPUTE_ID);
+
+        // `dispute-initiated-by-peer` is read next, and the record re-read.
+        assert!(
+            crate::mostro::dispute_ids::remember_in(db, &order_id, Some(NODE_DISPUTE_ID), false)
+                .await
+        );
+        rehydrate_disputes_from_storage(Some(&order_id)).await;
+
+        let dispute = dispute_store().get(&order_id).await.unwrap();
+        assert_eq!(dispute.id, NODE_DISPUTE_ID);
+        assert_eq!(dispute.status, DisputeStatus::InReview);
+        assert_eq!(dispute.admin_pubkey.as_deref(), Some(solver));
+        assert!(!dispute.initiated_by_me);
+
+        forget_dispute_test_order(&order_id).await;
+    }
+
+    /// An id alone proves an open dispute only while the trade row still
+    /// reads `Dispute`. A trade that moved on — the seller released during
+    /// the dispute — is not waiting for a solver, and gets no record back.
+    #[tokio::test]
+    async fn an_untaken_dispute_is_not_rebuilt_once_the_trade_moved_on() {
+        for status in [OrderStatus::SettledHoldInvoice, OrderStatus::FiatSent] {
+            let order_id =
+                a_dispute_the_dispatcher_recorded("moved-on", status.clone(), true).await;
+            assert!(
+                get_dispute(order_id.clone()).await.unwrap().is_none(),
+                "no record for a trade at {status:?}"
+            );
+            forget_dispute_test_order(&order_id).await;
+        }
+    }
+
+    /// A finished trade has no live dispute: the id goes with the solver and
+    /// the origin, or every later read would find it and ask again.
+    #[tokio::test]
+    async fn a_finished_trade_drops_the_dispute_id_with_the_other_keys() {
+        let db = dispute_id_test_db().await;
+        let order_id =
+            a_dispute_the_dispatcher_recorded("finished", OrderStatus::CanceledByAdmin, true).await;
+
+        assert!(get_dispute(order_id.clone()).await.unwrap().is_none());
+
+        for key in [
+            crate::db::settings_keys::dispute_id(&order_id),
+            crate::db::settings_keys::dispute_mine(&order_id),
+            crate::db::settings_keys::dispute_admin(&order_id),
+        ] {
+            assert_eq!(
+                db.get_setting(&key).await.unwrap(),
+                None,
+                "{key} must be cleared with the finished trade"
+            );
+        }
+        db.delete_trade_by_order_id(&order_id).await.unwrap();
+    }
+
+    /// The verdict that resolves a dispute clears its id like its other
+    /// keys, so the resolved dispute is not rebuilt as open on the next read.
+    #[tokio::test]
+    async fn a_verdict_clears_the_dispute_id() {
+        let db = dispute_id_test_db().await;
+        let order_id =
+            a_dispute_the_dispatcher_recorded("verdict", OrderStatus::Dispute, false).await;
+        get_dispute(order_id.clone()).await.unwrap().expect("open");
+
+        handle_admin_canceled(order_id.clone()).await.unwrap();
+
+        assert_eq!(
+            db.get_setting(&crate::db::settings_keys::dispute_id(&order_id))
+                .await
+                .unwrap(),
+            None
+        );
+        let dispute = get_dispute(order_id.clone()).await.unwrap().unwrap();
+        assert_eq!(dispute.status, DisputeStatus::Resolved);
+        assert_eq!(dispute.id, NODE_DISPUTE_ID, "resolved under the node's id");
+        db.delete_trade_by_order_id(&order_id).await.unwrap();
+    }
+
+    /// While `open_dispute` waits for the daemon, its own insert is the
+    /// record. A rebuild from the keys the dispatcher just wrote would get
+    /// there first with an `Open` record that insert cannot claim, and the
+    /// user would be told `DisputeAlreadyOpen` about a dispute the daemon
+    /// had just accepted.
+    #[tokio::test]
+    async fn a_rebuild_never_gets_ahead_of_an_open_dispute_in_flight() {
+        let order_id =
+            a_dispute_the_dispatcher_recorded("in-flight", OrderStatus::Dispute, true).await;
+        pending_opens().lock().unwrap().insert(order_id.clone());
+        let in_flight = PendingOpenGuard(order_id.clone());
+
+        assert!(
+            get_dispute(order_id.clone()).await.unwrap().is_none(),
+            "the open in flight owns the record"
+        );
+
+        // Exactly what `open_dispute` persists once the daemon accepted.
+        let own = Dispute {
+            id: NODE_DISPUTE_ID.to_string(),
+            trade_id: order_id.clone(),
+            status: DisputeStatus::Open,
+            initiated_by_me: true,
+            reason: Some("no payment".to_string()),
+            admin_pubkey: None,
+            resolution: None,
+            opened_at: unix_now(),
+            resolved_at: None,
+            is_read: true,
+        };
+        let stored = dispute_store()
+            .try_insert_if_absent_or_resolved(own)
+            .await
+            .expect("the insert must not find a record in its way");
+        assert_eq!(stored.reason.as_deref(), Some("no payment"));
+        drop(in_flight);
+
+        // Afterwards the record in memory is the answer, reason and all.
+        let dispute = get_dispute(order_id.clone()).await.unwrap().unwrap();
+        assert_eq!(dispute.reason.as_deref(), Some("no payment"));
+        assert!(dispute.is_read);
+
+        forget_dispute_test_order(&order_id).await;
     }
 }

@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 
 import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/core/create_order_palette.dart';
+import 'package:mostro/features/order/models/create_order_rules.dart'
+    show isGroupedWhole;
 
 /// Groups the integer part of a typed number with the locale's thousands
 /// separator as the user types (`25000` → `25.000` in `es`), keeps at most
@@ -16,18 +18,38 @@ import 'package:mostro/core/create_order_palette.dart';
 ///
 /// The field therefore always shows the amount the way the order book prints
 /// it; `canonicalAmount` strips the grouping again before the value is used.
+///
+/// With [keepTypedSeparators] the field takes whole numbers and reshapes
+/// nothing the user typed: see there.
 class ThousandsInputFormatter extends TextInputFormatter {
   const ThousandsInputFormatter({
     required this.groupSeparator,
     required this.decimalSeparator,
     this.allowDecimals = true,
+    this.keepTypedSeparators = false,
   });
 
   final String groupSeparator;
   final String decimalSeparator;
   final bool allowDecimals;
 
+  /// For a field whose amount must be whole: a separator the user typed stays
+  /// in the text, as typed, instead of being dropped or trimmed.
+  ///
+  /// Dropping it reshapes the number. In `es` the dot groups, so a typed
+  /// `10.50` lost its dot, kept its cents and was regrouped as `1.050` — a
+  /// valid amount a hundred times the one meant; in `en` a typed `1.000` was
+  /// cut to `1.00`. Left as typed, such a text is simply not a grouped whole
+  /// number: `canonicalAmount` reads no amount in it and the form says why.
+  /// Grouping goes on as usual around it — `1000` still becomes `1.000`, and
+  /// a text that reads as a grouped whole number again (`1.000` typed with
+  /// its dot) is one. From there its separators are the field's own: a digit
+  /// deleted from `10.500` regroups it as `1.050`, as it does for anyone who
+  /// typed the dot as the thousands mark it is in that locale.
+  final bool keepTypedSeparators;
+
   static const _maxDecimals = 2;
+  static final _digit = RegExp(r'\d');
 
   @override
   TextEditingValue formatEditUpdate(
@@ -36,6 +58,10 @@ class ThousandsInputFormatter extends TextInputFormatter {
   ) {
     final raw = newValue.text;
     if (raw.isEmpty) return newValue;
+    if (keepTypedSeparators) {
+      final typed = _asTyped(oldValue, newValue);
+      if (typed != null) return typed;
+    }
 
     final digitsOnly = StringBuffer();
     var seenDecimal = false;
@@ -71,6 +97,85 @@ class ThousandsInputFormatter extends TextInputFormatter {
       text: formatted,
       selection: TextSelection.collapsed(offset: formatted.length),
     );
+  }
+
+  /// [value] as the user typed it, when it holds a separator that is not
+  /// this field's own grouping; null when it is to be grouped as usual.
+  ///
+  /// Only what the edit put in tells the two apart. A digit typed into
+  /// `1.000` leaves `1.0005`: grouping gone stale, to be redone. `10.` after
+  /// `10`, or `10.50` pasted over `1.000`, holds a separator nobody but the
+  /// user put there — and from then on the text stays as typed until it
+  /// reads as a grouped whole number again.
+  TextEditingValue? _asTyped(TextEditingValue before, TextEditingValue value) {
+    // Either mark can be meant as a decimal, whatever the locale groups with.
+    final separators = {groupSeparator, decimalSeparator, '.', ','};
+    final kept = StringBuffer();
+    final caretAt = value.selection.baseOffset;
+    var caret = -1;
+    var offset = 0;
+    var separatorCount = 0;
+    var onlyGrouping = true;
+    for (final rune in value.text.runes) {
+      if (offset == caretAt) caret = kept.length;
+      final char = String.fromCharCode(rune);
+      offset += char.length;
+      if (_digit.hasMatch(char)) {
+        kept.write(char);
+      } else if (separators.contains(char)) {
+        kept.write(char);
+        separatorCount++;
+        if (char != groupSeparator) onlyGrouping = false;
+      }
+    }
+    final text = kept.toString();
+    if (separatorCount == 0 || isGroupedWhole(text, groupSeparator)) {
+      return null;
+    }
+    final wasGrouped =
+        before.text.isEmpty || isGroupedWhole(before.text, groupSeparator);
+    // Stale grouping is separators that were all there before. Counting
+    // them is not enough: `10.50` pasted over `1.000` holds no more dots
+    // than it replaced, and none of them is the old one.
+    final insertedSeparator = _inserted(
+      before,
+      text,
+    ).split('').any(separators.contains);
+    if (wasGrouped && onlyGrouping && !insertedSeparator) return null;
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(
+        offset: caret < 0 ? text.length : caret,
+      ),
+    );
+  }
+
+  /// What the edit put into [text] that was not in [before]: [text] less
+  /// the start and the end the two share. A replaced selection bounds both —
+  /// what stood inside it is gone, whatever comes back looking the same.
+  String _inserted(TextEditingValue before, String text) {
+    final was = before.text;
+    var startLimit = was.length;
+    var endLimit = was.length;
+    final replaced = before.selection;
+    if (replaced.isValid && !replaced.isCollapsed) {
+      startLimit = replaced.start;
+      endLimit = was.length - replaced.end;
+    }
+    final shortest = was.length < text.length ? was.length : text.length;
+    var start = 0;
+    while (start < shortest &&
+        start < startLimit &&
+        was[start] == text[start]) {
+      start++;
+    }
+    var end = 0;
+    while (end < shortest - start &&
+        end < endLimit &&
+        was[was.length - 1 - end] == text[text.length - 1 - end]) {
+      end++;
+    }
+    return text.substring(start, text.length - end);
   }
 
   String _group(String digits) {

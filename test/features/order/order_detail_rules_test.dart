@@ -102,21 +102,37 @@ void main() {
   });
 
   group('estimateSats', () {
-    test('divides fiat by the premium-adjusted price', () {
+    test('takes the premium off the sats, as the node does', () {
       // 1 000 ARS at 100 000 000 ARS/BTC, no premium → 1 000 sats.
       expect(estimateSats(fiat: 1000, rate: 100000000, premium: 0), 1000);
-      // +25 % premium → 800 sats.
-      expect(estimateSats(fiat: 1000, rate: 100000000, premium: 25), 800);
+      // +25 % premium → 25 % fewer sats, not 1 000 / 1.25.
+      expect(estimateSats(fiat: 1000, rate: 100000000, premium: 25), 750);
+      // A discount gives the buyer more sats.
+      expect(estimateSats(fiat: 1000, rate: 100000000, premium: -3), 1030);
     });
 
-    test('rounds to whole sats', () {
-      expect(estimateSats(fiat: 1000, rate: 118765432, premium: 0), 842);
+    test('matches trades mostrod v0.19.2 priced', () {
+      // 50 USD at 84 706.4 with a +5 % premium traded for 56 076 sats; the
+      // price-adjusted formula this replaced gives 56 216.
+      expect(estimateSats(fiat: 50, rate: 84706.4, premium: 5), 56076);
+      // Same rate: 30 USD is 35 184 sats flat and 34 480 at +2 %.
+      const rate = 30 / 35184.3 * 100000000;
+      expect(estimateSats(fiat: 30, rate: rate, premium: 0), 35184);
+      expect(estimateSats(fiat: 30, rate: rate, premium: 2), 34480);
     });
 
-    test('is null without a usable rate', () {
+    test('truncates to whole sats', () {
+      // 841.996… sats: the node drops the fraction, it does not round up.
+      expect(estimateSats(fiat: 1000, rate: 118765432, premium: 0), 841);
+    });
+
+    test('is null without a usable rate or a positive amount', () {
       expect(estimateSats(fiat: 1000, rate: null, premium: 0), isNull);
       expect(estimateSats(fiat: 1000, rate: 0, premium: 0), isNull);
-      expect(estimateSats(fiat: 1000, rate: 100, premium: -100), isNull);
+      // A premium of 100 % or more leaves nothing to trade.
+      expect(estimateSats(fiat: 1000, rate: 100, premium: 100), isNull);
+      expect(estimateSats(fiat: 1000, rate: 100, premium: 150), isNull);
+      expect(estimateSats(fiat: 0, rate: 100, premium: 0), isNull);
     });
   });
 

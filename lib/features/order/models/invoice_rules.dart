@@ -39,6 +39,17 @@ String formatInvoiceSats(int sats) {
   return '$sign$buffer';
 }
 
+/// What one side of a trade for [sats] pays the node: half its fee
+/// ([nodeFee], a fraction — `0.008` = 0.8 %), rounded as mostrod rounds it
+/// (`util::get_fee`). The seller's hold invoice is the amount plus this; the
+/// buyer is paid the amount less this. Null when either figure is unknown —
+/// a fee is never shown from a default.
+int? tradeFeeShare({required int? sats, required double? nodeFee}) {
+  if (sats == null || sats <= 0) return null;
+  if (nodeFee == null || !nodeFee.isFinite || nodeFee < 0) return null;
+  return (nodeFee * sats / 2).round();
+}
+
 /// The Mostro fee a hold invoice of [holdSats] carries, given the node's fee
 /// as a fraction ([nodeFee], `0.006` = 0.6 %), or null when it cannot be
 /// derived.

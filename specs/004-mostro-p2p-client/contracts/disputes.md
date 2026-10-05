@@ -126,7 +126,10 @@ open these files; the solver cannot open the P2P chat's (FR-036).
 ---
 
 ### get_dispute(trade_id: String) → Dispute?
-Get dispute details for a trade. Returns null if no dispute exists.
+Get dispute details for a trade. Returns null if no dispute exists. A miss in
+memory is not "no dispute": the record is rebuilt for that one trade from the
+persisted keys first. The record may have no solver yet (`Open`,
+`admin_pubkey` null) — also for the party that did not open the dispute.
 
 ## Persistence and restart
 
@@ -134,7 +137,17 @@ The Dispute record is **in-memory by design** — its status and resolution come
 back from daemon events, and so, usually, does the solver assignment: the
 offline catch-up channel (`orders.rs`, no `since`) replays `admin-took-dispute`
 on every reconnect, which rebuilds the record and re-arms the dispute chat on
-its own. Two facts are persisted anyway:
+its own. Three facts are persisted anyway:
+
+- the **node's dispute id**, under `dispute_id:<order_id>` (identity-scoped,
+  `mostro::dispute_ids`), written by the dispatcher from the one message per
+  party that carries it — `dispute-initiated-by-you` / `-by-peer`, payload
+  `{"dispute": ["<id>", null]}`. Nothing public links a dispute to its order,
+  so without it a rebuilt record carried a made-up id, and the party that did
+  not open the dispute had no record at all until a solver took it. With it
+  that party holds an `Open` record at once, and a record a solver's
+  assignment created first takes the node's id as soon as the opening is read.
+  An id is minted locally only when that message never reached this client.
 
 - the **origin** (whether this side opened the dispute), written by a successful
   `open_dispute` under `dispute_mine:<order_id>` (presence is the value). This

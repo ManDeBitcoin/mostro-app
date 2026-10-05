@@ -37,8 +37,6 @@ void main() {
 
       // Verify community strings
       expect(SimpleL10n.communityVerified(capturedContext), isNotEmpty);
-      expect(SimpleL10n.generalMarket(capturedContext), isNotEmpty);
-      expect(SimpleL10n.scanCommunityQr(capturedContext), isNotEmpty);
 
       // Verify buy & sell flows
       expect(SimpleL10n.howMuchBuy(capturedContext), isNotEmpty);

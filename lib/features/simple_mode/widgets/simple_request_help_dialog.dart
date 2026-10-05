@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mostro/core/daemon_errors.dart';
 import 'package:mostro/core/order_book_palette.dart';
 import 'package:mostro/features/disputes/providers/disputes_providers.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
+import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/utils/platform_int64.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
 import 'package:mostro/src/rust/api/disputes.dart' as disputes_api;
@@ -66,9 +68,14 @@ class _SimpleRequestHelpDialogState
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
+      final l10n = AppLocalizations.of(context);
       setState(() {
         _submitting = false;
-        _errorMessage = e.toString();
+        _errorMessage = localizedDaemonError(
+          l10n,
+          e,
+          fallback: l10n.openDisputeFailed,
+        );
       });
     }
   }

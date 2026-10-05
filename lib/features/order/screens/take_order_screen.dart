@@ -295,8 +295,14 @@ class _TakeOrderScreenState extends ConsumerState<TakeOrderScreen> {
       return;
     }
     // Every shared daemon marker (timeout, storage, node capability /
-    // protocol) maps centrally.
-    final display = localizedDaemonError(l10n, msg, fallback: msg);
+    // protocol) maps centrally. The raw text is kept for whoever debugs it.
+    debugPrint('[TakeOrderScreen] take failed: $msg');
+    final display = localizedDaemonError(
+      l10n,
+      msg,
+      fallback: l10n.orderRequestFailed,
+      onTake: true,
+    );
     showOrderDetailSnackBar(context, display);
   }
 

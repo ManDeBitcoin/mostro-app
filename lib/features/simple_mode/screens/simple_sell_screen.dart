@@ -4,13 +4,19 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:mostro/core/app_routes.dart';
 import 'package:mostro/core/order_book_palette.dart';
+import 'package:mostro/features/about/providers/mostro_node_provider.dart';
 import 'package:mostro/features/home/providers/home_order_providers.dart';
+import 'package:mostro/features/order/models/order_detail_rules.dart'
+    show estimateSats;
 import 'package:mostro/features/order/providers/exchange_rate_provider.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
+import 'package:mostro/features/simple_mode/models/simple_order_rules.dart';
 import 'package:mostro/features/simple_mode/providers/community_provider.dart';
 import 'package:mostro/features/simple_mode/providers/simple_identity_provider.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_sell_confirm_sheet.dart';
+import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/providers/peer_nym_provider.dart';
+import 'package:mostro/shared/utils/whole_amount_input.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
 import 'package:mostro/shared/widgets/nym_avatar.dart';
 
@@ -47,7 +53,6 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
     required String paymentDetails,
     required double premium,
     required int? estimatedSats,
-    required int bondPercent,
   }) {
     showMostroSheet(
       context: context,
@@ -58,7 +63,6 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
         paymentDetails: paymentDetails,
         premium: premium,
         estimatedSats: estimatedSats,
-        bondPercent: bondPercent,
       ),
     );
   }
@@ -69,36 +73,40 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
     final theme = Theme.of(context);
     final communityAsync = ref.watch(activeCommunityProfileProvider);
     final community = communityAsync.valueOrNull;
-    final currency = community?.currency ?? 'USD';
+    final currency = simpleCurrency(
+      card: community?.currency,
+      accepted: ref.watch(mostroNodeProvider).valueOrNull?.fiatCurrenciesAccepted,
+    );
 
     // Live exchange rate & Satoshi estimation
     final rateAsync = ref.watch(exchangeRateProvider(currency));
     final rate = rateAsync.valueOrNull;
-    final double? parsedAmount = double.tryParse(_amountController.text.trim());
-    final double effectiveRate = (rate != null && rate > 0)
-        ? rate * (1 + _premium / 100)
+    // A whole amount or nothing: the order cannot carry decimals, and an
+    // unreadable field is not an order for some default.
+    final int? amount = wholeFiatAmount(_amountController.text);
+    final int? estimatedSats = amount == null
+        ? null
+        : estimateSats(fiat: amount.toDouble(), rate: rate, premium: _premium);
+    // What one BTC costs the buyer once the node has taken the premium off
+    // the sats: the same fiat for fewer sats.
+    final double effectiveRate = (rate != null && rate > 0 && _premium < 100)
+        ? rate / (1 - _premium / 100)
         : 0.0;
-    final int? estimatedSats =
-        (effectiveRate > 0 && parsedAmount != null && parsedAmount > 0)
-        ? (parsedAmount / effectiveRate * 100000000).round()
-        : null;
 
-    final paymentMethods =
-        community != null && community.paymentMethods.isNotEmpty
-        ? community.paymentMethods
-        : const ['Transferencia', 'Efectivo', 'Móvil', 'Zelle'];
-
-    if (_selectedMethod == null && paymentMethods.isNotEmpty) {
-      _selectedMethod = paymentMethods.first;
-    }
+    // The community's own list, exactly; it can change while the screen is
+    // up — the card arrives after startup, the operator edits it. Until the
+    // user picks, the first method stands. A pick that left the list is not
+    // swapped for another behind their back: nothing is selected, and
+    // nothing can be published, until they pick again.
+    final paymentMethods = sellPaymentMethods(community?.paymentMethods);
+    final String? selectedMethod = _selectedMethod == null
+        ? paymentMethods.first
+        : methodOnList(paymentMethods, _selectedMethod);
 
     final allOrders = ref.watch(orderBookProvider).valueOrNull ?? [];
-    final matchingBuyOrders = allOrders.where((o) {
-      if (o.kind != 'buy') return false;
-      if (o.fiatCode.toUpperCase() != currency.toUpperCase()) return false;
-      if (o.isMine) return false;
-      return true;
-    }).toList();
+    final matchingBuyOrders = allOrders
+        .where((o) => isOfferedInSimpleMode(o, kind: 'buy', currency: currency))
+        .toList();
 
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -175,9 +183,8 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
                   Expanded(
                     child: TextField(
                       controller: _amountController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [wholeAmountInputFormatter],
                       style: TextStyle(
                         color: pal.textTitle,
                         fontSize: 32,
@@ -201,14 +208,17 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
                   const SizedBox(width: 4),
                   Flexible(
                     child: Text(
-                      estimatedSats != null
+                      amount == null
+                          ? AppLocalizations.of(context).orderAmountMustBeWhole
+                          : estimatedSats != null
                           ? '≈ $estimatedSats sats'
                           : (rateAsync.isLoading
                                 ? SimpleL10n.calculatingRate(context)
                                 : 'Cotización al cambio del mercado'),
-                      overflow: TextOverflow.ellipsis,
+                      // Unclipped, and in the warning colour while it is
+                      // the reason nothing can be published.
                       style: TextStyle(
-                        color: pal.limeText,
+                        color: amount == null ? Colors.amber : pal.limeText,
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
                       ),
@@ -344,7 +354,7 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
           spacing: 8,
           runSpacing: 8,
           children: paymentMethods.map((method) {
-            final isSelected = _selectedMethod == method;
+            final isSelected = selectedMethod == method;
             return ChoiceChip(
               label: Text(method),
               selected: isSelected,
@@ -441,19 +451,33 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
 
         const SizedBox(height: 24),
 
+        // Why the button below is off, said next to it: by here the amount
+        // card and its own line are a screen away.
+        if (amount == null || selectedMethod == null) ...[
+          Text(
+            amount == null
+                ? AppLocalizations.of(context).orderAmountMustBeWhole
+                : SimpleL10n.selectReceiveMethod(context),
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.amber, fontSize: 13),
+          ),
+          const SizedBox(height: 10),
+        ],
+
         // Publish Button
         FilledButton.icon(
-          onPressed: () {
-            _openConfirmSheet(
-              fiatAmount: parsedAmount ?? 100.0,
-              fiatCode: currency,
-              paymentMethod: _selectedMethod ?? paymentMethods.first,
-              paymentDetails: _detailsController.text.trim(),
-              premium: _premium,
-              estimatedSats: estimatedSats,
-              bondPercent: community?.bondPercent ?? 3,
-            );
-          },
+          onPressed: amount == null || selectedMethod == null
+              ? null
+              : () {
+                  _openConfirmSheet(
+                    fiatAmount: amount.toDouble(),
+                    fiatCode: currency,
+                    paymentMethod: selectedMethod,
+                    paymentDetails: _detailsController.text.trim(),
+                    premium: _premium,
+                    estimatedSats: estimatedSats,
+                  );
+                },
           icon: const Icon(Icons.arrow_upward_rounded),
           label: Text(
             SimpleL10n.publishOffer(context),

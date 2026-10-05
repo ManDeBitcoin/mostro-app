@@ -11,6 +11,23 @@
 
 ---
 
+> **Amendment — 2026-10-03: single community.** The app now serves the
+> BitMaxis community only. Its node is compiled in
+> (`rust/src/config.rs::DEFAULT_MOSTRO_PUBKEY`) and nothing in the UI selects,
+> adds or scans another one. That supersedes **User Story 1** (community QR
+> onboarding), **§3.2 / FR-006 – FR-009** (community profiles and deep links),
+> **SC-001**'s QR step and **SC-002**, and the node switcher that User Story 6
+> and **SC-003** list under Advanced Mode. The Simple Mode badge shows the
+> community name and is not a control. **FR-010**'s "community payment
+> methods" are the ones on the community's signed card, which the core now
+> reads from the node's relays instead of from a scan (kind 30078,
+> `d = mostro-community-card`, signed by the node; the card's own signature
+> is checked too): a method the operator adds in the panel appears without a
+> new build. Until the node publishes a card the screens use a built-in list.
+> The Sell tab offers the card's list exactly; the Buy tab filters by that
+> list plus every method an offer on the book carries, and starts on "all",
+> so no offer is hidden behind a method the list does not know.
+
 ## 1. Context & Rationale
 
 ### 1.1 What exists today
@@ -119,7 +136,10 @@ Can be tested by selecting an amount and payment method and asserting that match
 2. **Given** an order selection, **When** reviewing the confirmation card, **Then** display:
    - "Recibes: X sats"
    - "Comisión: $Y"
-   - "Garantía temporal: Z% (se devuelve al terminar la operación)"
+   - "Garantía temporal: …" **only when the node bonds takers** — read from
+     its Kind 38385 info event (`bond_enabled`, `bond_apply_to`), with the
+     node's own figure. With bonds off, or before the node has answered, no
+     guarantee is shown at all; no default percentage exists.
 3. **Given** the user confirms the purchase, **Then** the taker order request is dispatched via Mostro protocol v2 and navigates to the trade timeline.
 
 ---
@@ -288,17 +308,19 @@ When toggled:
   4. Cache the community's payment methods for filtering.
 
 ### 3.3 Transaction & Order Workflows
-- **FR-010**: The Buy flow MUST allow the user to specify an amount in fiat, select from available community payment methods, and present a curated list of active sellers.
-- **FR-011**: The Sell flow MUST allow the user to create an offer specifying amount, receive method, and payment details without exposing raw Nostr event structures.
-- **FR-012**: All anti-abuse bonds MUST be labeled as **"Garantía temporal"** (Temporary Security Guarantee) with an explanatory tooltip: *"Se devuelve automáticamente al completar la operación con éxito"*.
+- **FR-010**: The Buy flow MUST allow the user to specify an amount in fiat, select from available community payment methods, and present a curated list of active sellers. The amount is a **whole number**; the list holds only orders still `pending` on the public book that are not the user's own; a range order is taken for the amount typed and only when it lies inside the order's limits — never for a default.
+- **FR-011**: The Sell flow MUST allow the user to create an offer specifying amount, receive method, and payment details without exposing raw Nostr event structures. The offer is always published **at market price** (no sats; the node fixes them when it is taken and applies the premium then), for a whole amount, and cannot be published while the amount field holds anything else.
+- **FR-012**: All anti-abuse bonds MUST be labeled as **"Garantía temporal"** (Temporary Security Guarantee) with an explanatory tooltip: *"Se devuelve automáticamente al completar la operación con éxito"*. A guarantee is shown only where one exists: before a trade, when the node's Kind 38385 policy bonds the user's side; in a trade, when its row carries a bond. Never a default figure.
 - **FR-013**: The active trade screen MUST present a progressive vertical timeline mapping internal Mostro wire states to clear human-readable milestones:
-  - `WaitingMakerBond` / `WaitingTakerBond` -> *Garantía temporal en proceso*
+  - `WaitingMakerBond` / `WaitingTakerBond` -> *Garantía temporal en proceso* (the milestone exists only for a trade that has a bond)
+  - `InProgress` -> *Operación tomada, esperando al nodo*. This is the public book's "taken" bucket, which lasts from the take until the trade ends: it is **not** `Active`, offers no payment action, and tells the buyer not to send money yet.
   - `WaitingBuyerInvoice` -> *Conectando wallet de recepción*
   - `WaitingServerPayment` -> *Bitcoin protegido en custodia*
   - `Active` -> *Realizar / esperar pago fiat*
   - `FiatSent` -> *Verificar cuenta bancaria*
   - `SettledHoldInvoice` / `Success` -> *Operación completada*
   - `DisputeInitiatedByYou` / `DisputeInitiatedByPeer` -> *En mediación comunitaria*
+- **FR-013b**: The trade view MUST NOT assume a status or a side it has not read. While either is unknown it shows a loading state, never the `Active` buyer view.
 - **FR-014**: Before marking payment as sent, the app MUST display a safety checkpoint: *"Verifica cuidadosamente los datos de pago antes de continuar"*.
 - **FR-015**: Before releasing Bitcoin, the app MUST display an irreversible action checkpoint: *"Confirma únicamente después de ver el dinero reflejado en tu propia cuenta bancaria. Esta acción no se puede deshacer."*
 
