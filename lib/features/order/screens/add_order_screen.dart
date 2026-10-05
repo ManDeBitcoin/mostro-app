@@ -93,29 +93,6 @@ double? enteredAmount(String text) {
   return value;
 }
 
-/// Whether [text], as it stands in an amount field, holds a separator that
-/// is not the field's own grouping: the one unusable amount the form
-/// explains.
-///
-/// The fields keep such a separator on screen (`keepTypedSeparators`) so it
-/// can be explained. Dropped, a typed `10.50` became 1 050 — in `es`, where
-/// the dot groups — and was offered to publish.
-@visibleForTesting
-bool amountHasTypedSeparator(
-  String text, {
-  required String groupSeparator,
-  required String decimalSeparator,
-}) {
-  final typed = text.trim();
-  final hasSeparator = {
-    groupSeparator,
-    decimalSeparator,
-    '.',
-    ',',
-  }.any(typed.contains);
-  return hasSeparator && !isGroupedWhole(typed, groupSeparator);
-}
-
 /// Returns the node's accepted `(min, max)` sats range, and that range in
 /// fiat, when a market-price order's amount prices outside it, otherwise null.
 ///
@@ -449,10 +426,15 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
       final raw = e.toString();
       final anyhowMatch = RegExp(r'^.*?AnyhowException\((.+)\)$').firstMatch(raw);
       final msg = anyhowMatch != null ? anyhowMatch.group(1)! : raw;
-      // The daemon never answered: show the localized "no response" message
-      // instead of the raw marker. The order was not created.
-      final display =
-          localizedDaemonError(AppLocalizations.of(context), msg, fallback: msg);
+      // Worded in one place, and never the raw text: a reason the app has
+      // no wording for still reads in the user's language. The order was
+      // not created.
+      final l10n = AppLocalizations.of(context);
+      final display = localizedDaemonError(
+        l10n,
+        msg,
+        fallback: l10n.orderRequestFailed,
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(display)),
       );

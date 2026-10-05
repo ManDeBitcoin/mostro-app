@@ -272,8 +272,9 @@ one node" under Domain gotchas before touching anything node-related.
   form — and the amount is refused with `orderAmountMustBeWhole` until it is digits. In the
   create form a separator in grouping position still reads as grouping (`1.000` is a thousand);
   `canonicalAmount` strips it only there, and `enteredAmount` takes nothing with a decimal
-  part. Not covered, upstream's and unchanged: the fixed-sats and premium fields of the create
-  form and the Cashu send dialog are integer fields that still drop a typed separator.
+  part. The fixed-sats field follows the same rule, and so does the premium field (`1.5` used to
+  close up into 15 %): the text stays, nothing is applied, and the reason is said under it. Not
+  covered: the Cashu send dialog, an integer sats field that still drops a typed separator.
 - **A sats estimate repeats mostrod's arithmetic, step for step** (`estimateSats` in
   `order_detail_rules.dart`, mostrod `get_market_quote`): `fiat / rate × 1e8`, less `premium`
   percent of it, truncated. A positive premium means fewer sats. Not
@@ -281,7 +282,10 @@ one node" under Domain gotchas before touching anything node-related.
 - **A daemon refusal is worded in one place.** The core passes a `CantDo` through as
   `Order rejected by Mostro: <Reason>` (a few still as English prose);
   `localizedDaemonError` (`lib/core/daemon_errors.dart`) turns reason, prose and local marker
-  into the user's language. No screen shows `e.toString()`. `PendingOrderExists` has two
+  into the user's language. No screen shows `e.toString()`, and none passes the raw text as its
+  fallback: a reason with no wording of its own still gets one, naming the daemon's code
+  (`orderRejectedOther`). `InvalidPubkey` reads by the request it answers — a take of your own
+  order with `onTake`, someone else's action otherwise. `PendingOrderExists` has two
   meanings in mostrod — the taker has a trade waiting on their own step, or (bonded nodes)
   another taker's bond already locked — so its text says both.
 - **Simple Mode never fills in what it has not read.** The trade view waits for the status and
@@ -289,7 +293,9 @@ one node" under Domain gotchas before touching anything node-related.
   buyer not to pay yet; the Buy and Sell lists hold only `pending` orders that are not ours; a
   range order is taken for the amount typed or not at all; a guarantee appears only when the
   node's Kind 38385 policy bonds that side (before a trade) or the trade row carries a bond.
-  There is no default bond percentage anywhere.
+  There is no default bond percentage anywhere. The confirm sheets show this side's half of
+  the node's fee (`tradeFeeShare`, mostrod's rounding) only when the node announced one: the
+  buyer's "you will receive" is net of it, the seller's is added to what they lock.
 - **A public `pending` is not always a republication.** mostrod publishes `in-progress` only
   from (sell, `waiting-buyer-invoice`) and (buy, `waiting-payment`), so a sell order taken with
   the invoice attached — what this client does whenever a default Lightning address is set —
@@ -318,8 +324,11 @@ one node" under Domain gotchas before touching anything node-related.
 - **New orders and takes are gated on `mostro::node_liveness`** (info event at most 660 s old,
   no `maintenance_mode`), after a quick look and then a patient one across every relay. It
   refuses only on evidence — an aged snapshot and a look that read no copy at all means nobody
-  answered, and the order goes out. Never put that gate in front of an action on an existing
-  trade, and never refresh capabilities
+  answered, and the order goes out. Age is by the device's clock, so before refusing it also
+  holds the node's event against the newest info event of any **other** node on the relays
+  (`newest_peer_announcement`): no more than the limit behind that, the node is current and
+  the device's clock is what runs ahead. Never put that gate in front of an action on an
+  existing trade, and never refresh capabilities
   from a user action with `fetch_and_set_node_capabilities` — an empty answer resets PoW to 0
   for trades under way.
 - **A relay is not held to the filter it answers.** nostr-sdk 0.45 verifies the signature of
@@ -330,6 +339,9 @@ one node" under Domain gotchas before touching anything node-related.
   for orders. An unchecked reader lets any relay in the pool speak for the node.
 - **A rating is a first contact.** The daemon forgets a trade key a minute or two after its
   order ends, so `rate_user` mines at `pow_first_contact` like a new order does.
+- **Every request carries a request id of its own**, `rate-user` and every cancel included.
+  Only some are waited on. The registries match a reply by its exact id, so an id nobody
+  registered changes nothing about how the reply is handled.
 - **A new identity starts from zero — and every new store must say which side it is on.**
   `delete_identity` (generate *and* import go through it) wipes what the identity produced:
   rows via `Storage::clear_identity_data`, Rust's in-memory stores via `forget_identity_state`,

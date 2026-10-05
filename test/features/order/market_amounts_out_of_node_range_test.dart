@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mostro/features/order/models/create_order_rules.dart'
+    show amountHasTypedSeparator;
 import 'package:mostro/features/order/screens/add_order_screen.dart';
 
 void main() {

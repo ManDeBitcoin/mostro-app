@@ -202,7 +202,13 @@ aged snapshot plus a look that read no copy at all (REQ refused at a relay's
 subscription cap, a socket dead behind a resume, a slow relay) is blindness,
 not silence, and the order goes out as before. With no relay reachable the
 gate abstains too, and the send reports its own failure. An event dated in the future
-is fresh (device clock behind). A look that brings nothing changes nothing —
+is fresh (device clock behind). For a device clock **ahead**, which ages every
+event by as much, the last step before `NodeNotAnnouncing` compares the node's
+event with the newest info event any *other* node published on the same
+relays (signed, addressed by its author's key, not dated after the device's
+now): no more than 660 s behind that, the node is current and is not refused
+— its `maintenance_mode` still is. With no such event to compare with, the
+device's clock decides. A look that brings nothing changes nothing —
 it never resets PoW or policy. **Nothing on an existing trade may ever wait on
 this gate** (fiat-sent, release, cancel, dispute, add-invoice, rating).
 

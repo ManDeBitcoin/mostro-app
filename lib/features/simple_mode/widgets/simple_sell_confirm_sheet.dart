@@ -7,6 +7,8 @@ import 'package:mostro/core/order_book_palette.dart';
 import 'package:mostro/features/about/providers/mostro_node_provider.dart';
 import 'package:mostro/features/order/models/create_order_rules.dart'
     show makerBondApplies;
+import 'package:mostro/features/order/models/invoice_rules.dart'
+    show tradeFeeShare;
 import 'package:mostro/features/order/providers/bond_providers.dart'
     show bondEstimateProvider;
 import 'package:mostro/features/order/providers/trade_state_provider.dart'
@@ -134,6 +136,9 @@ class _SimpleSellConfirmSheetState
     // node has said, no deposit is shown.
     final node = ref.watch(mostroNodeProvider).valueOrNull;
     final sats = widget.estimatedSats;
+    final l10n = AppLocalizations.of(context);
+    // This side's half of the node's fee, when the node has said its fee.
+    final feeShare = tradeFeeShare(sats: sats, nodeFee: node?.fee);
     final bondFigure =
         makerBondApplies(policy: node?.bondPolicy, applyTo: node?.bondApplyTo)
         ? simpleBondFigure(
@@ -232,6 +237,15 @@ class _SimpleSellConfirmSheetState
                         : SimpleL10n.calculatingRate(context),
                     pal: pal,
                   ),
+                  if (feeShare != null) ...[
+                    const Divider(height: 20),
+                    _buildRow(
+                      label: l10n.simpleCommunityFee,
+                      value: '≈ $feeShare sats',
+                      pal: pal,
+                      subtitle: l10n.simpleFeeAddedToSats,
+                    ),
+                  ],
                   const Divider(height: 20),
                   _buildRow(
                     label: 'Prima / Margen',

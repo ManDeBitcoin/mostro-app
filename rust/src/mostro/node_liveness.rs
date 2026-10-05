@@ -32,6 +32,13 @@
 //! look per attempt. What the look brings is applied like any capability
 //! fetch; a look that brings nothing changes nothing ([`look_again`]).
 //!
+//! "Older" is by the device's clock, and a device clock that runs ahead ages
+//! every event by as much. So the last step before `NodeNotAnnouncing` asks
+//! the relays for the one "now" that is not the device's: when any other
+//! node last announced itself. An event no further behind that than the
+//! limit is as current as anyone's, and the node is not refused
+//! ([`ensure_live_among`]).
+//!
 //! **It gates new business only** — `create_order` and `take_order`. Nothing
 //! on an existing trade (fiat-sent, release, cancel, dispute, add-invoice,
 //! rating) may ever wait on this: a user must be able to act on a trade they
@@ -232,7 +239,7 @@ fn current_copies_read(node: &str) -> u64 {
 /// Errors are the bare markers [`NODE_NOT_ANNOUNCING`] and
 /// [`MAINTENANCE_MODE`].
 pub(crate) async fn ensure_live(node: &str) -> Result<()> {
-    ensure_live_with(
+    ensure_live_among(
         node,
         crate::rt::unix_now,
         || async {
@@ -242,8 +249,56 @@ pub(crate) async fn ensure_live(node: &str) -> Result<()> {
             )
         },
         || fresh_look(node),
+        || newest_peer_announcement(node, crate::rt::unix_now()),
     )
     .await
+}
+
+/// How many of the relays' newest info events are read to find when another
+/// node last announced itself.
+const PEER_SAMPLE: usize = 20;
+
+/// When any **other** node on these relays last announced itself: the newest
+/// `created_at` among their info events, as far as the relays answer within
+/// [`EVERY_RELAY_WAIT`]. `None` when no relay hands one over.
+///
+/// It is the one reading of "now" this client can get that does not come
+/// from the device's clock, and [`ensure_live_among`] says what it is for.
+async fn newest_peer_announcement(node: &str, now: i64) -> Option<i64> {
+    use nostr_sdk::prelude::*;
+
+    let client = crate::api::nostr::get_pool().ok()?.client();
+    let own = PublicKey::from_hex(node).ok()?;
+    let filter = Filter::new()
+        .kind(Kind::from(KIND_NODE_INFO))
+        .limit(PEER_SAMPLE);
+    let events = client
+        .fetch_events(filter)
+        .timeout(EVERY_RELAY_WAIT)
+        .await
+        .ok()?;
+    newest_peer_at(events, &own, now)
+}
+
+/// The newest date among the info events in `events` that other nodes than
+/// `own` signed, none later than `now`.
+///
+/// An event dated after the device's `now` is left out: it comes from a
+/// clock ahead of this one, or was made up, and either way says nothing
+/// about how far ahead this device's own clock may be. Only signed info
+/// events addressed by their author's key count — what a node publishes
+/// about itself — so a relay cannot pass anything else off as a peer.
+fn newest_peer_at(
+    events: impl IntoIterator<Item = nostr_sdk::prelude::Event>,
+    own: &nostr_sdk::prelude::PublicKey,
+    now: i64,
+) -> Option<i64> {
+    events
+        .into_iter()
+        .filter(|event| event.pubkey != *own && is_info_event_of(event, &event.pubkey))
+        .map(|event| event.created_at.as_secs() as i64)
+        .filter(|at| *at <= now)
+        .max()
 }
 
 /// How long the patient look waits for every relay to answer.
@@ -428,6 +483,7 @@ where
 /// looking for a problem that is not the node's. The gate then says nothing
 /// and the send path reports the failure it meets, in its own words, exactly
 /// as before this gate existed.
+#[cfg(test)]
 async fn ensure_live_with<Now, Online, OnlineFut, Refetch, RefetchFut>(
     node: &str,
     now: Now,
@@ -440,6 +496,44 @@ where
     OnlineFut: std::future::Future<Output = bool>,
     Refetch: FnOnce() -> RefetchFut,
     RefetchFut: std::future::Future<Output = bool>,
+{
+    // No word about any other node: the device's clock decides alone.
+    ensure_live_among(node, now, relays_reachable, refetch, || async { None }).await
+}
+
+/// [`ensure_live`] with the clock, the reachability check, the fresh look
+/// and the peers' newest announcement injected.
+///
+/// `peers` is asked only on the way to a refusal, and exists for one case:
+/// **a device clock running ahead.** Every age here is "the device's now
+/// minus the node's own date", so a phone ten minutes fast reads a node that
+/// announced a minute ago as silent for eleven — and refused every new order
+/// and take, for as long as its clock stayed wrong. The relays offer a
+/// second opinion that needs no clock at all: when other nodes last
+/// announced themselves. A node whose event is no more than
+/// [`MAX_ANNOUNCEMENT_AGE_SECS`] older than the newest of theirs is as
+/// current as anyone on those relays, and the disagreement is with the
+/// device's clock, not with the node.
+///
+/// It can only relax the verdict where the relays back it, never tighten
+/// it: with no peer event to compare with, the clock decides as before. And
+/// what it lets through is a send, which reports a node that is really gone
+/// by itself, as it did before this gate existed.
+async fn ensure_live_among<Now, Online, OnlineFut, Refetch, RefetchFut, Peers, PeersFut>(
+    node: &str,
+    now: Now,
+    relays_reachable: Online,
+    refetch: Refetch,
+    peers: Peers,
+) -> Result<()>
+where
+    Now: Fn() -> i64,
+    Online: FnOnce() -> OnlineFut,
+    OnlineFut: std::future::Future<Output = bool>,
+    Refetch: FnOnce() -> RefetchFut,
+    RefetchFut: std::future::Future<Output = bool>,
+    Peers: FnOnce() -> PeersFut,
+    PeersFut: std::future::Future<Output = Option<i64>>,
 {
     let first = assess(announcement_of(node), now());
     if first == Liveness::Live {
@@ -484,10 +578,43 @@ where
         // order went out before this gate existed, and it goes out now; if
         // the node is gone the send reports it.
         Liveness::Stale if !read_a_copy => Ok(()),
-        // A relay handed over the newest event known and it is old: the node
-        // stopped publishing. Or no relay has ever had one from this node — which
-        // also leaves the send without the node's proof-of-work difficulty.
-        Liveness::Stale | Liveness::Missing => Err(anyhow!(NODE_NOT_ANNOUNCING)),
+        // A relay handed over the newest event known and it is old by this
+        // device's clock. Old next to what, though: before calling the node
+        // silent, the same event is held against the newest any other node
+        // published on these relays.
+        Liveness::Stale => {
+            let Some(own) = announcement_of(node) else {
+                return Err(anyhow!(NODE_NOT_ANNOUNCING));
+            };
+            let abreast = peers()
+                .await
+                .is_some_and(|peer_at| {
+                    peer_at.saturating_sub(own.announced_at) <= MAX_ANNOUNCEMENT_AGE_SECS
+                });
+            if !abreast {
+                // Other nodes have announced since and this one has not —
+                // or there is nobody to compare with: it stopped publishing.
+                return Err(anyhow!(NODE_NOT_ANNOUNCING));
+            }
+            crate::api::logging::blog_warn(
+                "nostr",
+                format!(
+                    "node {} announced {} s ago by this device's clock but is abreast of the other nodes on its relays — the device clock looks ahead; not refusing",
+                    crate::api::logging::short_id(node),
+                    now().saturating_sub(own.announced_at),
+                ),
+            );
+            // Its last word still counts: a node in maintenance says so in
+            // the very event that proved it current.
+            if own.maintenance {
+                Err(anyhow!(MAINTENANCE_MODE))
+            } else {
+                Ok(())
+            }
+        }
+        // No relay has ever had an info event from this node — which also
+        // leaves the send without the node's proof-of-work difficulty.
+        Liveness::Missing => Err(anyhow!(NODE_NOT_ANNOUNCING)),
     }
 }
 
@@ -928,6 +1055,227 @@ mod tests {
         let patient = &patient[..patient.find("\n}\n").expect("it ends")];
         assert!(patient.contains("newest_info_event(events, &pubkey)"));
         assert!(!patient.contains("max_by_key("), "never the newest of whatever came back");
+    }
+
+    // ── A device clock running ahead ────────────────────────────────────────
+
+    /// How far ahead the device's clock runs in these tests: enough to read
+    /// an event signed a minute ago as older than the limit.
+    const AHEAD: i64 = 900;
+
+    /// The reported failure: a phone fifteen minutes fast. The node announced
+    /// two minutes ago; by the phone's clock that is seventeen, and every new
+    /// order and take was refused for as long as the clock stayed wrong. The
+    /// relays say otherwise — another node announced a few seconds ago, and
+    /// this one is two minutes behind it, not seventeen.
+    #[tokio::test]
+    async fn a_clock_ahead_does_not_silence_a_node_abreast_of_its_peers() {
+        let n = node("skew-live");
+        let true_now = NOW - AHEAD;
+        note_announcement(&n, true_now - 120, &[tag("maintenance_mode", "false")]);
+
+        ensure_live_among(
+            &n,
+            || NOW,
+            || async { true },
+            || async {
+                // The relays hand over the same event: nothing newer exists.
+                note_announcement(&n, true_now - 120, &[tag("maintenance_mode", "false")]);
+                true
+            },
+            || async { Some(true_now - 20) },
+        )
+        .await
+        .expect("a node abreast of its peers is announcing, whatever the clock says");
+        forget_for_test(&n);
+    }
+
+    /// The clock is right and the node is gone: other nodes went on
+    /// announcing and this one stopped fifty minutes ago.
+    #[tokio::test]
+    async fn a_node_its_peers_left_behind_is_silent() {
+        let n = node("skew-dead");
+        note_announcement(&n, NOW - 3_000, &[tag("maintenance_mode", "false")]);
+
+        let err = ensure_live_among(
+            &n,
+            || NOW,
+            || async { true },
+            || async {
+                note_announcement(&n, NOW - 3_000, &[tag("maintenance_mode", "false")]);
+                true
+            },
+            || async { Some(NOW - 30) },
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(err.to_string(), "NodeNotAnnouncing");
+        forget_for_test(&n);
+    }
+
+    /// The limit is the same one, measured from the peers instead of from
+    /// the clock: exactly at it the node is abreast, a second past it is not.
+    #[tokio::test]
+    async fn abreast_is_the_same_eleven_minutes_measured_from_the_peers() {
+        for (behind, abreast) in [
+            (MAX_ANNOUNCEMENT_AGE_SECS, true),
+            (MAX_ANNOUNCEMENT_AGE_SECS + 1, false),
+        ] {
+            let n = node(&format!("skew-edge-{behind}"));
+            let peer_at = NOW - AHEAD;
+            let own_at = peer_at - behind;
+            note_announcement(&n, own_at, &[]);
+
+            let verdict = ensure_live_among(
+                &n,
+                || NOW,
+                || async { true },
+                || async {
+                    note_announcement(&n, own_at, &[]);
+                    true
+                },
+                || async { Some(peer_at) },
+            )
+            .await;
+
+            assert_eq!(verdict.is_ok(), abreast, "{behind} s behind its peers");
+            forget_for_test(&n);
+        }
+    }
+
+    /// A node that announced after every peer on the relays is not behind
+    /// any of them.
+    #[tokio::test]
+    async fn a_node_ahead_of_its_peers_is_abreast() {
+        let n = node("skew-newest");
+        let true_now = NOW - AHEAD;
+        note_announcement(&n, true_now - 10, &[]);
+
+        ensure_live_among(
+            &n,
+            || NOW,
+            || async { true },
+            || async {
+                note_announcement(&n, true_now - 10, &[]);
+                true
+            },
+            || async { Some(true_now - 200) },
+        )
+        .await
+        .expect("the newest announcement on the relays is not a silent node");
+        forget_for_test(&n);
+    }
+
+    /// Being abreast proves the event current — and a current event that
+    /// says maintenance is the node refusing new orders.
+    #[tokio::test]
+    async fn a_clock_ahead_still_hears_maintenance() {
+        let n = node("skew-maintenance");
+        let true_now = NOW - AHEAD;
+        note_announcement(&n, true_now - 60, &[tag("maintenance_mode", "true")]);
+
+        let err = ensure_live_among(
+            &n,
+            || NOW,
+            || async { true },
+            || async {
+                note_announcement(&n, true_now - 60, &[tag("maintenance_mode", "true")]);
+                true
+            },
+            || async { Some(true_now - 5) },
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(err.to_string(), "MaintenanceMode");
+        forget_for_test(&n);
+    }
+
+    /// The peers are a second opinion on the way to a refusal, nothing else:
+    /// a live node, an unreachable pool and a look nobody answered never ask
+    /// for it.
+    #[tokio::test]
+    async fn the_peers_are_asked_only_on_the_way_to_a_refusal() {
+        async fn never() -> Option<i64> {
+            panic!("no refusal is at stake: the peers must not be asked")
+        }
+
+        let live = node("skew-unasked-live");
+        note_announcement(&live, NOW - 60, &[]);
+        ensure_live_among(&live, || NOW, || async { true }, || async { true }, never)
+            .await
+            .expect("live");
+        forget_for_test(&live);
+
+        let offline = node("skew-unasked-offline");
+        note_announcement(&offline, NOW - 3_600, &[]);
+        ensure_live_among(&offline, || NOW, || async { false }, || async { true }, never)
+            .await
+            .expect("left to the send");
+        forget_for_test(&offline);
+
+        let unanswered = node("skew-unasked-silent-relays");
+        note_announcement(&unanswered, NOW - 3_600, &[]);
+        ensure_live_among(&unanswered, || NOW, || async { true }, || async { false }, never)
+            .await
+            .expect("nobody answered: not the node's silence");
+        forget_for_test(&unanswered);
+    }
+
+    /// What counts as a peer's announcement: an info event another node
+    /// signed about itself, dated no later than this device's now.
+    #[test]
+    fn a_peer_is_another_nodes_own_signed_info_event() {
+        use nostr_sdk::prelude::*;
+        let own = Keys::generate();
+        let own_hex = own.public_key().to_hex();
+        let peer = Keys::generate();
+        let peer_hex = peer.public_key().to_hex();
+        let other = Keys::generate();
+        let other_hex = other.public_key().to_hex();
+
+        let at = |events: Vec<Event>| newest_peer_at(events, &own.public_key(), NOW);
+
+        // The newest of the peers', whatever order the relays send them in.
+        assert_eq!(
+            at(vec![
+                info_event(&peer, &peer_hex, (NOW - 200) as u64, "false"),
+                info_event(&other, &other_hex, (NOW - 40) as u64, "false"),
+                info_event(&peer, &peer_hex, (NOW - 500) as u64, "false"),
+            ]),
+            Some(NOW - 40)
+        );
+        // The node's own event is not a second opinion on itself.
+        assert_eq!(
+            at(vec![info_event(&own, &own_hex, (NOW - 5) as u64, "false")]),
+            None
+        );
+        // Dated after this device's now: no measure of how fast its clock is.
+        assert_eq!(
+            at(vec![
+                info_event(&peer, &peer_hex, (NOW + 60) as u64, "false"),
+                info_event(&other, &other_hex, (NOW - 300) as u64, "false"),
+            ]),
+            Some(NOW - 300)
+        );
+        // Not about its author, and not an info event at all.
+        assert_eq!(
+            at(vec![info_event(&peer, &other_hex, (NOW - 5) as u64, "false")]),
+            None
+        );
+        let note = EventBuilder::new(Kind::TextNote, "hello")
+            .tag(Tag::parse(["d", peer_hex.as_str()]).unwrap())
+            .custom_created_at(Timestamp::from((NOW - 5) as u64))
+            .finalize(&peer)
+            .unwrap();
+        assert_eq!(at(vec![note]), None);
+        // A date rewritten under a signature that covered another.
+        let mut json = serde_json::to_value(info_event(&peer, &peer_hex, (NOW - 900) as u64, "false")).unwrap();
+        json["created_at"] = serde_json::json!(NOW - 5);
+        let redated: Event = serde_json::from_value(json).unwrap();
+        assert_eq!(at(vec![redated]), None);
+        assert_eq!(at(vec![]), None);
     }
 
     fn info_tags() -> Vec<Vec<String>> {

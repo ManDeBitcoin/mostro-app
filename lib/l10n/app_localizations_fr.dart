@@ -291,6 +291,31 @@ class AppLocalizationsFr extends AppLocalizations {
       'Le nœud a refusé la demande : ses paramètres ne sont pas valides.';
 
   @override
+  String get simpleCommunityFee => 'Commission de la communauté';
+
+  @override
+  String get simpleFeeTakenFromSats => 'Déduite des sats que vous recevez';
+
+  @override
+  String get simpleFeeAddedToSats => 'Ajoutée aux sats que vous bloquez';
+
+  @override
+  String orderRejectedOther(String reason) {
+    return 'Le nœud de la communauté a refusé la demande ($reason).';
+  }
+
+  @override
+  String get orderCannotTakeOwn =>
+      'Vous ne pouvez pas prendre votre propre ordre.';
+
+  @override
+  String get orderTakeAmountOutOfRange =>
+      'Le montant est hors de la fourchette de cet ordre.';
+
+  @override
+  String get tradesLoadError => 'Impossible de charger vos échanges.';
+
+  @override
   String get simpleAllPaymentMethods => 'Tous';
 
   @override

@@ -105,6 +105,29 @@ bool isGroupedWhole(String text, String groupSeparator) {
   ).hasMatch(text);
 }
 
+/// Whether [text], as it stands in an amount field, holds a separator that
+/// is not the field's own grouping: the one unusable amount the form
+/// explains.
+///
+/// The fields keep such a separator on screen (`keepTypedSeparators`) so it
+/// can be explained. Dropped, a typed `10.50` became 1 050 — in `es`, where
+/// the dot groups — and was offered to publish. The same goes for the fixed
+/// sats field, where `1000.5` became 10 005.
+bool amountHasTypedSeparator(
+  String text, {
+  required String groupSeparator,
+  required String decimalSeparator,
+}) {
+  final typed = text.trim();
+  final hasSeparator = {
+    groupSeparator,
+    decimalSeparator,
+    '.',
+    ',',
+  }.any(typed.contains);
+  return hasSeparator && !isGroupedWhole(typed, groupSeparator);
+}
+
 /// The amount typed in a grouped field (`25.000` in `es`, `25,000` in `en`)
 /// as the canonical `1234.5` string the rest of the pipeline parses, or null
 /// when the text is not a finite positive number.

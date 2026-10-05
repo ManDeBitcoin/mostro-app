@@ -291,6 +291,30 @@ class AppLocalizationsEs extends AppLocalizations {
       'El nodo rechazó la solicitud: sus parámetros no son válidos.';
 
   @override
+  String get simpleCommunityFee => 'Comisión de la comunidad';
+
+  @override
+  String get simpleFeeTakenFromSats => 'Se descuenta de los sats que recibes';
+
+  @override
+  String get simpleFeeAddedToSats => 'Se suma a los sats que bloqueas';
+
+  @override
+  String orderRejectedOther(String reason) {
+    return 'El nodo de la comunidad rechazó la solicitud ($reason).';
+  }
+
+  @override
+  String get orderCannotTakeOwn => 'No puedes tomar tu propia orden.';
+
+  @override
+  String get orderTakeAmountOutOfRange =>
+      'El importe está fuera del rango de esta orden.';
+
+  @override
+  String get tradesLoadError => 'No se pudieron cargar tus operaciones.';
+
+  @override
   String get simpleAllPaymentMethods => 'Todos';
 
   @override

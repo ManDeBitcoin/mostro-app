@@ -19,11 +19,13 @@ MostroInstance _node({
   BondPolicy policy = BondPolicy.disabled,
   BondApplyTo? applyTo,
   double? pct,
+  double? fee,
 }) => MostroInstance(
   pubKey: 'node',
   bondPolicy: policy,
   bondApplyTo: applyTo,
   bondAmountPct: pct,
+  fee: fee,
 );
 
 Future<void> _pumpSheet(
@@ -158,6 +160,33 @@ void main() {
       expect(find.text('Garantía temporal'), findsNothing);
     });
 
+    testWidgets("shows the seller's half of the node's fee", (tester) async {
+      await _pumpSheet(
+        tester,
+        sheet,
+        overrides: [
+          mostroNodeProvider.overrideWith((ref) async => _node(fee: 0.008)),
+        ],
+      );
+
+      // Half of 0.8 % of the 112 433 sats on screen, rounded: 449.7 → 450.
+      expect(find.text('Comisión de la comunidad'), findsOneWidget);
+      expect(find.text('≈ 450 sats'), findsOneWidget);
+      expect(find.text('Se suma a los sats que bloqueas'), findsOneWidget);
+      // The trade's own amount is shown as it is.
+      expect(find.text('~112433 sats'), findsOneWidget);
+    });
+
+    testWidgets('shows no fee the node has not announced', (tester) async {
+      await _pumpSheet(
+        tester,
+        sheet,
+        overrides: [mostroNodeProvider.overrideWith((ref) async => _node())],
+      );
+
+      expect(find.text('Comisión de la comunidad'), findsNothing);
+    });
+
     testWidgets('shows no deposit while the node has not answered', (
       tester,
     ) async {
@@ -249,6 +278,47 @@ void main() {
       expect(sentRole, TradeRole.buyer);
       expect(find.text('La orden ya fue tomada'), findsOneWidget);
       expect(find.textContaining('Exception'), findsNothing);
+    });
+
+    testWidgets('shows what the buyer gets once the fee is taken off', (
+      tester,
+    ) async {
+      await _pumpSheet(
+        tester,
+        SimpleBuyConfirmSheet(
+          order: fakeOrder(id: 'o-4'),
+          fiatAmount: 100,
+          fiatCode: 'USD',
+          estimatedSats: 170000,
+        ),
+        overrides: [
+          mostroNodeProvider.overrideWith((ref) async => _node(fee: 0.008)),
+        ],
+      );
+
+      // 0.4 % of 170 000 is 680: the invoice gets the rest.
+      expect(find.text('~169320 sats'), findsOneWidget);
+      expect(find.text('Comisión de la comunidad'), findsOneWidget);
+      expect(find.text('≈ 680 sats'), findsOneWidget);
+      expect(find.text('Se descuenta de los sats que recibes'), findsOneWidget);
+    });
+
+    testWidgets('shows the estimate whole while the fee is unknown', (
+      tester,
+    ) async {
+      await _pumpSheet(
+        tester,
+        SimpleBuyConfirmSheet(
+          order: fakeOrder(id: 'o-5'),
+          fiatAmount: 100,
+          fiatCode: 'USD',
+          estimatedSats: 170000,
+        ),
+        overrides: [mostroNodeProvider.overrideWith((ref) async => null)],
+      );
+
+      expect(find.text('~170000 sats'), findsOneWidget);
+      expect(find.text('Comisión de la comunidad'), findsNothing);
     });
 
     testWidgets("shows the node's own deposit when it bonds takers", (

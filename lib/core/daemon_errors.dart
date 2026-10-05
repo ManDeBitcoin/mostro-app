@@ -20,10 +20,15 @@ bool isStatusRejection(Object error) {
 ///
 /// Returns [fallback] when the error carries no known marker, so each screen
 /// keeps its action-specific generic failure text.
+///
+/// [onTake] is for the one reason whose meaning depends on the request: the
+/// daemon's `InvalidPubkey` answers a take of the taker's own order, and any
+/// other request made by the party it does not belong to.
 String localizedDaemonError(
   AppLocalizations l10n,
   Object error, {
   required String fallback,
+  bool onTake = false,
 }) {
   final raw = error.toString();
   // The node speaks a wire protocol this v2-native client does not: it would
@@ -134,19 +139,37 @@ String localizedDaemonError(
   // The order left the local book between the tap and the take (its maker
   // cancelled it, or it expired).
   if (raw.contains('OrderNotFound')) return l10n.orderNotFoundMessage;
-  return _localizedRefusal(l10n, raw) ?? fallback;
+  // Takes the core refuses before sending anything.
+  if (raw.contains('CannotTakeOwnOrder')) return l10n.orderCannotTakeOwn;
+  if (raw.contains('FiatAmountRequired')) return l10n.orderAmountMustBeWhole;
+  // The bare marker only: `OutOfRangeSatsAmount` and `OutOfRangeFiatAmount`
+  // are the daemon's, about the node's limits, and are worded below.
+  if (_takeOutOfRange.hasMatch(raw)) return l10n.orderTakeAmountOutOfRange;
+  return _localizedRefusal(l10n, raw, onTake: onTake) ?? fallback;
 }
+
+/// The core's `OutOfRange`: a range take for an amount outside the order's
+/// own limits.
+final _takeOutOfRange = RegExp(r'OutOfRange(?![A-Za-z])');
 
 /// The daemon's reason when the core passed a refusal (CantDo) through as
 /// `Order rejected by Mostro: <Reason>` — its wording for every reason it
 /// has no marker or prose of its own for.
 final _refusalReason = RegExp(r'rejected by Mostro: (\w+)');
 
-/// The message for a daemon refusal, or null for a reason with no wording
-/// here (the caller's fallback then stands). Reasons are matched on the
-/// extracted name, not by substring: `InvalidPubkey` and `NotFound` are also
-/// what unrelated local errors are called.
-String? _localizedRefusal(AppLocalizations l10n, String raw) {
+/// The message for a daemon refusal, or null when [raw] is not one (the
+/// caller's fallback then stands). Reasons are matched on the extracted
+/// name, not by substring: `InvalidPubkey` and `NotFound` are also what
+/// unrelated local errors are called.
+///
+/// A refusal is never shown as the core passed it through. A reason with no
+/// wording of its own gets the general one, naming the daemon's code so
+/// whoever is asked for help can look it up.
+String? _localizedRefusal(
+  AppLocalizations l10n,
+  String raw, {
+  required bool onTake,
+}) {
   // The reasons the core still words as English prose, or returns as a bare
   // marker.
   if (isStatusRejection(raw)) return l10n.orderRejectedByStatus;
@@ -173,9 +196,15 @@ String? _localizedRefusal(AppLocalizations l10n, String raw) {
     // Someone else took it first, or it does not exist on this node.
     'InvalidOrderStatus' || 'NotFound' => l10n.orderNotFoundMessage,
     'IsNotYourOrder' => l10n.orderRejectedNotYours,
-    // Taking your own order, or acting as the party you are not.
-    'InvalidPubkey' => l10n.orderRejectedNotYourAction,
+    // Taking your own order — one the core did not know was the user's,
+    // or it would have refused first (`CannotTakeOwnOrder`) — or acting as
+    // the party you are not.
+    'InvalidPubkey' =>
+      onTake ? l10n.orderCannotTakeOwn : l10n.orderRejectedNotYourAction,
     'InvalidPeer' => l10n.orderRejectedOtherParty,
-    _ => null,
+    null => null,
+    // The daemon gave no reason at all: nothing to name.
+    'unknown' || 'Unknown' => l10n.orderRequestFailed,
+    final reason => l10n.orderRejectedOther(reason),
   };
 }

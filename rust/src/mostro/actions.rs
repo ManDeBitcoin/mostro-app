@@ -314,9 +314,16 @@ pub async fn rate_user(
 ) -> Result<String> {
     let id = Uuid::parse_str(order_id)?;
     let payload = Some(Payload::RatingUser(score));
+    // A request id of its own, as every request to the node carries: the
+    // daemon echoes it in `rate-received`, which is what tells that
+    // acknowledgement from the one for another rating.
+    let request_id: u64 = {
+        use rand::RngCore;
+        rand::rngs::OsRng.next_u64().max(1) // 0 is indistinguishable from "unset"
+    };
     let msg = Message::new_order(
         Some(id),
-        None,
+        Some(request_id),
         Some(trade_index as i64),
         Action::RateUser,
         payload,
@@ -962,6 +969,92 @@ mod tests {
         assert_eq!(kind.request_id, Some(42));
         assert_eq!(kind.trade_index, Some(3));
         assert!(matches!(kind.action, Action::NewOrder));
+    }
+
+    /// A rating and a cancel are requests like any other: each goes out with
+    /// a request id of its own, which the daemon echoes in its reply. A
+    /// rating used to carry none, and so did a cancel from any step that is
+    /// not waited on.
+    #[tokio::test]
+    async fn a_rating_and_a_cancel_carry_a_request_id_of_their_own() {
+        let identity_keys = Keys::generate();
+        let trade_keys = Keys::generate();
+        let mostro_keys = Keys::generate();
+        let order = "94486ae3-4083-4dfe-b543-53fe761025e9";
+
+        let _pow = crate::mostro::pow::test_support::lock_pow();
+        crate::mostro::pow::set_pows(&mostro_keys.public_key().to_hex(), 0, None);
+        crate::mostro::protocol_version::set_protocol_version(
+            &mostro_keys.public_key().to_hex(),
+            Some(2),
+        );
+
+        let mut ids = Vec::new();
+        for _ in 0..2 {
+            let json = rate_user(
+                &identity_keys,
+                &trade_keys,
+                &mostro_keys.public_key(),
+                order,
+                3,
+                5,
+            )
+            .await
+            .unwrap();
+            let event = Event::from_json(&json).unwrap();
+            let unwrapped = transport::unwrap_mostro_message(&mostro_keys, &event)
+                .await
+                .unwrap()
+                .expect("message must decrypt for the recipient");
+            let kind = unwrapped.message.get_inner_message_kind();
+            assert!(matches!(kind.action, Action::RateUser));
+            let id = kind.request_id.expect("a rating carries a request id");
+            assert_ne!(id, 0, "0 reads as unset");
+            ids.push(id);
+        }
+        assert_ne!(ids[0], ids[1], "one per request, not a constant");
+
+        // A cancel carries whichever id its caller gives it.
+        let json = cancel(
+            &identity_keys,
+            &trade_keys,
+            &mostro_keys.public_key(),
+            order,
+            3,
+            Some(4321),
+        )
+        .await
+        .unwrap();
+        let event = Event::from_json(&json).unwrap();
+        let unwrapped = transport::unwrap_mostro_message(&mostro_keys, &event)
+            .await
+            .unwrap()
+            .expect("message must decrypt for the recipient");
+        let kind = unwrapped.message.get_inner_message_kind();
+        assert!(matches!(kind.action, Action::Cancel));
+        assert_eq!(kind.request_id, Some(4321));
+
+        // And `cancel_order` gives one on both of its paths: no
+        // `actions::cancel` call there passes `None`.
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src")
+            .join("api")
+            .join("orders.rs");
+        let source = std::fs::read_to_string(path).expect("read api/orders.rs");
+        let start = source
+            .find("pub async fn cancel_order(")
+            .expect("cancel_order exists");
+        let body = &source[start..];
+        let body = &body[..body.find("\n}\n").expect("cancel_order ends")];
+        let calls: Vec<&str> = body.split("actions::cancel(").skip(1).collect();
+        assert_eq!(calls.len(), 2, "the waited-on cancel and the other one");
+        for call in calls {
+            let args = &call[..call.find(")\n").expect("the call ends")];
+            assert!(
+                args.contains("Some(request_id),"),
+                "every cancel goes out with a request id: {args}"
+            );
+        }
     }
 
     /// The outgoing take messages must carry the caller's request_id — the

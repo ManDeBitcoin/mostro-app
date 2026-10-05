@@ -169,12 +169,18 @@ fn parse_and_validate_json(json_str: &str) -> Result<CommunityProfile> {
     }
     profile.currency = cur;
 
-    // Filter and normalize valid relays (strip trailing slash for consistency)
+    // Filter and normalize valid relays (strip trailing slash for consistency).
+    // The scheme is matched whatever its case and the relay kept as written:
+    // the signature covers that spelling, and dropping a `WSS://` relay here
+    // would make a card the node signed fail its own check.
     profile.relays = profile
         .relays
         .into_iter()
         .map(|r| r.trim().trim_end_matches('/').to_string())
-        .filter(|r| r.starts_with("ws://") || r.starts_with("wss://"))
+        .filter(|r| {
+            let scheme = r.to_ascii_lowercase();
+            scheme.starts_with("ws://") || scheme.starts_with("wss://")
+        })
         .collect();
 
     Ok(profile)

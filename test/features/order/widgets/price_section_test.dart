@@ -57,6 +57,27 @@ Future<void> _openPremiumField(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// Types [keys] one at a time at the end of the only text field, as a
+/// keyboard does: each key is added to whatever the field held after the
+/// last one. [from] is the text the field starts with, when it is not empty
+/// of its own accord.
+Future<void> _typeKeys(
+  WidgetTester tester,
+  String keys, {
+  String? from,
+}) async {
+  final field = find.byType(TextField);
+  if (from != null) {
+    await tester.enterText(field, from);
+    await tester.pump();
+  }
+  for (final key in keys.split('')) {
+    final held = tester.widget<TextField>(field).controller!.text;
+    await tester.enterText(field, from == null && key == keys[0] ? key : held + key);
+    await tester.pump();
+  }
+}
+
 Color _blockColor(WidgetTester tester) {
   final container = tester.widget<AnimatedContainer>(
     find.byKey(const ValueKey('premium-block')),
@@ -104,16 +125,62 @@ void main() {
       (tester) async {
         final container = await _pump(tester, premium: 3.0);
         await _openPremiumField(tester);
-        // The formatter drops '.' / ',', so a decimal never reaches state and
-        // the premium stays a whole number.
+        // A decimal never reaches state: the premium stays what it was.
         await tester.enterText(find.byType(TextField), '5.5');
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await tester.pumpAndSettle();
         final value = container.read(premiumValueProvider);
-        expect(value, value.roundToDouble());
-        expect(value, isNot(5.5));
+        expect(value, 3);
       },
     );
+
+    testWidgets('keeps a typed separator on screen and says why it will not do', (
+      tester,
+    ) async {
+      final container = await _pump(tester, premium: 0.0);
+      await _openPremiumField(tester);
+
+      // Key by key. Refused as a keystroke, the dot left `1` and `5` to
+      // close up: a premium of 15 % for a typed 1.5.
+      await _typeKeys(tester, '1.5');
+      expect(find.text('1.5'), findsOneWidget);
+      expect(find.byKey(const ValueKey('premium-not-whole')), findsOneWidget);
+      expect(find.text('The premium must be a whole percentage.'), findsOneWidget);
+
+      // Nothing is applied while it stands, however long.
+      await tester.pump(const Duration(seconds: 3));
+      expect(container.read(premiumValueProvider), 0);
+
+      // Enter does not commit it, and does not throw it away either.
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      expect(find.text('1.5'), findsOneWidget);
+      expect(container.read(premiumValueProvider), 0);
+
+      // Corrected, it is a premium again.
+      await tester.enterText(find.byType(TextField), '2');
+      await tester.pump();
+      expect(find.byKey(const ValueKey('premium-not-whole')), findsNothing);
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(container.read(premiumValueProvider), 2);
+    });
+
+    testWidgets('a premium left with decimals is discarded, not rounded', (
+      tester,
+    ) async {
+      final container = await _pump(tester, premium: 3.0);
+      await _openPremiumField(tester);
+      await _typeKeys(tester, '4,5', from: '');
+
+      // Tapping away closes the field on the premium it had.
+      await tester.tapAt(const Offset(5, 2900));
+      await tester.pumpAndSettle();
+
+      expect(container.read(premiumValueProvider), 3);
+      expect(find.byKey(const ValueKey('premium-not-whole')), findsNothing);
+      expect(find.byKey(const ValueKey('premium-figure')), findsOneWidget);
+    });
 
     testWidgets(
       'applies a typed value after the debounce without pressing enter',
@@ -245,6 +312,31 @@ void main() {
       await tester.pump();
       expect(container.read(fixedSatsProvider), '5000');
       expect(find.text('5,000'), findsOneWidget);
+    });
+
+    testWidgets('fixed sats typed with a separator are no price', (
+      tester,
+    ) async {
+      final container = await _pump(tester, premium: 0.0);
+      await tester.tap(find.text('Fixed'));
+      await tester.pumpAndSettle();
+
+      // Key by key. The dot was dropped and the digit after it kept:
+      // 10,005 sats for a typed 1000.5.
+      await _typeKeys(tester, '1000.5', from: '');
+      expect(find.text('1,000.5'), findsOneWidget);
+      expect(find.text('10,005'), findsNothing);
+      expect(find.byKey(const ValueKey('sats-not-whole')), findsOneWidget);
+      // No sats reach the form: there is nothing to publish.
+      expect(container.read(fixedSatsProvider), '');
+
+      // Typed with its own grouping, the figure is that figure.
+      await tester.enterText(find.byType(TextField), '');
+      await tester.pump();
+      await _typeKeys(tester, '25,000', from: '');
+      expect(find.text('25,000'), findsOneWidget);
+      expect(find.byKey(const ValueKey('sats-not-whole')), findsNothing);
+      expect(container.read(fixedSatsProvider), '25000');
     });
 
     testWidgets('Fixed is locked while a range order is being written',

@@ -288,6 +288,30 @@ class AppLocalizationsEn extends AppLocalizations {
       'The node rejected the request: its parameters are not valid.';
 
   @override
+  String get simpleCommunityFee => 'Community fee';
+
+  @override
+  String get simpleFeeTakenFromSats => 'Taken off the sats you receive';
+
+  @override
+  String get simpleFeeAddedToSats => 'Added to the sats you lock';
+
+  @override
+  String orderRejectedOther(String reason) {
+    return 'The community\'s node refused the request ($reason).';
+  }
+
+  @override
+  String get orderCannotTakeOwn => 'You can\'t take your own order.';
+
+  @override
+  String get orderTakeAmountOutOfRange =>
+      'The amount is outside this order\'s range.';
+
+  @override
+  String get tradesLoadError => 'Your trades could not be loaded.';
+
+  @override
   String get simpleAllPaymentMethods => 'All';
 
   @override

@@ -289,6 +289,30 @@ class AppLocalizationsNl extends AppLocalizations {
       'De node heeft het verzoek geweigerd: de parameters zijn ongeldig.';
 
   @override
+  String get simpleCommunityFee => 'Kosten van de community';
+
+  @override
+  String get simpleFeeTakenFromSats => 'Gaat af van de sats die je ontvangt';
+
+  @override
+  String get simpleFeeAddedToSats => 'Komt bij de sats die je vastzet';
+
+  @override
+  String orderRejectedOther(String reason) {
+    return 'De node van de community heeft het verzoek geweigerd ($reason).';
+  }
+
+  @override
+  String get orderCannotTakeOwn => 'Je kunt je eigen order niet nemen.';
+
+  @override
+  String get orderTakeAmountOutOfRange =>
+      'Het bedrag valt buiten het bereik van deze order.';
+
+  @override
+  String get tradesLoadError => 'Je trades konden niet worden geladen.';
+
+  @override
   String get simpleAllPaymentMethods => 'Alle';
 
   @override

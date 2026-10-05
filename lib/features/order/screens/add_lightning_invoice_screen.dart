@@ -538,7 +538,11 @@ class _AddLightningInvoiceScreenState
       final display =
           statusRejection
               ? l10n.invoiceNoLongerExpected
-              : localizedDaemonError(l10n, msg, fallback: msg);
+              : localizedDaemonError(
+                  l10n,
+                  msg,
+                  fallback: l10n.orderRequestFailed,
+                );
       setState(() => _lastError = display);
       ScaffoldMessenger.of(
         context,

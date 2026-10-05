@@ -257,7 +257,13 @@ mod tests {
             contact: None,
             signature: String::new(),
         };
-        // BIP-340 over the digest, as the panel signs it.
+        card.signature = String::new();
+        resign(keys, card)
+    }
+
+    /// `card` signed by `keys` as it stands: BIP-340 over the digest, as
+    /// the panel signs it.
+    fn resign(keys: &Keys, mut card: CommunityProfile) -> CommunityProfile {
         let digest = crate::api::community::canonical_digest(&card);
         let signer =
             k256::schnorr::SigningKey::from_bytes(&keys.secret_key().to_secret_bytes())
@@ -331,6 +337,31 @@ mod tests {
         later.version = 2;
         let json = serde_json::to_string(&later).unwrap();
         assert!(card_from_content(&json, &node_hex).is_none());
+    }
+
+    /// A relay written `WSS://…` is a relay, and is part of what was signed:
+    /// dropped while parsing, the card no longer matched its own signature.
+    #[test]
+    fn a_relay_scheme_in_capitals_does_not_cost_the_card_its_signature() {
+        let node = Keys::generate();
+        let mut card = signed_card(&node, &["Transferencia"]);
+        card.relays = vec![
+            "WSS://Relay.Mostro.Network".to_string(),
+            "wss://mostro-p2p.tech".to_string(),
+        ];
+        let card = resign(&node, card);
+        let json = serde_json::to_string(&card).unwrap();
+
+        let read = card_from_content(&json, &node.public_key().to_hex()).expect("the card");
+
+        assert_eq!(read.relays.len(), 2);
+        // What is not a relay at all is still dropped — and a card signed
+        // over it then fails its check, which the panel never signs.
+        let mut odd = card.clone();
+        odd.relays.push("https://not-a-relay.example".to_string());
+        let odd = resign(&node, odd);
+        let json = serde_json::to_string(&odd).unwrap();
+        assert!(card_from_content(&json, &node.public_key().to_hex()).is_none());
     }
 
     #[test]

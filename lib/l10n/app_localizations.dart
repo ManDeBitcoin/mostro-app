@@ -562,6 +562,48 @@ abstract class AppLocalizations {
   /// **'The node rejected the request: its parameters are not valid.'**
   String get orderRejectedInvalidParameters;
 
+  /// Simple Mode confirm sheets: label of the row with the share of the node fee this side pays, in sats
+  ///
+  /// In en, this message translates to:
+  /// **'Community fee'**
+  String get simpleCommunityFee;
+
+  /// Simple Mode buy confirm sheet: under the community fee, for the buyer
+  ///
+  /// In en, this message translates to:
+  /// **'Taken off the sats you receive'**
+  String get simpleFeeTakenFromSats;
+
+  /// Simple Mode sell confirm sheet: under the community fee, for the seller
+  ///
+  /// In en, this message translates to:
+  /// **'Added to the sats you lock'**
+  String get simpleFeeAddedToSats;
+
+  /// A daemon refusal (CantDo) whose reason has no wording of its own; the reason is the daemon's own code, shown so support can look it up
+  ///
+  /// In en, this message translates to:
+  /// **'The community\'s node refused the request ({reason}).'**
+  String orderRejectedOther(String reason);
+
+  /// Take refused locally (CannotTakeOwnOrder marker)
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t take your own order.'**
+  String get orderCannotTakeOwn;
+
+  /// Take of a range order refused locally (OutOfRange marker): the amount is not within the order's limits
+  ///
+  /// In en, this message translates to:
+  /// **'The amount is outside this order\'s range.'**
+  String get orderTakeAmountOutOfRange;
+
+  /// Simple Mode trades list: the local read of the trades failed
+  ///
+  /// In en, this message translates to:
+  /// **'Your trades could not be loaded.'**
+  String get tradesLoadError;
+
   /// Simple Mode, Buy tab: the first payment-method chip, which shows the offers of every method
   ///
   /// In en, this message translates to:

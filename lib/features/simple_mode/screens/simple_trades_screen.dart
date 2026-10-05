@@ -7,6 +7,7 @@ import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
 import 'package:mostro/features/simple_mode/widgets/pwa_prompt_banner.dart';
 import 'package:mostro/features/trades/models/trades_list_rules.dart';
 import 'package:mostro/features/trades/providers/trade_rows_provider.dart';
+import 'package:mostro/l10n/app_localizations.dart';
 
 /// Simple Mode: Trades Screen.
 /// Clean, humanized list of active and completed operations.
@@ -81,8 +82,11 @@ class _SimpleTradesScreenState extends ConsumerState<SimpleTradesScreen> {
             loading: () => Center(
               child: CircularProgressIndicator(color: pal.limeText),
             ),
-            error: (e, _) => Center(
-              child: Text('Error: $e', style: TextStyle(color: pal.textSecondary)),
+            error: (_, _) => Center(
+              child: Text(
+                AppLocalizations.of(context).tradesLoadError,
+                style: TextStyle(color: pal.textSecondary),
+              ),
             ),
             data: (allRows) {
               final activeRows = allRows

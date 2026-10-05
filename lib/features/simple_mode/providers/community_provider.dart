@@ -59,30 +59,6 @@ class ActiveCommunityNotifier
     _reload.cancel();
     super.dispose();
   }
-
-  /// Apply a new community profile.
-  Future<void> applyProfile(CommunityProfile profile) async {
-    state = const AsyncValue.loading();
-    try {
-      await community_api.applyCommunityProfile(profile: profile);
-      state = AsyncValue.data(profile);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-      rethrow;
-    }
-  }
-
-  /// Clear the active community profile.
-  Future<void> clearProfile() async {
-    state = const AsyncValue.loading();
-    try {
-      await community_api.clearActiveCommunityProfile();
-      state = const AsyncValue.data(null);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-      rethrow;
-    }
-  }
 }
 
 /// Whether [a] and [b] are the same card, field by field. The generated
@@ -102,10 +78,3 @@ bool _sameCard(CommunityProfile? a, CommunityProfile? b) {
       a.contact == b.contact &&
       a.signature == b.signature;
 }
-
-/// Provider for the list of accepted payment methods configured by the community.
-final communityPaymentMethodsProvider = FutureProvider<List<String>>((ref) async {
-  // Invalidate when community profile changes
-  ref.watch(activeCommunityProfileProvider);
-  return community_api.getCommunityPaymentMethods();
-});

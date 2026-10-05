@@ -8,6 +8,8 @@ import 'package:mostro/features/about/providers/mostro_node_provider.dart';
 import 'package:mostro/features/home/providers/home_order_providers.dart';
 import 'package:mostro/features/order/models/create_order_rules.dart'
     show takerBondApplies;
+import 'package:mostro/features/order/models/invoice_rules.dart'
+    show tradeFeeShare;
 import 'package:mostro/features/order/providers/bond_providers.dart'
     show bondEstimateProvider;
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
@@ -112,6 +114,7 @@ class _SimpleBuyConfirmSheetState extends ConsumerState<SimpleBuyConfirmSheet> {
           l10n,
           e,
           fallback: l10n.orderRequestFailed,
+          onTake: true,
         );
       });
     }
@@ -129,6 +132,9 @@ class _SimpleBuyConfirmSheetState extends ConsumerState<SimpleBuyConfirmSheet> {
     // node has said, no deposit is shown.
     final node = ref.watch(mostroNodeProvider).valueOrNull;
     final sats = widget.estimatedSats;
+    final l10n = AppLocalizations.of(context);
+    // This side's half of the node's fee, when the node has said its fee.
+    final feeShare = tradeFeeShare(sats: sats, nodeFee: node?.fee);
     final bondFigure =
         takerBondApplies(policy: node?.bondPolicy, applyTo: node?.bondApplyTo)
         ? simpleBondFigure(
@@ -302,12 +308,23 @@ class _SimpleBuyConfirmSheetState extends ConsumerState<SimpleBuyConfirmSheet> {
                   const Divider(height: 20),
                   _buildRow(
                     label: SimpleL10n.youWillReceive(context),
-                    value: widget.estimatedSats != null
-                        ? '~${widget.estimatedSats} sats'
+                    // Net of the buyer's half of the fee when the node has
+                    // said what it charges: that is what the invoice gets.
+                    value: sats != null
+                        ? '~${sats - (feeShare ?? 0)} sats'
                         : SimpleL10n.calculatingRate(context),
                     pal: pal,
                     isHighlight: true,
                   ),
+                  if (feeShare != null) ...[
+                    const Divider(height: 20),
+                    _buildRow(
+                      label: l10n.simpleCommunityFee,
+                      value: '≈ $feeShare sats',
+                      pal: pal,
+                      subtitle: l10n.simpleFeeTakenFromSats,
+                    ),
+                  ],
                   if (bondFigure != null) ...[
                     const Divider(height: 20),
                     _buildRow(

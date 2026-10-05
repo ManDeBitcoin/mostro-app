@@ -290,6 +290,32 @@ class AppLocalizationsDe extends AppLocalizations {
       'Der Node hat die Anfrage abgelehnt: Ihre Parameter sind ungültig.';
 
   @override
+  String get simpleCommunityFee => 'Gebühr der Community';
+
+  @override
+  String get simpleFeeTakenFromSats =>
+      'Wird von den Sats abgezogen, die du erhältst';
+
+  @override
+  String get simpleFeeAddedToSats => 'Kommt zu den Sats hinzu, die du sperrst';
+
+  @override
+  String orderRejectedOther(String reason) {
+    return 'Der Knoten der Community hat die Anfrage abgelehnt ($reason).';
+  }
+
+  @override
+  String get orderCannotTakeOwn =>
+      'Du kannst deine eigene Order nicht annehmen.';
+
+  @override
+  String get orderTakeAmountOutOfRange =>
+      'Der Betrag liegt außerhalb der Spanne dieser Order.';
+
+  @override
+  String get tradesLoadError => 'Deine Trades konnten nicht geladen werden.';
+
+  @override
   String get simpleAllPaymentMethods => 'Alle';
 
   @override

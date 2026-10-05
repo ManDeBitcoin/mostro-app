@@ -79,6 +79,14 @@ class _PriceSectionState extends ConsumerState<PriceSection> {
   Timer? _premiumDebounce;
   static const Duration _premiumDebounceDelay = Duration(seconds: 2);
 
+  /// The premium being typed holds a separator: not a whole percent, and
+  /// said so under the field while it stands.
+  bool _premiumNotWhole = false;
+
+  /// The sats being typed hold a separator that is not grouping: no amount,
+  /// and said so under the field while it stands.
+  bool _satsNotWhole = false;
+
   @override
   void initState() {
     super.initState();
@@ -124,17 +132,34 @@ class _PriceSectionState extends ConsumerState<PriceSection> {
 
   void _startPremiumEditing() {
     _premiumController.text = ref.read(premiumValueProvider).round().toString();
-    setState(() => _editingPremium = true);
+    setState(() {
+      _editingPremium = true;
+      _premiumNotWhole = false;
+    });
   }
+
+  /// Whether [v] is written with a decimal separator: `1.5`, `1,`.
+  static bool _hasSeparator(String v) => v.contains('.') || v.contains(',');
 
   /// Finish editing the field: commit [v], or restore the text from the current
   /// premium when [v] does not parse. Cancels any pending live update.
   void _endPremiumEditing(String v) {
     _premiumDebounce?.cancel();
-    setState(() => _editingPremium = false);
+    setState(() {
+      _editingPremium = false;
+      _premiumNotWhole = false;
+    });
     if (!_applyPremiumText(v)) {
       _syncControllerFromProvider(null, ref.read(premiumValueProvider));
     }
+  }
+
+  /// Enter on the keyboard. A premium written with decimals is not committed
+  /// and not thrown away either: the field stays open on it, with the reason
+  /// under it, for the user to correct.
+  void _submitPremium(String v) {
+    if (_hasSeparator(v)) return;
+    _endPremiumEditing(v);
   }
 
   void _onSliderChanged(double value) {
@@ -160,6 +185,10 @@ class _PriceSectionState extends ConsumerState<PriceSection> {
     // mode: the field must not keep showing a figure the daemon won't get.
     ref.listen<double>(premiumValueProvider, _syncControllerFromProvider);
     ref.listen<String>(fixedSatsProvider, (_, next) {
+      // No sats under a text that is not a whole number is this field's own
+      // doing (`onChanged`), not a clear from outside: the text stays, so
+      // the user can see and correct what they typed.
+      if (_satsNotWhole && next.isEmpty) return;
       final shown = _satsController.text.replaceAll(RegExp(r'\D'), '');
       if (shown != next) _satsController.text = next;
     });
@@ -336,11 +365,16 @@ class _PriceSectionState extends ConsumerState<PriceSection> {
                       signed: true,
                     ),
                     // Whole percent only: optional sign + up to 3 digits.
-                    // Blocks '.' / ',' so no decimals slip in.
+                    // A typed '.' or ',' is let through and kept on screen —
+                    // refused as a keystroke it left the digits after it to
+                    // close up, and `1.5` became 15 % — but it never reaches
+                    // the premium: the field says why and waits.
                     inputFormatters: [
                       TextInputFormatter.withFunction((oldValue, newValue) {
                         if (newValue.text.isEmpty) return newValue;
-                        return RegExp(r'^[+-]?\d{0,3}$').hasMatch(newValue.text)
+                        return RegExp(
+                              r'^[+-]?\d{0,3}([.,]\d{0,2})?$',
+                            ).hasMatch(newValue.text)
                             ? newValue
                             : oldValue;
                       }),
@@ -361,12 +395,19 @@ class _PriceSectionState extends ConsumerState<PriceSection> {
                       // untouched here, so the cursor and in-progress text
                       // are never disturbed.
                       _premiumDebounce?.cancel();
+                      final notWhole = _hasSeparator(v);
+                      if (notWhole != _premiumNotWhole) {
+                        setState(() => _premiumNotWhole = notWhole);
+                      }
+                      // With decimals there is nothing to apply: the premium
+                      // stays what it was until the text is a whole percent.
+                      if (notWhole) return;
                       _premiumDebounce = Timer(
                         _premiumDebounceDelay,
                         () => _applyPremiumText(v),
                       );
                     },
-                    onSubmitted: _endPremiumEditing,
+                    onSubmitted: _submitPremium,
                     onTapOutside: (_) =>
                         _endPremiumEditing(_premiumController.text),
                   ),
@@ -383,6 +424,15 @@ class _PriceSectionState extends ConsumerState<PriceSection> {
                 ).withAutomationId(AutomationIds.orderCreatePremium),
             ],
           ),
+          if (_editingPremium && _premiumNotWhole) ...[
+            const SizedBox(height: 6),
+            Text(
+              l10n.orderPremiumMustBeWhole,
+              key: const ValueKey('premium-not-whole'),
+              textAlign: TextAlign.right,
+              style: TextStyle(fontSize: 11, height: 1.4, color: create.error),
+            ),
+          ],
           const SizedBox(height: 10),
           SizedBox(
             height: 28,
@@ -461,19 +511,49 @@ class _PriceSectionState extends ConsumerState<PriceSection> {
           hintText: '0',
           keyboardType: TextInputType.number,
           inputFormatters: [
+            // Sats are whole. A separator the user types stays on screen,
+            // as in the fiat fields: dropped, `1000.5` closed up into
+            // 10 005 sats.
             ThousandsInputFormatter(
               groupSeparator: symbols.GROUP_SEP,
               decimalSeparator: symbols.DECIMAL_SEP,
               allowDecimals: false,
+              keepTypedSeparators: true,
             ),
           ],
+          hasError: _satsNotWhole,
           trailing: Text(
             l10n.satsUnitLabel,
             style: TextStyle(fontSize: 13, color: palette.textTertiary),
           ),
-          onChanged: (v) => ref.read(fixedSatsProvider.notifier).state =
-              v.replaceAll(RegExp(r'\D'), ''),
+          onChanged: (v) {
+            final notWhole = amountHasTypedSeparator(
+              v,
+              groupSeparator: symbols.GROUP_SEP,
+              decimalSeparator: symbols.DECIMAL_SEP,
+            );
+            if (notWhole != _satsNotWhole) {
+              setState(() => _satsNotWhole = notWhole);
+            }
+            // No digits out of a text that is not a whole number: the form
+            // then has no fixed price to publish.
+            ref.read(fixedSatsProvider.notifier).state = notWhole
+                ? ''
+                : v.replaceAll(RegExp(r'\D'), '');
+          },
         ).withAutomationId(AutomationIds.orderCreateSatsAmount),
+        if (_satsNotWhole) ...[
+          const SizedBox(height: 6),
+          Text(
+            l10n.orderAmountMustBeWhole,
+            key: const ValueKey('sats-not-whole'),
+            style: TextStyle(
+              fontSize: 11,
+              height: 1.5,
+              color: CreateOrderPalette.of(context).error,
+            ),
+          ),
+        ],
         const SizedBox(height: 10),
         Text(
           l10n.fixedPriceNote,

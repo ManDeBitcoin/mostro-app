@@ -2646,13 +2646,21 @@ pub async fn cancel_order(order_id: String) -> Result<()> {
         };
     }
 
+    // Not waited on, but a request id of its own all the same, as every
+    // request to the node carries. No waiter is registered under it, and the
+    // registries match a reply by its exact id, so the replies to this cancel
+    // are handled as they always were.
+    let request_id: u64 = {
+        use rand::RngCore;
+        rand::rngs::OsRng.next_u64().max(1) // 0 is indistinguishable from "unset"
+    };
     let event_json = actions::cancel(
         &identity_keys,
         &sender_keys,
         &mostro_pubkey,
         &order_id,
         trade_index,
-        None,
+        Some(request_id),
     )
     .await?;
     // During the taker's bond window the daemon's `canceled` has causes the
@@ -22403,9 +22411,12 @@ mod tests {
         assert!(!body[unanswered..end_of_wait].contains("Err("));
         assert!(body[end_of_wait..].contains(local));
         assert_eq!(body.matches(local).count(), 4);
-        // The cancel that waits carries a nonce; the others still do not.
+        // Every cancel carries a request id of its own; only the first one
+        // registers it and waits for the answer.
         assert!(body[waits..end_of_wait].contains("Some(request_id),"));
-        assert!(body[end_of_wait..].contains("None,"));
+        assert!(body[end_of_wait..].contains("Some(request_id),"));
+        assert!(body[waits..end_of_wait].contains("publish_and_await_cancel("));
+        assert!(!body[end_of_wait..].contains("publish_and_await_cancel("));
     }
 
     // ── B4: the node's dispute id ───────────────────────────────────────────

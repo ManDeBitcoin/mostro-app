@@ -179,9 +179,72 @@ void main() {
     expect(refusal('IsNotYourOrder'), l10n.orderRejectedNotYours);
     expect(refusal('InvalidPubkey'), l10n.orderRejectedNotYourAction);
     expect(refusal('InvalidPeer'), l10n.orderRejectedOtherParty);
-    // A reason from a newer daemon keeps the caller's own message.
-    expect(refusal('SomethingNew'), 'x');
-    expect(refusal('unknown'), 'x');
+  });
+
+  /// The raw `Order rejected by Mostro: X` is never what the user reads, and
+  /// neither is a screen's own fallback when that fallback is the raw text:
+  /// three screens used to pass it.
+  test('a refusal with no wording of its own is still worded, with its code', () {
+    String refusal(String reason) => localizedDaemonError(
+      l10n,
+      'AnyhowException(Order rejected by Mostro: $reason)',
+      fallback: 'x',
+    );
+
+    // Reasons mostrod 0.19.2 sends that no screen has a sentence for, and
+    // one a newer daemon might add.
+    for (final reason in [
+      'InvalidOrderKind',
+      'InvalidPaymentRequest',
+      'InvalidRating',
+      'InvalidTextMessage',
+      'InvalidSignature',
+      'SomethingNew',
+    ]) {
+      final text = refusal(reason);
+      expect(text, l10n.orderRejectedOther(reason), reason: reason);
+      expect(text, contains(reason), reason: reason);
+      expect(text, isNot(contains('rejected by Mostro')), reason: reason);
+    }
+    // No reason at all: nothing to name.
+    expect(refusal('unknown'), l10n.orderRequestFailed);
+    expect(refusal('Unknown'), l10n.orderRequestFailed);
+  });
+
+  test("the daemon's InvalidPubkey reads by the request it answers", () {
+    const refusal = 'AnyhowException(Order rejected by Mostro: InvalidPubkey)';
+    // On a take it is the taker's own order, one the core did not know was
+    // theirs; anywhere else, a request from the party it does not belong to.
+    expect(
+      localizedDaemonError(l10n, refusal, fallback: 'x', onTake: true),
+      l10n.orderCannotTakeOwn,
+    );
+    expect(
+      localizedDaemonError(l10n, refusal, fallback: 'x'),
+      l10n.orderRejectedNotYourAction,
+    );
+  });
+
+  test('words the takes the core refuses before sending', () {
+    String local(String marker) => localizedDaemonError(
+      l10n,
+      'AnyhowException($marker)',
+      fallback: 'x',
+    );
+
+    expect(local('CannotTakeOwnOrder'), l10n.orderCannotTakeOwn);
+    expect(local('FiatAmountRequired'), l10n.orderAmountMustBeWhole);
+    // The order's own range — not the node's limits, which are the
+    // daemon's `OutOfRange…Amount` reasons.
+    expect(local('OutOfRange'), l10n.orderTakeAmountOutOfRange);
+    expect(
+      local('Order rejected by Mostro: OutOfRangeSatsAmount'),
+      l10n.orderRejectedOutOfRange,
+    );
+    expect(
+      local('Order rejected: fiat amount is out of the allowed range.'),
+      l10n.orderRejectedOutOfRange,
+    );
   });
 
   test('words the refusals the core still phrases in English', () {

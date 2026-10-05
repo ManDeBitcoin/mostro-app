@@ -290,6 +290,30 @@ class AppLocalizationsIt extends AppLocalizations {
       'Il nodo ha rifiutato la richiesta: i parametri non sono validi.';
 
   @override
+  String get simpleCommunityFee => 'Commissione della comunità';
+
+  @override
+  String get simpleFeeTakenFromSats => 'Detratta dai sats che ricevi';
+
+  @override
+  String get simpleFeeAddedToSats => 'Aggiunta ai sats che blocchi';
+
+  @override
+  String orderRejectedOther(String reason) {
+    return 'Il nodo della comunità ha rifiutato la richiesta ($reason).';
+  }
+
+  @override
+  String get orderCannotTakeOwn => 'Non puoi prendere il tuo stesso ordine.';
+
+  @override
+  String get orderTakeAmountOutOfRange =>
+      'L\'importo è fuori dall\'intervallo di questo ordine.';
+
+  @override
+  String get tradesLoadError => 'Impossibile caricare le tue operazioni.';
+
+  @override
   String get simpleAllPaymentMethods => 'Tutti';
 
   @override
