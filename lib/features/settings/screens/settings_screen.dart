@@ -7,9 +7,11 @@ import 'package:mostro/core/app_routes.dart';
 import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/core/automation/automation_id.dart';
 import 'package:mostro/core/automation/automation_ids.dart';
+import 'package:mostro/core/mostro_defaults.dart';
 import 'package:mostro/core/settings_palette.dart';
 import 'package:mostro/features/about/screens/about_screen.dart'
     show appVersionProvider;
+import 'package:mostro/features/settings/models/node_display.dart';
 import 'package:mostro/features/settings/models/settings_rows.dart';
 import 'package:mostro/features/settings/providers/escrow_mode_provider.dart';
 import 'package:mostro/features/settings/providers/mostro_nodes_provider.dart';
@@ -20,7 +22,6 @@ import 'package:mostro/features/settings/providers/settings_provider.dart';
 import 'package:mostro/features/settings/widgets/currency_selector_dialog.dart';
 import 'package:mostro/features/settings/widgets/escrow_mode_dev_card.dart';
 import 'package:mostro/features/settings/widgets/language_selector.dart';
-import 'package:mostro/features/settings/widgets/mostro_node_selector.dart';
 import 'package:mostro/features/settings/widgets/settings_section.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
@@ -116,7 +117,9 @@ class SettingsScreen extends ConsumerWidget {
                 // the full key, which is what automation compares.
                 semanticValue: ref.watch(mostroPubkeyProvider),
                 valueAutomationId: AutomationIds.settingsMostroNodePubkey,
-                onTap: () => showMostroNodeSelector(context),
+                // The app serves one node, so there is nothing to choose:
+                // the row opens what that node declares about itself.
+                onTap: () => context.push(AppRoute.about),
                 // The row holds a tap target plus that readout, so
                 // merge: false keeps the readout its own node.
               ).withAutomationId(
@@ -263,7 +266,12 @@ class SettingsScreen extends ConsumerWidget {
         return nodeDisplayName(node);
       }
     }
-    return truncatePubkey(ref.watch(mostroPubkeyProvider));
+    // Before the node's kind 0 name has been fetched the row still names
+    // the community rather than showing a bare key.
+    final pubkey = ref.watch(mostroPubkeyProvider);
+    return pubkey == defaultMostroPubkey
+        ? defaultMostroName
+        : truncatePubkey(pubkey);
   }
 
   // ── Theme dialog ─────────────────────────────────────────────────────────────

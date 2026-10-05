@@ -264,7 +264,7 @@
   "@orderAlreadyTaken": {
     "description": "Error message when attempting to take an already-taken order"
   },
-  "nodeProtocolUnsupported": "This Mostro node uses a protocol version this app does not support. Pick another node in Settings, or check for an app update",
+  "nodeProtocolUnsupported": "This Mostro node uses a protocol version this app does not support. Check for an app update",
   "@nodeProtocolUnsupported": {
     "description": "Error shown when the selected Mostro node advertises a protocol version this v2-native client does not speak, so it would never read the request"
   },
@@ -272,7 +272,7 @@
   "@nodeCapabilitiesUnknown": {
     "description": "Error shown when a send fails closed because the selected node's capability fetch (PoW, protocol version) has not completed yet — retrying shortly usually succeeds"
   },
-  "mostroMaintenanceMode": "The Mostro node you are connected to is under maintenance. Try again later, or connect to a different Mostro node in Settings",
+  "mostroMaintenanceMode": "The Mostro node you are connected to is under maintenance. Try again later",
   "@mostroMaintenanceMode": {
     "description": "Error shown when the selected Mostro node answers CantDo(MaintenanceMode): it is draining (for example before a Lightning node migration) and refuses new orders and takes until it is back"
   },
@@ -282,6 +282,42 @@
   },
   "rangeOrderWithSats": "A range order can't have a fixed sats amount: it is priced at market when taken.",
   "@rangeOrderWithSats": {"description": "Create-order error (RangeOrderWithSats marker): a range order was sent with a fixed sats amount, which the daemon refuses"},
+  "nodeNotAnnouncing": "This community's node isn't answering right now. Try again in a few minutes.",
+  "@nodeNotAnnouncing": {"description": "Create or take error (NodeNotAnnouncing marker): the node has published no recent info event, so it is treated as offline and the request is not sent"},
+  "orderFixedSatsWithPremium": "An order can't carry a fixed sats amount and a premium at the same time.",
+  "@orderFixedSatsWithPremium": {"description": "Create-order error (FixedSatsWithPremium marker, or the daemon CantDo InvalidParameters): an order is priced by fixed sats or by a premium over the market, never both"},
+  "orderAmountMustBeWhole": "Enter a whole amount: digits only, no decimals or separators.",
+  "@orderAmountMustBeWhole": {"description": "Shown wherever a fiat amount has to be a whole number written in digits: the line under Simple Mode's amount field (also while it is empty), the range-take dialog, the create-order preview bar, and the core's FiatAmountNotWhole marker. Simple Mode and the dialog refuse any typed dot or comma; the create-order form refuses one that is not its own thousands grouping"},
+  "orderPremiumMustBeWhole": "The premium must be a whole percentage.",
+  "@orderPremiumMustBeWhole": {"description": "Create-order error (PremiumNotWhole marker): the premium is not a whole percentage"},
+  "orderRejectedInvalidAmount": "The node rejected the amount. Check it and try again.",
+  "@orderRejectedInvalidAmount": {"description": "Daemon refusal CantDo InvalidAmount: fiat amount zero or negative, or an incomplete or inverted range"},
+  "orderRejectedFiatCurrency": "This community doesn't trade in that currency.",
+  "@orderRejectedFiatCurrency": {"description": "Daemon refusal CantDo InvalidFiatCurrency: the node does not accept the order currency"},
+  "orderRejectedOutOfRange": "The amount is outside this community's limits.",
+  "@orderRejectedOutOfRange": {"description": "Daemon refusal CantDo OutOfRangeSatsAmount or OutOfRangeFiatAmount: the amount is outside the node limits, or outside the range of the order being taken"},
+  "orderRejectedPriceStale": "The node has no recent price quote. Try again in a few minutes.",
+  "@orderRejectedPriceStale": {"description": "Daemon refusal CantDo PriceTooStale: the node has no recent exchange rate to price the order with"},
+  "orderRejectedPendingOrder": "The node didn't accept this take: you have another trade waiting on you, or someone else has just taken this order.",
+  "@orderRejectedPendingOrder": {"description": "Daemon refusal CantDo PendingOrderExists on a take. mostrod sends it in two cases: the taker already has a trade waiting on their own step (their invoice or their payment), or — on a node with bonds — another taker's bond has already locked on this order"},
+  "orderRejectedByStatus": "The order has changed state and no longer allows this action.",
+  "@orderRejectedByStatus": {"description": "Daemon refusal CantDo NotAllowedByStatus: the order moved to a state that no longer accepts the requested action"},
+  "orderRejectedNotYours": "This order isn't yours.",
+  "@orderRejectedNotYours": {"description": "Daemon refusal CantDo IsNotYourOrder: the trade key is not a party to the order"},
+  "orderRejectedNotYourAction": "This action isn't available to you on this order.",
+  "@orderRejectedNotYourAction": {"description": "Daemon refusal CantDo InvalidPubkey: taking your own order, or an action sent by a key that is not the expected party"},
+  "orderRejectedOtherParty": "This action belongs to the other party.",
+  "@orderRejectedOtherParty": {"description": "Daemon refusal CantDo InvalidPeer: the action belongs to the counterparty (only the seller releases, only the buyer adds an invoice)"},
+  "orderRejectedInvalidParameters": "The node rejected the request: its parameters are not valid.",
+  "@orderRejectedInvalidParameters": {"description": "Daemon refusal CantDo InvalidParameters for any cause the app did not rule out before sending (fixed sats with a premium is refused locally and has its own message)"},
+  "simpleRangeAmountHint": "Type a whole amount between {min} and {max} {code} above",
+  "@simpleRangeAmountHint": {"description": "Simple Mode, on a range offer while the amount typed is not one it can be taken for", "placeholders": {"min": {"type": "String"}, "max": {"type": "String"}, "code": {"type": "String"}}},
+  "simpleTakenWaitingNode": "Trade taken. Waiting for the node's next step…",
+  "@simpleTakenWaitingNode": {"description": "Simple Mode trade view: the public book reports the order as taken, before the node has told this user which step the trade is on"},
+  "simpleDoNotPayYet": "Don't send the money yet: the Bitcoin is not secured yet.",
+  "@simpleDoNotPayYet": {"description": "Simple Mode trade view, said to the buyer while the seller's Bitcoin is not known to be locked"},
+  "orderRequestFailed": "The request could not be completed. Try again.",
+  "@orderRequestFailed": {"description": "Generic failure of a create or take request in Simple Mode when the error carries no known marker; never shows the raw exception"},
   "orderIdCopied": "Order ID copied",
   "@orderIdCopied": {
     "description": "Snackbar shown after copying an order ID to clipboard"

@@ -67,25 +67,6 @@ class SimpleL10n {
         _ => 'Verified community',
       };
 
-  static String generalMarket(BuildContext context) => switch (_lang(context)) {
-    'es' => 'Mercado General',
-    'fr' => 'Marché Général',
-    'de' => 'Allgemeiner Markt',
-    'it' => 'Mercato Generale',
-    'nl' => 'Algemene Markt',
-    _ => 'General Market',
-  };
-
-  static String scanCommunityQr(BuildContext context) =>
-      switch (_lang(context)) {
-        'es' => 'Escanear QR de comunidad',
-        'fr' => 'Scanner le QR de communauté',
-        'de' => 'Community-QR scannen',
-        'it' => 'Scansiona QR comunità',
-        'nl' => 'Scan community QR',
-        _ => 'Scan community QR',
-      };
-
   static String enterMarket(BuildContext context) => switch (_lang(context)) {
     'es' => 'Entrar al mercado',
     'fr' => 'Entrer sur le marché',
@@ -137,17 +118,17 @@ class SimpleL10n {
     context,
   )) {
     'es' =>
-      'Para usuarios técnicos: control de relays Nostr, claves privadas, selector de nodos y diagnósticos.',
+      'Para usuarios técnicos: control de relays Nostr, claves privadas y diagnósticos.',
     'fr' =>
-      'Pour les utilisateurs techniques : gestion des relais Nostr, clés privées, sélecteur de nœuds et diagnostics.',
+      'Pour les utilisateurs techniques : gestion des relais Nostr, clés privées et diagnostics.',
     'de' =>
-      'Für technische Benutzer: Nostr-Relays, private Schlüssel, Node-Auswahl und Diagnose.',
+      'Für technische Benutzer: Nostr-Relays, private Schlüssel und Diagnose.',
     'it' =>
-      'Per utenti tecnici: gestione dei relay Nostr, chiavi private, selezione nodi e diagnostica.',
+      'Per utenti tecnici: gestione dei relay Nostr, chiavi private e diagnostica.',
     'nl' =>
-      'Voor technische gebruikers: Nostr-relays, privésleutels, node-selectie en diagnostiek.',
+      'Voor technische gebruikers: Nostr-relays, privésleutels en diagnostiek.',
     _ =>
-      'For technical users: Nostr relays, private keys, node switcher, and diagnostics.',
+      'For technical users: Nostr relays, private keys, and diagnostics.',
   };
 
   static String howMuchBuy(BuildContext context) => switch (_lang(context)) {

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mostro/core/app_routes.dart';
+import 'package:mostro/core/daemon_errors.dart';
 import 'package:mostro/core/order_book_palette.dart';
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_request_help_dialog.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_trade_timeline.dart';
 import 'package:mostro/features/trades/widgets/release_confirmation_sheet.dart';
+import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
 import 'package:mostro/src/rust/api/orders.dart' as orders_api;
 import 'package:mostro/src/rust/api/types.dart';
@@ -27,6 +29,7 @@ class SimpleTradeDetailView extends ConsumerStatefulWidget {
     this.amountSats,
     this.paymentMethod = 'Transferencia',
     this.paymentDetails,
+    this.hasBond = false,
   });
 
   final String orderId;
@@ -37,6 +40,11 @@ class SimpleTradeDetailView extends ConsumerStatefulWidget {
   final int? amountSats;
   final String paymentMethod;
   final String? paymentDetails;
+
+  /// Whether this user locked, or must lock, a deposit for this trade: the
+  /// trade row carries one. The node's policy alone would not do — with
+  /// `bond_apply_to = take` the maker of the same trade locks nothing.
+  final bool hasBond;
 
   @override
   ConsumerState<SimpleTradeDetailView> createState() =>
@@ -75,9 +83,14 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            localizedDaemonError(l10n, e, fallback: l10n.fiatSentFailed),
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _markingPaid = false);
     }
@@ -96,9 +109,14 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error al liberar: $e')));
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            localizedDaemonError(l10n, e, fallback: l10n.releaseFailed),
+          ),
+        ),
+      );
     }
   }
 
@@ -111,6 +129,13 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
         widget.status == OrderStatus.settledHoldInvoice;
 
     final title = widget.isBuyer ? 'Compra de Bitcoin' : 'Venta de Bitcoin';
+
+    // The deposit step exists only for a trade that has one, or is waiting
+    // on it right now.
+    final showBond =
+        widget.hasBond ||
+        widget.status == OrderStatus.waitingMakerBond ||
+        widget.status == OrderStatus.waitingTakerBond;
 
     final isChatAvailable =
         widget.status == OrderStatus.active ||
@@ -468,10 +493,57 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
             const SizedBox(height: 16),
           ],
 
+          // Taken, real step unknown: the public book says `in-progress` from
+          // the take until the trade ends, so it is not "pay now" (#203).
+          if (widget.status == OrderStatus.inProgress) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: pal.surfaceCard,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: pal.navBorder),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          AppLocalizations.of(context).simpleTakenWaitingNode,
+                          style: TextStyle(
+                            color: pal.textTitle,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                        if (widget.isBuyer) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            AppLocalizations.of(context).simpleDoNotPayYet,
+                            style: TextStyle(
+                              color: pal.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           // Payment Details Card (if Buyer and active)
-          if (widget.isBuyer &&
-              (widget.status == OrderStatus.active ||
-                  widget.status == OrderStatus.inProgress)) ...[
+          if (widget.isBuyer && widget.status == OrderStatus.active) ...[
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -543,9 +615,7 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
           ],
 
           // Waiting fiat payment (if Seller and active)
-          if (!widget.isBuyer &&
-              (widget.status == OrderStatus.active ||
-                  widget.status == OrderStatus.inProgress)) ...[
+          if (!widget.isBuyer && widget.status == OrderStatus.active) ...[
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -662,14 +732,13 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
             status: widget.status,
             isBuyer: widget.isBuyer,
             isDisputed: isDisputed,
+            showBond: showBond,
           ),
 
           const SizedBox(height: 24),
 
           // Primary Context Actions
-          if (widget.isBuyer &&
-              (widget.status == OrderStatus.active ||
-                  widget.status == OrderStatus.inProgress)) ...[
+          if (widget.isBuyer && widget.status == OrderStatus.active) ...[
             FilledButton(
               onPressed: _markingPaid ? null : _handleFiatPaid,
               style: FilledButton.styleFrom(

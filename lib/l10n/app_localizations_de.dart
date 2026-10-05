@@ -216,7 +216,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get nodeProtocolUnsupported =>
-      'Dieser Mostro-Node nutzt eine Protokollversion, die diese App nicht unterstützt. Wähle in den Einstellungen einen anderen Node oder prüfe, ob ein App-Update verfügbar ist';
+      'Dieser Mostro-Node nutzt eine Protokollversion, die diese App nicht unterstützt. Prüfe, ob ein App-Update verfügbar ist';
 
   @override
   String get nodeCapabilitiesUnknown =>
@@ -224,7 +224,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get mostroMaintenanceMode =>
-      'Der Mostro-Node, mit dem du verbunden bist, wird gerade gewartet. Versuche es später noch einmal oder verbinde dich in den Einstellungen mit einem anderen Mostro-Node';
+      'Der Mostro-Node, mit dem du verbunden bist, wird gerade gewartet. Versuche es später noch einmal';
 
   @override
   String get storageUnavailable =>
@@ -233,6 +233,78 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get rangeOrderWithSats =>
       'Eine Order mit Betragsspanne kann keinen festen Sats-Betrag haben: Sie wird bei der Annahme zum Marktpreis bewertet.';
+
+  @override
+  String get nodeNotAnnouncing =>
+      'Der Node der Community antwortet gerade nicht. Versuche es in ein paar Minuten erneut.';
+
+  @override
+  String get orderFixedSatsWithPremium =>
+      'Eine Order kann nicht gleichzeitig einen festen Sats-Betrag und einen Aufschlag haben.';
+
+  @override
+  String get orderAmountMustBeWhole =>
+      'Gib einen ganzen Betrag ein: nur Ziffern, ohne Nachkommastellen oder Trennzeichen.';
+
+  @override
+  String get orderPremiumMustBeWhole =>
+      'Der Aufschlag muss ein ganzzahliger Prozentsatz sein.';
+
+  @override
+  String get orderRejectedInvalidAmount =>
+      'Der Node hat den Betrag abgelehnt. Prüfe ihn und versuche es erneut.';
+
+  @override
+  String get orderRejectedFiatCurrency =>
+      'Diese Community handelt nicht in dieser Währung.';
+
+  @override
+  String get orderRejectedOutOfRange =>
+      'Der Betrag liegt außerhalb der Limits dieser Community.';
+
+  @override
+  String get orderRejectedPriceStale =>
+      'Der Node hat keinen aktuellen Kurs. Versuche es in ein paar Minuten erneut.';
+
+  @override
+  String get orderRejectedPendingOrder =>
+      'Der Node hat die Annahme abgelehnt: Du hast noch einen offenen Handel, oder jemand hat diese Order gerade angenommen.';
+
+  @override
+  String get orderRejectedByStatus =>
+      'Die Order hat ihren Status geändert und lässt diese Aktion nicht mehr zu.';
+
+  @override
+  String get orderRejectedNotYours => 'Diese Order gehört nicht dir.';
+
+  @override
+  String get orderRejectedNotYourAction =>
+      'Diese Aktion steht dir bei dieser Order nicht zu.';
+
+  @override
+  String get orderRejectedOtherParty =>
+      'Diese Aktion ist Sache der Gegenpartei.';
+
+  @override
+  String get orderRejectedInvalidParameters =>
+      'Der Node hat die Anfrage abgelehnt: Ihre Parameter sind ungültig.';
+
+  @override
+  String simpleRangeAmountHint(String min, String max, String code) {
+    return 'Gib oben einen ganzen Betrag zwischen $min und $max $code ein';
+  }
+
+  @override
+  String get simpleTakenWaitingNode =>
+      'Handel angenommen. Warte auf den nächsten Schritt des Nodes…';
+
+  @override
+  String get simpleDoNotPayYet =>
+      'Sende das Geld noch nicht: Die Bitcoin sind noch nicht gesichert.';
+
+  @override
+  String get orderRequestFailed =>
+      'Die Anfrage konnte nicht abgeschlossen werden. Versuche es erneut.';
 
   @override
   String get orderIdCopied => 'Bestell-ID kopiert';

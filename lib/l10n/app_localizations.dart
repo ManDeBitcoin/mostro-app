@@ -451,7 +451,7 @@ abstract class AppLocalizations {
   /// Error shown when the selected Mostro node advertises a protocol version this v2-native client does not speak, so it would never read the request
   ///
   /// In en, this message translates to:
-  /// **'This Mostro node uses a protocol version this app does not support. Pick another node in Settings, or check for an app update'**
+  /// **'This Mostro node uses a protocol version this app does not support. Check for an app update'**
   String get nodeProtocolUnsupported;
 
   /// Error shown when a send fails closed because the selected node's capability fetch (PoW, protocol version) has not completed yet — retrying shortly usually succeeds
@@ -463,7 +463,7 @@ abstract class AppLocalizations {
   /// Error shown when the selected Mostro node answers CantDo(MaintenanceMode): it is draining (for example before a Lightning node migration) and refuses new orders and takes until it is back
   ///
   /// In en, this message translates to:
-  /// **'The Mostro node you are connected to is under maintenance. Try again later, or connect to a different Mostro node in Settings'**
+  /// **'The Mostro node you are connected to is under maintenance. Try again later'**
   String get mostroMaintenanceMode;
 
   /// Error shown when a trade key cannot be derived because the local database is unavailable, so orders cannot be created or taken
@@ -477,6 +477,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A range order can\'t have a fixed sats amount: it is priced at market when taken.'**
   String get rangeOrderWithSats;
+
+  /// Create or take error (NodeNotAnnouncing marker): the node has published no recent info event, so it is treated as offline and the request is not sent
+  ///
+  /// In en, this message translates to:
+  /// **'This community\'s node isn\'t answering right now. Try again in a few minutes.'**
+  String get nodeNotAnnouncing;
+
+  /// Create-order error (FixedSatsWithPremium marker, or the daemon CantDo InvalidParameters): an order is priced by fixed sats or by a premium over the market, never both
+  ///
+  /// In en, this message translates to:
+  /// **'An order can\'t carry a fixed sats amount and a premium at the same time.'**
+  String get orderFixedSatsWithPremium;
+
+  /// Shown wherever a fiat amount has to be a whole number written in digits: the line under Simple Mode's amount field (also while it is empty), the range-take dialog, the create-order preview bar, and the core's FiatAmountNotWhole marker. Simple Mode and the dialog refuse any typed dot or comma; the create-order form refuses one that is not its own thousands grouping
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole amount: digits only, no decimals or separators.'**
+  String get orderAmountMustBeWhole;
+
+  /// Create-order error (PremiumNotWhole marker): the premium is not a whole percentage
+  ///
+  /// In en, this message translates to:
+  /// **'The premium must be a whole percentage.'**
+  String get orderPremiumMustBeWhole;
+
+  /// Daemon refusal CantDo InvalidAmount: fiat amount zero or negative, or an incomplete or inverted range
+  ///
+  /// In en, this message translates to:
+  /// **'The node rejected the amount. Check it and try again.'**
+  String get orderRejectedInvalidAmount;
+
+  /// Daemon refusal CantDo InvalidFiatCurrency: the node does not accept the order currency
+  ///
+  /// In en, this message translates to:
+  /// **'This community doesn\'t trade in that currency.'**
+  String get orderRejectedFiatCurrency;
+
+  /// Daemon refusal CantDo OutOfRangeSatsAmount or OutOfRangeFiatAmount: the amount is outside the node limits, or outside the range of the order being taken
+  ///
+  /// In en, this message translates to:
+  /// **'The amount is outside this community\'s limits.'**
+  String get orderRejectedOutOfRange;
+
+  /// Daemon refusal CantDo PriceTooStale: the node has no recent exchange rate to price the order with
+  ///
+  /// In en, this message translates to:
+  /// **'The node has no recent price quote. Try again in a few minutes.'**
+  String get orderRejectedPriceStale;
+
+  /// Daemon refusal CantDo PendingOrderExists on a take. mostrod sends it in two cases: the taker already has a trade waiting on their own step (their invoice or their payment), or — on a node with bonds — another taker's bond has already locked on this order
+  ///
+  /// In en, this message translates to:
+  /// **'The node didn\'t accept this take: you have another trade waiting on you, or someone else has just taken this order.'**
+  String get orderRejectedPendingOrder;
+
+  /// Daemon refusal CantDo NotAllowedByStatus: the order moved to a state that no longer accepts the requested action
+  ///
+  /// In en, this message translates to:
+  /// **'The order has changed state and no longer allows this action.'**
+  String get orderRejectedByStatus;
+
+  /// Daemon refusal CantDo IsNotYourOrder: the trade key is not a party to the order
+  ///
+  /// In en, this message translates to:
+  /// **'This order isn\'t yours.'**
+  String get orderRejectedNotYours;
+
+  /// Daemon refusal CantDo InvalidPubkey: taking your own order, or an action sent by a key that is not the expected party
+  ///
+  /// In en, this message translates to:
+  /// **'This action isn\'t available to you on this order.'**
+  String get orderRejectedNotYourAction;
+
+  /// Daemon refusal CantDo InvalidPeer: the action belongs to the counterparty (only the seller releases, only the buyer adds an invoice)
+  ///
+  /// In en, this message translates to:
+  /// **'This action belongs to the other party.'**
+  String get orderRejectedOtherParty;
+
+  /// Daemon refusal CantDo InvalidParameters for any cause the app did not rule out before sending (fixed sats with a premium is refused locally and has its own message)
+  ///
+  /// In en, this message translates to:
+  /// **'The node rejected the request: its parameters are not valid.'**
+  String get orderRejectedInvalidParameters;
+
+  /// Simple Mode, on a range offer while the amount typed is not one it can be taken for
+  ///
+  /// In en, this message translates to:
+  /// **'Type a whole amount between {min} and {max} {code} above'**
+  String simpleRangeAmountHint(String min, String max, String code);
+
+  /// Simple Mode trade view: the public book reports the order as taken, before the node has told this user which step the trade is on
+  ///
+  /// In en, this message translates to:
+  /// **'Trade taken. Waiting for the node\'s next step…'**
+  String get simpleTakenWaitingNode;
+
+  /// Simple Mode trade view, said to the buyer while the seller's Bitcoin is not known to be locked
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t send the money yet: the Bitcoin is not secured yet.'**
+  String get simpleDoNotPayYet;
+
+  /// Generic failure of a create or take request in Simple Mode when the error carries no known marker; never shows the raw exception
+  ///
+  /// In en, this message translates to:
+  /// **'The request could not be completed. Try again.'**
+  String get orderRequestFailed;
 
   /// Snackbar shown after copying an order ID to clipboard
   ///

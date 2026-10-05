@@ -896,9 +896,9 @@ void main() {
       expect(nodeDisplayName(e), 'Cuba 🇨🇺');
     });
 
-    test('default node without metadata reads Mostro', () {
+    test('default node without metadata reads the community name', () {
       final e = _entry(pubkey: defaultMostroPubkey, region: '🌐');
-      expect(nodeDisplayName(e), 'Mostro 🌐');
+      expect(nodeDisplayName(e), '$defaultMostroName 🌐');
     });
 
     test('nameless custom node shows truncated pubkey', () {

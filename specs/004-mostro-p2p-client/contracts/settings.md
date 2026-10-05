@@ -120,12 +120,13 @@ selection; display metadata lives in the node registry below.
 
 ## Node Registry (`api/nodes.rs`)
 
-The selector in Settings → Mostro Node lists `MostroNodeEntry` rows merged
-from three sources: the compiled-in trusted registry
-(`config::TRUSTED_MOSTRO_NODES`, mirrored from mostro.community and from v1's
-`communities.dart`), user-added custom nodes, and cached kind 0 display
-metadata (name, picture, about, website). Selection itself still goes through
-`set_active_mostro_node` — the registry only manages the list.
+The registry yields `MostroNodeEntry` rows merged from three sources: the
+compiled-in trusted registry (`config::TRUSTED_MOSTRO_NODES` — a single entry,
+the BitMaxis node), user-added custom nodes, and cached kind 0 display
+metadata (name, picture, about, website). The app serves that one node, so no
+screen opens the selector any more: Settings → Mostro Node reads the active
+entry's name from this list and opens About. The add/remove calls below have
+no caller left in the UI.
 
 ### list_mostro_nodes() → Vec<MostroNodeEntry>
 Trusted nodes first (registry order), then custom nodes (insertion order),
@@ -213,9 +214,10 @@ key-value table.
 ### rehydrate_active_mostro_node() → ()
 Load the persisted active pubkey into the in-memory override. Call once at
 startup, after `init_db` and **before** the relay pool starts subscribing, so
-the first subscription already targets the user's selected node. No-op when
-nothing has been persisted (the compiled-in default then applies) or when the
-DB is unavailable.
+the first subscription already targets the persisted node. `init_db` has by
+then run `db::seeds::pin_active_node`, so that node is the compiled-in one
+(see Default Mostro Node below). No-op when nothing has been persisted or when
+the DB is unavailable.
 
 ---
 
@@ -235,15 +237,14 @@ before the user adds or removes anything.
 
 | URL | Purpose |
 |-----|---------|
-| `wss://relay.mostro.network` | Primary Mostro relay |
-| `wss://nos.lol` | General Nostr relay (fallback) |
-| `wss://mostro-p2p.tech` | Mostro relay (default node's kind 10002 list) |
-| `wss://relay.shadowbip.com` | Mostro relay (default node's kind 10002 list) |
+| `wss://relay.mostro.network` | BitMaxis node's kind 10002 list |
+| `wss://mostro-p2p.tech` | BitMaxis node's kind 10002 list |
+| `wss://relay.shadowbip.com` | BitMaxis node's kind 10002 list |
 
-The set mirrors the default node's own kind 10002 relay list. Public relays
+The set mirrors the BitMaxis node's own kind 10002 relay list. Public relays
 rate-limit and cap replays differently (`relay.mostro.network` stops at 300
-stored events per REQ, `nos.lol` at 500), so seeding all four keeps the order
-book reachable when one of them is throttling the client.
+stored events per REQ), so seeding all three keeps the order book reachable
+when one of them is throttling the client.
 
 These are stored as `RelayInfo` entries with `user_added: false`. They cannot be
 removed by the user from the UI (only user-added relays are deletable), but they
@@ -253,26 +254,29 @@ can be disabled.
 
 | Field | Value |
 |-------|-------|
-| `pubkey` | `82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390` |
-| `name` | `Mostro` |
+| `pubkey` | `001bd4747d7d265edfe3bd3b7299886146ad850d51095fe77b763c32015685b9` |
+| `name` | `BitMaxis` |
 
-When no `active_mostro_pubkey` has been persisted (first launch), this
-compiled-in pubkey is the active node. It is also part of the trusted node
-registry (region `🌐`), so returning to it is a normal selection in
-Settings → Mostro Node via `set_active_mostro_node`.
+The app serves the BitMaxis community only: this compiled-in pubkey is the
+active node and the single entry of the trusted registry (region
+`🇪🇨 Ecuador`). No screen selects another node. When the store opens,
+`db::seeds::pin_active_node` rewrites a persisted node other than this one —
+an install that predates the pin — and clears the community profile that
+described it, so `rehydrate_active_mostro_node` then loads the pinned node.
+`set_active_mostro_node` remains for test builds, which seed a local daemon
+through `MOSTRO_PUB_KEY`.
 
 ### Rust Constants (suggested location: `rust/src/config.rs`)
 
 ```rust
 pub const DEFAULT_RELAYS: &[&str] = &[
     "wss://relay.mostro.network",
-    "wss://nos.lol",
     "wss://mostro-p2p.tech",
     "wss://relay.shadowbip.com",
 ];
 
 pub const DEFAULT_MOSTRO_PUBKEY: &str =
-    "82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390";
+    "001bd4747d7d265edfe3bd3b7299886146ad850d51095fe77b763c32015685b9";
 
-pub const DEFAULT_MOSTRO_NAME: &str = "Mostro";
+pub const DEFAULT_MOSTRO_NAME: &str = "BitMaxis";
 ```

@@ -276,11 +276,20 @@ pub async fn apply_community_profile(profile: CommunityProfile) -> Result<()> {
 
 /// Retrieve the currently active [`CommunityProfile`], if any.
 pub async fn get_active_community_profile() -> Result<Option<CommunityProfile>> {
+    // Whoever reads the profile keeps it current: the node's card is looked
+    // up again when the last look is old (`mostro::community_card`).
+    crate::mostro::community_card::refresh_if_stale();
     if let Some(db) = crate::db::app_db::db() {
         if let Some(json) = db.get_setting(settings_keys::ACTIVE_COMMUNITY_PROFILE).await? {
             if !json.trim().is_empty() {
                 if let Ok(profile) = serde_json::from_str::<CommunityProfile>(&json) {
-                    return Ok(Some(profile));
+                    // Only a card the active node signed. A profile an older
+                    // build stored from a scanned link was never verified,
+                    // and one read from a bare `nprofile` is invented.
+                    let node = crate::config::active_mostro_pubkey();
+                    if crate::mostro::community_card::is_card_of(&profile, &node) {
+                        return Ok(Some(profile));
+                    }
                 }
             }
         }

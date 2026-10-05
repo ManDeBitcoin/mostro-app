@@ -189,4 +189,83 @@ void main() {
       expect(find.text('Depósito de fianza requerido'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'SimpleTradeDetailView does not ask a buyer to pay while only taken',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      // `inProgress` is the public book's "taken": it says nothing about the
+      // seller having locked the sats, so there is nothing to pay yet.
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            locale: Locale('es'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: SimpleTradeDetailView(
+              orderId: 'trade-test-6',
+              status: OrderStatus.inProgress,
+              isBuyer: true,
+              fiatAmount: 50.0,
+              fiatCode: 'USD',
+              amountSats: 125000,
+              paymentMethod: 'Bancolombia',
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('YA PAGUÉ'), findsNothing);
+      expect(
+        find.text('Operación tomada. Esperando el siguiente paso del nodo…'),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Todavía no envíes el dinero: el Bitcoin aún no está asegurado.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'SimpleTradeDetailView shows the deposit step only for a bonded trade',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      Future<void> pump({required bool hasBond}) => tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            locale: const Locale('es'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: SimpleTradeDetailView(
+              orderId: 'trade-test-7',
+              status: OrderStatus.active,
+              isBuyer: true,
+              fiatAmount: 50.0,
+              fiatCode: 'USD',
+              amountSats: 125000,
+              paymentMethod: 'Bancolombia',
+              hasBond: hasBond,
+            ),
+          ),
+        ),
+      );
+
+      // No bond on this trade — every trade on a node with bonds off, and
+      // the side that locks nothing on a node that bonds only the other.
+      await pump(hasBond: false);
+      expect(find.text('Garantía temporal bloqueada'), findsNothing);
+
+      await pump(hasBond: true);
+      expect(find.text('Garantía temporal bloqueada'), findsOneWidget);
+    },
+  );
 }

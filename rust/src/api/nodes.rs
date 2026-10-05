@@ -11,6 +11,10 @@
 /// Selecting a node stays where it always was —
 /// `crate::api::settings::set_active_mostro_node` — this module only manages
 /// the list the user picks from.
+///
+/// The app now serves one community (`crate::config::DEFAULT_MOSTRO_PUBKEY`)
+/// and no screen opens that selector: the registry is a single trusted entry
+/// and the custom-node calls below have no caller left on the Dart side.
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -414,7 +418,8 @@ pub async fn refresh_mostro_node_metadata() -> Result<Vec<MostroNodeEntry>> {
 mod tests {
     use super::*;
 
-    const HEX: &str = "82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390";
+    /// The compiled-in node — the one trusted entry.
+    const HEX: &str = crate::config::DEFAULT_MOSTRO_PUBKEY;
 
     #[test]
     fn parse_accepts_hex_and_normalizes_case() {

@@ -3,12 +3,18 @@
 /// Update both this file and config.rs when the defaults change.
 library;
 
-/// Default Mostro daemon public key (64-char hex).
+/// The BitMaxis Mostro daemon public key (64-char hex) — the one node this
+/// app trades on.
 const defaultMostroPubkey =
-    '82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390';
+    '001bd4747d7d265edfe3bd3b7299886146ad850d51095fe77b763c32015685b9';
+
+/// Name of the community the app serves, shown where the node has not
+/// answered with its own kind 0 name yet.
+const defaultMostroName = 'BitMaxis';
 
 /// Default Nostr relay URLs used by the Mostro daemon.
 const defaultMostroRelays = [
   'wss://relay.mostro.network',
-  'wss://nos.lol',
+  'wss://mostro-p2p.tech',
+  'wss://relay.shadowbip.com',
 ];

@@ -43,6 +43,48 @@ pub async fn new_order(
     wrap_message_first_contact(identity_keys, trade_keys, mostro_pubkey, &msg).await
 }
 
+/// The marker for a fiat amount the wire cannot carry: one with a fractional
+/// part, or not a number at all. Raised by [`validate_new_order`] for a new
+/// order and by `take_order` for the amount a range order is taken at.
+pub(crate) const FIAT_AMOUNT_NOT_WHOLE: &str = "FiatAmountNotWhole";
+
+/// Whether `value` survives the trip to the wire unchanged. Fiat amounts and
+/// the premium travel as integers (`as i64` in [`new_order_message`] and
+/// [`take_order_impl`]), so a fraction would be dropped without a word: 50.9
+/// would be traded as 50.
+pub(crate) fn is_whole_amount(value: f64) -> bool {
+    value.is_finite() && value.fract() == 0.0
+}
+
+/// Refuse what the daemon would refuse, or what [`new_order_message`] would
+/// silently change, before anything is derived or sent. Each failure is a
+/// marker Dart localizes (`lib/core/daemon_errors.dart`).
+///
+/// - `FiatAmountNotWhole` / `PremiumNotWhole`: the wire carries both as
+///   integers, so a fraction would be truncated — an order for 100.9 would be
+///   published as 100, and a 0.5 % premium as none.
+/// - `FixedSatsWithPremium`: an order is priced by fixed sats **or** by a
+///   premium over the market, never both; the daemon answers the pair with
+///   `CantDo(InvalidParameters)`. A market-price order carries no sats: the
+///   daemon fixes them when it is taken.
+pub(crate) fn validate_new_order(params: &NewOrderParams) -> Result<()> {
+    let fiat = [
+        params.fiat_amount,
+        params.fiat_amount_min,
+        params.fiat_amount_max,
+    ];
+    if fiat.into_iter().flatten().any(|v| !is_whole_amount(v)) {
+        anyhow::bail!(FIAT_AMOUNT_NOT_WHOLE);
+    }
+    if !is_whole_amount(params.premium) {
+        anyhow::bail!("PremiumNotWhole");
+    }
+    if params.amount_sats.is_some_and(|sats| sats > 0) && params.premium != 0.0 {
+        anyhow::bail!("FixedSatsWithPremium");
+    }
+    Ok(())
+}
+
 /// The NewOrder message. `expires_at` is the unix time the maker asks the
 /// daemon to expire the untaken order at; `None` leaves it to the daemon.
 pub(crate) fn new_order_message(
@@ -257,6 +299,11 @@ pub async fn dispute(
 ///
 /// Sends a 1–5 star rating for the counterparty to the Mostro daemon via
 /// the transport-v2 (NIP-44, signed Kind 14) wrap after a trade completes.
+///
+/// Mined as a **first contact**: the daemon stops recognising a trade key a
+/// minute or two after its order ends, and from then on the rating is a
+/// message from a key it does not know. Mined at the base difficulty on a
+/// node whose `pow_first_contact` is higher, it is dropped with no reply.
 pub async fn rate_user(
     identity_keys: &Keys,
     trade_keys: &Keys,
@@ -274,7 +321,7 @@ pub async fn rate_user(
         Action::RateUser,
         payload,
     );
-    wrap_message(identity_keys, trade_keys, mostro_pubkey, &msg).await
+    wrap_message_first_contact(identity_keys, trade_keys, mostro_pubkey, &msg).await
 }
 
 /// Build and wrap the reply to `add-bond-invoice`: the bolt11 for the
@@ -618,6 +665,92 @@ mod tests {
         );
     }
 
+    /// The combinations mostrod v0.19.2 answered, taken from its integration
+    /// guide (§6.2): fixed sats with a premium is `CantDo(InvalidParameters)`,
+    /// every other pairing creates an order.
+    #[test]
+    fn fixed_sats_and_a_premium_never_travel_together() {
+        let order = |amount_sats: Option<u64>, premium: f64| NewOrderParams {
+            kind: OrderKind::Sell,
+            fiat_amount: Some(100.0),
+            fiat_amount_min: None,
+            fiat_amount_max: None,
+            fiat_code: "USD".into(),
+            payment_method: "cash".into(),
+            premium,
+            amount_sats,
+        };
+        for (sats, premium) in [(112_433, 5.0), (116_886, 1.0), (118_055, -3.0)] {
+            let err = validate_new_order(&order(Some(sats), premium)).unwrap_err();
+            assert_eq!(err.to_string(), "FixedSatsWithPremium");
+        }
+        // Fixed price, and market price with any whole premium.
+        assert!(validate_new_order(&order(Some(118_055), 0.0)).is_ok());
+        for premium in [5.0, 0.0, -3.0] {
+            assert!(validate_new_order(&order(None, premium)).is_ok());
+            // `Some(0)` is "no fixed sats", as on the wire.
+            assert!(validate_new_order(&order(Some(0), premium)).is_ok());
+        }
+    }
+
+    /// The wire carries fiat amounts and the premium as integers: a fraction
+    /// is refused, not truncated into a different order.
+    #[test]
+    fn a_fraction_is_refused_rather_than_truncated() {
+        let base = sample_params();
+        let fiat = |v: f64| NewOrderParams {
+            fiat_amount: Some(v),
+            ..base.clone()
+        };
+        for v in [100.9, 0.5, f64::NAN, f64::INFINITY] {
+            let err = validate_new_order(&fiat(v)).unwrap_err();
+            assert_eq!(err.to_string(), "FiatAmountNotWhole", "fiat {v}");
+        }
+        let range = NewOrderParams {
+            fiat_amount: None,
+            fiat_amount_min: Some(50.0),
+            fiat_amount_max: Some(200.5),
+            ..base.clone()
+        };
+        assert_eq!(
+            validate_new_order(&range).unwrap_err().to_string(),
+            "FiatAmountNotWhole"
+        );
+        let premium = NewOrderParams {
+            premium: 2.5,
+            ..base.clone()
+        };
+        assert_eq!(
+            validate_new_order(&premium).unwrap_err().to_string(),
+            "PremiumNotWhole"
+        );
+        assert!(validate_new_order(&base).is_ok());
+    }
+
+    /// The one rule a new order and a range take share: an amount is whole
+    /// or it does not travel. `take_order_impl` casts with `as i64`, so
+    /// without it a take at 50.9 reaches the daemon as 50 while the trade
+    /// row keeps 50.9.
+    #[test]
+    fn only_a_whole_finite_amount_survives_the_wire() {
+        for whole in [1.0, 50.0, 0.0, -3.0, 1_000_000.0] {
+            assert!(is_whole_amount(whole), "{whole} is whole");
+        }
+        for not_whole in [
+            50.9,
+            0.5,
+            -0.1,
+            f64::NAN,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+        ] {
+            assert!(!is_whole_amount(not_whole), "{not_whole} must be refused");
+        }
+        // The truncation the rule exists to stop, spelled out.
+        assert_eq!(50.9_f64 as i64, 50);
+        assert_eq!(FIAT_AMOUNT_NOT_WHOLE, "FiatAmountNotWhole");
+    }
+
     /// The seller of a range order releases with the key the daemon must
     /// assign the remainder to; an ordinary release carries no payload.
     #[test]
@@ -676,7 +809,7 @@ mod tests {
     /// not the base difficulty. Distinct values (1 vs 4) make the nonce tag
     /// betray which one was selected; both are low enough to mine instantly.
     #[tokio::test]
-    async fn create_take_and_restore_mine_at_the_first_contact_difficulty() {
+    async fn create_take_restore_and_rate_mine_at_the_first_contact_difficulty() {
         use std::time::Duration;
 
         let identity_keys = Keys::generate();
@@ -717,7 +850,17 @@ mod tests {
             let restore = restore_session(&identity_keys, &trade_keys, &mostro_pubkey)
                 .await
                 .unwrap();
-            [("create", create), ("take", take), ("restore", restore)]
+            // A rating goes out after the order closed, when the daemon no
+            // longer knows the trade key.
+            let rate = rate_user(&identity_keys, &trade_keys, &mostro_pubkey, order_id, 5, 5)
+                .await
+                .unwrap();
+            [
+                ("create", create),
+                ("take", take),
+                ("restore", restore),
+                ("rate", rate),
+            ]
         })
         .await
         .expect("first-contact wraps timed out");

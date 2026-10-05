@@ -73,7 +73,8 @@ class AddOrderScreen extends ConsumerStatefulWidget {
   return null;
 }
 
-/// The amount [text] holds, or null when it is not one the form can submit.
+/// The amount [text] holds — a whole number — or null when it is not one
+/// the form can submit.
 ///
 /// `Infinity`, `-Infinity` and `NaN` all parse as doubles and would pass a
 /// bare positivity check, only to throw in the sats conversion further down —
@@ -81,9 +82,38 @@ class AddOrderScreen extends ConsumerStatefulWidget {
 /// (`canonicalAmount`), never the grouped text of the field.
 @visibleForTesting
 double? enteredAmount(String text) {
-  final value = double.tryParse(text.trim());
+  final digits = text.trim();
+  // An order carries its fiat amount as an integer: a fraction is refused by
+  // the core (`FiatAmountNotWhole`), so it is not submittable here either —
+  // nor is anything written with a decimal part, `150.00` included. What the
+  // field shows is what goes out, and it shows no decimals.
+  if (!RegExp(r'^\d+$').hasMatch(digits)) return null;
+  final value = double.tryParse(digits);
   if (value == null || !value.isFinite || value <= 0) return null;
   return value;
+}
+
+/// Whether [text], as it stands in an amount field, holds a separator that
+/// is not the field's own grouping: the one unusable amount the form
+/// explains.
+///
+/// The fields keep such a separator on screen (`keepTypedSeparators`) so it
+/// can be explained. Dropped, a typed `10.50` became 1 050 — in `es`, where
+/// the dot groups — and was offered to publish.
+@visibleForTesting
+bool amountHasTypedSeparator(
+  String text, {
+  required String groupSeparator,
+  required String decimalSeparator,
+}) {
+  final typed = text.trim();
+  final hasSeparator = {
+    groupSeparator,
+    decimalSeparator,
+    '.',
+    ',',
+  }.any(typed.contains);
+  return hasSeparator && !isGroupedWhole(typed, groupSeparator);
 }
 
 /// Returns the node's accepted `(min, max)` sats range, and that range in
@@ -477,12 +507,28 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
         ) &&
         satsRangeError == null &&
         fiatRangeError == null;
-    final rangeWarning = _rangeWarning(
-      l10n: l10n,
-      satsRangeError: satsRangeError,
-      fiatRangeError: fiatRangeError,
-      fiatCode: fiatCode,
-    );
+    // An amount written with a separator of the user's own is not an order
+    // — `isValid` is already false — and it is said first: until it is a
+    // whole number, its range means nothing.
+    final hasTypedSeparator =
+        (isRange
+                ? [_minController, _maxController]
+                : [_amountController])
+            .any(
+              (controller) => amountHasTypedSeparator(
+                controller.text,
+                groupSeparator: symbols.group,
+                decimalSeparator: symbols.decimal,
+              ),
+            );
+    final amountWarning = hasTypedSeparator
+        ? l10n.orderAmountMustBeWhole
+        : _rangeWarning(
+            l10n: l10n,
+            satsRangeError: satsRangeError,
+            fiatRangeError: fiatRangeError,
+            fiatCode: fiatCode,
+          );
     // A node that bonds makers asks for a deposit before publishing
     // (docs/ANTI_ABUSE_BOND.md §6.2): said here, before the tap.
     final bondNotice = makerBondApplies(
@@ -562,7 +608,7 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
               symbols: symbols,
               fiatFormat: NumberFormat('#,##0.##', locale),
               quickAmounts: quickAmounts(fiatPerUsd),
-              hasError: fiatRangeError != null,
+              hasError: hasTypedSeparator || fiatRangeError != null,
               onChanged: () => setState(() {}),
               onRangeChanged: _onRangeChanged,
             ),
@@ -575,7 +621,7 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
       ),
       // Pinned: rises with the keyboard so the preview stays in view.
       bottomNavigationBar: OrderPreviewBar(
-        fragments: rangeWarning == null
+        fragments: amountWarning == null
             ? _preview(
                 l10n: l10n,
                 locale: locale,
@@ -589,7 +635,7 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
                 expirationHours: node?.expirationHours,
               )
             : null,
-        error: rangeWarning,
+        error: amountWarning,
         notice: bondNotice,
         premiumFavour: premiumFavour(side, premium),
         canSubmit: isValid,

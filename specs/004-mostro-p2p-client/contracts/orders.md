@@ -98,16 +98,32 @@ NewOrderParams {
 - If range: `amount_sats` MUST be absent (not even `0`) — a range is priced at
   market when taken, and mostro-core refuses one with sats. Fails with
   `RangeOrderWithSats`.
+- Every fiat amount and the premium MUST be whole numbers: the wire carries
+  them as integers, and a fraction is refused, never truncated. Fails with
+  `FiatAmountNotWhole` / `PremiumNotWhole` (`mostro::actions::validate_new_order`).
+- `amount_sats > 0` and `premium != 0` MUST NOT travel together: an order is
+  priced by fixed sats **or** by a premium over the market. Fails with
+  `FixedSatsWithPremium` — the pair the daemon answers with
+  `CantDo(InvalidParameters)`. A market-price order carries no sats; the
+  daemon fixes them when the order is taken.
 - `fiat_code` MUST be valid ISO 4217
 - `payment_method` MUST not be empty
+- The node MUST be announcing itself and open for business
+  (`mostro::node_liveness::ensure_live`, see *Node liveness* under
+  `take_order`). Fails with `NodeNotAnnouncing` or `MaintenanceMode` before
+  anything is derived or sent.
 - The amount is checked against the node's advertised `min_order_amount` /
   `max_order_amount` before anything is sent: directly for a fixed
   `amount_sats` (#282), and for a market-price order by converting every fiat
   amount the daemon will price — both ends of a range order — at the rate the
   node publishes (`fetch_exchange_rate` in `nostr.md`), truncating as the
-  daemon does (#337). The fiat amount is first normalised to the whole unit the
-  wire carries (`new_order` casts it to `i64`), so the check judges the amount
-  the daemon actually receives rather than the decimal the user typed
+  daemon does (#337). The forms accept whole amounts only, and an amount
+  written with a separator of the user's own is refused before any range is
+  judged. A separator the user types MUST NOT be dropped: dropped, the digits
+  around it close up into another amount (`10.50` → `1050`). It stays on
+  screen and the amount is refused with an explanation until it is written in
+  digits; only the create form reads a separator as grouping, and only in
+  grouping position (`1.000`).
 
 **Fail-open**: that range check blocks nothing it cannot judge — no rate, no
 advertised bounds, an amount that is not yet a finite positive number. The
@@ -171,6 +187,47 @@ range orders and must fall within `[fiat_amount_min, fiat_amount_max]`.
   `Pending` (`OrderAlreadyTaken`)
 - `role` MUST match the order kind (buyers take sell orders, sellers take
   buy orders)
+- A range take's `fiat_amount` MUST be a whole number: the wire carries it as
+  an integer, and a fraction is refused (`FiatAmountNotWhole`), never
+  truncated — 50.9 used to be traded as 50 while the row kept 50.9.
+
+**Node liveness** (new orders and takes only): the node's Kind 38385 info
+event MUST be at most 660 s old (two missed five-minute publications) and
+MUST NOT announce `maintenance_mode = true`. A snapshot that says otherwise is
+never trusted alone: one quick look at the event, then — only if that still
+falls short — a patient one that hears every relay out (a relay the daemon
+lost its connection to keeps serving a stale copy), and only then
+`NodeNotAnnouncing` or `MaintenanceMode`. It refuses **only on evidence**: an
+aged snapshot plus a look that read no copy at all (REQ refused at a relay's
+subscription cap, a socket dead behind a resume, a slow relay) is blindness,
+not silence, and the order goes out as before. With no relay reachable the
+gate abstains too, and the send reports its own failure. An event dated in the future
+is fresh (device clock behind). A look that brings nothing changes nothing —
+it never resets PoW or policy. **Nothing on an existing trade may ever wait on
+this gate** (fiat-sent, release, cancel, dispute, add-invoice, rating).
+
+**Refusals**: the daemon's `cant-do invalid_order_status` on a take means
+somebody else took the order first and is returned as `OrderAlreadyTaken`, the
+same marker as the local check. Every other reason keeps the generic wording
+(`Order rejected by Mostro: <Reason>`), which Dart localizes
+(`lib/core/daemon_errors.dart`).
+
+**Late replies**: the wait is 10 s, after which the call returns
+`NoDaemonResponse` and persists nothing. That is no longer final. If the
+daemon's reply arrives later it accepted the take and holds it, so the
+dispatcher persists the same row the call would have
+(`mostro::pending::taken_trade`, one constructor for both), binds the trade
+key, installs the session and emits a `TradeUpdate`. The reply that consumes
+the take's record — prompt or late — **advances the status cursor** before
+anything is written: a take is answered by more than one message echoing its
+nonce (with the invoice attached, `waiting-seller-to-pay` and then
+`hold-invoice-payment-accepted`), a newest-first replay delivers the newer one
+first, and the older one must then be refused rather than walk the row back.
+Guards: the take's record
+lives in memory only and is matched by trade key plus nonce (a replay after a
+restart finds nothing); nothing is built over a wiped row or one on a later
+trade key, nor when the status cursor already heard something newer, nor from
+a reply older than the 900 s take window.
 
 **Side effects**: Sends TakeBuy/TakeSell (NIP-44 kind 14, with the
 correlation nonce) and waits for the daemon's first reply, which varies by
@@ -237,6 +294,33 @@ persisted `trade_keys` binding). The same call serves a maker's own pending
 order, a take that has not gone active yet, and an active trade — where
 mostrod runs its cooperative-cancel state machine. The daemon decides; this
 function does not validate ownership or status.
+
+**Waiting steps wait for the verdict.** From `WaitingBuyerInvoice` or
+`WaitingPayment` (`mostro::status::cancel_awaits_verdict`), maker's or
+taker's, the cancel carries a nonce and the call waits up to 10 s for the
+daemon (`mostro::pending::publish_and_await_cancel`, the registry the maker's
+bond-window cancel already used):
+- `canceled` → `Ok`; the dispatcher has already wiped the row.
+- `cant-do not_allowed_by_status` → error `NotAllowedByStatus` and **nothing
+  changes locally** — the seller had just paid the hold invoice and the trade
+  goes active. Sent without a nonce, this refusal used to be dropped and the
+  user read "cancel request sent" about a trade that carried on.
+- `cant-do order_already_canceled` → `Ok`, with the local side effects below:
+  the other side's cancel got there first, which is the outcome asked for.
+- Any other `cant-do` → error with the generic wording, nothing changes.
+- `cooperative-cancel-initiated-by-you` echoing the nonce → `Ok`: the seller's
+  payment landed first, the trade was active when the cancel arrived, and the
+  daemon opened a cooperative cancel instead. The dispatcher records the
+  request; the local side effects are those of any active-trade cancel.
+- Silence → the local side effects below, as before, but under the order's
+  lock and only while the trade row still exists: the daemon's `canceled` may
+  be going through the dispatcher as the wait runs out, and taking the order
+  out of the book after that arm handed a taker's entry back would hide a live
+  order. A late `canceled` still settles the row.
+
+Everything else — a plain `Pending` maker order, the bond windows,
+`InProgress`, and the cooperative cancel of an active trade — goes out as
+before, without waiting.
 
 **Local side effects**, applied once the message is published:
 - The order leaves the in-memory book.
@@ -802,7 +886,10 @@ the public book — `pending` republish wipes taker rows (handing the order
 back to the book, as the `Canceled` wipe does) and resyncs maker
 rows to `Pending`; an outright cancel wipes; absence from the book or the
 ambiguous `in-progress` marker changes nothing. Every action requires a
-positive daemon signal; the clock only triggers the check. The sweep also
+positive daemon signal; the clock only triggers the check. One `pending` is
+**not** such a signal: our own **sell** order from its hold-invoice step on
+(`mostro::status::holds_against_public_pending`, see *Public status vs. trade
+status*) — the sweep leaves that row alone. The sweep also
 drops keyless in-memory sessions older than 24h and logs counters.
 
 `process_gift_wrap_rumor` MUST update **both** the in-memory order book
@@ -820,6 +907,23 @@ publishing altogether while the trade is private: `Active`, `FiatSent`,
 `Dispute` and `SettledHoldInvoice` never reach the wire (`create_status_tags`
 returns `create_event = false`, so no event is emitted at all). `WaitingTakerBond`
 publishes as `pending`; `WaitingMakerBond` publishes nothing.
+
+A **sell** order taken with the buyer's invoice already attached skips
+`waiting-buyer-invoice` and goes straight to `waiting-payment`, which
+publishes nothing for a sell order: its Kind 38383 keeps reading `pending`
+from the take until `success` or `canceled`. This client attaches the buyer's
+default Lightning address to every take, so that is a common path. For the
+maker of such an order the public `pending` is the order's past, so from the
+hold-invoice step on (`WaitingPayment`, `Active`, `FiatSent`, `Dispute`,
+`SettledHoldInvoice` — `holds_against_public_pending`) it neither overwrites
+the book entry nor lets the sweep reset the row; only the daemon's private
+`new-order` (republication) or `canceled` move it back.
+
+A `new-order` for our own maker row that is already `Pending` moves nothing
+but still **advances the status cursor**: when a take and its abandonment both
+happen with the app closed, the next start replays the feed newest first, and
+without that mark the abandoned take's older messages were applied over a
+free order.
 
 Therefore `OrderStatus::InProgress` on this client means **taken, real state
 unknown** — never that the escrow is locked. The fine-grained states are only

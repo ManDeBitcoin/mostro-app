@@ -15,6 +15,7 @@ import 'package:mostro/features/order/screens/add_order_screen.dart';
 import 'package:mostro/features/order/widgets/currency_section.dart';
 import 'package:mostro/features/order/widgets/payment_method_section.dart';
 import 'package:mostro/features/order/widgets/price_section.dart';
+import 'package:mostro/features/order/widgets/underline_amount_field.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/utils/fiat_currencies.dart';
 import '../../../support/provider_harness.dart';
@@ -86,6 +87,13 @@ Future<ProviderContainer> _pump(
 }
 
 Finder _amountField() => find.byType(TextField).first;
+
+/// The amount field's own widget, for its error state.
+Finder _amountRow() => find.byType(UnderlineAmountField).first;
+
+const _wholeEn = 'Enter a whole amount: digits only, no decimals or separators.';
+const _wholeEs =
+    'Escribe un importe entero: solo cifras, sin decimales ni separadores.';
 
 FilledButton _publishButton(WidgetTester tester) =>
     tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Publish order'));
@@ -357,6 +365,151 @@ void main() {
       expect(find.byKey(const ValueKey('preview-error')), findsOneWidget);
       expect(find.byKey(const ValueKey('preview-sentence')), findsNothing);
       expect(_publishButton(tester).onPressed, isNull);
+    });
+
+    testWidgets('an amount with decimals is explained, never reshaped', (
+      tester,
+    ) async {
+      final container = await _pump(tester);
+      container.read(selectedPaymentMethodsProvider.notifier).state = ['Zelle'];
+      await tester.enterText(_amountField(), '100.5');
+      await tester.pumpAndSettle();
+
+      // The field holds what was typed. A field that dropped the separator
+      // would hold 1,005 here, with Publish enabled.
+      expect(find.text('100.5'), findsOneWidget);
+      expect(find.text('1,005'), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('preview-error')),
+          matching: find.text(_wholeEn),
+        ),
+        findsOneWidget,
+      );
+      expect(tester.widget<UnderlineAmountField>(_amountRow()).hasError, isTrue);
+      expect(find.byKey(const ValueKey('preview-sentence')), findsNothing);
+      expect(_publishButton(tester).onPressed, isNull);
+
+      // Corrected, the same form publishes.
+      await tester.enterText(_amountField(), '100');
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('preview-error')), findsNothing);
+      expect(find.byKey(const ValueKey('preview-sentence')), findsOneWidget);
+      expect(_publishButton(tester).onPressed, isNotNull);
+    });
+
+    testWidgets('a range end with decimals is explained too', (tester) async {
+      final container = await _pump(tester);
+      container.read(selectedPaymentMethodsProvider.notifier).state = ['Zelle'];
+      container.read(isRangeOrderProvider.notifier).state = true;
+      await tester.pumpAndSettle();
+
+      // Either end: the maximum first, then the minimum alone.
+      await tester.enterText(find.byType(TextField).at(0), '50');
+      await tester.enterText(find.byType(TextField).at(1), '200.75');
+      await tester.pumpAndSettle();
+      expect(find.text(_wholeEn), findsOneWidget);
+      expect(_publishButton(tester).onPressed, isNull);
+
+      await tester.enterText(find.byType(TextField).at(0), '50.5');
+      await tester.enterText(find.byType(TextField).at(1), '200');
+      await tester.pumpAndSettle();
+      expect(find.text(_wholeEn), findsOneWidget);
+      expect(_publishButton(tester).onPressed, isNull);
+
+      await tester.enterText(find.byType(TextField).at(0), '50');
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('preview-error')), findsNothing);
+      expect(_publishButton(tester).onPressed, isNotNull);
+    });
+
+    testWidgets('in Spanish, the dot of a typed 10.50 is not grouping', (
+      tester,
+    ) async {
+      final container = await _pump(tester, locale: const Locale('es'));
+      container.read(selectedPaymentMethodsProvider.notifier).state = ['Zelle'];
+
+      // The dot groups in `es`. Dropped and regrouped, each of these was
+      // another amount with Publish enabled: 1.050, 1.005, and 1 for 1,000.
+      for (final typed in ['10.50', '100.5', '10,50', '1,000', '150,']) {
+        await tester.enterText(_amountField(), typed);
+        await tester.pumpAndSettle();
+        expect(find.text(typed), findsOneWidget, reason: typed);
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('preview-error')),
+            matching: find.text(_wholeEs),
+          ),
+          findsOneWidget,
+          reason: typed,
+        );
+        expect(
+          find.byKey(const ValueKey('preview-sentence')),
+          findsNothing,
+          reason: typed,
+        );
+        expect(
+          tester.widget<UnderlineAmountField>(_amountRow()).hasError,
+          isTrue,
+          reason: typed,
+        );
+        expect(
+          tester
+              .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Publicar orden'),
+              )
+              .onPressed,
+          isNull,
+          reason: typed,
+        );
+      }
+
+      // The same over a figure the field had grouped: typed after `25000`,
+      // the dot of `10.50` is no more grouping than in an empty field.
+      await tester.enterText(_amountField(), '25000');
+      await tester.pumpAndSettle();
+      expect(find.text('25.000'), findsOneWidget);
+      await tester.enterText(_amountField(), '10.50');
+      await tester.pumpAndSettle();
+      expect(find.text('10.50'), findsOneWidget);
+      expect(find.text('1.050'), findsNothing);
+      expect(find.text(_wholeEs), findsOneWidget);
+
+      // A thousand typed with its dot is a thousand, and publishes as one.
+      await tester.enterText(_amountField(), '1.000');
+      await tester.pumpAndSettle();
+      expect(find.text('1.000'), findsOneWidget);
+      expect(find.byKey(const ValueKey('preview-error')), findsNothing);
+      expect(_previewText(tester), contains('1.000 USD'));
+      expect(tester.widget<UnderlineAmountField>(_amountRow()).hasError, isFalse);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Publicar orden'),
+            )
+            .onPressed,
+        isNotNull,
+      );
+    });
+
+    testWidgets('decimals are said before the range they would fall in', (
+      tester,
+    ) async {
+      final container = await _pump(tester);
+      container.read(selectedPaymentMethodsProvider.notifier).state = ['Zelle'];
+
+      // An absurd amount with decimals is out of the node's range as well;
+      // until it is a whole number, that is not the thing to say.
+      await tester.enterText(_amountField(), '999999999.5');
+      await tester.pumpAndSettle();
+
+      expect(find.text(_wholeEn), findsOneWidget);
+      expect(_publishButton(tester).onPressed, isNull);
+
+      await tester.enterText(_amountField(), '999999999');
+      await tester.pumpAndSettle();
+      expect(find.text(_wholeEn), findsNothing);
+      expect(find.byKey(const ValueKey('preview-error')), findsOneWidget);
     });
 
     testWidgets('the Sell tab uses the coral tint', (tester) async {

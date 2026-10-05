@@ -13,11 +13,17 @@ class SimpleTradeTimeline extends StatelessWidget {
     required this.status,
     required this.isBuyer,
     this.isDisputed = false,
+    this.showBond = false,
   });
 
   final OrderStatus status;
   final bool isBuyer;
   final bool isDisputed;
+
+  /// Whether this trade has a deposit step at all: the node bonds trades, or
+  /// the trade is waiting on one. Without it the milestone is left out
+  /// rather than shown as done.
+  final bool showBond;
 
   @override
   Widget build(BuildContext context) {
@@ -27,8 +33,10 @@ class SimpleTradeTimeline extends StatelessWidget {
     final isBondPaid = status != OrderStatus.waitingMakerBond &&
         status != OrderStatus.waitingTakerBond;
 
+    // Not `inProgress`: that is the public book saying the order was taken,
+    // which it says from the take until the trade ends. Whether the seller
+    // has locked the sats only the node's private messages tell (#203).
     final isEscrowFunded = status == OrderStatus.active ||
-        status == OrderStatus.inProgress ||
         status == OrderStatus.fiatSent ||
         status == OrderStatus.success ||
         status == OrderStatus.settledHoldInvoice ||
@@ -50,7 +58,9 @@ class SimpleTradeTimeline extends StatelessWidget {
     // Milestone 3: Escrow secured
     final m3 = isEscrowFunded
         ? MilestoneState.completed
-        : (isBondPaid ? MilestoneState.current : MilestoneState.upcoming);
+        : (!showBond || isBondPaid
+              ? MilestoneState.current
+              : MilestoneState.upcoming);
 
     // Milestone 4: Fiat transfer
     final m4 = isFiatSent
@@ -81,11 +91,12 @@ class SimpleTradeTimeline extends StatelessWidget {
             pal: pal,
             isFirst: true,
           ),
-          _buildMilestoneRow(
-            title: SimpleL10n.guaranteeLocked(context),
-            state: m2,
-            pal: pal,
-          ),
+          if (showBond)
+            _buildMilestoneRow(
+              title: SimpleL10n.guaranteeLocked(context),
+              state: m2,
+              pal: pal,
+            ),
           _buildMilestoneRow(
             title: SimpleL10n.bitcoinSecured(context),
             state: m3,

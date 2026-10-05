@@ -214,7 +214,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get nodeProtocolUnsupported =>
-      'This Mostro node uses a protocol version this app does not support. Pick another node in Settings, or check for an app update';
+      'This Mostro node uses a protocol version this app does not support. Check for an app update';
 
   @override
   String get nodeCapabilitiesUnknown =>
@@ -222,7 +222,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mostroMaintenanceMode =>
-      'The Mostro node you are connected to is under maintenance. Try again later, or connect to a different Mostro node in Settings';
+      'The Mostro node you are connected to is under maintenance. Try again later';
 
   @override
   String get storageUnavailable =>
@@ -231,6 +231,78 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rangeOrderWithSats =>
       'A range order can\'t have a fixed sats amount: it is priced at market when taken.';
+
+  @override
+  String get nodeNotAnnouncing =>
+      'This community\'s node isn\'t answering right now. Try again in a few minutes.';
+
+  @override
+  String get orderFixedSatsWithPremium =>
+      'An order can\'t carry a fixed sats amount and a premium at the same time.';
+
+  @override
+  String get orderAmountMustBeWhole =>
+      'Enter a whole amount: digits only, no decimals or separators.';
+
+  @override
+  String get orderPremiumMustBeWhole =>
+      'The premium must be a whole percentage.';
+
+  @override
+  String get orderRejectedInvalidAmount =>
+      'The node rejected the amount. Check it and try again.';
+
+  @override
+  String get orderRejectedFiatCurrency =>
+      'This community doesn\'t trade in that currency.';
+
+  @override
+  String get orderRejectedOutOfRange =>
+      'The amount is outside this community\'s limits.';
+
+  @override
+  String get orderRejectedPriceStale =>
+      'The node has no recent price quote. Try again in a few minutes.';
+
+  @override
+  String get orderRejectedPendingOrder =>
+      'The node didn\'t accept this take: you have another trade waiting on you, or someone else has just taken this order.';
+
+  @override
+  String get orderRejectedByStatus =>
+      'The order has changed state and no longer allows this action.';
+
+  @override
+  String get orderRejectedNotYours => 'This order isn\'t yours.';
+
+  @override
+  String get orderRejectedNotYourAction =>
+      'This action isn\'t available to you on this order.';
+
+  @override
+  String get orderRejectedOtherParty =>
+      'This action belongs to the other party.';
+
+  @override
+  String get orderRejectedInvalidParameters =>
+      'The node rejected the request: its parameters are not valid.';
+
+  @override
+  String simpleRangeAmountHint(String min, String max, String code) {
+    return 'Type a whole amount between $min and $max $code above';
+  }
+
+  @override
+  String get simpleTakenWaitingNode =>
+      'Trade taken. Waiting for the node\'s next step…';
+
+  @override
+  String get simpleDoNotPayYet =>
+      'Don\'t send the money yet: the Bitcoin is not secured yet.';
+
+  @override
+  String get orderRequestFailed =>
+      'The request could not be completed. Try again.';
 
   @override
   String get orderIdCopied => 'Order ID copied';

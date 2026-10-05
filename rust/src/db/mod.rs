@@ -79,6 +79,11 @@ pub mod settings_keys {
     /// Cached accepted payment methods for the active community, JSON array of strings.
     pub const COMMUNITY_PAYMENT_METHODS: &str = "community_payment_methods";
 
+    /// When the node signed the community card the profile above came from
+    /// (`mostro::community_card`), in seconds: an older card never replaces
+    /// a newer one. Absent for a profile no card produced.
+    pub const COMMUNITY_CARD_AT: &str = "community_card_at";
+
     /// Developer escrow-mode override — `"auto"` or `"force_cashu"`.
     /// See [`crate::mostro::escrow_mode::EscrowModeOverride`].
     pub const ESCROW_MODE_OVERRIDE: &str = "escrow_mode_override";
@@ -122,6 +127,26 @@ pub mod settings_keys {
     /// alongside and read back by rehydration. Presence is the value.
     pub fn dispute_mine(order_id: &str) -> String {
         format!("{DISPUTE_MINE_PREFIX}{order_id}")
+    }
+
+    /// Per-order id of the dispute, as the node assigned it.
+    pub const DISPUTE_ID_PREFIX: &str = "dispute_id:";
+
+    /// Build the settings key holding the node's dispute id for `order_id`.
+    ///
+    /// The id arrives in one message per party and in no other —
+    /// `dispute-initiated-by-you` for whoever opened the dispute,
+    /// `dispute-initiated-by-peer` for the other, both with
+    /// `payload: {"dispute": ["<id>", null]}` — and nothing public links a
+    /// dispute to its order: the Kind 38386 event names the dispute, not the
+    /// order. So, like the solver pubkey and the origin marker next to it,
+    /// it is kept here for the record a restart has to rebuild. Before, the
+    /// rebuilt record carried a freshly minted UUID, and the party that did
+    /// not open the dispute had no record at all until a solver took it.
+    ///
+    /// Cleared with the other dispute keys once the trade is over.
+    pub fn dispute_id(order_id: &str) -> String {
+        format!("{DISPUTE_ID_PREFIX}{order_id}")
     }
 
     /// Per-order status replay cursor — the `created_at` (unix seconds,
@@ -201,10 +226,11 @@ pub mod settings_keys {
     /// [`super::Storage::clear_identity_data`] drops it with the rows. What
     /// is left in the store is device preference: the active node, custom
     /// nodes, node caches, push token and toggle, developer overrides.
-    pub const IDENTITY_SCOPED_PREFIXES: [&str; 6] = [
+    pub const IDENTITY_SCOPED_PREFIXES: [&str; 7] = [
         CHAT_CURSOR_PREFIX,
         DISPUTE_ADMIN_PREFIX,
         DISPUTE_MINE_PREFIX,
+        DISPUTE_ID_PREFIX,
         STATUS_CURSOR_PREFIX,
         INVOICE_STEP_PREFIX,
         TRADE_WIPED_PREFIX,

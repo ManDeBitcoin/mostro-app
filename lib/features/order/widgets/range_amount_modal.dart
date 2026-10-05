@@ -4,11 +4,13 @@ import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/core/automation/automation_id.dart';
 import 'package:mostro/core/automation/automation_ids.dart';
 import 'package:mostro/l10n/app_localizations.dart';
+import 'package:mostro/shared/utils/whole_amount_input.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
 
 /// Shows a modal dialog for entering an amount within a range.
 ///
-/// Returns the selected amount, or `null` if cancelled.
+/// Returns the selected amount — always a whole number, which is all a take
+/// can carry — or `null` if cancelled.
 Future<double?> showRangeAmountModal({
   required BuildContext context,
   required double min,
@@ -42,7 +44,9 @@ class _RangeAmountDialogState extends State<_RangeAmountDialog> {
   final _controller = TextEditingController();
   String? _error;
 
-  double? get _parsed => double.tryParse(_controller.text);
+  /// Whole amounts only: the take carries the fiat amount as an integer,
+  /// so `50.9` would be traded as 50 while this dialog said 50.9.
+  double? get _parsed => int.tryParse(_controller.text.trim())?.toDouble();
 
   bool get _isValid {
     final v = _parsed;
@@ -51,13 +55,17 @@ class _RangeAmountDialogState extends State<_RangeAmountDialog> {
 
   void _validate() {
     final v = _parsed;
+    final l10n = AppLocalizations.of(context);
     setState(() {
       if (v == null) {
-        _error = null; // don't show error while typing
+        // Nothing typed is nothing to correct; anything else that is not a
+        // whole number is — a typed `50.9` stays on screen so it can be
+        // said, where dropping the dot would have offered 509.
+        _error = _controller.text.trim().isEmpty
+            ? null
+            : l10n.orderAmountMustBeWhole;
       } else if (v < widget.min || v > widget.max) {
-        _error = AppLocalizations.of(
-          context,
-        ).amountRangeError(_fmt(widget.min), _fmt(widget.max));
+        _error = l10n.amountRangeError(_fmt(widget.min), _fmt(widget.max));
       } else {
         _error = null;
       }
@@ -89,7 +97,8 @@ class _RangeAmountDialogState extends State<_RangeAmountDialog> {
           TextField(
             controller: _controller,
             autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: TextInputType.number,
+            inputFormatters: [wholeAmountInputFormatter],
             cursorColor: green,
             style: Theme.of(context).textTheme.headlineMedium,
             decoration: InputDecoration(

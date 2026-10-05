@@ -20,6 +20,16 @@ bool makerBondApplies({
     policy == BondPolicy.enabled &&
     (applyTo == BondApplyTo.make || applyTo == BondApplyTo.both);
 
+/// Whether this node asks whoever takes an order for a deposit before the
+/// trade starts (`bond_apply_to = take | both`, docs/ANTI_ABUSE_BOND.md
+/// §8.1). Unknown or disabled policy, or a makers-only bond, takes as before.
+bool takerBondApplies({
+  required BondPolicy? policy,
+  required BondApplyTo? applyTo,
+}) =>
+    policy == BondPolicy.enabled &&
+    (applyTo == BondApplyTo.take || applyTo == BondApplyTo.both);
+
 // ── Premium colour rule ───────────────────────────────────────────────────────
 
 /// Whom the premium favours, read from the **maker's** side.
@@ -80,14 +90,31 @@ int _niceNumber(double value) {
 
 // ── Amount input parsing ──────────────────────────────────────────────────────
 
+/// Whether [text] is a whole number the way a grouped field writes one:
+/// digits alone, or digits in groups of three behind [groupSeparator]
+/// (`25.000` in `es`).
+///
+/// It is what tells a field's own grouping from a separator the user typed:
+/// `1.000` is a thousand, while the dot of `10.50` or `1.00` groups nothing.
+/// Nor does one behind a leading zero — no field writes `0.500`, and read as
+/// grouping it would be 500.
+bool isGroupedWhole(String text, String groupSeparator) {
+  final group = RegExp.escape(groupSeparator);
+  return RegExp(
+    '^(\\d+|[1-9]\\d{0,2}($group\\d{3})+)\$',
+  ).hasMatch(text);
+}
+
 /// The amount typed in a grouped field (`25.000` in `es`, `25,000` in `en`)
 /// as the canonical `1234.5` string the rest of the pipeline parses, or null
 /// when the text is not a finite positive number.
 ///
-/// Strips the locale's group separator and swaps its decimal separator for
-/// `.`. `Infinity`, `-Infinity` and `NaN` parse as doubles and would pass a
-/// bare positivity check, only to throw in the sats conversion further down,
-/// so they are rejected here.
+/// Strips the locale's group separator — where it groups, and only there —
+/// and swaps its decimal separator for `.`. A group separator anywhere else
+/// was typed as something else (`10.50` in `es`): read as grouping it would
+/// make 1 050 of it, so that text is no amount. `Infinity`, `-Infinity` and
+/// `NaN` parse as doubles and would pass a bare positivity check, only to
+/// throw in the sats conversion further down, so they are rejected here.
 String? canonicalAmount(
   String text, {
   required String groupSeparator,
@@ -95,6 +122,14 @@ String? canonicalAmount(
 }) {
   var cleaned = text.trim();
   if (cleaned.isEmpty) return null;
+  final decimalAt = cleaned.indexOf(decimalSeparator);
+  final whole = decimalAt < 0 ? cleaned : cleaned.substring(0, decimalAt);
+  final fraction = decimalAt < 0 ? '' : cleaned.substring(decimalAt);
+  if (fraction.contains(groupSeparator)) return null;
+  if (whole.contains(groupSeparator) &&
+      !isGroupedWhole(whole, groupSeparator)) {
+    return null;
+  }
   cleaned = cleaned.replaceAll(groupSeparator, '');
   if (decimalSeparator != '.') {
     cleaned = cleaned.replaceAll(decimalSeparator, '.');

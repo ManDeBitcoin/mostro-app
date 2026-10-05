@@ -90,6 +90,10 @@ v1's `dart_nostr` was outdated and limited, so v2 moves all protocol/crypto/rela
 logic to **Rust** (the well-maintained `nostr-sdk`) and keeps the **UI in Flutter**,
 bridged by flutter_rust_bridge.
 
+**This fork serves one community: BitMaxis** (<https://mostro.bitmaxis.com/>, `upstream` =
+`MostroP2P/app`). The node is compiled in and the user never chooses one — see "One community,
+one node" under Domain gotchas before touching anything node-related.
+
 ## Working agreement (read first)
 - **Propose before editing.** Default to presenting the approach first — option(s) + why +
   pros/cons when there's a real trade-off — and wait for an explicit go-ahead before changing
@@ -200,6 +204,21 @@ bridged by flutter_rust_bridge.
   `android/app/build.gradle.kts` (`test/ci/release_workflow_test.dart`).
 
 ## Domain gotchas (durable)
+- **One community, one node.** `DEFAULT_MOSTRO_PUBKEY` in `rust/src/config.rs` (mirrored in
+  `lib/core/mostro_defaults.dart`) is the BitMaxis node, `TRUSTED_MOSTRO_NODES` holds that one
+  entry and `DEFAULT_RELAYS` is that node's kind 10002 list. No screen selects, adds or scans
+  another node: the Settings row opens About, the Simple Mode badge is not a control.
+  `db::seeds::pin_active_node` runs when the store opens (`app_db::init_db`): an install that
+  predates the pin is moved back onto it and the community profile that described the other
+  node is cleared — before `rehydrate_active_mostro_node` reads the row. It lives outside
+  `rust/src/api/` on purpose, so the pin needed no bridge regen.
+  `set_active_mostro_node` stays for one caller, the Mortsom seed (`MOSTRO_PUB_KEY`) in
+  `app_bootstrap.dart`, so **don't wire a UI to it**. The selector widgets, `api/nodes.rs`
+  add/remove and the parse/apply/clear half of `api/community.rs` are unreachable and awaiting
+  deletion — but `get_active_community_profile` is still read by the Simple Mode Buy, Sell and
+  Help screens (normally `None`, so they use their built-in fallbacks). The switch machinery
+  under them (claim nodes, `refresh_subscriptions_for_active_node`) is upstream's and stays, or
+  every merge from `upstream` conflicts.
 - **Reputation/ratings come from Kind 38383 event tags, not a DB.** In-memory
   `RATING_STORE`/`DISPUTE_STORE` are correct by design — don't invent "persist to DB" tasks.
   Chat history persists to the `messages` table since #246 — on web to the IndexedDB `messages`
@@ -224,6 +243,79 @@ bridged by flutter_rust_bridge.
   before the capabilities are known, so a receive-path reader of them must wait — today only a
   fresh payout claim's deadline, via `bond_policy::get_for_once_settled`, and whoever opens
   subscriptions ahead of a capability fetch holds a `bond_policy::fetch_pending()` guard.
+- **An order is fixed sats or a premium, never both, and its amounts are whole.** The wire
+  carries fiat amounts and the premium as integers, and mostrod answers fixed sats with a
+  premium with `CantDo(InvalidParameters)`. `mostro::actions::validate_new_order` (create) and
+  `take_order_once` (range take) refuse both by marker — `FixedSatsWithPremium`,
+  `FiatAmountNotWhole`, `PremiumNotWhole` — instead of truncating or sending them. A
+  market-price order carries no sats: the daemon fixes them when it is taken. Simple Mode sells
+  at market price only (`simpleSellOrder`).
+- **No fiat amount field reshapes a typed separator.** A digits-only filter turns a typed
+  `10.50` into `1050`; upstream's grouped field did the same in `es`, where the dot groups
+  (`1.050`), and cut an `en` `1.000` to `1.00`. Either way a valid amount the user never meant
+  was offered. The separator now stays on screen — `wholeAmountInputFormatter` in Simple Mode
+  and the range-take dialog, `ThousandsInputFormatter(keepTypedSeparators: true)` in the create
+  form — and the amount is refused with `orderAmountMustBeWhole` until it is digits. In the
+  create form a separator in grouping position still reads as grouping (`1.000` is a thousand);
+  `canonicalAmount` strips it only there, and `enteredAmount` takes nothing with a decimal
+  part. Not covered, upstream's and unchanged: the fixed-sats and premium fields of the create
+  form and the Cashu send dialog are integer fields that still drop a typed separator.
+- **A sats estimate repeats mostrod's arithmetic, step for step** (`estimateSats` in
+  `order_detail_rules.dart`, mostrod `get_market_quote`): `fiat / rate × 1e8`, less `premium`
+  percent of it, truncated. A positive premium means fewer sats. Not
+  `fiat / (rate × (1 + premium/100))` — at 10 % the two differ by 1 %.
+- **A daemon refusal is worded in one place.** The core passes a `CantDo` through as
+  `Order rejected by Mostro: <Reason>` (a few still as English prose);
+  `localizedDaemonError` (`lib/core/daemon_errors.dart`) turns reason, prose and local marker
+  into the user's language. No screen shows `e.toString()`. `PendingOrderExists` has two
+  meanings in mostrod — the taker has a trade waiting on their own step, or (bonded nodes)
+  another taker's bond already locked — so its text says both.
+- **Simple Mode never fills in what it has not read.** The trade view waits for the status and
+  the side instead of assuming `Active` and buyer; `InProgress` is "taken, wait" and tells the
+  buyer not to pay yet; the Buy and Sell lists hold only `pending` orders that are not ours; a
+  range order is taken for the amount typed or not at all; a guarantee appears only when the
+  node's Kind 38385 policy bonds that side (before a trade) or the trade row carries a bond.
+  There is no default bond percentage anywhere.
+- **A public `pending` is not always a republication.** mostrod publishes `in-progress` only
+  from (sell, `waiting-buyer-invoice`) and (buy, `waiting-payment`), so a sell order taken with
+  the invoice attached — what this client does whenever a default Lightning address is set —
+  reads `pending` for its whole trade. For our own sell order from the hold-invoice step on
+  (`status::holds_against_public_pending`) the book feed keeps the entry at the row's status
+  and the sweep leaves the row; only the daemon's private `new-order` or `canceled` move it.
+- **A `new-order` on our own `Pending` maker row still advances the status cursor**
+  (`resync_republished_maker_order`), so a newest-first replay cannot apply the messages of a
+  take that was abandoned while the app was closed. Only when the row exists.
+- **A cancel from `WaitingBuyerInvoice` or `WaitingPayment` waits for the daemon**
+  (`pending::publish_and_await_cancel`, up to 10 s). A refusal returns `NotAllowedByStatus` and
+  changes nothing locally; "already cancelled" and a cooperative cancel the daemon opened
+  because the trade went active first both count as done; on silence the local cancel runs
+  under the order's lock and only while the row still exists. Every other cancel goes out
+  without waiting, as before.
+- **The node's dispute id is persisted** under `dispute_id:<order>` (identity-scoped,
+  `mostro::dispute_ids`), written by the dispatcher from the two `dispute-initiated-by-*`
+  messages — the only place it travels. Both parties hold a record from the opening. Never
+  mint an id where one is stored.
+- **A take accepted after the 10 s wait is persisted by the dispatcher**, through
+  `pending::taken_trade` — the constructor `take_order` uses. So `NoDaemonResponse` from a take
+  is not final: the row and a `TradeUpdate` can still arrive. The pending take record carries
+  the amount, lives in memory only, and is matched by trade key plus nonce. Whichever reply
+  consumes it advances the status cursor first — a take gets more than one message with its
+  nonce, and a newest-first replay must not let the older one walk the row back.
+- **New orders and takes are gated on `mostro::node_liveness`** (info event at most 660 s old,
+  no `maintenance_mode`), after a quick look and then a patient one across every relay. It
+  refuses only on evidence — an aged snapshot and a look that read no copy at all means nobody
+  answered, and the order goes out. Never put that gate in front of an action on an existing
+  trade, and never refresh capabilities
+  from a user action with `fetch_and_set_node_capabilities` — an empty answer resets PoW to 0
+  for trades under way.
+- **A relay is not held to the filter it answers.** nostr-sdk 0.45 verifies the signature of
+  every incoming event, but matches it against the REQ only with `verify_subscriptions`, off
+  here. So anything that *decides* on a fetched event checks kind, author and `d` tag itself,
+  before picking the newest copy: `node_liveness::is_info_event_of` for the node's Kind 38385
+  (capabilities, liveness, maintenance), `select_rates_event` for its rates, `newest_book_order`
+  for orders. An unchecked reader lets any relay in the pool speak for the node.
+- **A rating is a first contact.** The daemon forgets a trade key a minute or two after its
+  order ends, so `rate_user` mines at `pow_first_contact` like a new order does.
 - **A new identity starts from zero — and every new store must say which side it is on.**
   `delete_identity` (generate *and* import go through it) wipes what the identity produced:
   rows via `Storage::clear_identity_data`, Rust's in-memory stores via `forget_identity_state`,

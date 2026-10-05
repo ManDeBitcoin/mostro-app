@@ -156,6 +156,115 @@ void main() {
     );
   });
 
+  /// What create and take show when the node refuses: the core passes every
+  /// reason it has no wording for through as `Order rejected by Mostro: X`,
+  /// and that raw text used to reach the screen.
+  test('words the daemon refusals a trading client meets', () {
+    String refusal(String reason) => localizedDaemonError(
+      l10n,
+      'AnyhowException(Order rejected by Mostro: $reason)',
+      fallback: 'x',
+    );
+
+    expect(refusal('InvalidParameters'), l10n.orderRejectedInvalidParameters);
+    expect(refusal('InvalidAmount'), l10n.orderRejectedInvalidAmount);
+    expect(refusal('InvalidFiatCurrency'), l10n.orderRejectedFiatCurrency);
+    expect(refusal('OutOfRangeSatsAmount'), l10n.orderRejectedOutOfRange);
+    expect(refusal('OutOfRangeFiatAmount'), l10n.orderRejectedOutOfRange);
+    expect(refusal('PriceTooStale'), l10n.orderRejectedPriceStale);
+    expect(refusal('PendingOrderExists'), l10n.orderRejectedPendingOrder);
+    expect(refusal('InvalidOrderStatus'), l10n.orderNotFoundMessage);
+    expect(refusal('NotFound'), l10n.orderNotFoundMessage);
+    expect(refusal('NotAllowedByStatus'), l10n.orderRejectedByStatus);
+    expect(refusal('IsNotYourOrder'), l10n.orderRejectedNotYours);
+    expect(refusal('InvalidPubkey'), l10n.orderRejectedNotYourAction);
+    expect(refusal('InvalidPeer'), l10n.orderRejectedOtherParty);
+    // A reason from a newer daemon keeps the caller's own message.
+    expect(refusal('SomethingNew'), 'x');
+    expect(refusal('unknown'), 'x');
+  });
+
+  test('words the refusals the core still phrases in English', () {
+    String prose(String text) =>
+        localizedDaemonError(l10n, 'AnyhowException($text)', fallback: 'x');
+
+    expect(
+      prose('Order rejected: sats amount is out of the allowed range.'),
+      l10n.orderRejectedOutOfRange,
+    );
+    expect(
+      prose('Order rejected: fiat amount is out of the allowed range.'),
+      l10n.orderRejectedOutOfRange,
+    );
+    expect(
+      prose('Order rejected: invalid amount.'),
+      l10n.orderRejectedInvalidAmount,
+    );
+    expect(
+      prose('Order rejected: this order does not belong to you.'),
+      l10n.orderRejectedNotYours,
+    );
+    expect(
+      prose('Action rejected: not allowed in the current order status.'),
+      l10n.orderRejectedByStatus,
+    );
+    // A cancel the node refuses arrives as the bare marker.
+    expect(prose('NotAllowedByStatus'), l10n.orderRejectedByStatus);
+  });
+
+  test('a refusal name inside an unrelated error is not a refusal', () {
+    // Local errors reuse these names; only the daemon's own wording counts.
+    expect(
+      localizedDaemonError(l10n, 'InvalidPubkey: odd length', fallback: 'x'),
+      'x',
+    );
+    expect(
+      localizedDaemonError(l10n, 'ClaimNotFound', fallback: 'x'),
+      l10n.bondClaimErrorNotClaimable,
+    );
+  });
+
+  test('a first-contact send before the difficulty is known reads as "still checking"', () {
+    // What a rating meets when the node's capabilities are not in yet.
+    expect(
+      localizedDaemonError(
+        l10n,
+        'RateUserDispatchFailed: PowUnknown: capabilities for node ab12 not '
+        'fetched yet — refusing to mine a first-contact event',
+        fallback: 'x',
+      ),
+      l10n.nodeCapabilitiesUnknown,
+    );
+  });
+
+  test('maps the pre-send checks of a new order or a take', () {
+    expect(
+      localizedDaemonError(l10n, 'FixedSatsWithPremium', fallback: 'x'),
+      l10n.orderFixedSatsWithPremium,
+    );
+    expect(
+      localizedDaemonError(l10n, 'FiatAmountNotWhole', fallback: 'x'),
+      l10n.orderAmountMustBeWhole,
+    );
+    expect(
+      localizedDaemonError(l10n, 'PremiumNotWhole', fallback: 'x'),
+      l10n.orderPremiumMustBeWhole,
+    );
+    expect(
+      localizedDaemonError(l10n, 'NodeNotAnnouncing', fallback: 'x'),
+      l10n.nodeNotAnnouncing,
+    );
+    expect(
+      localizedDaemonError(l10n, 'OrderAlreadyTaken', fallback: 'x'),
+      l10n.orderAlreadyTaken,
+    );
+    // The local "no such order in the book" of a take.
+    expect(
+      localizedDaemonError(l10n, 'OrderNotFound', fallback: 'x'),
+      l10n.orderNotFoundMessage,
+    );
+  });
+
   test('maps timeout and storage markers, and falls back otherwise', () {
     expect(
       localizedDaemonError(l10n, 'NoDaemonResponse', fallback: 'x'),

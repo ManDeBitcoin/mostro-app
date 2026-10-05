@@ -217,7 +217,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get nodeProtocolUnsupported =>
-      'Ce nœud Mostro utilise une version du protocole que cette application ne prend pas en charge. Choisissez un autre nœud dans les Paramètres ou vérifiez si une mise à jour de l\'application est disponible';
+      'Ce nœud Mostro utilise une version du protocole que cette application ne prend pas en charge. Vérifiez si une mise à jour de l\'application est disponible';
 
   @override
   String get nodeCapabilitiesUnknown =>
@@ -225,7 +225,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get mostroMaintenanceMode =>
-      'Le nœud Mostro auquel vous êtes connecté est en maintenance. Réessayez plus tard ou connectez-vous à un autre nœud Mostro dans les Paramètres';
+      'Le nœud Mostro auquel vous êtes connecté est en maintenance. Réessayez plus tard';
 
   @override
   String get storageUnavailable =>
@@ -234,6 +234,77 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get rangeOrderWithSats =>
       'Un ordre à fourchette ne peut pas avoir de montant fixe en sats : il est coté au prix du marché lors de sa prise.';
+
+  @override
+  String get nodeNotAnnouncing =>
+      'Le nœud de la communauté ne répond pas pour le moment. Réessayez dans quelques minutes.';
+
+  @override
+  String get orderFixedSatsWithPremium =>
+      'Un ordre ne peut pas avoir à la fois un montant fixe en sats et une prime.';
+
+  @override
+  String get orderAmountMustBeWhole =>
+      'Saisissez un montant entier : chiffres uniquement, sans décimales ni séparateurs.';
+
+  @override
+  String get orderPremiumMustBeWhole =>
+      'La prime doit être un pourcentage entier.';
+
+  @override
+  String get orderRejectedInvalidAmount =>
+      'Le nœud a refusé le montant. Vérifiez-le et réessayez.';
+
+  @override
+  String get orderRejectedFiatCurrency =>
+      'Cette communauté n\'opère pas dans cette devise.';
+
+  @override
+  String get orderRejectedOutOfRange =>
+      'Le montant est hors des limites de cette communauté.';
+
+  @override
+  String get orderRejectedPriceStale =>
+      'Le nœud n\'a pas de cotation récente. Réessayez dans quelques minutes.';
+
+  @override
+  String get orderRejectedPendingOrder =>
+      'Le nœud n\'a pas accepté la prise : vous avez un autre échange en attente, ou quelqu\'un vient de prendre cet ordre.';
+
+  @override
+  String get orderRejectedByStatus =>
+      'L\'ordre a changé d\'état et n\'autorise plus cette action.';
+
+  @override
+  String get orderRejectedNotYours => 'Cet ordre n\'est pas le vôtre.';
+
+  @override
+  String get orderRejectedNotYourAction =>
+      'Cette action ne vous revient pas sur cet ordre.';
+
+  @override
+  String get orderRejectedOtherParty =>
+      'Cette action revient à l\'autre partie.';
+
+  @override
+  String get orderRejectedInvalidParameters =>
+      'Le nœud a refusé la demande : ses paramètres ne sont pas valides.';
+
+  @override
+  String simpleRangeAmountHint(String min, String max, String code) {
+    return 'Saisissez ci-dessus un montant entier entre $min et $max $code';
+  }
+
+  @override
+  String get simpleTakenWaitingNode =>
+      'Échange pris. En attente de la prochaine étape du nœud…';
+
+  @override
+  String get simpleDoNotPayYet =>
+      'N\'envoyez pas encore l\'argent : le Bitcoin n\'est pas encore sécurisé.';
+
+  @override
+  String get orderRequestFailed => 'La demande n\'a pas pu aboutir. Réessayez.';
 
   @override
   String get orderIdCopied => 'ID d\'ordre copié';

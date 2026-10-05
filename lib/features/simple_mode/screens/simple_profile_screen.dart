@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mostro/core/app_routes.dart';
+import 'package:mostro/core/mostro_defaults.dart';
 import 'package:mostro/core/order_book_palette.dart';
 import 'package:mostro/core/ui_mode.dart';
 import 'package:mostro/features/account/providers/backup_reminder_provider.dart';
@@ -9,7 +10,6 @@ import 'package:mostro/features/account/widgets/backup_trigger_sheet.dart';
 import 'package:mostro/features/settings/providers/nwc_provider.dart';
 import 'package:mostro/features/settings/providers/settings_provider.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
-import 'package:mostro/features/simple_mode/providers/community_provider.dart';
 import 'package:mostro/features/notifications/services/pwa_service.dart';
 import 'package:mostro/features/notifications/services/push_notification_service.dart';
 import 'package:mostro/features/simple_mode/providers/simple_identity_provider.dart';
@@ -112,8 +112,6 @@ class SimpleProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pal = OrderBookPalette.of(context);
     final theme = Theme.of(context);
-    final communityAsync = ref.watch(activeCommunityProfileProvider);
-    final community = communityAsync.valueOrNull;
     final nwcState = ref.watch(nwcProvider);
     final isWalletConnected = nwcState != null;
     final settings = ref.watch(settingsProvider);
@@ -292,17 +290,11 @@ class SimpleProfileScreen extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Icon(
-                    community != null
-                        ? Icons.verified_rounded
-                        : Icons.public_rounded,
-                    color: community != null ? pal.limeText : pal.textSecondary,
-                    size: 22,
-                  ),
+                  Icon(Icons.verified_rounded, color: pal.limeText, size: 22),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      community?.name ?? SimpleL10n.generalMarket(context),
+                      defaultMostroName,
                       style: TextStyle(
                         color: pal.textTitle,
                         fontWeight: FontWeight.bold,
@@ -310,19 +302,11 @@ class SimpleProfileScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  if (community != null)
-                    Chip(
-                      label: Text(community.currency),
-                      visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
-                    ),
                 ],
               ),
               const SizedBox(height: 10),
               Text(
-                community != null
-                    ? 'Comunidad vinculada. Todos los precios y métodos de pago se adaptan a esta región.'
-                    : 'Estás operando en el mercado global abierto.',
+                SimpleL10n.communityVerified(context),
                 style: TextStyle(color: pal.textSecondary, fontSize: 12),
               ),
             ],

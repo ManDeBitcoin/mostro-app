@@ -32,11 +32,11 @@ int _saturate(double value, int Function(double) rounder) =>
 /// The fiat amount the daemon will actually price, given the [fiat] the user
 /// typed.
 ///
-/// `new_order` casts every fiat amount to `i64` before it reaches the wire
-/// (`rust/src/mostro/actions.rs`), so a decimal is truncated there and the
-/// daemon never sees the fraction. Pricing the untruncated value here would
-/// accept an amount the daemon then prices lower and rejects — the exact
-/// surprise this check exists to remove.
+/// The wire carries fiat amounts as integers, and the core refuses a
+/// fraction outright rather than truncate it (`validate_new_order` in
+/// `rust/src/mostro/actions.rs`). While the user is still typing one, the
+/// range check prices the whole part: pricing the untruncated value would
+/// pass an amount whose whole part is under the node's minimum.
 double wireFiatAmount(double fiat) => fiat.truncateToDouble();
 
 /// The sats amount the daemon will price [fiat] at, given [rate] (the price of

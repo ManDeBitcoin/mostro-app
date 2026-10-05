@@ -137,10 +137,10 @@ Future<void> bootstrapAndRun({List<String> seedRelays = const []}) async {
     await settings_api.rehydrateActiveMostroNode();
     activeMostroPubkey = await settings_api.getMostroPubkey();
     // A Mortsom build is pointed at a locally managed daemon through
-    // MOSTRO_PUB_KEY. Seed it only when nothing was ever selected, so a
-    // restart keeps whatever the run chose through the UI, and do it here so
-    // the very first subscription already targets the daemon under test
-    // rather than the compiled-in production node.
+    // MOSTRO_PUB_KEY. Opening the store resets the active node to the
+    // compiled-in one on every launch, so this seeds it on every launch too,
+    // and does it here so the very first subscription already targets the
+    // daemon under test rather than the production node.
     final seedPubkey = TestEnvironment.mostroPubkey;
     if (seedPubkey != null && activeMostroPubkey == defaultMostroPubkey) {
       await settings_api.setActiveMostroNode(pubkey: seedPubkey);

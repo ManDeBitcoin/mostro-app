@@ -10,6 +10,7 @@ import 'package:mostro/features/account/providers/privacy_mode_provider.dart';
 import 'package:mostro/core/app_routes.dart';
 import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/core/automation/automation_ids.dart';
+import 'package:mostro/core/ui_mode.dart';
 import 'package:mostro/features/home/providers/home_order_providers.dart';
 import 'package:mostro/features/notifications/models/notification_model.dart';
 import 'package:mostro/features/notifications/providers/notifications_provider.dart';
@@ -18,6 +19,7 @@ import 'package:mostro/features/order/providers/trade_state_provider.dart';
 import 'package:mostro/features/rate/providers/rating_providers.dart';
 import 'package:mostro/features/rate/screens/rate_counterpart_screen.dart';
 import 'package:mostro/features/rate/widgets/star_rating.dart';
+import 'package:mostro/features/simple_mode/screens/simple_trade_detail_view.dart';
 import 'package:mostro/features/trades/providers/release_pending_provider.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart';
 import 'package:mostro/features/trades/screens/trade_detail_screen.dart';
@@ -62,8 +64,11 @@ Future<ProviderContainer> _pumpTradeDetail(
   List<TradeInfo>? trades,
   bool privacyMode = false,
   NotificationsNotifier? notifications,
+  UiMode uiMode = UiMode.advanced,
+  bool roleKnown = true,
 }) async {
   final container = createContainer(
+    uiMode: uiMode,
     overrides: [
       if (notifications != null)
         notificationsProvider.overrideWith((_) => notifications),
@@ -74,7 +79,9 @@ Future<ProviderContainer> _pumpTradeDetail(
       if (releaseOrder != null)
         releaseOrderActionProvider.overrideWithValue(releaseOrder),
       if (trades != null) rawTradesProvider.overrideWith((ref) async => trades),
-      tradeRoleProvider.overrideWith((ref) => {orderId: isBuyer}),
+      // [roleKnown] off leaves the side to the row lookup, which without a
+      // bridge never answers: the screen then has no side to show.
+      if (roleKnown) tradeRoleProvider.overrideWith((ref) => {orderId: isBuyer}),
       tradeStatusProvider(
         orderId,
       ).overrideWith((ref) => statusUpdates ?? Stream.value(status)),
@@ -133,8 +140,10 @@ Future<void> _pumpRoutedTradeDetail(
   Future<void> Function(String)? cancelOrder,
   Stream<OrderStatus>? statusUpdates,
   Stream<List<OrderItem>>? bookUpdates,
+  UiMode uiMode = UiMode.advanced,
 }) async {
   final container = createContainer(
+    uiMode: uiMode,
     overrides: [
       if (cancelOrder != null)
         cancelOrderActionProvider.overrideWithValue(cancelOrder),
@@ -1836,6 +1845,109 @@ void main() {
 
       expect(nudges, isEmpty);
       expect(find.text(_en.tradeHeadlineCancelled), findsOneWidget);
+    });
+  });
+
+  // Simple Mode shows the same trade through its own view. What it must
+  // never do is fill in a status or a side it has not read: "active" and
+  // "buyer" as defaults put a pay-now button on a trade whose escrow may not
+  // be funded.
+  group('Simple Mode', () {
+    const orderId = 'simple-1';
+
+    testWidgets('waits, with no action, while the side is unknown', (
+      tester,
+    ) async {
+      await _pumpTradeDetail(
+        tester,
+        orderId: orderId,
+        isBuyer: true,
+        status: OrderStatus.active,
+        uiMode: UiMode.simple,
+        roleKnown: false,
+      );
+
+      expect(find.byType(SimpleTradeDetailView), findsNothing);
+      expect(find.text('I HAVE PAID'), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
+
+    testWidgets('waits, with no action, until the status arrives', (
+      tester,
+    ) async {
+      final statuses = StreamController<OrderStatus>();
+      addTearDown(statuses.close);
+      await _pumpTradeDetail(
+        tester,
+        orderId: orderId,
+        isBuyer: true,
+        status: OrderStatus.active,
+        statusUpdates: statuses.stream,
+        uiMode: UiMode.simple,
+      );
+
+      expect(find.byType(SimpleTradeDetailView), findsNothing);
+      expect(find.text('I HAVE PAID'), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      // The real status, once it comes, is what the view gets.
+      statuses.add(OrderStatus.active);
+      await tester.pump();
+      await tester.pump();
+      final view = tester.widget<SimpleTradeDetailView>(
+        find.byType(SimpleTradeDetailView),
+      );
+      expect(view.status, OrderStatus.active);
+      expect(view.isBuyer, isTrue);
+    });
+
+    testWidgets('a trade that is only "taken" offers the buyer no payment', (
+      tester,
+    ) async {
+      await _pumpTradeDetail(
+        tester,
+        orderId: orderId,
+        isBuyer: true,
+        status: OrderStatus.inProgress,
+        uiMode: UiMode.simple,
+      );
+
+      final view = tester.widget<SimpleTradeDetailView>(
+        find.byType(SimpleTradeDetailView),
+      );
+      expect(view.status, OrderStatus.inProgress);
+      expect(find.text('I HAVE PAID'), findsNothing);
+      expect(find.text(AppLocalizationsEn().simpleDoNotPayYet), findsOneWidget);
+    });
+
+    testWidgets('an active trade does offer it', (tester) async {
+      await _pumpTradeDetail(
+        tester,
+        orderId: orderId,
+        isBuyer: true,
+        status: OrderStatus.active,
+        uiMode: UiMode.simple,
+      );
+
+      expect(find.text('I HAVE PAID'), findsOneWidget);
+      expect(find.text(AppLocalizationsEn().simpleDoNotPayYet), findsNothing);
+    });
+
+    testWidgets("leaves a take that is no longer this user's", (tester) async {
+      // No trade row and a stranger's order in the book: a lost take, handed
+      // back to the public book as `pending`.
+      await _pumpRoutedTradeDetail(
+        tester,
+        orderId: orderId,
+        status: OrderStatus.pending,
+        loadTrades: () async => const [],
+        book: [fakeOrder(id: orderId)],
+        uiMode: UiMode.simple,
+      );
+      await _finishPageTransition(tester);
+
+      expect(find.text('home'), findsOneWidget);
+      expect(find.byType(SimpleTradeDetailView), findsNothing);
     });
   });
 }

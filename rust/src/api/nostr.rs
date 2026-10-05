@@ -193,6 +193,9 @@ async fn on_pool_online() {
     // returns, while that fetch is a relay round trip. Behind it, a relay slow
     // to answer kept the book empty for eight seconds of a cold start.
     crate::api::orders::subscribe_orders().await;
+    // The community's card — payment methods, currency — if the node
+    // publishes one. Detached: nothing waits on it, least of all the book.
+    crate::rt::spawn(crate::mostro::community_card::refresh());
     // Capabilities before the flush, so queued messages are wrapped with the
     // correct difficulty.
     fetch_and_set_node_capabilities().await;
@@ -645,9 +648,29 @@ pub async fn fetch_mostro_instance_tags(
         .timeout(Duration::from_secs(10))
         .await
         .map_err(|e| anyhow::anyhow!("stream_events failed: {e}"))?;
-    let copies = stream.filter_map(|(relay, item)| async move {
-        item.inspect_err(|e| log::debug!("[nostr] 38385 from {relay}: {e}"))
-            .ok()
+    // One warning per query, however many such events arrive: the stream can
+    // stay open for the whole timeout, and a relay that chose to could
+    // otherwise write a log line per event for all of it.
+    let warned = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let copies = stream.filter_map(move |(relay, item)| {
+        let warned = warned.clone();
+        async move {
+            let event = item
+                .inspect_err(|e| log::debug!("[nostr] 38385 from {relay}: {e}"))
+                .ok()?;
+            // Only the node's own event: a relay is not trusted to have honoured
+            // the filter (`is_info_event_of` says what an unchecked one could do).
+            if crate::mostro::node_liveness::is_info_event_of(&event, &pubkey) {
+                Some(event)
+            } else {
+                if !warned.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                    log::warn!(
+                        "[nostr] {relay} answered the node-info REQ with an event that is not the node's — ignored"
+                    );
+                }
+                None
+            }
+        }
     });
     let event = crate::nostr::first_answer::newest_answer(
         Box::pin(copies),
@@ -656,13 +679,26 @@ pub async fn fetch_mostro_instance_tags(
     )
     .await;
 
-    Ok(event.map(|event| {
-        event
-            .tags
-            .iter()
-            .map(|t| t.as_slice().to_vec())
-            .collect::<Vec<Vec<String>>>()
-    }))
+    let Some(event) = event else {
+        return Ok(None);
+    };
+    let tags = event
+        .tags
+        .iter()
+        .map(|t| t.as_slice().to_vec())
+        .collect::<Vec<Vec<String>>>();
+    // The event's own date is the one public sign that the node is still
+    // there — its last info event outlives a stopped daemon on the relays,
+    // capabilities and all — and the tags alone dropped it. Kept per node,
+    // with the maintenance tag, for the gate in front of a new order or a
+    // take (`mostro::node_liveness`). Every caller feeds it: the capability
+    // fetch for the active node, and any screen that asks about a node.
+    crate::mostro::node_liveness::note_announcement(
+        &mostro_pubkey_hex,
+        event.created_at.as_secs() as i64,
+        &tags,
+    );
+    Ok(Some(tags))
 }
 
 /// How long [`fetch_mostro_instance_tags`] keeps listening after the first
@@ -755,9 +791,12 @@ pub async fn fetch_exchange_rate(
 /// load-bearing under nostr-sdk 0.44, which did not guarantee that a fetched
 /// event had been verified before it reached the caller
 /// (GHSA-f96q-5f6p-v7cj): a relay could hand us an event carrying the node's
-/// pubkey that the node never signed. 0.45 fixed that — every incoming event
-/// is verified (and filter-matched) inside the relay before the caller sees
-/// it — so this is now defence in depth, kept on purpose: it is the one
+/// pubkey that the node never signed. 0.45 fixed that — the signature of
+/// every incoming event is verified inside the relay before the caller sees
+/// it — so the signature check is now defence in depth. The field checks are
+/// not: 0.45 matches an event against the subscription's filter only with
+/// `verify_subscriptions`, which is off by default and off in this client.
+/// Both are kept on purpose: it is the one
 /// property of this event the client cannot re-derive, a forged price would
 /// silently move the whole range check, and the cost is one signature check
 /// on a single event fetched once. Verification runs before the newest-first
@@ -819,7 +858,7 @@ pub(crate) async fn fetch_and_set_node_capabilities() {
 /// of the node left behind used to land after the new node's and overwrite
 /// it — the bond policy then answered `None` for the active node, and the
 /// escrow mode, which carries no node tag at all, was simply the wrong node's.
-fn apply_node_capabilities(node: &str, fetched: Result<Option<Vec<Vec<String>>>>) {
+pub(crate) fn apply_node_capabilities(node: &str, fetched: Result<Option<Vec<Vec<String>>>>) {
     use crate::mostro::escrow_mode;
 
     if !node.eq_ignore_ascii_case(&crate::config::active_mostro_pubkey()) {

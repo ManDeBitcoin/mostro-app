@@ -159,6 +159,20 @@ MostroNodeInfo {
 > always receive concrete `u32` values. Deserialization/constructor MUST apply these
 > defaults (e.g. `#[serde(default = "default_expiration_hours")]`).
 
+**Whose event it is MUST be checked before it is read.** The source is the
+node's Kind 38385 event, and a relay is not held to the filter of the REQ it
+answers: nostr-sdk 0.45 verifies every incoming event's signature but matches
+it against the subscription only with `verify_subscriptions`, which is off in
+this client. So every reader of that event (`fetch_mostro_instance_tags`, and
+the liveness gate's patient look) keeps only events of kind 38385, signed by
+the node, addressed by the node's key in the `d` tag
+(`mostro::node_liveness::is_info_event_of`) — and does so **before** picking
+the newest copy. Unchecked, any relay in the pool could hand over an event
+from a throwaway key: its tags would be applied as the node's proof-of-work
+difficulty, protocol version and bond policy, and one dated in the future
+saying `maintenance_mode = true` would refuse every new order and take for
+the rest of the session.
+
 ---
 
 ### fetch_exchange_rate(mostro_pubkey_hex: String, fiat_code: String) → f64?

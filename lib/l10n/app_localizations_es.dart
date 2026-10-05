@@ -217,7 +217,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get nodeProtocolUnsupported =>
-      'Este nodo Mostro usa una versión del protocolo que esta app no soporta. Elige otro nodo en Ajustes o busca una actualización de la app';
+      'Este nodo Mostro usa una versión del protocolo que esta app no soporta. Busca una actualización de la app';
 
   @override
   String get nodeCapabilitiesUnknown =>
@@ -225,7 +225,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get mostroMaintenanceMode =>
-      'El nodo Mostro al que estás conectado está en mantenimiento. Inténtalo más tarde o conéctate a otro nodo Mostro desde Ajustes';
+      'El nodo Mostro al que estás conectado está en mantenimiento. Inténtalo más tarde';
 
   @override
   String get storageUnavailable =>
@@ -234,6 +234,78 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get rangeOrderWithSats =>
       'Una orden de rango no puede tener un monto fijo en sats: se cotiza a precio de mercado al tomarla.';
+
+  @override
+  String get nodeNotAnnouncing =>
+      'El nodo de la comunidad no está respondiendo ahora. Inténtalo en unos minutos.';
+
+  @override
+  String get orderFixedSatsWithPremium =>
+      'Una orden no puede llevar sats fijos y prima a la vez.';
+
+  @override
+  String get orderAmountMustBeWhole =>
+      'Escribe un importe entero: solo cifras, sin decimales ni separadores.';
+
+  @override
+  String get orderPremiumMustBeWhole =>
+      'La prima debe ser un porcentaje entero.';
+
+  @override
+  String get orderRejectedInvalidAmount =>
+      'El nodo rechazó el importe. Revísalo e inténtalo de nuevo.';
+
+  @override
+  String get orderRejectedFiatCurrency =>
+      'Esta comunidad no opera en esa moneda.';
+
+  @override
+  String get orderRejectedOutOfRange =>
+      'El importe está fuera de los límites de la comunidad.';
+
+  @override
+  String get orderRejectedPriceStale =>
+      'El nodo no tiene una cotización reciente. Inténtalo en unos minutos.';
+
+  @override
+  String get orderRejectedPendingOrder =>
+      'El nodo no aceptó la toma: tienes otra operación a medias, o alguien acaba de tomar esta orden.';
+
+  @override
+  String get orderRejectedByStatus =>
+      'La orden cambió de estado y ya no admite esta acción.';
+
+  @override
+  String get orderRejectedNotYours => 'Esta orden no es tuya.';
+
+  @override
+  String get orderRejectedNotYourAction =>
+      'Esta acción no te corresponde en esta orden.';
+
+  @override
+  String get orderRejectedOtherParty =>
+      'Esta acción corresponde a la otra parte.';
+
+  @override
+  String get orderRejectedInvalidParameters =>
+      'El nodo rechazó la solicitud: sus parámetros no son válidos.';
+
+  @override
+  String simpleRangeAmountHint(String min, String max, String code) {
+    return 'Escribe arriba un importe entero entre $min y $max $code';
+  }
+
+  @override
+  String get simpleTakenWaitingNode =>
+      'Operación tomada. Esperando el siguiente paso del nodo…';
+
+  @override
+  String get simpleDoNotPayYet =>
+      'Todavía no envíes el dinero: el Bitcoin aún no está asegurado.';
+
+  @override
+  String get orderRequestFailed =>
+      'No se pudo completar la solicitud. Inténtalo de nuevo.';
 
   @override
   String get orderIdCopied => 'ID de orden copiado';

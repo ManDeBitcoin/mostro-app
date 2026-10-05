@@ -150,6 +150,90 @@ pub(crate) fn wire_status_applies(local: Option<&OrderStatus>, wire: &OrderStatu
     }
 }
 
+/// Whether a public `pending` says nothing about a trade of ours: it may
+/// then neither replace the status the order's book entry carries nor make
+/// the stale sweep put the trade row back to `Pending`.
+///
+/// mostrod publishes a taken order as `in-progress` from exactly two
+/// statuses (nip33.rs `create_status_tags`): `waiting-buyer-invoice` of a
+/// **sell** order and `waiting-payment` of a **buy** order. A sell order
+/// taken with the buyer's invoice already attached skips the first and goes
+/// straight to `waiting-payment`, which publishes nothing for a sell order —
+/// and nothing after it does either — so its Kind 38383 keeps reading
+/// `pending` from the take until `success` or `canceled`. A buyer using this
+/// client with a default Lightning address set attaches it to every take, so
+/// that is a common path, not a corner.
+///
+/// For the **maker** of such an order the public `pending` is the order's
+/// past, not its present. Read as the present it showed the seller an
+/// untaken order with nothing to pay while a hold invoice was running out,
+/// and once the stale sweep reached the row it wrote `Pending` over it.
+/// The daemon's own messages are the authority here: `pay-invoice` opened
+/// the step, and only `new-order` (the taker walked away, the order is
+/// republished) or `canceled` close it — both replayed by the kind-14 feed
+/// on every start.
+///
+/// Everything else keeps reading the public `pending` as before:
+///
+/// * a **buy** order — its take always publishes `in-progress`
+///   (`waiting-payment`), so a later `pending` is a republish;
+/// * a maker-seller still at `waiting-buyer-invoice` or `in-progress` —
+///   that take did publish `in-progress`, so `pending` again means the taker
+///   left before sending an invoice;
+/// * a row that is itself `Pending`, a **taker**'s row (the lost-take
+///   restore and the taker's sweep read the same signal) and an order that
+///   is not ours.
+///
+/// The price is one fallback: a maker-seller whose taker cancelled *after*
+/// the hold invoice went out, and whose private `new-order` never arrived,
+/// now waits for the next daemon message instead of being reset by the
+/// sweep. The two cases cannot be told apart from the status alone — only
+/// the event's `created_at` against the private step would — and a stale
+/// "pay this invoice" (the invoice is cancelled, paying it fails) costs less
+/// than hiding a live one.
+pub(crate) fn holds_against_public_pending(
+    is_maker: bool,
+    kind: &crate::api::types::OrderKind,
+    local: &OrderStatus,
+) -> bool {
+    is_maker
+        && *kind == crate::api::types::OrderKind::Sell
+        && matches!(
+            local,
+            OrderStatus::WaitingPayment
+                | OrderStatus::Active
+                | OrderStatus::FiatSent
+                | OrderStatus::Dispute
+                | OrderStatus::SettledHoldInvoice
+        )
+}
+
+/// Whether a `cancel` sent from a trade in `status` waits for the daemon's
+/// verdict before the caller is told anything.
+///
+/// The two waiting steps are where mostrod cancels at once (cancel.rs
+/// `cancel_not_active_order`) and where it can also refuse: since v0.19.2 a
+/// cancel that meets a hold invoice the seller has just paid is answered
+/// with `cant-do not_allowed_by_status`, and the trade goes active instead.
+/// A cancel sent without a `request_id` cannot be matched to that refusal,
+/// so the user was told "cancel sent" about a trade that was about to hold
+/// their funds.
+///
+/// Not the rest, on purpose. From `active` on a cancel is a request the
+/// counterparty must agree to, answered with
+/// `cooperative-cancel-initiated-by-you`, not `canceled`. `in-progress` is
+/// the public bucket: the trade behind it may be either. A plain `pending`
+/// order is refused only when a take commits while the cancel is being
+/// published (cancel.rs `cancel_pending_order_from_maker`, the lost
+/// compare-and-swap), and that take's own messages then say so. The bond
+/// windows have their own paths.
+pub(crate) fn cancel_awaits_verdict(status: &OrderStatus) -> bool {
+    matches!(
+        status,
+        OrderStatus::WaitingBuyerInvoice | OrderStatus::WaitingPayment
+    )
+}
+
 /// Whether a daemon `canceled` should wipe the local trade record instead of
 /// keeping a Canceled history row.
 ///
@@ -395,6 +479,123 @@ mod tests {
                 "a terminal wire status must reach {local:?}"
             );
             assert!(wire_status_applies(Some(&local), &S::Success));
+        }
+    }
+
+    /// Every status a trade row can hold, for the tables below. Exhaustive:
+    /// a new variant fails to compile in `all_statuses_listed`.
+    const ALL_STATUSES: [OrderStatus; 17] = [
+        OrderStatus::Pending,
+        OrderStatus::WaitingBuyerInvoice,
+        OrderStatus::WaitingPayment,
+        OrderStatus::Active,
+        OrderStatus::FiatSent,
+        OrderStatus::SettledHoldInvoice,
+        OrderStatus::Success,
+        OrderStatus::Canceled,
+        OrderStatus::Expired,
+        OrderStatus::CooperativelyCanceled,
+        OrderStatus::CanceledByAdmin,
+        OrderStatus::SettledByAdmin,
+        OrderStatus::CompletedByAdmin,
+        OrderStatus::Dispute,
+        OrderStatus::InProgress,
+        OrderStatus::WaitingTakerBond,
+        OrderStatus::WaitingMakerBond,
+    ];
+
+    #[test]
+    fn all_statuses_listed() {
+        for s in &ALL_STATUSES {
+            match s {
+                OrderStatus::Pending
+                | OrderStatus::WaitingBuyerInvoice
+                | OrderStatus::WaitingPayment
+                | OrderStatus::Active
+                | OrderStatus::FiatSent
+                | OrderStatus::SettledHoldInvoice
+                | OrderStatus::Success
+                | OrderStatus::Canceled
+                | OrderStatus::Expired
+                | OrderStatus::CooperativelyCanceled
+                | OrderStatus::CanceledByAdmin
+                | OrderStatus::SettledByAdmin
+                | OrderStatus::CompletedByAdmin
+                | OrderStatus::Dispute
+                | OrderStatus::InProgress
+                | OrderStatus::WaitingTakerBond
+                | OrderStatus::WaitingMakerBond => {}
+            }
+        }
+    }
+
+    /// mostrod v0.19.2, `inline_invoice_take`: a sell order taken with the
+    /// invoice attached is published `pending`, then `success` — never
+    /// `in-progress`. So for its maker a public `pending` is the order's
+    /// past from `waiting-payment` on, and only there.
+    #[test]
+    fn a_public_pending_is_silent_only_for_the_maker_of_a_taken_sell_order() {
+        use crate::api::types::OrderKind::{Buy, Sell};
+        use OrderStatus as S;
+
+        let held = [
+            S::WaitingPayment,
+            S::Active,
+            S::FiatSent,
+            S::Dispute,
+            S::SettledHoldInvoice,
+        ];
+        for local in &ALL_STATUSES {
+            assert_eq!(
+                holds_against_public_pending(true, &Sell, local),
+                held.contains(local),
+                "maker of a sell order at {local:?}"
+            );
+            // A buy order's take always publishes `in-progress`: `pending`
+            // after it is a republish, at every status.
+            assert!(
+                !holds_against_public_pending(true, &Buy, local),
+                "maker of a buy order at {local:?} must keep reading pending"
+            );
+            // A taker's row, either kind: the lost-take restore and the
+            // taker's sweep read the same public `pending`.
+            for kind in [Sell, Buy] {
+                assert!(
+                    !holds_against_public_pending(false, &kind, local),
+                    "a taker at {local:?} must keep reading pending"
+                );
+            }
+        }
+        // The two statuses the fix must leave alone on a maker's sell order:
+        // the row that is itself pending, and the take that did publish
+        // `in-progress` (no invoice attached), where `pending` again means
+        // the taker left.
+        assert!(!holds_against_public_pending(true, &Sell, &S::Pending));
+        assert!(!holds_against_public_pending(
+            true,
+            &Sell,
+            &S::WaitingBuyerInvoice
+        ));
+        assert!(!holds_against_public_pending(true, &Sell, &S::InProgress));
+    }
+
+    /// A cancel waits for the daemon's verdict only where the daemon cancels
+    /// at once and can also refuse: the two waiting steps (mostrod cancel.rs
+    /// `cancel_not_active_order`).
+    #[test]
+    fn only_a_waiting_step_cancel_waits_for_the_daemons_verdict() {
+        use OrderStatus as S;
+        for status in &ALL_STATUSES {
+            assert_eq!(
+                cancel_awaits_verdict(status),
+                matches!(status, S::WaitingBuyerInvoice | S::WaitingPayment),
+                "{status:?}"
+            );
+        }
+        // Everything that waits is a never-active trade: the daemon's
+        // `canceled` wipes its row, so there is nothing to mark locally.
+        for status in ALL_STATUSES.iter().filter(|s| cancel_awaits_verdict(s)) {
+            assert!(cancellation_wipes_history(status), "{status:?}");
         }
     }
 

@@ -82,7 +82,22 @@ void main() {
   group('enteredAmount (#337)', () {
     test('returns the amount for a submittable value', () {
       expect(enteredAmount('150'), 150);
-      expect(enteredAmount(' 150.5 '), 150.5);
+      expect(enteredAmount(' 150 '), 150);
+    });
+
+    test('rejects a fraction: an order carries a whole fiat amount', () {
+      // It used to pass and be truncated on the wire, so 150.5 was published
+      // as 150; the core now refuses it, and so does the form.
+      expect(enteredAmount(' 150.5 '), isNull);
+      expect(enteredAmount('0.9'), isNull);
+    });
+
+    test('rejects anything written with a decimal part, whole or not', () {
+      // In `es` a typed `1,000` reads as one with three decimals — and may
+      // have been meant as a thousand. Nothing with a decimal part goes out.
+      expect(enteredAmount('150.0'), isNull);
+      expect(enteredAmount('1.000'), isNull);
+      expect(enteredAmount('150.'), isNull);
     });
 
     test('rejects a non-numeric or non-positive value', () {
@@ -100,6 +115,59 @@ void main() {
       expect(enteredAmount('-Infinity'), isNull);
       expect(enteredAmount('NaN'), isNull);
       expect(enteredAmount('1e309'), isNull);
+    });
+  });
+
+  group('amountHasTypedSeparator', () {
+    bool es(String text) => amountHasTypedSeparator(
+      text,
+      groupSeparator: '.',
+      decimalSeparator: ',',
+    );
+    bool en(String text) => amountHasTypedSeparator(
+      text,
+      groupSeparator: ',',
+      decimalSeparator: '.',
+    );
+
+    test('is false for digits and for the field\'s own grouping', () {
+      for (final text in ['', '150', ' 150 ', '1.000', '25.000', '1.000.000']) {
+        expect(es(text), isFalse, reason: '"$text"');
+      }
+      expect(en('1,000'), isFalse);
+      expect(en('1,234,567'), isFalse);
+    });
+
+    test('names a decimal separator, with or without decimals after it', () {
+      for (final text in ['150,5', '150,', '10,50', '1,00', '1,000', ',5']) {
+        expect(es(text), isTrue, reason: '"$text"');
+      }
+      for (final text in ['150.5', '150.', '10.50', '1.00', '1.000']) {
+        expect(en(text), isTrue, reason: '"$text"');
+      }
+    });
+
+    test('names a group separator that groups nothing', () {
+      // The dot groups in `es`: dropped and regrouped, a typed `10.50` was
+      // a publishable 1.050.
+      for (final text in ['10.50', '100.5', '1.00', '10.', '1.0000', '1..000']) {
+        expect(es(text), isTrue, reason: '"$text"');
+      }
+      for (final text in ['10,50', '1,00', '10,']) {
+        expect(en(text), isTrue, reason: '"$text"');
+      }
+    });
+
+    test('names either mark in a locale that groups with neither', () {
+      // French groups with a narrow no-break space.
+      bool fr(String text) => amountHasTypedSeparator(
+        text,
+        groupSeparator: '\u202f',
+        decimalSeparator: ',',
+      );
+      expect(fr('10.50'), isTrue);
+      expect(fr('10,50'), isTrue);
+      expect(fr('1\u202f000'), isFalse);
     });
   });
 }

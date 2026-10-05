@@ -216,7 +216,7 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get nodeProtocolUnsupported =>
-      'Deze Mostro-node spreekt een protocolversie die de app niet ondersteunt. Kies een andere node in de instellingen, of kijk of er een app-update is';
+      'Deze Mostro-node spreekt een protocolversie die de app niet ondersteunt. Kijk of er een app-update is';
 
   @override
   String get nodeCapabilitiesUnknown =>
@@ -224,7 +224,7 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get mostroMaintenanceMode =>
-      'De Mostro-node waarmee je verbonden bent is in onderhoud. Probeer het later opnieuw, of verbind met een andere Mostro-node in de instellingen';
+      'De Mostro-node waarmee je verbonden bent is in onderhoud. Probeer het later opnieuw';
 
   @override
   String get storageUnavailable =>
@@ -233,6 +233,77 @@ class AppLocalizationsNl extends AppLocalizations {
   @override
   String get rangeOrderWithSats =>
       'Een order met een bereik kan geen vast aantal sats hebben: hij wordt bij het aannemen tegen de marktprijs geprijsd.';
+
+  @override
+  String get nodeNotAnnouncing =>
+      'De node van de community reageert nu niet. Probeer het over een paar minuten opnieuw.';
+
+  @override
+  String get orderFixedSatsWithPremium =>
+      'Een order kan niet tegelijk een vast aantal sats en een premie hebben.';
+
+  @override
+  String get orderAmountMustBeWhole =>
+      'Voer een heel bedrag in: alleen cijfers, zonder decimalen of scheidingstekens.';
+
+  @override
+  String get orderPremiumMustBeWhole =>
+      'De premie moet een heel percentage zijn.';
+
+  @override
+  String get orderRejectedInvalidAmount =>
+      'De node heeft het bedrag geweigerd. Controleer het en probeer het opnieuw.';
+
+  @override
+  String get orderRejectedFiatCurrency =>
+      'Deze community handelt niet in die valuta.';
+
+  @override
+  String get orderRejectedOutOfRange =>
+      'Het bedrag valt buiten de limieten van deze community.';
+
+  @override
+  String get orderRejectedPriceStale =>
+      'De node heeft geen recente koers. Probeer het over een paar minuten opnieuw.';
+
+  @override
+  String get orderRejectedPendingOrder =>
+      'De node heeft de aanname geweigerd: je hebt nog een trade openstaan, of iemand heeft deze order net aangenomen.';
+
+  @override
+  String get orderRejectedByStatus =>
+      'De order is van status veranderd en staat deze actie niet meer toe.';
+
+  @override
+  String get orderRejectedNotYours => 'Deze order is niet van jou.';
+
+  @override
+  String get orderRejectedNotYourAction =>
+      'Deze actie is niet aan jou bij deze order.';
+
+  @override
+  String get orderRejectedOtherParty => 'Deze actie is aan de andere partij.';
+
+  @override
+  String get orderRejectedInvalidParameters =>
+      'De node heeft het verzoek geweigerd: de parameters zijn ongeldig.';
+
+  @override
+  String simpleRangeAmountHint(String min, String max, String code) {
+    return 'Vul hierboven een heel bedrag tussen $min en $max $code in';
+  }
+
+  @override
+  String get simpleTakenWaitingNode =>
+      'Trade aangenomen. Wachten op de volgende stap van de node…';
+
+  @override
+  String get simpleDoNotPayYet =>
+      'Stuur het geld nog niet: de Bitcoin is nog niet veiliggesteld.';
+
+  @override
+  String get orderRequestFailed =>
+      'Het verzoek kon niet worden voltooid. Probeer het opnieuw.';
 
   @override
   String get orderIdCopied => 'Order-ID gekopieerd';

@@ -2,13 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:mostro/core/order_book_palette.dart';
+import 'package:mostro/features/about/providers/mostro_node_provider.dart';
 import 'package:mostro/features/home/providers/home_order_providers.dart';
+import 'package:mostro/features/order/models/bond_rules.dart'
+    show bondSharePercent;
+import 'package:mostro/features/order/models/create_order_rules.dart'
+    show takerBondApplies;
+import 'package:mostro/features/order/models/order_detail_rules.dart'
+    show estimateSats;
 import 'package:mostro/features/order/providers/exchange_rate_provider.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
+import 'package:mostro/features/simple_mode/models/simple_order_rules.dart';
 import 'package:mostro/features/simple_mode/providers/community_provider.dart';
 import 'package:mostro/features/simple_mode/providers/simple_identity_provider.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_buy_confirm_sheet.dart';
+import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/providers/peer_nym_provider.dart';
+import 'package:mostro/shared/utils/whole_amount_input.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
 import 'package:mostro/shared/widgets/nym_avatar.dart';
 
@@ -40,7 +50,6 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
     required double fiatAmount,
     required String fiatCode,
     required int? estimatedSats,
-    required int bondPercent,
   }) {
     showMostroSheet(
       context: context,
@@ -49,7 +58,6 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
         fiatAmount: fiatAmount,
         fiatCode: fiatCode,
         estimatedSats: estimatedSats,
-        bondPercent: bondPercent,
       ),
     );
   }
@@ -65,10 +73,18 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
     // Live exchange rate & Sats calculation
     final rateAsync = ref.watch(exchangeRateProvider(currency));
     final rate = rateAsync.valueOrNull;
-    final double? parsedAmount = double.tryParse(_amountController.text.trim());
-    final int? estimatedSats =
-        (rate != null && rate > 0 && parsedAmount != null && parsedAmount > 0)
-        ? (parsedAmount / rate * 100000000).round()
+    // A whole amount or nothing: a take cannot carry decimals.
+    final int? typedAmount = wholeFiatAmount(_amountController.text);
+    final int? estimatedSats = typedAmount == null
+        ? null
+        : estimateSats(fiat: typedAmount.toDouble(), rate: rate, premium: 0);
+
+    // The node's own policy, never a default: with bonds off, or before the
+    // node has said, no deposit is announced.
+    final node = ref.watch(mostroNodeProvider).valueOrNull;
+    final takerBondPercent =
+        takerBondApplies(policy: node?.bondPolicy, applyTo: node?.bondApplyTo)
+        ? bondSharePercent(node?.bondAmountPct)
         : null;
 
     final paymentMethods =
@@ -82,8 +98,9 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
 
     final allOrders = ref.watch(orderBookProvider).valueOrNull ?? [];
     final allSellOrders = allOrders.where((o) {
-      if (o.kind != 'sell') return false;
-      if (o.fiatCode.toUpperCase() != currency.toUpperCase()) return false;
+      if (!isOfferedInSimpleMode(o, kind: 'sell', currency: currency)) {
+        return false;
+      }
       if (_selectedMethod != null &&
           !o.paymentMethod.toLowerCase().contains(
             _selectedMethod!.toLowerCase(),
@@ -94,19 +111,13 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
     }).toList();
 
     bool matchesAmount(OrderItem o) {
-      if (parsedAmount == null || parsedAmount <= 0) return true;
-      if (o.isRange) {
-        final min = o.fiatAmountMin ?? 0.0;
-        final max = o.fiatAmountMax ?? double.infinity;
-        return parsedAmount >= min && parsedAmount <= max;
-      } else {
-        return o.fiatAmount == parsedAmount;
-      }
+      if (typedAmount == null) return true;
+      if (o.isRange) return takeAmountFor(o, typedAmount) != null;
+      return o.fiatAmount == typedAmount;
     }
 
     final matchingSellOrders = allSellOrders.where(matchesAmount).toList();
-    final displayedSellOrders =
-        (_filterMatchingOnly && parsedAmount != null && parsedAmount > 0)
+    final displayedSellOrders = (_filterMatchingOnly && typedAmount != null)
         ? matchingSellOrders
         : allSellOrders;
 
@@ -185,9 +196,8 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
                   Expanded(
                     child: TextField(
                       controller: _amountController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [wholeAmountInputFormatter],
                       style: TextStyle(
                         color: pal.textTitle,
                         fontSize: 32,
@@ -209,16 +219,24 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
                 children: [
                   Icon(Icons.bolt_rounded, size: 16, color: pal.limeText),
                   const SizedBox(width: 4),
-                  Text(
-                    estimatedSats != null
-                        ? '≈ $estimatedSats sats'
-                        : (rateAsync.isLoading
-                              ? SimpleL10n.calculatingRate(context)
-                              : 'Recibirás Bitcoin al cambio del mercado'),
-                    style: TextStyle(
-                      color: pal.limeText,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
+                  Flexible(
+                    child: Text(
+                      typedAmount == null
+                          ? AppLocalizations.of(context).orderAmountMustBeWhole
+                          : estimatedSats != null
+                          ? '≈ $estimatedSats sats'
+                          : (rateAsync.isLoading
+                                ? SimpleL10n.calculatingRate(context)
+                                : 'Recibirás Bitcoin al cambio del mercado'),
+                      // Unclipped, and in the warning colour while the
+                      // field holds no amount an order can carry.
+                      style: TextStyle(
+                        color: typedAmount == null
+                            ? Colors.amber
+                            : pal.limeText,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ],
@@ -284,8 +302,9 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
 
         const SizedBox(height: 20),
 
-        // Temporary guarantee notice
-        Container(
+        // What this node asks takers to lock first, when it asks anything.
+        if (takerBondPercent != null)
+          Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: pal.surfaceCard,
@@ -301,7 +320,7 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${SimpleL10n.temporaryGuarantee(context)}: ~${community?.bondPercent ?? 3}%',
+                      '${SimpleL10n.temporaryGuarantee(context)}: $takerBondPercent %',
                       style: TextStyle(
                         color: pal.textTitle,
                         fontWeight: FontWeight.w600,
@@ -331,8 +350,7 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
               ),
             ),
             if (allSellOrders.length != matchingSellOrders.length &&
-                parsedAmount != null &&
-                parsedAmount > 0)
+                typedAmount != null)
               TextButton(
                 onPressed: () =>
                     setState(() => _filterMatchingOnly = !_filterMatchingOnly),
@@ -397,34 +415,46 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
         else
           ...displayedSellOrders.map((order) {
             final isRange = order.isRange;
-            final double takeFiatAmount = isRange
-                ? (parsedAmount ?? order.fiatAmountMin ?? 50.0)
-                : (order.fiatAmount ?? 50.0);
-            final int? orderEstimatedSats = (rate != null && rate > 0)
-                ? (takeFiatAmount / rate * 100000000).round()
-                : null;
+            // A fixed order is taken for its own amount; a range order for
+            // the amount typed, and not at all until that is a whole amount
+            // inside its limits.
+            final int? takeAmount = takeAmountFor(order, typedAmount);
+            // The seller's own sats when the order fixes them; otherwise
+            // what the node would price the amount at with this order's
+            // premium.
+            final int? fixedSats = order.amountSats?.toInt();
+            final int? orderEstimatedSats = (fixedSats != null && fixedSats > 0)
+                ? fixedSats
+                : takeAmount == null
+                ? null
+                : estimateSats(
+                    fiat: takeAmount.toDouble(),
+                    rate: rate,
+                    premium: order.premium,
+                  );
             final bool amountMismatched =
                 !isRange &&
-                parsedAmount != null &&
-                parsedAmount != order.fiatAmount;
+                typedAmount != null &&
+                typedAmount != order.fiatAmount;
 
             return _SellerOfferCard(
               order: order,
               isRange: isRange,
-              takeFiatAmount: takeFiatAmount,
+              takeAmount: takeAmount,
               orderEstimatedSats: orderEstimatedSats,
               amountMismatched: amountMismatched,
               currency: currency,
               pal: pal,
-              onBuyPressed: () {
-                _openConfirmSheet(
-                  order: order,
-                  fiatAmount: takeFiatAmount,
-                  fiatCode: currency,
-                  estimatedSats: orderEstimatedSats,
-                  bondPercent: community?.bondPercent ?? 3,
-                );
-              },
+              onBuyPressed: takeAmount == null
+                  ? null
+                  : () {
+                      _openConfirmSheet(
+                        order: order,
+                        fiatAmount: takeAmount.toDouble(),
+                        fiatCode: currency,
+                        estimatedSats: orderEstimatedSats,
+                      );
+                    },
             );
           }),
       ],
@@ -436,7 +466,7 @@ class _SellerOfferCard extends ConsumerWidget {
   const _SellerOfferCard({
     required this.order,
     required this.isRange,
-    required this.takeFiatAmount,
+    required this.takeAmount,
     required this.orderEstimatedSats,
     required this.amountMismatched,
     required this.currency,
@@ -446,12 +476,17 @@ class _SellerOfferCard extends ConsumerWidget {
 
   final OrderItem order;
   final bool isRange;
-  final double takeFiatAmount;
+
+  /// The whole amount the order would be taken for, or null for a range
+  /// order while the amount typed is not one inside its limits.
+  final int? takeAmount;
   final int? orderEstimatedSats;
   final bool amountMismatched;
   final String currency;
   final OrderBookPalette pal;
-  final VoidCallback onBuyPressed;
+
+  /// Null while the order cannot be taken ([takeAmount] is null).
+  final VoidCallback? onBuyPressed;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -592,9 +627,9 @@ class _SellerOfferCard extends ConsumerWidget {
                         fontSize: 16,
                       ),
                     ),
-                    if (isRange)
+                    if (isRange && takeAmount != null)
                       Text(
-                        'Comprarás: ${takeFiatAmount.toInt()} ${order.fiatCode}',
+                        'Comprarás: $takeAmount ${order.fiatCode}',
                         style: TextStyle(
                           color: pal.textSecondary,
                           fontSize: 11,
@@ -654,6 +689,17 @@ class _SellerOfferCard extends ConsumerWidget {
                 ],
               ),
             ),
+            if (isRange && takeAmount == null) ...[
+              const SizedBox(height: 10),
+              Text(
+                AppLocalizations.of(context).simpleRangeAmountHint(
+                  '${order.fiatAmountMin?.toInt()}',
+                  '${order.fiatAmountMax?.toInt()}',
+                  order.fiatCode,
+                ),
+                style: const TextStyle(fontSize: 11, color: Colors.amber),
+              ),
+            ],
             if (amountMismatched) ...[
               const SizedBox(height: 10),
               Container(
@@ -709,9 +755,9 @@ class _SellerOfferCard extends ConsumerWidget {
                     visualDensity: VisualDensity.compact,
                   ),
                   child: Text(
-                    isRange
-                        ? '${SimpleL10n.buyButton(context)} ${takeFiatAmount.toInt()} $currency'
-                        : '${SimpleL10n.buyButton(context)} ${order.fiatAmount?.toInt() ?? takeFiatAmount.toInt()} $currency',
+                    takeAmount == null
+                        ? SimpleL10n.buyButton(context)
+                        : '${SimpleL10n.buyButton(context)} $takeAmount $currency',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),

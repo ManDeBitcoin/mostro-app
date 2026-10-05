@@ -17,6 +17,7 @@ void main() {
             status: OrderStatus.active,
             isBuyer: true,
             isDisputed: false,
+            showBond: true,
           ),
         ),
       ),
@@ -55,5 +56,51 @@ void main() {
     expect(find.text('Caso recibido'), findsOneWidget);
     expect(find.text('Mediador de la comunidad asignado'), findsOneWidget);
     expect(find.text('Esperando resolución del mediador'), findsOneWidget);
+  });
+
+  testWidgets('SimpleTradeTimeline leaves the deposit step out without a bond',
+      (tester) async {
+    // On a node with bonds off the step used to show as already done.
+    await tester.pumpWidget(
+      const MaterialApp(
+        locale: Locale('es'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SimpleTradeTimeline(
+            status: OrderStatus.active,
+            isBuyer: true,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Garantía temporal bloqueada'), findsNothing);
+    expect(find.text('Bitcoin protegido en custodia'), findsOneWidget);
+  });
+
+  testWidgets('SimpleTradeTimeline does not count in-progress as secured',
+      (tester) async {
+    Future<int> doneSteps(OrderStatus status) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('es'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SimpleTradeTimeline(status: status, isBuyer: true),
+          ),
+        ),
+      );
+      return tester
+          .widgetList(find.byIcon(Icons.check_circle_rounded))
+          .length;
+    }
+
+    // The public book says `in-progress` from the take until the trade
+    // ends: only "accepted" is known, the escrow is not.
+    final taken = await doneSteps(OrderStatus.inProgress);
+    final funded = await doneSteps(OrderStatus.active);
+    expect(funded, greaterThan(taken));
   });
 }

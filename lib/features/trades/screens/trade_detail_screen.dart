@@ -661,22 +661,6 @@ class _TradeDetailScreenState extends ConsumerState<TradeDetailScreen>
     final tradeAsync = ref.watch(tradeInfoProvider(widget.orderId));
     final trade = tradeAsync.valueOrNull;
 
-    final uiMode = ref.watch(uiModeProvider);
-    if (uiMode == UiMode.simple) {
-      final liveStatus =
-          ref.watch(tradeStatusProvider(widget.orderId)).valueOrNull ??
-              OrderStatus.active;
-      return SimpleTradeDetailView(
-        orderId: widget.orderId,
-        status: liveStatus,
-        isBuyer: isBuyer,
-        fiatAmount: order?.fiatAmount ?? trade?.order.fiatAmount,
-        fiatCode: order?.fiatCode ?? trade?.order.fiatCode ?? 'USD',
-        amountSats: order?.amountSats?.toInt() ?? trade?.order.amountSats?.toInt(),
-        paymentMethod:
-            order?.paymentMethod ?? trade?.order.paymentMethod ?? 'Transferencia',
-      );
-    }
     final peerRating = trade?.peerRating;
     final room =
         ref
@@ -702,6 +686,56 @@ class _TradeDetailScreenState extends ConsumerState<TradeDetailScreen>
         order?.isMine != true) {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _leave(l10n.tradeNoLongerYours),
+      );
+    }
+
+    // Simple Mode has its own view of the same trade. It comes after the
+    // guard above, so a take that is no longer this user's leaves here too,
+    // and it never guesses: "active" and "buyer" as stand-ins for a status
+    // or a side not read yet would put a pay-now card on a trade whose
+    // escrow may not be funded.
+    if (ref.watch(uiModeProvider) == UiMode.simple) {
+      final live = ref.watch(tradeStatusProvider(widget.orderId)).valueOrNull;
+      if (live == null || role == null) {
+        return Scaffold(
+          backgroundColor: book.bg,
+          appBar: AppBar(
+            backgroundColor: book.bg,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back, size: 22, color: book.textBody),
+              tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+              onPressed: _close,
+            ),
+          ),
+          body: Center(
+            child: loadFailed
+                ? Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      l10n.tradeLoadError,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: book.textBody),
+                    ),
+                  )
+                : const CircularProgressIndicator(),
+          ),
+        );
+      }
+      return SimpleTradeDetailView(
+        orderId: widget.orderId,
+        status: _shown(live, trade),
+        isBuyer: role,
+        fiatAmount: order?.fiatAmount ?? trade?.order.fiatAmount,
+        fiatCode: order?.fiatCode ?? trade?.order.fiatCode ?? 'USD',
+        amountSats:
+            order?.amountSats?.toInt() ?? trade?.order.amountSats?.toInt(),
+        paymentMethod:
+            order?.paymentMethod ??
+            trade?.order.paymentMethod ??
+            'Transferencia',
+        hasBond: trade?.bond != null,
       );
     }
 
