@@ -85,6 +85,49 @@ void main() {
     });
   });
 
+  group('buyPaymentMethods, the book\'s own methods', () {
+    test('the ones most offers share come first', () {
+      final methods = buyPaymentMethods(
+        official: ['Transferencia'],
+        offers: [
+          _order(method: 'Venmo'),
+          _order(method: 'PayPal'),
+          _order(method: 'paypal, Venmo'),
+          _order(method: 'Venmo'),
+          // Named twice by one order: one offer all the same.
+          _order(method: 'Zelle, zelle, ZELLE'),
+        ],
+      );
+
+      expect(methods, ['Transferencia', 'Venmo', 'PayPal', 'Zelle']);
+    });
+
+    test('are capped, so one order cannot fill the screen with chips', () {
+      final many = [for (var i = 0; i < 50; i++) 'Metodo ${i.toString().padLeft(2, '0')}'];
+      final methods = buyPaymentMethods(
+        official: ['Transferencia'],
+        offers: [_order(method: many.join(','))],
+      );
+
+      expect(methods, hasLength(1 + maxBookPaymentMethods));
+      expect(methods.first, 'Transferencia');
+      expect(methods.last, 'Metodo 11');
+    });
+  });
+
+  group('methodOnList', () {
+    test('finds the choice however the list now writes it', () {
+      expect(methodOnList(['efectivo', 'DeUna'], 'Efectivo'), 'efectivo');
+      expect(methodOnList([' DeUna '], 'deuna'), ' DeUna ');
+    });
+
+    test('is null for no choice, and for one that left the list', () {
+      expect(methodOnList(['Efectivo'], null), isNull);
+      expect(methodOnList(['Efectivo'], 'Zelle'), isNull);
+      expect(methodOnList(const [], 'Zelle'), isNull);
+    });
+  });
+
   group('isPaidBy', () {
     test('no method is every method', () {
       expect(isPaidBy(_order(method: 'Venmo'), null), isTrue);

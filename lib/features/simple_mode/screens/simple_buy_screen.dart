@@ -103,9 +103,7 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
     );
     // No method chosen is every method. One that left the list — its last
     // offer was taken — filters nothing any more.
-    final selectedMethod = paymentMethods.contains(_selectedMethod)
-        ? _selectedMethod
-        : null;
+    final selectedMethod = methodOnList(paymentMethods, _selectedMethod);
     final allSellOrders = offers
         .where((o) => isPaidBy(o, selectedMethod))
         .toList();

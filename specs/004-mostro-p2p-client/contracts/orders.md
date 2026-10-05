@@ -206,9 +206,12 @@ is fresh (device clock behind). For a device clock **ahead**, which ages every
 event by as much, the last step before `NodeNotAnnouncing` compares the node's
 event with the newest info event any *other* node published on the same
 relays (signed, addressed by its author's key, not dated after the device's
-now): no more than 660 s behind that, the node is current and is not refused
-— its `maintenance_mode` still is. With no such event to compare with, the
-device's clock decides. A look that brings nothing changes nothing —
+now): within 660 s of that **either way**, the node is current and is not
+refused — its `maintenance_mode` still is. A peer event from long before the
+node's own is no witness and does not count. With no such event to compare
+with, the device's clock decides. Known limit: where no live peer answers, an
+event dated near a stopped node's last one still passes, and the send goes
+out unanswered. A look that brings nothing changes nothing —
 it never resets PoW or policy. **Nothing on an existing trade may ever wait on
 this gate** (fiat-sent, release, cancel, dispute, add-invoice, rating).
 

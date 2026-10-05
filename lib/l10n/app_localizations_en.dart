@@ -291,7 +291,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simpleCommunityFee => 'Community fee';
 
   @override
-  String get simpleFeeTakenFromSats => 'Taken off the sats you receive';
+  String get simpleFeeTakenFromSats => 'Already taken off what you receive';
 
   @override
   String get simpleFeeAddedToSats => 'Added to the sats you lock';
@@ -310,6 +310,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tradesLoadError => 'Your trades could not be loaded.';
+
+  @override
+  String get simpleBeforeCommunityFee => 'Before the community fee';
+
+  @override
+  String get orderRejectedNoReason =>
+      'The community\'s node refused the request without giving a reason.';
 
   @override
   String get simpleAllPaymentMethods => 'All';

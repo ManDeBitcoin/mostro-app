@@ -512,6 +512,47 @@ void main() {
       expect(find.byKey(const ValueKey('preview-error')), findsOneWidget);
     });
 
+    testWidgets('a premium typed with decimals holds the form back', (
+      tester,
+    ) async {
+      final container = await _pump(tester);
+      container.read(selectedPaymentMethodsProvider.notifier).state = ['Zelle'];
+      await tester.enterText(_amountField(), '100');
+      await tester.pumpAndSettle();
+      expect(_publishButton(tester).onPressed, isNotNull);
+
+      // The premium figure opens its field in place.
+      await tester.tap(find.byKey(const ValueKey('premium-figure')));
+      await tester.pumpAndSettle();
+      final premiumField = find.descendant(
+        of: find.byKey(const ValueKey('premium-block')),
+        matching: find.byType(TextField),
+      );
+      await tester.enterText(premiumField, '1.5');
+      await tester.pumpAndSettle();
+
+      // The premium the form holds is not the one on screen, so it does not
+      // publish — the tap on Publish used to close the field on the old
+      // premium and send that — and the bar says why.
+      expect(_publishButton(tester).onPressed, isNull);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('preview-error')),
+          matching: find.text('The premium must be a whole percentage.'),
+        ),
+        findsOneWidget,
+      );
+      expect(container.read(premiumValueProvider), 0);
+
+      // A whole percent, and the form is ready again.
+      await tester.enterText(premiumField, '2');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('preview-error')), findsNothing);
+      expect(_publishButton(tester).onPressed, isNotNull);
+      expect(container.read(premiumValueProvider), 2);
+    });
+
     testWidgets('the Sell tab uses the coral tint', (tester) async {
       await _pump(tester);
       final tab = tester.widget<AnimatedContainer>(

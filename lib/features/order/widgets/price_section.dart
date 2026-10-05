@@ -32,6 +32,14 @@ const double kPremiumSliderDefault = 10.0;
 /// Hard limit for a manually entered premium magnitude.
 const double kPremiumMaxMagnitude = 999.0;
 
+/// Whether the premium field holds a text that is no premium — one written
+/// with decimals. The premium in [premiumValueProvider] is then **not** what
+/// the user sees in the field, so the form must not publish with it: the
+/// create screen reads this as "not valid yet" and says why.
+final premiumInputInvalidProvider = StateProvider.autoDispose<bool>(
+  (_) => false,
+);
+
 /// Fixed sats amount as plain digits (only used in Fixed price mode).
 final fixedSatsProvider = StateProvider<String>((_) => '');
 
@@ -80,8 +88,12 @@ class _PriceSectionState extends ConsumerState<PriceSection> {
   static const Duration _premiumDebounceDelay = Duration(seconds: 2);
 
   /// The premium being typed holds a separator: not a whole percent, and
-  /// said so under the field while it stands.
+  /// said so under the field while it stands. Mirrored in
+  /// [premiumInputInvalidProvider] for the form ([_setPremiumNotWhole]).
   bool _premiumNotWhole = false;
+
+  /// The premium field's focus, so a refused Enter can hand it back.
+  final FocusNode _premiumFocus = FocusNode();
 
   /// The sats being typed hold a separator that is not grouping: no amount,
   /// and said so under the field while it stands.
@@ -103,6 +115,7 @@ class _PriceSectionState extends ConsumerState<PriceSection> {
     _premiumDebounce?.cancel();
     _premiumController.dispose();
     _satsController.dispose();
+    _premiumFocus.dispose();
     super.dispose();
   }
 
@@ -132,23 +145,36 @@ class _PriceSectionState extends ConsumerState<PriceSection> {
 
   void _startPremiumEditing() {
     _premiumController.text = ref.read(premiumValueProvider).round().toString();
-    setState(() {
-      _editingPremium = true;
-      _premiumNotWhole = false;
-    });
+    _setPremiumNotWhole(false);
+    setState(() => _editingPremium = true);
   }
 
   /// Whether [v] is written with a decimal separator: `1.5`, `1,`.
   static bool _hasSeparator(String v) => v.contains('.') || v.contains(',');
 
+  /// Records whether the field holds a premium written with decimals, here
+  /// and for the form: while it does, the premium the form would send is
+  /// not the text on screen, so nothing may be published.
+  void _setPremiumNotWhole(bool notWhole) {
+    if (notWhole != _premiumNotWhole) {
+      setState(() => _premiumNotWhole = notWhole);
+    }
+    final shared = ref.read(premiumInputInvalidProvider.notifier);
+    if (shared.state != notWhole) shared.state = notWhole;
+  }
+
   /// Finish editing the field: commit [v], or restore the text from the current
   /// premium when [v] does not parse. Cancels any pending live update.
+  ///
+  /// A text with decimals does not finish anything: closing the field on it
+  /// would put the previous premium back out of sight — and the tap that
+  /// closed it may be the one on Publish. The field stays open on what was
+  /// typed, the form stays invalid, and the reason stays under it.
   void _endPremiumEditing(String v) {
+    if (_hasSeparator(v)) return;
     _premiumDebounce?.cancel();
-    setState(() {
-      _editingPremium = false;
-      _premiumNotWhole = false;
-    });
+    _setPremiumNotWhole(false);
+    setState(() => _editingPremium = false);
     if (!_applyPremiumText(v)) {
       _syncControllerFromProvider(null, ref.read(premiumValueProvider));
     }
@@ -156,10 +182,23 @@ class _PriceSectionState extends ConsumerState<PriceSection> {
 
   /// Enter on the keyboard. A premium written with decimals is not committed
   /// and not thrown away either: the field stays open on it, with the reason
-  /// under it, for the user to correct.
+  /// under it, for the user to correct — and keeps the focus Enter took.
   void _submitPremium(String v) {
-    if (_hasSeparator(v)) return;
+    if (_hasSeparator(v)) {
+      _premiumFocus.requestFocus();
+      return;
+    }
     _endPremiumEditing(v);
+  }
+
+  /// The slider is the other way to set the premium: taking it closes the
+  /// field, whatever it held, so the figure shown is the slider's.
+  void _closePremiumFieldForSlider() {
+    if (!_editingPremium) return;
+    _premiumDebounce?.cancel();
+    _setPremiumNotWhole(false);
+    setState(() => _editingPremium = false);
+    _syncControllerFromProvider(null, ref.read(premiumValueProvider));
   }
 
   void _onSliderChanged(double value) {
@@ -360,6 +399,7 @@ class _PriceSectionState extends ConsumerState<PriceSection> {
                   width: 96,
                   child: TextField(
                     controller: _premiumController,
+                    focusNode: _premiumFocus,
                     autofocus: true,
                     keyboardType: const TextInputType.numberWithOptions(
                       signed: true,
@@ -396,9 +436,7 @@ class _PriceSectionState extends ConsumerState<PriceSection> {
                       // are never disturbed.
                       _premiumDebounce?.cancel();
                       final notWhole = _hasSeparator(v);
-                      if (notWhole != _premiumNotWhole) {
-                        setState(() => _premiumNotWhole = notWhole);
-                      }
+                      _setPremiumNotWhole(notWhole);
                       // With decimals there is nothing to apply: the premium
                       // stays what it was until the text is a whole percent.
                       if (notWhole) return;
@@ -458,10 +496,13 @@ class _PriceSectionState extends ConsumerState<PriceSection> {
                 max: sliderMax,
                 divisions: sliderDivisions,
                 label: formatPremium(premium),
-                onChangeStart: (_) => setState(() {
-                  _dragMin = sliderMin;
-                  _dragMax = sliderMax;
-                }),
+                onChangeStart: (_) {
+                  _closePremiumFieldForSlider();
+                  setState(() {
+                    _dragMin = sliderMin;
+                    _dragMax = sliderMax;
+                  });
+                },
                 onChanged: _onSliderChanged,
                 onChangeEnd: (_) => setState(() {
                   _dragMin = null;

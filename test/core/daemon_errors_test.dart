@@ -206,9 +206,10 @@ void main() {
       expect(text, contains(reason), reason: reason);
       expect(text, isNot(contains('rejected by Mostro')), reason: reason);
     }
-    // No reason at all: nothing to name.
-    expect(refusal('unknown'), l10n.orderRequestFailed);
-    expect(refusal('Unknown'), l10n.orderRequestFailed);
+    // No reason at all, or one this build cannot name: still a refusal,
+    // and not worded as something to try again.
+    expect(refusal('unknown'), l10n.orderRejectedNoReason);
+    expect(refusal('Unknown'), l10n.orderRejectedNoReason);
   });
 
   test("the daemon's InvalidPubkey reads by the request it answers", () {

@@ -264,9 +264,16 @@ const PEER_SAMPLE: usize = 20;
 ///
 /// It is the one reading of "now" this client can get that does not come
 /// from the device's clock, and [`ensure_live_among`] says what it is for.
+///
+/// The answer is kept for [`PEER_ANSWER_TTL_SECS`]: a device whose clock is
+/// ahead reads its node as stale on every attempt, and would otherwise wait
+/// on every relay again for each new order and each take.
 async fn newest_peer_announcement(node: &str, now: i64) -> Option<i64> {
     use nostr_sdk::prelude::*;
 
+    if let Some(kept) = kept_peer_answer(node, now) {
+        return Some(kept);
+    }
     let client = crate::api::nostr::get_pool().ok()?.client();
     let own = PublicKey::from_hex(node).ok()?;
     let filter = Filter::new()
@@ -277,7 +284,41 @@ async fn newest_peer_announcement(node: &str, now: i64) -> Option<i64> {
         .timeout(EVERY_RELAY_WAIT)
         .await
         .ok()?;
-    newest_peer_at(events, &own, now)
+    let newest = newest_peer_at(events, &own, now)?;
+    *peer_answer() = Some(PeerAnswer {
+        node: key(node),
+        peer_at: newest,
+        asked_at: now,
+    });
+    Some(newest)
+}
+
+/// How long an answer from [`newest_peer_announcement`] stands in for a new
+/// query. Short: it only spares the retries of one sitting.
+const PEER_ANSWER_TTL_SECS: i64 = 120;
+
+/// The last answer [`newest_peer_announcement`] got, for which node and
+/// when, by the device's clock.
+struct PeerAnswer {
+    node: String,
+    peer_at: i64,
+    asked_at: i64,
+}
+
+static PEER_ANSWER: Mutex<Option<PeerAnswer>> = Mutex::new(None);
+
+fn peer_answer() -> std::sync::MutexGuard<'static, Option<PeerAnswer>> {
+    PEER_ANSWER.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// The answer kept for `node`, while it is younger than
+/// [`PEER_ANSWER_TTL_SECS`] at `now`.
+fn kept_peer_answer(node: &str, now: i64) -> Option<i64> {
+    let kept = peer_answer();
+    let answer = kept.as_ref()?;
+    let age = now.saturating_sub(answer.asked_at);
+    (answer.node == key(node) && (0..PEER_ANSWER_TTL_SECS).contains(&age))
+        .then_some(answer.peer_at)
 }
 
 /// The newest date among the info events in `events` that other nodes than
@@ -296,9 +337,24 @@ fn newest_peer_at(
     events
         .into_iter()
         .filter(|event| event.pubkey != *own && is_info_event_of(event, &event.pubkey))
-        .map(|event| event.created_at.as_secs() as i64)
+        // A date that does not fit is no date: cast, one past `i64::MAX`
+        // would wrap to the distant past and pass for an old event.
+        .filter_map(|event| i64::try_from(event.created_at.as_secs()).ok())
         .filter(|at| *at <= now)
         .max()
+}
+
+/// Whether a node that last announced at `own_at` is abreast of a peer that
+/// last announced at `peer_at`: the two dates no further apart than the
+/// limit, **either way**.
+///
+/// Not behind by more is the point of the comparison. Not *ahead* by more is
+/// what makes the peer a witness at all: an info event from long before the
+/// node's own says nothing about the time since — any retired node's last
+/// event, or one anybody signs with a past date, is such an event, and
+/// counted as a peer it would pass every stopped node as current.
+fn abreast_of(own_at: i64, peer_at: i64) -> bool {
+    peer_at.saturating_sub(own_at).saturating_abs() <= MAX_ANNOUNCEMENT_AGE_SECS
 }
 
 /// How long the patient look waits for every relay to answer.
@@ -519,6 +575,12 @@ where
 /// it: with no peer event to compare with, the clock decides as before. And
 /// what it lets through is a send, which reports a node that is really gone
 /// by itself, as it did before this gate existed.
+///
+/// What is left open, knowingly: the comparison trusts the newest peer event
+/// the relays hand over. Where no live peer answers — the node's relays hold
+/// no other node, or the one that does is slow — an event signed with a date
+/// near the stopped node's last one still passes for a peer, and the send
+/// goes out to nobody: ten seconds, `NoDaemonResponse`, nothing persisted.
 async fn ensure_live_among<Now, Online, OnlineFut, Refetch, RefetchFut, Peers, PeersFut>(
     node: &str,
     now: Now,
@@ -588,9 +650,7 @@ where
             };
             let abreast = peers()
                 .await
-                .is_some_and(|peer_at| {
-                    peer_at.saturating_sub(own.announced_at) <= MAX_ANNOUNCEMENT_AGE_SECS
-                });
+                .is_some_and(|peer_at| abreast_of(own.announced_at, peer_at));
             if !abreast {
                 // Other nodes have announced since and this one has not —
                 // or there is nobody to compare with: it stopped publishing.
@@ -1144,6 +1204,66 @@ mod tests {
         }
     }
 
+    /// A peer is a witness only when it is a contemporary. An info event
+    /// from long before the node's own — a retired node's last, or one
+    /// anybody signs with a past date — says nothing about the time since,
+    /// and used to pass every stopped node as current.
+    #[tokio::test]
+    async fn a_peer_from_long_before_is_no_witness() {
+        let n = node("skew-old-peer");
+        // The node stopped an hour ago; the device's clock is right.
+        note_announcement(&n, NOW - 3_600, &[]);
+
+        let err = ensure_live_among(
+            &n,
+            || NOW,
+            || async { true },
+            || async {
+                note_announcement(&n, NOW - 3_600, &[]);
+                true
+            },
+            // The only other info event the relays hold is a day old.
+            || async { Some(NOW - 86_400) },
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(err.to_string(), "NodeNotAnnouncing");
+        forget_for_test(&n);
+    }
+
+    #[test]
+    fn abreast_is_within_the_limit_either_way() {
+        let at = NOW - 5_000;
+        assert!(abreast_of(at, at));
+        assert!(abreast_of(at, at + MAX_ANNOUNCEMENT_AGE_SECS));
+        assert!(!abreast_of(at, at + MAX_ANNOUNCEMENT_AGE_SECS + 1));
+        assert!(abreast_of(at, at - MAX_ANNOUNCEMENT_AGE_SECS));
+        assert!(!abreast_of(at, at - MAX_ANNOUNCEMENT_AGE_SECS - 1));
+        // Dates at the ends of the range do not overflow the comparison.
+        assert!(!abreast_of(i64::MIN, i64::MAX));
+        assert!(!abreast_of(i64::MAX, i64::MIN));
+    }
+
+    /// The answer about the peers is kept for a sitting's retries, for the
+    /// node it was asked about, and no longer.
+    #[test]
+    fn a_peer_answer_is_kept_briefly_and_for_its_node() {
+        let n = node("skew-kept");
+        *peer_answer() = Some(PeerAnswer {
+            node: key(&n),
+            peer_at: NOW - 40,
+            asked_at: NOW,
+        });
+
+        assert_eq!(kept_peer_answer(&n, NOW + 30), Some(NOW - 40));
+        assert_eq!(kept_peer_answer(&n, NOW + PEER_ANSWER_TTL_SECS), None);
+        assert_eq!(kept_peer_answer(&node("skew-kept-other"), NOW + 30), None);
+        // A clock set back since: not an answer about now.
+        assert_eq!(kept_peer_answer(&n, NOW - 1), None);
+        *peer_answer() = None;
+    }
+
     /// A node that announced after every peer on the relays is not behind
     /// any of them.
     #[tokio::test]
@@ -1276,6 +1396,9 @@ mod tests {
         let redated: Event = serde_json::from_value(json).unwrap();
         assert_eq!(at(vec![redated]), None);
         assert_eq!(at(vec![]), None);
+        // A date past what fits: no date, not one from the distant past.
+        let overflowing = info_event(&peer, &peer_hex, u64::MAX, "false");
+        assert_eq!(at(vec![overflowing]), None);
     }
 
     fn info_tags() -> Vec<Vec<String>> {

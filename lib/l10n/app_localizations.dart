@@ -568,10 +568,10 @@ abstract class AppLocalizations {
   /// **'Community fee'**
   String get simpleCommunityFee;
 
-  /// Simple Mode buy confirm sheet: under the community fee, for the buyer
+  /// Simple Mode buy confirm sheet: under the community fee, for the buyer. The sats shown above it are already net of this fee
   ///
   /// In en, this message translates to:
-  /// **'Taken off the sats you receive'**
+  /// **'Already taken off what you receive'**
   String get simpleFeeTakenFromSats;
 
   /// Simple Mode sell confirm sheet: under the community fee, for the seller
@@ -603,6 +603,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your trades could not be loaded.'**
   String get tradesLoadError;
+
+  /// Simple Mode buy confirm sheet: under the sats to receive, when the node fee is not known and the figure is therefore not net of it
+  ///
+  /// In en, this message translates to:
+  /// **'Before the community fee'**
+  String get simpleBeforeCommunityFee;
+
+  /// A daemon refusal (CantDo) that carries no reason, or one this version of the protocol library cannot name
+  ///
+  /// In en, this message translates to:
+  /// **'The community\'s node refused the request without giving a reason.'**
+  String get orderRejectedNoReason;
 
   /// Simple Mode, Buy tab: the first payment-method chip, which shows the offers of every method
   ///

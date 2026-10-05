@@ -99,21 +99,61 @@ List<String> sellPaymentMethods(List<String>? official) {
   return methods.isEmpty ? simpleFallbackPaymentMethods : methods;
 }
 
+/// How many methods of the book's own the Buy tab offers as filters, beyond
+/// the community's list. The book is free text any seller writes, from any
+/// client: without a limit one order listing fifty methods is fifty chips.
+const maxBookPaymentMethods = 12;
+
 /// The methods the Buy tab can filter by: the seller's list
-/// ([sellPaymentMethods]), then every other method an offer on the book
-/// carries, alphabetically.
+/// ([sellPaymentMethods]), then the other methods the offers on the book
+/// carry — the ones most offers share first, then alphabetically, and no
+/// more than [maxBookPaymentMethods] of them.
 ///
-/// The book's own methods are there so that no offer is out of reach: a
-/// method the list does not know yet — the operator has not added it, or a
-/// seller used another client — would otherwise hide the offer for good.
+/// The book's own methods are there so that a method the list does not know
+/// yet — the operator has not added it, or a seller used another client —
+/// can still be filtered by. No offer depends on it to be seen: the tab
+/// starts on "all", which shows every one.
 List<String> buyPaymentMethods({
   required List<String>? official,
   required Iterable<OrderItem> offers,
 }) {
-  final fromBook = [
-    for (final offer in offers) ...offer.paymentMethod.split(','),
-  ]..sort((a, b) => a.trim().toLowerCase().compareTo(b.trim().toLowerCase()));
-  return _distinctMethods([...sellPaymentMethods(official), ...fromBook]);
+  final listed = sellPaymentMethods(official);
+  final known = {for (final method in listed) method.trim().toLowerCase()};
+  final spelling = <String, String>{};
+  final count = <String, int>{};
+  for (final offer in offers) {
+    // An order counts once for a method, however it repeats it.
+    final seen = <String>{};
+    for (final method in offer.paymentMethod.split(',')) {
+      final label = method.trim();
+      final key = label.toLowerCase();
+      if (label.isEmpty || known.contains(key) || !seen.add(key)) continue;
+      spelling.putIfAbsent(key, () => label);
+      count[key] = (count[key] ?? 0) + 1;
+    }
+  }
+  final fromBook = count.keys.toList()
+    ..sort((a, b) {
+      final byUse = count[b]!.compareTo(count[a]!);
+      return byUse != 0 ? byUse : a.compareTo(b);
+    });
+  return [
+    ...listed,
+    for (final key in fromBook.take(maxBookPaymentMethods)) spelling[key]!,
+  ];
+}
+
+/// The entry of [methods] that [chosen] names, as the list writes it now, or
+/// null when [chosen] is null or is not on the list any more. Matched
+/// without regard to case or outer spaces: a list that comes back writing
+/// `efectivo` still holds the user's `Efectivo`.
+String? methodOnList(List<String> methods, String? chosen) {
+  if (chosen == null) return null;
+  final key = chosen.trim().toLowerCase();
+  for (final method in methods) {
+    if (method.trim().toLowerCase() == key) return method;
+  }
+  return null;
 }
 
 /// Whether [order] can be paid by [method]; any order when [method] is null

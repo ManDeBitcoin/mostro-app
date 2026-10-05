@@ -294,7 +294,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get simpleCommunityFee => 'Commission de la communauté';
 
   @override
-  String get simpleFeeTakenFromSats => 'Déduite des sats que vous recevez';
+  String get simpleFeeTakenFromSats => 'Déjà déduite de ce que vous recevez';
 
   @override
   String get simpleFeeAddedToSats => 'Ajoutée aux sats que vous bloquez';
@@ -314,6 +314,13 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tradesLoadError => 'Impossible de charger vos échanges.';
+
+  @override
+  String get simpleBeforeCommunityFee => 'Avant la commission de la communauté';
+
+  @override
+  String get orderRejectedNoReason =>
+      'Le nœud de la communauté a refusé la demande sans en indiquer la raison.';
 
   @override
   String get simpleAllPaymentMethods => 'Tous';

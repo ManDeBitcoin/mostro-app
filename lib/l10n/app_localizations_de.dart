@@ -294,7 +294,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get simpleFeeTakenFromSats =>
-      'Wird von den Sats abgezogen, die du erhältst';
+      'Bereits von dem abgezogen, was du erhältst';
 
   @override
   String get simpleFeeAddedToSats => 'Kommt zu den Sats hinzu, die du sperrst';
@@ -314,6 +314,13 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get tradesLoadError => 'Deine Trades konnten nicht geladen werden.';
+
+  @override
+  String get simpleBeforeCommunityFee => 'Vor der Gebühr der Community';
+
+  @override
+  String get orderRejectedNoReason =>
+      'Der Knoten der Community hat die Anfrage ohne Angabe eines Grundes abgelehnt.';
 
   @override
   String get simpleAllPaymentMethods => 'Alle';

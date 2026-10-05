@@ -203,8 +203,9 @@ String? _localizedRefusal(
       onTake ? l10n.orderCannotTakeOwn : l10n.orderRejectedNotYourAction,
     'InvalidPeer' => l10n.orderRejectedOtherParty,
     null => null,
-    // The daemon gave no reason at all: nothing to name.
-    'unknown' || 'Unknown' => l10n.orderRequestFailed,
+    // The daemon gave no reason, or one this build cannot name: still a
+    // refusal, and not something trying again will change.
+    'unknown' || 'Unknown' => l10n.orderRejectedNoReason,
     final reason => l10n.orderRejectedOther(reason),
   };
 }

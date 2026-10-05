@@ -94,12 +94,14 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
         : 0.0;
 
     // The community's own list, exactly; it can change while the screen is
-    // up — the card arrives after startup, the operator edits it — so a
-    // choice that is no longer on it gives way to the first that is.
+    // up — the card arrives after startup, the operator edits it. Until the
+    // user picks, the first method stands. A pick that left the list is not
+    // swapped for another behind their back: nothing is selected, and
+    // nothing can be published, until they pick again.
     final paymentMethods = sellPaymentMethods(community?.paymentMethods);
-    final selectedMethod = paymentMethods.contains(_selectedMethod)
-        ? _selectedMethod!
-        : paymentMethods.first;
+    final String? selectedMethod = _selectedMethod == null
+        ? paymentMethods.first
+        : methodOnList(paymentMethods, _selectedMethod);
 
     final allOrders = ref.watch(orderBookProvider).valueOrNull ?? [];
     final matchingBuyOrders = allOrders
@@ -451,9 +453,11 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
 
         // Why the button below is off, said next to it: by here the amount
         // card and its own line are a screen away.
-        if (amount == null) ...[
+        if (amount == null || selectedMethod == null) ...[
           Text(
-            AppLocalizations.of(context).orderAmountMustBeWhole,
+            amount == null
+                ? AppLocalizations.of(context).orderAmountMustBeWhole
+                : SimpleL10n.selectReceiveMethod(context),
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.amber, fontSize: 13),
           ),
@@ -462,7 +466,7 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
 
         // Publish Button
         FilledButton.icon(
-          onPressed: amount == null
+          onPressed: amount == null || selectedMethod == null
               ? null
               : () {
                   _openConfirmSheet(

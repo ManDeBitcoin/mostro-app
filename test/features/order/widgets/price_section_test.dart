@@ -59,21 +59,18 @@ Future<void> _openPremiumField(WidgetTester tester) async {
 
 /// Types [keys] one at a time at the end of the only text field, as a
 /// keyboard does: each key is added to whatever the field held after the
-/// last one. [from] is the text the field starts with, when it is not empty
-/// of its own accord.
+/// last one. The field is first set to [from].
 Future<void> _typeKeys(
   WidgetTester tester,
   String keys, {
-  String? from,
+  required String from,
 }) async {
   final field = find.byType(TextField);
-  if (from != null) {
-    await tester.enterText(field, from);
-    await tester.pump();
-  }
+  await tester.enterText(field, from);
+  await tester.pump();
   for (final key in keys.split('')) {
     final held = tester.widget<TextField>(field).controller!.text;
-    await tester.enterText(field, from == null && key == keys[0] ? key : held + key);
+    await tester.enterText(field, held + key);
     await tester.pump();
   }
 }
@@ -138,48 +135,93 @@ void main() {
       tester,
     ) async {
       final container = await _pump(tester, premium: 0.0);
+      // The form reads this to hold Publish back; kept alive as it does.
+      container.listen(premiumInputInvalidProvider, (_, _) {});
       await _openPremiumField(tester);
 
       // Key by key. Refused as a keystroke, the dot left `1` and `5` to
       // close up: a premium of 15 % for a typed 1.5.
-      await _typeKeys(tester, '1.5');
+      await _typeKeys(tester, '1.5', from: '');
       expect(find.text('1.5'), findsOneWidget);
       expect(find.byKey(const ValueKey('premium-not-whole')), findsOneWidget);
       expect(find.text('The premium must be a whole percentage.'), findsOneWidget);
+      expect(container.read(premiumInputInvalidProvider), isTrue);
 
       // Nothing is applied while it stands, however long.
       await tester.pump(const Duration(seconds: 3));
       expect(container.read(premiumValueProvider), 0);
 
-      // Enter does not commit it, and does not throw it away either.
+      // Enter does not commit it, does not throw it away, and does not
+      // leave the field behind: it keeps the focus Enter took from it.
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pump();
       expect(find.text('1.5'), findsOneWidget);
       expect(container.read(premiumValueProvider), 0);
+      expect(
+        tester.widget<EditableText>(find.byType(EditableText)).focusNode.hasFocus,
+        isTrue,
+      );
 
       // Corrected, it is a premium again.
       await tester.enterText(find.byType(TextField), '2');
       await tester.pump();
       expect(find.byKey(const ValueKey('premium-not-whole')), findsNothing);
+      expect(container.read(premiumInputInvalidProvider), isFalse);
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
       expect(container.read(premiumValueProvider), 2);
     });
 
-    testWidgets('a premium left with decimals is discarded, not rounded', (
+    testWidgets('a premium with decimals is not put away by a tap elsewhere', (
       tester,
     ) async {
       final container = await _pump(tester, premium: 3.0);
+      container.listen(premiumInputInvalidProvider, (_, _) {});
       await _openPremiumField(tester);
       await _typeKeys(tester, '4,5', from: '');
 
-      // Tapping away closes the field on the premium it had.
+      // The tap that closed the field used to put the old premium back out
+      // of sight — and on the form that tap can be the one on Publish.
       await tester.tapAt(const Offset(5, 2900));
       await tester.pumpAndSettle();
 
+      expect(find.text('4,5'), findsOneWidget);
+      expect(find.byKey(const ValueKey('premium-not-whole')), findsOneWidget);
+      expect(container.read(premiumInputInvalidProvider), isTrue);
       expect(container.read(premiumValueProvider), 3);
+
+      // Emptied, there is nothing left to correct: the field closes on the
+      // premium it had.
+      await tester.enterText(find.byType(TextField), '');
+      await tester.pump();
+      await tester.tapAt(const Offset(5, 2900));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('premium-figure')), findsOneWidget);
+      expect(container.read(premiumInputInvalidProvider), isFalse);
+      expect(container.read(premiumValueProvider), 3);
+    });
+
+    testWidgets('taking the slider closes a field left on decimals', (
+      tester,
+    ) async {
+      final container = await _pump(tester, premium: 0.0);
+      container.listen(premiumInputInvalidProvider, (_, _) {});
+      await _openPremiumField(tester);
+      await _typeKeys(tester, '1.5', from: '');
+
+      // The field used to stay open on `1.5` while the slider set another
+      // premium underneath it.
+      await tester.drag(find.byType(Slider), const Offset(120, 0));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1.5'), findsNothing);
       expect(find.byKey(const ValueKey('premium-not-whole')), findsNothing);
       expect(find.byKey(const ValueKey('premium-figure')), findsOneWidget);
+      expect(container.read(premiumInputInvalidProvider), isFalse);
+      final premium = container.read(premiumValueProvider);
+      expect(premium, greaterThan(0));
+      expect(find.text(formatPremium(premium)), findsOneWidget);
     });
 
     testWidgets(

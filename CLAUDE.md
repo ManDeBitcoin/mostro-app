@@ -222,17 +222,21 @@ one node" under Domain gotchas before touching anything node-related.
 - **The community's card is read from the node's relays, never scanned.** The operator's
   panel signs a card (name, currency, payment methods, website, contact) and can publish it as
   kind 30078, `d = mostro-community-card`, signed by the node. `mostro::community_card` looks
-  for it when the pool comes online — spawned behind `subscribe_orders()` — checks kind, author,
-  `d` and event signature, then the card's own key and BIP-340 signature, and stores it as the
-  profile only when it is newer than the one stored (`community_card_at`). No card on the relays
-  is the normal case, not an error. `get_active_community_profile` serves only a profile the
+  for it when the pool comes online — spawned behind `subscribe_orders()` — hears every relay
+  out (nothing waits on it, and the relay with an old revision is as likely as any to answer
+  first), checks kind, author, `d` and event signature, then the card's own key and BIP-340
+  signature, and stores it as the profile only when it is newer than the one stored
+  (`community_card_at`). No card on the relays is the normal case, not an error; a look that
+  finds none is repeated after a minute, then less and less often. `get_active_community_profile` serves only a profile the
   active node signed, and each read starts another look once the last is ten minutes old; Dart
   re-reads every 45 s (`ActiveCommunityNotifier`), which is how a method the operator adds
   reaches an open app. From the card come name, methods, currency, website and contact — never
   the fee or the bond, which are Kind 38385's. In Simple Mode the Sell list is the card's,
-  exactly (`sellPaymentMethods`, a built-in list until a card exists); the Buy filter adds every
-  method on the book and starts on "all" (`buyPaymentMethods`), so no offer hides behind a
-  method the list does not know.
+  exactly (`sellPaymentMethods`, a built-in list until a card exists), and a method the user
+  picked is never swapped for another when the list changes: nothing is selected, and nothing
+  publishes, until they pick again (`methodOnList`). The Buy filter adds the methods on the
+  book, capped, and starts on "all" (`buyPaymentMethods`), so no offer hides behind a method
+  the list does not know.
 - **Reputation/ratings come from Kind 38383 event tags, not a DB.** In-memory
   `RATING_STORE`/`DISPUTE_STORE` are correct by design — don't invent "persist to DB" tasks.
   Chat history persists to the `messages` table since #246 — on web to the IndexedDB `messages`
@@ -273,8 +277,10 @@ one node" under Domain gotchas before touching anything node-related.
   create form a separator in grouping position still reads as grouping (`1.000` is a thousand);
   `canonicalAmount` strips it only there, and `enteredAmount` takes nothing with a decimal
   part. The fixed-sats field follows the same rule, and so does the premium field (`1.5` used to
-  close up into 15 %): the text stays, nothing is applied, and the reason is said under it. Not
-  covered: the Cashu send dialog, an integer sats field that still drops a typed separator.
+  close up into 15 %): the text stays, nothing is applied, and the reason is said under it.
+  While it stands the form does not publish (`premiumInputInvalidProvider`) — the premium it
+  holds is not the one on screen — and neither Enter nor a tap elsewhere puts the field away.
+  Not covered: the Cashu send dialog, an integer sats field that still drops a typed separator.
 - **A sats estimate repeats mostrod's arithmetic, step for step** (`estimateSats` in
   `order_detail_rules.dart`, mostrod `get_market_quote`): `fiat / rate × 1e8`, less `premium`
   percent of it, truncated. A positive premium means fewer sats. Not
@@ -326,8 +332,10 @@ one node" under Domain gotchas before touching anything node-related.
   refuses only on evidence — an aged snapshot and a look that read no copy at all means nobody
   answered, and the order goes out. Age is by the device's clock, so before refusing it also
   holds the node's event against the newest info event of any **other** node on the relays
-  (`newest_peer_announcement`): no more than the limit behind that, the node is current and
-  the device's clock is what runs ahead. Never put that gate in front of an action on an
+  (`newest_peer_announcement`): within the limit of that **either way** (`abreast_of`), the
+  node is current and the device's clock is what runs ahead. A peer from long before the
+  node's own event is no witness — counted as one, any retired node's last event passed a
+  stopped node as live. Never put that gate in front of an action on an
   existing trade, and never refresh capabilities
   from a user action with `fetch_and_set_node_capabilities` — an empty answer resets PoW to 0
   for trades under way.

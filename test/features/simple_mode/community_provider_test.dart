@@ -95,6 +95,33 @@ void main() {
       notifier.dispose();
     });
 
+    testWidgets('a read that keeps failing is not a new state each time', (
+      tester,
+    ) async {
+      final notifier = ActiveCommunityNotifier(
+        read: () async => throw StateError('store unreadable'),
+      );
+      await tester.pump();
+      expect(notifier.state.hasError, isTrue);
+      final first = notifier.state;
+      var changes = 0;
+      final remove = notifier.addListener(
+        (_) => changes++,
+        fireImmediately: false,
+      );
+
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(ActiveCommunityNotifier.reloadEvery);
+        await tester.pump();
+      }
+
+      // Three screens watch this: each new error would rebuild them all.
+      expect(changes, 0);
+      expect(identical(notifier.state, first), isTrue);
+      remove();
+      notifier.dispose();
+    });
+
     testWidgets('stops reading once disposed', (tester) async {
       var reads = 0;
       final notifier = ActiveCommunityNotifier(

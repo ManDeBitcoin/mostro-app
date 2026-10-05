@@ -274,16 +274,23 @@ signed card — the JSON v1 object with `name`, `pubkey`, `relays`, `currency`,
 
 - Looked up when the relay pool comes online, detached and behind the order
   book subscription, and again whenever the stored profile is read and the
-  last look is ten minutes old.
+  next look is due: ten minutes after one that read a card, one minute after
+  one that read none, doubling up to ten.
 - The event MUST be kind 30078, authored by the active node, tagged
   `d = mostro-community-card`, with a valid signature — checked in the client,
-  since a relay is not held to the REQ's filter. The newest valid copy wins.
+  since a relay is not held to the REQ's filter. Every relay is heard out
+  before choosing, and the newest copy that holds a valid card wins; an event
+  with a later date and no valid card inside shadows nothing.
 - The card MUST be version 1, carry the node's own `pubkey`, and verify under
   its own BIP-340 signature (`verify_community_signature`).
 - A card replaces the stored profile only when its event is not older than the
   one the stored profile came from (`community_card_at`).
 - No card on the relays is the normal case and is not an error; an invalid or
   older one changes nothing. The event says nothing about liveness.
+- Known limit: the date that orders two cards is the event's, which the
+  card's own signature does not cover. A fresh install answered only by relays
+  that hold an old revision applies that one until a look reads a newer. It is
+  always a card the node signed.
 
 **Using it**: `get_active_community_profile` returns the stored profile only
 when the active node signed it. The client takes `name`, `payment_methods`,

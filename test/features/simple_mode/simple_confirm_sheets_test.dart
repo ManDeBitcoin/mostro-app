@@ -300,7 +300,9 @@ void main() {
       expect(find.text('~169320 sats'), findsOneWidget);
       expect(find.text('Comisión de la comunidad'), findsOneWidget);
       expect(find.text('≈ 680 sats'), findsOneWidget);
-      expect(find.text('Se descuenta de los sats que recibes'), findsOneWidget);
+      // Said as done: the figure above is already the net one.
+      expect(find.text('Ya descontada de lo que recibes'), findsOneWidget);
+      expect(find.text('Antes de la comisión de la comunidad'), findsNothing);
     });
 
     testWidgets('shows the estimate whole while the fee is unknown', (
@@ -317,8 +319,42 @@ void main() {
         overrides: [mostroNodeProvider.overrideWith((ref) async => null)],
       );
 
+      // The whole estimate — and said to be before the fee, which will
+      // still come off it.
       expect(find.text('~170000 sats'), findsOneWidget);
+      expect(find.text('Antes de la comisión de la comunidad'), findsOneWidget);
       expect(find.text('Comisión de la comunidad'), findsNothing);
+    });
+
+    testWidgets("reads the daemon's InvalidPubkey as the buyer's own order", (
+      tester,
+    ) async {
+      await _pumpSheet(
+        tester,
+        SimpleBuyConfirmSheet(
+          order: fakeOrder(id: 'o-6'),
+          fiatAmount: 100,
+          fiatCode: 'USD',
+          estimatedSats: 170000,
+        ),
+        overrides: [
+          mostroNodeProvider.overrideWith((ref) async => _node()),
+          takeOrderActionProvider.overrideWithValue(({
+            required orderId,
+            required role,
+            fiatAmount,
+          }) async {
+            throw Exception('Order rejected by Mostro: InvalidPubkey');
+          }),
+        ],
+      );
+
+      await tester.tap(find.text('CONFIRMAR Y COMPRAR'));
+      await tester.pump();
+      await tester.pump();
+
+      // On a take that reason is "your own order", not "not your action".
+      expect(find.text('No puedes tomar tu propia orden.'), findsOneWidget);
     });
 
     testWidgets("shows the node's own deposit when it bonds takers", (

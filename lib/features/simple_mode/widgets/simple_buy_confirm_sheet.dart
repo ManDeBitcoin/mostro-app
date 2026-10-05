@@ -315,6 +315,11 @@ class _SimpleBuyConfirmSheetState extends ConsumerState<SimpleBuyConfirmSheet> {
                         : SimpleL10n.calculatingRate(context),
                     pal: pal,
                     isHighlight: true,
+                    // With the fee unknown the figure is not net of it,
+                    // and says so.
+                    subtitle: sats != null && feeShare == null
+                        ? l10n.simpleBeforeCommunityFee
+                        : null,
                   ),
                   if (feeShare != null) ...[
                     const Divider(height: 20),

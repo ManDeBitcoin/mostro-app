@@ -32,11 +32,18 @@
 //! replaces the stored profile; an absent, older or invalid one changes
 //! nothing, so the last good card stays — and until one exists the screens
 //! keep their built-in list.
+//!
+//! Every relay is heard out before the newest copy is picked: nobody waits
+//! on this look, and a relay that still holds last month's revision is often
+//! the first to answer. What that cannot cover is a fresh install answered
+//! only by relays holding an old revision — it applies that one until a look
+//! reads a newer. The date that orders two cards is their event's, which the
+//! card's own signature does not cover; so an old card is always one the
+//! node did sign, never anyone else's.
 
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicU32, Ordering};
 
 use anyhow::Result;
-use futures_util::StreamExt;
 use nostr_sdk::prelude::*;
 
 use crate::api::community::CommunityProfile;
@@ -48,21 +55,38 @@ const KIND_COMMUNITY_CARD: u16 = 30078;
 /// The `d` tag that addresses the card among the node's kind 30078 events.
 pub(crate) const CARD_D_TAG: &str = "mostro-community-card";
 
-/// How long a look waits for the first copy.
+/// How long a look waits for every relay to answer.
 const LOOK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
-/// How long a look keeps listening after the first copy, for a relay that
-/// answered first with a stale one.
-const LOOK_GRACE: std::time::Duration = std::time::Duration::from_millis(750);
-
-/// How often a read of the stored profile may trigger another look. The card
-/// changes when the operator edits it, a few times a year; the look is one
-/// REQ.
+/// How often a read of the stored profile may trigger another look once one
+/// has found a card. The card changes when the operator edits it, a few
+/// times a year; the look is one REQ.
 const LOOK_EVERY_SECS: i64 = 600;
 
-/// When the last look started, so readers of the profile do not each start
-/// one. `0` until the first.
-static LAST_LOOK: AtomicI64 = AtomicI64::new(0);
+/// How soon a look that found no card — none published, or no relay that
+/// has it answered in time — may be followed by another. Doubled after each
+/// such look, up to [`LOOK_EVERY_SECS`]: a card that exists is read within a
+/// minute of a slow start, and a node that publishes none is not asked every
+/// minute for ever.
+const LOOK_AGAIN_SECS: i64 = 60;
+
+/// When the next look may start (unix seconds), so readers of the profile
+/// do not each start one. `0` until the first.
+static NEXT_LOOK: AtomicI64 = AtomicI64::new(0);
+
+/// How many looks in a row found no card.
+static EMPTY_LOOKS: AtomicU32 = AtomicU32::new(0);
+
+/// How long to wait before the next look, after `empty_looks` in a row that
+/// found no card (`0`: the last one found it).
+fn wait_before_next_look(empty_looks: u32) -> i64 {
+    match empty_looks {
+        0 => LOOK_EVERY_SECS,
+        n => LOOK_AGAIN_SECS
+            .saturating_mul(1i64 << (n - 1).min(16))
+            .min(LOOK_EVERY_SECS),
+    }
+}
 
 /// Whether `event` is `node`'s community card event: its kind, its author,
 /// its `d` tag, and a signature that holds.
@@ -139,45 +163,76 @@ pub(crate) async fn store<S: Storage>(
 /// One look at the active node's card, stored when it is newer. Best effort:
 /// a look that fails, or finds no card, leaves what is stored.
 pub(crate) async fn refresh() {
-    LAST_LOOK.store(crate::rt::unix_now(), Ordering::Relaxed);
+    // No other look while this one is out, however it ends.
+    NEXT_LOOK.store(
+        crate::rt::unix_now().saturating_add(LOOK_EVERY_SECS),
+        Ordering::Relaxed,
+    );
+    let found = read_and_store().await;
+    let empty_looks = if found {
+        EMPTY_LOOKS.store(0, Ordering::Relaxed);
+        0
+    } else {
+        EMPTY_LOOKS.fetch_add(1, Ordering::Relaxed).saturating_add(1)
+    };
+    NEXT_LOOK.store(
+        crate::rt::unix_now().saturating_add(wait_before_next_look(empty_looks)),
+        Ordering::Relaxed,
+    );
+}
+
+/// Looks for the active node's card and stores it. `true` when a card was
+/// read and the store took the look's answer — the card or "nothing new".
+async fn read_and_store() -> bool {
     let node_hex = crate::config::active_mostro_pubkey();
     let found = match look(&node_hex).await {
         Ok(found) => found,
         Err(e) => {
             log::debug!("[community] card look failed: {e}");
-            return;
+            return false;
         }
     };
     let Some((card, issued_at)) = found else {
-        log::debug!("[community] the node publishes no card");
-        return;
+        log::debug!("[community] no card read from the node's relays");
+        return false;
     };
     let Some(db) = crate::db::app_db::db() else {
-        return;
+        return false;
     };
     match store(db, &card, issued_at).await {
-        Ok(true) => log::info!(
-            "[community] card applied: {} payment methods, {}",
-            card.payment_methods.len(),
-            card.currency
-        ),
-        Ok(false) => {}
-        Err(e) => log::warn!("[community] could not store the card: {e}"),
+        Ok(true) => {
+            log::info!(
+                "[community] card applied: {} payment methods, {}",
+                card.payment_methods.len(),
+                card.currency
+            );
+            true
+        }
+        Ok(false) => true,
+        Err(e) => {
+            log::warn!("[community] could not store the card: {e}");
+            false
+        }
     }
 }
 
-/// Starts a look when the last one is older than [`LOOK_EVERY_SECS`]. Called
-/// by whoever reads the stored profile, so a card the operator changed
-/// during a long session is picked up without a timer of its own.
+/// Starts a look when the next one is due. Called by whoever reads the
+/// stored profile, so a card the operator changed during a long session is
+/// picked up without a timer of its own.
 pub(crate) fn refresh_if_stale() {
     let now = crate::rt::unix_now();
-    let last = LAST_LOOK.load(Ordering::Relaxed);
-    if now.saturating_sub(last) < LOOK_EVERY_SECS {
+    let due = NEXT_LOOK.load(Ordering::Relaxed);
+    if now < due {
         return;
     }
     // Claimed before spawning, so two readers do not both look.
-    if LAST_LOOK
-        .compare_exchange(last, now, Ordering::Relaxed, Ordering::Relaxed)
+    if NEXT_LOOK
+        .compare_exchange(
+            due,
+            now.saturating_add(LOOK_EVERY_SECS),
+            Ordering::Relaxed,
+            Ordering::Relaxed,
+        )
         .is_err()
     {
         return;
@@ -195,28 +250,37 @@ async fn look(node_hex: &str) -> Result<Option<(CommunityProfile, i64)>> {
         .author(node)
         .custom_tag(SingleLetterTag::LOWERCASE_D, CARD_D_TAG)
         .limit(1);
-    // Streamed, like the node's info event: `fetch_events` waits for EOSE
-    // from every relay, and one that sits on the REQ would cost the whole
-    // timeout for an event the others already sent.
-    let stream = client
-        .stream_events(filter)
+    // Every relay is heard out — to EOSE, or the timeout for one that sits
+    // on the REQ. Unlike the node's info event, nothing waits on this, and
+    // taking the first answer would let the relay that holds an old revision
+    // decide: it is as likely as any to be the fastest.
+    let events = client
+        .fetch_events(filter)
         .timeout(LOOK_TIMEOUT)
         .await
-        .map_err(|e| anyhow::anyhow!("stream_events failed: {e}"))?;
-    let copies = stream.filter_map(move |(_relay, item)| async move {
-        let event = item.ok()?;
-        is_card_event_of(&event, &node).then_some(event)
-    });
-    let newest = crate::nostr::first_answer::newest_answer(
-        Box::pin(copies),
-        LOOK_GRACE,
-        crate::nostr::first_answer::replaceable_rank,
-    )
-    .await;
-    Ok(newest.and_then(|event| {
-        card_from_content(&event.content, node_hex)
-            .map(|card| (card, event.created_at.as_secs() as i64))
-    }))
+        .map_err(|e| anyhow::anyhow!("fetch_events failed: {e}"))?;
+    Ok(newest_card(events, &node, node_hex))
+}
+
+/// The newest of `node`'s cards among `events`, with the time its event was
+/// signed. Only an event that is the node's card event and holds a card the
+/// node signed is in the running, so an event with a later date and nothing
+/// valid inside cannot shadow the real one.
+fn newest_card(
+    events: impl IntoIterator<Item = Event>,
+    node: &PublicKey,
+    node_hex: &str,
+) -> Option<(CommunityProfile, i64)> {
+    events
+        .into_iter()
+        .filter(|event| is_card_event_of(event, node))
+        .filter_map(|event| {
+            let issued_at = i64::try_from(event.created_at.as_secs()).ok()?;
+            let rank = crate::nostr::first_answer::replaceable_rank(&event);
+            card_from_content(&event.content, node_hex).map(|card| (rank, card, issued_at))
+        })
+        .max_by_key(|(rank, _, _)| *rank)
+        .map(|(_, card, issued_at)| (card, issued_at))
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
@@ -474,6 +538,75 @@ mod tests {
                 .as_deref(),
             Some((ISSUED + 3600).to_string().as_str())
         );
+    }
+
+    #[test]
+    fn the_newest_valid_card_wins_whichever_relay_answers_first() {
+        let node = Keys::generate();
+        let node_hex = node.public_key().to_hex();
+        let old = serde_json::to_string(&signed_card(&node, &["Transferencia"])).unwrap();
+        let new =
+            serde_json::to_string(&signed_card(&node, &["Transferencia", "DeUna"])).unwrap();
+        let old_event = card_event(&node, CARD_D_TAG, &old, ISSUED as u64);
+        let new_event = card_event(&node, CARD_D_TAG, &new, (ISSUED + 60) as u64);
+
+        // The relay with last month's revision answers first, and second.
+        for order in [
+            vec![old_event.clone(), new_event.clone()],
+            vec![new_event.clone(), old_event.clone()],
+        ] {
+            let (card, issued_at) =
+                newest_card(order, &node.public_key(), &node_hex).expect("a card");
+            assert_eq!(card.payment_methods, ["Transferencia", "DeUna"]);
+            assert_eq!(issued_at, ISSUED + 60);
+        }
+    }
+
+    #[test]
+    fn a_later_event_with_no_valid_card_shadows_nothing() {
+        let node = Keys::generate();
+        let node_hex = node.public_key().to_hex();
+        let stranger = Keys::generate();
+        let card = serde_json::to_string(&signed_card(&node, &["Transferencia"])).unwrap();
+        let genuine = card_event(&node, CARD_D_TAG, &card, ISSUED as u64);
+        // Later, and each wrong in its own way: someone else's event, the
+        // node's event around another node's card, and the node's event
+        // around a card tampered after signing.
+        let foreign_card =
+            serde_json::to_string(&signed_card(&stranger, &["Western Union"])).unwrap();
+        let mut tampered = signed_card(&node, &["Transferencia"]);
+        tampered.payment_methods.push("Western Union".to_string());
+        let later = [
+            card_event(&stranger, CARD_D_TAG, &foreign_card, (ISSUED + 300) as u64),
+            card_event(&node, CARD_D_TAG, &foreign_card, (ISSUED + 300) as u64),
+            card_event(
+                &node,
+                CARD_D_TAG,
+                &serde_json::to_string(&tampered).unwrap(),
+                (ISSUED + 300) as u64,
+            ),
+        ];
+
+        let mut events = later.to_vec();
+        events.push(genuine);
+        let (card, issued_at) =
+            newest_card(events, &node.public_key(), &node_hex).expect("the genuine card");
+        assert_eq!(card.payment_methods, ["Transferencia"]);
+        assert_eq!(issued_at, ISSUED);
+        assert!(newest_card(later, &node.public_key(), &node_hex).is_none());
+    }
+
+    /// A look that found no card is followed by another soon, then less and
+    /// less often; one that found it waits the full interval.
+    #[test]
+    fn a_look_that_found_nothing_is_repeated_sooner_at_first() {
+        assert_eq!(wait_before_next_look(0), LOOK_EVERY_SECS);
+        assert_eq!(wait_before_next_look(1), 60);
+        assert_eq!(wait_before_next_look(2), 120);
+        assert_eq!(wait_before_next_look(3), 240);
+        assert_eq!(wait_before_next_look(4), 480);
+        assert_eq!(wait_before_next_look(5), LOOK_EVERY_SECS);
+        assert_eq!(wait_before_next_look(u32::MAX), LOOK_EVERY_SECS);
     }
 
     /// The card is requested behind the order book, never in front of it:

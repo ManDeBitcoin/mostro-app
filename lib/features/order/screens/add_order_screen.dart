@@ -381,7 +381,15 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
       isRange: isRange,
       amounts: amounts,
     );
-    if (_submitting || !valid || outOfRange != null || fiatOutOfRange != null) {
+    // And the premium on screen is the one that goes out: a field left on
+    // `1.5` has not set any.
+    final premiumNotWhole =
+        isMarket && ref.read(premiumInputInvalidProvider);
+    if (_submitting ||
+        !valid ||
+        outOfRange != null ||
+        fiatOutOfRange != null ||
+        premiumNotWhole) {
       return;
     }
     setState(() => _submitting = true);
@@ -428,7 +436,8 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
       final msg = anyhowMatch != null ? anyhowMatch.group(1)! : raw;
       // Worded in one place, and never the raw text: a reason the app has
       // no wording for still reads in the user's language. The order was
-      // not created.
+      // not created. The raw text is kept for whoever debugs it.
+      debugPrint('[AddOrderScreen] create failed: $msg');
       final l10n = AppLocalizations.of(context);
       final display = localizedDaemonError(
         l10n,
@@ -488,7 +497,9 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
           amounts: amounts,
         ) &&
         satsRangeError == null &&
-        fiatRangeError == null;
+        fiatRangeError == null &&
+        // The premium field holds something that is no premium.
+        !(isMarket && ref.watch(premiumInputInvalidProvider));
     // An amount written with a separator of the user's own is not an order
     // — `isValid` is already false — and it is said first: until it is a
     // whole number, its range means nothing.
@@ -503,14 +514,19 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
                 decimalSeparator: symbols.decimal,
               ),
             );
+    // A premium typed with decimals is not the premium the form holds, so
+    // the form is not ready either: said after the amount's own trouble.
+    final premiumNotWhole =
+        isMarket && ref.watch(premiumInputInvalidProvider);
     final amountWarning = hasTypedSeparator
         ? l10n.orderAmountMustBeWhole
         : _rangeWarning(
-            l10n: l10n,
-            satsRangeError: satsRangeError,
-            fiatRangeError: fiatRangeError,
-            fiatCode: fiatCode,
-          );
+                l10n: l10n,
+                satsRangeError: satsRangeError,
+                fiatRangeError: fiatRangeError,
+                fiatCode: fiatCode,
+              ) ??
+              (premiumNotWhole ? l10n.orderPremiumMustBeWhole : null);
     // A node that bonds makers asks for a deposit before publishing
     // (docs/ANTI_ABUSE_BOND.md §6.2): said here, before the tap.
     final bondNotice = makerBondApplies(

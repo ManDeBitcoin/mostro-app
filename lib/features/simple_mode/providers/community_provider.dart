@@ -48,8 +48,10 @@ class ActiveCommunityNotifier
       state = AsyncValue.data(profile);
     } catch (e, st) {
       if (!mounted) return;
-      // A read that fails keeps the profile already on screen.
-      if (state.valueOrNull != null) return;
+      // A read that fails keeps the profile already on screen, and one
+      // that keeps failing is not news each time: every watcher rebuilds
+      // on a new state.
+      if (state.valueOrNull != null || state.hasError) return;
       state = AsyncValue.error(e, st);
     }
   }

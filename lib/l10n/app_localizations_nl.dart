@@ -292,7 +292,7 @@ class AppLocalizationsNl extends AppLocalizations {
   String get simpleCommunityFee => 'Kosten van de community';
 
   @override
-  String get simpleFeeTakenFromSats => 'Gaat af van de sats die je ontvangt';
+  String get simpleFeeTakenFromSats => 'Al afgetrokken van wat je ontvangt';
 
   @override
   String get simpleFeeAddedToSats => 'Komt bij de sats die je vastzet';
@@ -311,6 +311,13 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get tradesLoadError => 'Je trades konden niet worden geladen.';
+
+  @override
+  String get simpleBeforeCommunityFee => 'Vóór de kosten van de community';
+
+  @override
+  String get orderRejectedNoReason =>
+      'De node van de community heeft het verzoek zonder opgave van reden geweigerd.';
 
   @override
   String get simpleAllPaymentMethods => 'Alle';
