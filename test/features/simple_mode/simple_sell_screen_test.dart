@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mostro/features/about/providers/mostro_node_provider.dart';
+import 'package:mostro/features/order/providers/trade_state_provider.dart';
+import 'package:mostro/features/simple_mode/models/payment_details_rules.dart';
+import 'package:mostro/features/simple_mode/models/simple_order_rules.dart';
 import 'package:mostro/features/simple_mode/providers/community_provider.dart';
+import 'package:mostro/features/simple_mode/providers/payment_details_providers.dart';
 import 'package:mostro/features/simple_mode/providers/payment_method_providers.dart';
 import 'package:mostro/features/simple_mode/screens/simple_sell_screen.dart';
+import 'package:mostro/features/simple_mode/widgets/payment_details_editor.dart';
+import 'package:mostro/features/simple_mode/widgets/payment_method_field.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_sell_confirm_sheet.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/src/rust/api/community.dart' show CommunityProfile;
+import 'package:mostro/src/rust/api/types.dart' show NewOrderParams;
+
+import '../../support/fake_payment_details.dart';
 
 CommunityProfile _card(List<String> methods) => CommunityProfile(
   version: 1,
@@ -66,7 +76,9 @@ void main() {
 
   testWidgets('SimpleSellScreen will not publish without a whole amount',
       (tester) async {
-    tester.view.physicalSize = const Size(360, 1600);
+    // Tall enough for the publish button to be built: the list is lazy, and
+    // the button sits under everything the seller fills in.
+    tester.view.physicalSize = const Size(360, 2000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
@@ -128,7 +140,7 @@ void main() {
   testWidgets("SimpleSellScreen offers the community's methods and never chooses one", (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(360, 1600);
+    tester.view.physicalSize = const Size(360, 2000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     // The community's card as the core has it stored; it changes below.
@@ -191,8 +203,13 @@ void main() {
     await tester.tap(find.text('Listo · 2 elegidos'));
     await tester.pumpAndSettle();
     expect(find.text('2 elegidos'), findsOneWidget);
-    expect(find.text('Transferencia'), findsOneWidget);
-    expect(find.text('Deuna'), findsOneWidget);
+    // On its chip. The name is also over its payment-details field, below.
+    Finder chip(String method) => find.descendant(
+      of: find.byType(PaymentMethodField),
+      matching: find.text(method),
+    );
+    expect(chip('Transferencia'), findsOneWidget);
+    expect(chip('Deuna'), findsOneWidget);
     expect(find.text('Efectivo'), findsNothing);
     expect(publish().onPressed, isNotNull);
 
@@ -206,7 +223,7 @@ void main() {
     // One comes back written another way: it is still the seller's choice.
     await cardBecomes(['Payphone', 'TRANSFERENCIA']);
     expect(find.text('1 elegido'), findsOneWidget);
-    expect(find.text('TRANSFERENCIA'), findsOneWidget);
+    expect(chip('TRANSFERENCIA'), findsOneWidget);
     expect(find.text('Payphone'), findsNothing);
     expect(publish().onPressed, isNotNull);
 
@@ -263,4 +280,130 @@ void main() {
     expect(find.text('Métodos de pago'), findsOneWidget);
     expect(find.text('Banco Pichincha\nDeuna'), findsOneWidget);
   });
+
+  testWidgets(
+    "SimpleSellScreen keeps the seller's payment details on the device and off the order",
+    (tester) async {
+      // Wide and tall: the test font draws every glyph as a square, and the
+      // tab is a lazy list with the publish button at its end.
+      tester.view.physicalSize = const Size(1400, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final gateway = FakePaymentDetailsGateway(
+        kept: {'efectivo': 'En persona, Quito norte'},
+      );
+      NewOrderParams? published;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            activeCommunityProfileProvider.overrideWith(
+              (ref) => ActiveCommunityNotifier(
+                read: () async => _card(['Efectivo', 'Transferencia']),
+              ),
+            ),
+            paymentDetailsGatewayProvider.overrideWithValue(gateway),
+            mostroNodeProvider.overrideWith((ref) async => null),
+            createOrderActionProvider.overrideWithValue((params) async {
+              published = params;
+              throw Exception('Order rejected by Mostro: InvalidFiatCurrency');
+            }),
+          ],
+          child: const MaterialApp(
+            locale: Locale('es'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: SimpleSellScreen()),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      Finder field(String method) => find.byKey(
+        ValueKey('payment-details-field-${paymentMethodKey(method)}'),
+      );
+      final ticks = ProviderScope.containerOf(
+        tester.element(find.byType(SimpleSellScreen)),
+      ).read(sellTickedMethodsProvider.notifier);
+      Future<void> tick(Set<String> methods) async {
+        ticks.state = methods;
+        // The fields, then what the device keeps for them.
+        await tester.pump();
+        await tester.pump();
+        await tester.pump();
+      }
+
+      // Nothing ticked: no account is asked for before the seller has said
+      // how they are paid — and what the device keeps is not put on screen.
+      expect(
+        find.text('Elige primero cómo quieres recibir el dinero.'),
+        findsOneWidget,
+      );
+      expect(find.byType(PaymentDetailsEditor), findsNothing);
+      expect(find.textContaining('Quito norte'), findsNothing);
+
+      // A field for the method ticked, opened with what the device keeps
+      // for it, and said to stay on the device.
+      await tick({'efectivo'});
+      expect(
+        tester.widget<TextField>(field('Efectivo')).controller!.text,
+        'En persona, Quito norte',
+      );
+      expect(field('Transferencia'), findsNothing);
+      expect(
+        find.text(
+          'Se guardan solo en este dispositivo. No se publican con la oferta: se los envías al comprador por el chat cifrado cuando tu Bitcoin ya esté bloqueado.',
+        ),
+        findsOneWidget,
+      );
+
+      // A second method has its own account, and none kept yet.
+      await tick({'efectivo', 'transferencia'});
+      expect(
+        tester.widget<TextField>(field('Transferencia')).controller!.text,
+        isEmpty,
+      );
+      await tester.enterText(field('Transferencia'), 'Banco X 123 · Ana P.');
+      await tester.pump(kPaymentDetailsSaveDelay);
+      // Kept for the next sale, each under its method.
+      expect(gateway.kept, {
+        'efectivo': 'En persona, Quito norte',
+        'transferencia': 'Banco X 123 · Ana P.',
+      });
+
+      // Unticking a method takes its field away, not what the device keeps.
+      await tick({'transferencia'});
+      expect(field('Efectivo'), findsNothing);
+      expect(gateway.kept['efectivo'], 'En persona, Quito norte');
+
+      await tester.tap(find.text('Publicar oferta'));
+      await tester.pumpAndSettle();
+
+      // The sheet shows the details of the method on the order, and only
+      // that one's.
+      expect(find.text('Datos de cobro · Transferencia'), findsOneWidget);
+      expect(find.textContaining('Quito norte'), findsNothing);
+      final sheet = tester.widget<SimpleSellConfirmSheet>(
+        find.byType(SimpleSellConfirmSheet),
+      );
+      expect(sheet.paymentDetails, const [
+        PaymentDetailsEntry(
+          method: 'Transferencia',
+          details: 'Banco X 123 · Ana P.',
+        ),
+      ]);
+
+      await tester.tap(find.text('CONFIRMAR Y PUBLICAR'));
+      await tester.pump();
+      await tester.pump();
+
+      // What is published names the method. The account is nowhere on it.
+      expect(published!.paymentMethod, 'Transferencia');
+      expect(published!.paymentMethod, isNot(contains('Banco X')));
+      expect(published!.fiatCode, isNot(contains('Banco X')));
+      // And nothing was sent to anyone from here.
+      expect(gateway.sent, isEmpty);
+    },
+  );
 }

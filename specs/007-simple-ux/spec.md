@@ -158,15 +158,28 @@ Compra de Bitcoin
 ✓ Bitcoin protegido por Mostro
 
 → Envía $50 por Bancolombia
-  Datos de pago:
-  Cuenta: 123-456-789 (Ahorros)
-  Titular: Carlos M.
+  El vendedor te envía sus datos de pago por el chat cifrado.
+  [ Abrir chat ]  · 1 mensaje nuevo
 
   [ YA PAGUÉ ]
 
 ○ Esperando que el vendedor confirme
 ○ Bitcoin recibido en tu wallet
 ```
+The account to pay into is not on the order — an order is public — and so not on this screen either. It reaches the buyer as a chat message, sent by the seller from their own view of the same step:
+```text
+Venta de Bitcoin
+
+→ Envía tus datos de cobro al comprador
+  ☑ Bancolombia
+    Ahorros 123-456-789 · Carlos M.
+
+  [ ENVIAR AL COMPRADOR ]
+
+  Esperando que el comprador transfiera $50…
+```
+The fields open with what the device keeps for each of the order's methods, and can be edited or unticked before sending. Nothing is sent without that tap; once a relay accepted the message the card reads *"Datos de cobro enviados al comprador · 14:32"*.
+
 Once the buyer taps **"[ YA PAGUÉ ]"**, the seller receives an immediate push notification and in-app status update:
 ```text
 → El comprador indica que envió el dinero.
@@ -182,7 +195,9 @@ Can be tested with simulated or live trade state updates, verifying that every w
 
 **Acceptance Scenarios**:
 1. **Given** status is `WaitingServerPayment`, **Then** the buyer and seller see: *"Protegiendo Bitcoin: Mostro está asegurando los fondos en custodia temporal"*.
-2. **Given** status is `Active` (fiat payment phase) for the buyer, **Then** display counterparty payment details and the primary action button `[ YA PAGUÉ ]`.
+2. **Given** status is `Active` (fiat payment phase) for the buyer, **Then** say that the seller's payment details arrive over the chat, with a button into it and the count of unread messages, and display the primary action button `[ YA PAGUÉ ]`.
+2b. **Given** status is `Active` for the seller, **Then** show the payment details the device keeps for each of the order's methods and a button that sends them to the buyer over the chat; **When** it is tapped and a relay accepts the message, **Then** the card says they were sent, and when; **When** no relay accepts it, **Then** it says so and nothing reads as sent.
+2c. **Given** any status before `Active` — the order published, taken, waiting on a bond, an invoice or the hold invoice, or only known as `InProgress` — **Then** the seller is not offered that button, and the core refuses the send.
 3. **Given** status is `FiatSent` for the seller, **Then** display a safety banner (*"Confirma únicamente después de ver el dinero en tu propia cuenta bancaria"*) and the action button `[ RECIBÍ EL DINERO ]`.
 4. **Given** status is `Success`, **Then** show a success celebration (*"¡Operación completada! Bitcoin recibido"*).
 
@@ -323,6 +338,7 @@ When toggled:
 - **FR-013b**: The trade view MUST NOT assume a status or a side it has not read. While either is unknown it shows a loading state, never the `Active` buyer view.
 - **FR-014**: Before marking payment as sent, the app MUST display a safety checkpoint: *"Verifica cuidadosamente los datos de pago antes de continuar"*.
 - **FR-015**: Before releasing Bitcoin, the app MUST display an irreversible action checkpoint: *"Confirma únicamente después de ver el dinero reflejado en tu propia cuenta bancaria. Esta acción no se puede deshacer."*
+- **FR-015b**: The seller's payment details (account, holder, phone) are written once per payment method and kept on the device, with the identity. They are **never part of the order**. They reach the buyer as a message in the trade's encrypted chat, sent by the seller's own tap from the trade view, and only while the escrow is locked (`Active`, `FiatSent`, `Dispute` on the trade row) — the core enforces both (`specs/004-mostro-p2p-client/contracts/payment_details.md`). A seller who took a buy offer writes them on that same card. The app says they were sent only for a message a relay accepted.
 
 ### 3.4 Assistance & Mediation ("Pedir Ayuda")
 - **FR-016**: The active trade view MUST feature a prominent `[ PEDIR AYUDA ]` button instead of "Open Dispute".
@@ -400,6 +416,8 @@ enum HumanTradeStep {
 3. **Data Isolation & Ephemeral State**:
    - Sensitive user payment details (bank account numbers, phone numbers) are shared **only** over end-to-end encrypted Kind 14 chat envelopes (NIP-44) directly with the trade peer.
    - No payment details are ever published in cleartext or logged in analytics.
+   - They are kept on the seller's device per payment method, in the core's settings store, and erased with the identity: generating or importing another one leaves none behind, on disk or on screen.
+   - They leave the device only by the seller's tap, to the buyer of a trade whose escrow is locked. Before that there is no key to encrypt to (the node names each party's trade key to the other when the trade turns `Active`), and the core refuses by the trade's status regardless.
 4. **Push Notifications**:
    - Adheres strictly to the Mostro doorbell pattern (`docs/PUSH_NOTIFICATIONS.md`): push notifications are content-free wake-up signals (`trade_update`, `chat_wake`). Sensitive details are retrieved directly from Nostr relays upon app wake-up.
 

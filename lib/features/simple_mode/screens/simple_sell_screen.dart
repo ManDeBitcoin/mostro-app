@@ -9,11 +9,13 @@ import 'package:mostro/features/order/models/order_detail_rules.dart'
     show estimateSats;
 import 'package:mostro/features/order/providers/exchange_rate_provider.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
+import 'package:mostro/features/simple_mode/models/payment_details_rules.dart';
 import 'package:mostro/features/simple_mode/models/payment_method_groups.dart'
     show methodsOf;
 import 'package:mostro/features/simple_mode/models/simple_order_rules.dart';
 import 'package:mostro/features/simple_mode/providers/payment_method_providers.dart';
 import 'package:mostro/features/simple_mode/providers/simple_identity_provider.dart';
+import 'package:mostro/features/simple_mode/widgets/payment_details_editor.dart';
 import 'package:mostro/features/simple_mode/widgets/payment_method_field.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_sell_confirm_sheet.dart';
 import 'package:mostro/l10n/app_localizations.dart';
@@ -25,7 +27,8 @@ import 'package:mostro/shared/widgets/nym_avatar.dart';
 /// Simple Mode: Amount-first Sell Wizard.
 /// 1. Amount input with live Satoshi conversion
 /// 2. Payment methods: the community's, any number of them, picked by category
-/// 3. Recipient payment details input
+/// 3. The seller's payment details, a field to each ticked method: kept on
+///    the device, never part of the order
 /// 4. Explanatory stages of security escrow
 /// 5. Bottom sheet confirmation summary before publishing offer
 class SimpleSellScreen extends ConsumerStatefulWidget {
@@ -37,13 +40,14 @@ class SimpleSellScreen extends ConsumerStatefulWidget {
 
 class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
   final _amountController = TextEditingController(text: '100');
-  final _detailsController = TextEditingController();
+
+  /// What the payment-details fields hold, as they last reported it.
+  List<PaymentDetailsEntry> _details = const [];
   double _premium = 0.0;
 
   @override
   void dispose() {
     _amountController.dispose();
-    _detailsController.dispose();
     super.dispose();
   }
 
@@ -51,7 +55,7 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
     required double fiatAmount,
     required String fiatCode,
     required List<String> paymentMethods,
-    required String paymentDetails,
+    required List<PaymentDetailsEntry> paymentDetails,
     required double premium,
     required int? estimatedSats,
   }) {
@@ -368,7 +372,10 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
 
         const SizedBox(height: 20),
 
-        // Payment Details Input
+        // The seller's payment details. Not part of the order — an order is
+        // public — and not a draft of this one either: the fields are the
+        // device's copy, a field to a method, and the trade view sends them
+        // to the buyer once the escrow is locked.
         Text(
           SimpleL10n.paymentDetailsPrompt(context),
           style: theme.textTheme.titleMedium?.copyWith(
@@ -376,25 +383,25 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          decoration: BoxDecoration(
-            color: pal.surfaceCard,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: pal.navBorder),
-          ),
-          child: TextField(
-            controller: _detailsController,
-            style: TextStyle(color: pal.textTitle, fontSize: 14),
-            decoration: InputDecoration(
-              hintText: SimpleL10n.paymentDetailsHint(context),
-              hintStyle: TextStyle(color: pal.textTertiary, fontSize: 13),
-              border: InputBorder.none,
-            ),
-            maxLines: 2,
-          ),
+        const SizedBox(height: 4),
+        Text(
+          l10n.simplePayDetailsLocalNote,
+          style: TextStyle(color: pal.textTertiary, fontSize: 12, height: 1.3),
         ),
+        const SizedBox(height: 10),
+        // A field to each ticked method, and none before the first tick:
+        // there is no account to ask for until the seller says how they
+        // are paid.
+        if (paymentMethods.isEmpty)
+          Text(
+            l10n.simplePayDetailsPickFirst,
+            style: TextStyle(color: pal.textSecondary, fontSize: 13),
+          )
+        else
+          PaymentDetailsEditor(
+            methods: paymentMethods,
+            onChanged: (entries) => setState(() => _details = entries),
+          ),
 
         const SizedBox(height: 24),
 
@@ -469,7 +476,18 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
                     fiatAmount: amount.toDouble(),
                     fiatCode: currency,
                     paymentMethods: paymentMethods,
-                    paymentDetails: _detailsController.text.trim(),
+                    // Of what the fields hold, what belongs to the methods
+                    // on the order: a field that just left the screen may
+                    // not have reported yet.
+                    paymentDetails: paymentDetailsToSend(
+                      _details.where(
+                        (entry) => paymentMethods.any(
+                          (method) =>
+                              paymentMethodKey(method) ==
+                              paymentMethodKey(entry.method),
+                        ),
+                      ),
+                    ),
                     premium: _premium,
                     estimatedSats: estimatedSats,
                   );

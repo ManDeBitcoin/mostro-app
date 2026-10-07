@@ -1921,6 +1921,12 @@ void main() {
     });
 
     testWidgets('an active trade does offer it', (tester) async {
+      // Tall enough for the button to be built: the view is a lazy list,
+      // and the button sits under the card that says where the seller's
+      // payment details come from.
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
       await _pumpTradeDetail(
         tester,
         orderId: orderId,
