@@ -95,7 +95,7 @@ fn entry(order_id: &str, reason: FundsAtRiskReason, amount_sats: Option<u64>) ->
 /// The seller's hold invoice is paid and held from `Active` until the trade
 /// ends. Decided on the status, not on `TradeInfo::hold_invoice`: a row
 /// rebuilt by a restore carries no bolt11, and its sats are just as locked.
-fn escrow_is_locked(status: &OrderStatus) -> bool {
+pub(crate) fn escrow_is_locked(status: &OrderStatus) -> bool {
     matches!(
         status,
         OrderStatus::Active | OrderStatus::FiatSent | OrderStatus::Dispute

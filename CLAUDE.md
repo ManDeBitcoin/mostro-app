@@ -332,6 +332,24 @@ one node" under Domain gotchas before touching anything node-related.
   There is no default bond percentage anywhere. The confirm sheets show this side's half of
   the node's fee (`tradeFeeShare`, mostrod's rounding) only when the node announced one: the
   buyer's "you will receive" is net of it, the seller's is added to what they lock.
+- **The seller's payment details never ride on the order, and leave the device by one door.**
+  An order is public and names methods only (`pm`); the account behind each is kept per method
+  in the settings store, with the identity (`payment_details:saved`, `mostro::payment_details`),
+  and reaches the buyer as a chat message sent by `send_payment_details`. That call refuses
+  unless this user is the seller and the trade row reads `active`, `fiat-sent` or `dispute`
+  (`may_send`), and returns only once a relay accepted the envelope (`send_delivered` —
+  `send_message` keeps a message nobody took and returns it like one that left). In Lightning
+  mode the chat cannot exist before the lock anyway: mostrod names each side's trade key to the
+  other in the two messages that announce `active`. In Cashu mode the seller holds the buyer's
+  key at `waiting-payment`, so the test is the status, never "a chat exists". Don't send them
+  from anywhere else, don't mark them sent on a guess, and don't log them (a test reads both
+  modules' log lines). In Simple Mode the Sell tab and the trade view share one editor
+  (`PaymentDetailsEditor`): its fields are the device's copy, a field to a method, not a draft
+  of one order, and they start over when `resetIdentityScopedState` invalidates
+  `paymentDetailsOwnerProvider` — the Sell tab stays mounted under the Account screen, with the
+  previous user's account numbers in it. The seller is asked at `active` only
+  (`PaymentDetailsSendCard`); the buyer's view says the account comes over the chat. Contract:
+  `specs/004-mostro-p2p-client/contracts/payment_details.md`.
 - **A public `pending` is not always a republication.** mostrod publishes `in-progress` only
   from (sell, `waiting-buyer-invoice`) and (buy, `waiting-payment`), so a sell order taken with
   the invoice attached — what this client does whenever a default Lightning address is set —

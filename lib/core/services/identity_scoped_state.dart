@@ -9,6 +9,7 @@ import 'package:mostro/features/chat/providers/chat_providers.dart';
 import 'package:mostro/features/disputes/providers/disputes_providers.dart';
 import 'package:mostro/features/notifications/providers/notifications_provider.dart';
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
+import 'package:mostro/features/simple_mode/providers/payment_details_providers.dart';
 import 'package:mostro/features/trades/providers/release_pending_provider.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart';
 import 'package:mostro/shared/providers/session_provider.dart';
@@ -48,6 +49,11 @@ Future<void> resetIdentityScopedState(ProviderContainer container) async {
   container.invalidate(disputeNotifierProvider);
   // Releases the previous user published and is still waiting on.
   container.invalidate(releasePendingProvider);
+  // How the previous user is paid. Rust erased what the device kept; the
+  // Sell tab stays mounted under the screen that made the swap, with their
+  // account numbers still in its fields, until this empties them.
+  container.invalidate(paymentDetailsOwnerProvider);
+  container.invalidate(paymentDetailsSentAtProvider);
   // Persisted (sembast), so it needs a real wipe, not just an invalidation.
   final notices = container.read(notificationsProvider).length;
   await container.read(notificationsProvider.notifier).wipeForIdentityChange();

@@ -4327,4 +4327,88 @@ class AppLocalizationsNl extends AppLocalizations {
   @override
   String get tradeBodyWaitingPaymentBuyerCashu =>
       'Ze vergrendelen de sats in de escrow. Zodra die vergrendeld is, ben jij aan de beurt om de fiat te betalen.';
+
+  @override
+  String get simplePayDetailsLocalNote =>
+      'Alleen op dit apparaat bewaard. Ze worden niet met het aanbod gepubliceerd: je stuurt ze via de versleutelde chat naar de koper zodra je Bitcoin is vastgezet.';
+
+  @override
+  String get simplePayDetailsPickFirst =>
+      'Kies eerst hoe je betaald wilt worden.';
+
+  @override
+  String get simplePayDetailsLabel => 'Betaalgegevens';
+
+  @override
+  String get simplePayDetailsNotPublished =>
+      'Niet met het aanbod gepubliceerd. Je stuurt ze via de chat naar de koper zodra je Bitcoin is vastgezet.';
+
+  @override
+  String get simplePayDetailsLater =>
+      'Je hebt je betaalgegevens nog niet ingevuld. Je kunt ze invullen en versturen zodra een koper het aanbod aanneemt.';
+
+  @override
+  String get simplePayDetailsSendTitle =>
+      'Stuur je betaalgegevens naar de koper';
+
+  @override
+  String get simplePayDetailsSendBody =>
+      'De koper heeft ze nodig om je te betalen. Ze gaan versleuteld via de chat: alleen de koper ziet ze.';
+
+  @override
+  String get simplePayDetailsSendAction => 'Naar de koper sturen';
+
+  @override
+  String get simplePayDetailsSendAgain => 'Opnieuw sturen';
+
+  @override
+  String simplePayDetailsSentAt(String time) {
+    return 'Betaalgegevens naar de koper gestuurd · $time';
+  }
+
+  @override
+  String get simplePayDetailsNothingToSend =>
+      'Vul je gegevens in voor minstens één methode om ze te kunnen sturen.';
+
+  @override
+  String get simplePayDetailsSendFailed =>
+      'Je gegevens konden niet worden verstuurd. Probeer het opnieuw.';
+
+  @override
+  String get simplePayDetailsNoPeerYet =>
+      'Er is nog geen verbinding met de koper. Wacht even en probeer het opnieuw.';
+
+  @override
+  String get simplePayDetailsNotLocked =>
+      'Je gegevens kunnen pas worden verstuurd als de Bitcoin is vastgezet.';
+
+  @override
+  String get simplePayDetailsMessageHeader =>
+      'Mijn gegevens om de betaling te ontvangen:';
+
+  @override
+  String simplePayDetailsInclude(String method) {
+    return '$method meesturen';
+  }
+
+  @override
+  String get simplePayDetailsViewChat => 'Chat bekijken';
+
+  @override
+  String get simplePayDetailsFromSeller =>
+      'De verkoper stuurt je de betaalgegevens via de versleutelde chat. Zijn ze er nog niet, vraag er dan daar om.';
+
+  @override
+  String get simplePayDetailsOpenChat => 'Chat openen';
+
+  @override
+  String simplePayDetailsNewMessages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nieuwe berichten',
+      one: '1 nieuw bericht',
+    );
+    return '$_temp0';
+  }
 }

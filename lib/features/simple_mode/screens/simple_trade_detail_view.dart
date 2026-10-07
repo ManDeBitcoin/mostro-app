@@ -8,6 +8,9 @@ import 'package:mostro/features/order/models/order_detail_rules.dart'
     show paymentMethodsSummary;
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
+import 'package:mostro/features/simple_mode/models/payment_details_rules.dart';
+import 'package:mostro/features/simple_mode/providers/payment_details_providers.dart';
+import 'package:mostro/features/simple_mode/widgets/payment_details_send_card.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_request_help_dialog.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_trade_timeline.dart';
 import 'package:mostro/features/trades/widgets/release_confirmation_sheet.dart';
@@ -30,7 +33,6 @@ class SimpleTradeDetailView extends ConsumerStatefulWidget {
     this.fiatCode = 'USD',
     this.amountSats,
     this.paymentMethod = 'Transferencia',
-    this.paymentDetails,
     this.hasBond = false,
   });
 
@@ -41,7 +43,6 @@ class SimpleTradeDetailView extends ConsumerStatefulWidget {
   final String fiatCode;
   final int? amountSats;
   final String paymentMethod;
-  final String? paymentDetails;
 
   /// Whether this user locked, or must lock, a deposit for this trade: the
   /// trade row carries one. The node's policy alone would not do — with
@@ -137,6 +138,20 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
     final paymentMethods = paymentMethodsSummary(
       widget.paymentMethod,
     ).all.join(', ');
+    final l10n = AppLocalizations.of(context);
+
+    // The seller's payment details reach the buyer over the chat, sent from
+    // the seller's card below; here only how many messages wait unread, so
+    // a buyer told to pay knows the seller has written.
+    final payingNow = widget.isBuyer && widget.status == OrderStatus.active;
+    final unreadFromSeller =
+        payingNow
+            ? ref.watch(unreadFromPeerProvider(widget.orderId)).valueOrNull ?? 0
+            : 0;
+    final sellerMaySend = sellerMaySendPaymentDetails(
+      isBuyer: widget.isBuyer,
+      status: widget.status,
+    );
 
     // The deposit step exists only for a trade that has one, or is waiting
     // on it right now.
@@ -150,9 +165,11 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
         widget.status == OrderStatus.fiatSent ||
         widget.status == OrderStatus.dispute;
 
-    void onChatPressed() {
+    Future<void> onChatPressed() async {
       if (isChatAvailable) {
-        context.push(AppRoute.chatRoomPath(widget.orderId));
+        await context.push(AppRoute.chatRoomPath(widget.orderId));
+        // Reading the room marked its messages read.
+        if (mounted) ref.invalidate(unreadFromPeerProvider(widget.orderId));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -591,14 +608,43 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  if (widget.paymentDetails != null &&
-                      widget.paymentDetails!.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      'Datos de pago: ${widget.paymentDetails}',
-                      style: TextStyle(color: pal.textTitle, fontSize: 13),
+                  const SizedBox(height: 10),
+                  // The account to pay into is not on the order — an order
+                  // is public. The seller sends it over the chat.
+                  Text(
+                    l10n.simplePayDetailsFromSeller,
+                    style: TextStyle(
+                      color: pal.textTitle,
+                      fontSize: 13,
+                      height: 1.3,
                     ),
-                  ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: onChatPressed,
+                        icon: const Icon(Icons.chat_rounded, size: 16),
+                        label: Text(l10n.simplePayDetailsOpenChat),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: pal.limeText,
+                          side: BorderSide(color: pal.limeBorder),
+                        ),
+                      ),
+                      if (unreadFromSeller > 0)
+                        Text(
+                          l10n.simplePayDetailsNewMessages(unreadFromSeller),
+                          style: TextStyle(
+                            color: pal.limeText,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                    ],
+                  ),
                   const SizedBox(height: 12),
                   // Checkpoint
                   Container(
@@ -621,6 +667,15 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
             ),
             const SizedBox(height: 16),
           ],
+
+          // The seller's payment details, while the buyer is about to pay:
+          // the one thing the seller has to do at this step.
+          if (sellerMaySend && widget.status == OrderStatus.active)
+            PaymentDetailsSendCard(
+              orderId: widget.orderId,
+              paymentMethod: widget.paymentMethod,
+              offerToSend: true,
+            ),
 
           // Waiting fiat payment (if Seller and active)
           if (!widget.isBuyer && widget.status == OrderStatus.active) ...[
@@ -734,6 +789,15 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
             ),
             const SizedBox(height: 16),
           ],
+
+          // Past that step the card only says what was sent: a buyer who
+          // marked the payment had an account to pay into.
+          if (sellerMaySend && widget.status != OrderStatus.active)
+            PaymentDetailsSendCard(
+              orderId: widget.orderId,
+              paymentMethod: widget.paymentMethod,
+              offerToSend: false,
+            ),
 
           // Progressive vertical timeline
           SimpleTradeTimeline(

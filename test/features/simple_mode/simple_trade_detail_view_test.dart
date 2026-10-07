@@ -1,9 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mostro/features/simple_mode/providers/payment_details_providers.dart';
 import 'package:mostro/features/simple_mode/screens/simple_trade_detail_view.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/src/rust/api/types.dart';
+
+import '../../support/fake_payment_details.dart';
+
+const _fromSeller =
+    'El vendedor te envía sus datos de pago por el chat cifrado. Si aún no han llegado, pídeselos ahí.';
+const _sendTitle = 'Envía tus datos de cobro al comprador';
+
+/// The Simple Mode view of a trade, with the device's payment details and
+/// the chat's unread count standing in for Rust.
+Future<void> _pumpTrade(
+  WidgetTester tester, {
+  required OrderStatus status,
+  required bool isBuyer,
+  FakePaymentDetailsGateway? gateway,
+  int unread = 0,
+  String paymentMethod = 'Banco Pichincha,De Una',
+}) async {
+  tester.view.physicalSize = const Size(400, 2000);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(
+    ProviderScope(
+      // A scope of its own each time: pumped over the last one, the trade
+      // would keep the answers it already read.
+      key: UniqueKey(),
+      overrides: [
+        paymentDetailsGatewayProvider.overrideWithValue(
+          gateway ?? FakePaymentDetailsGateway(),
+        ),
+        unreadFromPeerProvider.overrideWith((ref, orderId) => unread),
+      ],
+      child: MaterialApp(
+        locale: const Locale('es'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: SimpleTradeDetailView(
+          orderId: 'trade-details',
+          status: status,
+          isBuyer: isBuyer,
+          fiatAmount: 100.0,
+          fiatCode: 'USD',
+          amountSats: 250000,
+          paymentMethod: paymentMethod,
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  await tester.pump();
+  await tester.pump();
+}
 
 void main() {
   testWidgets(
@@ -27,7 +79,6 @@ void main() {
               fiatCode: 'USD',
               amountSats: 125000,
               paymentMethod: 'Bancolombia',
-              paymentDetails: 'Cuenta de Ahorros 123-456-789',
             ),
           ),
         ),
@@ -51,6 +102,134 @@ void main() {
 
       // Assistance button
       expect(find.text('PEDIR AYUDA'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'SimpleTradeDetailView tells a buyer about to pay where the account comes from',
+    (tester) async {
+      await _pumpTrade(tester, status: OrderStatus.active, isBuyer: true);
+
+      // The order names the methods, never the account: an order is public.
+      expect(find.text(_fromSeller), findsOneWidget);
+      expect(find.text('Abrir chat'), findsOneWidget);
+      // Nothing unread, nothing said about it.
+      expect(find.textContaining('mensaje'), findsNothing);
+      // And the buyer is never the one asked for payment details.
+      expect(find.text(_sendTitle), findsNothing);
+
+      await _pumpTrade(
+        tester,
+        status: OrderStatus.active,
+        isBuyer: true,
+        unread: 2,
+      );
+      expect(find.text('2 mensajes nuevos'), findsOneWidget);
+
+      await _pumpTrade(
+        tester,
+        status: OrderStatus.active,
+        isBuyer: true,
+        unread: 1,
+      );
+      expect(find.text('1 mensaje nuevo'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'SimpleTradeDetailView asks the seller for the payment details once the escrow is locked',
+    (tester) async {
+      final gateway = FakePaymentDetailsGateway(
+        kept: {'De Una': '099 123 4567'},
+      );
+      await _pumpTrade(
+        tester,
+        status: OrderStatus.active,
+        isBuyer: false,
+        gateway: gateway,
+      );
+
+      // A field to each of the order's methods, with what the device keeps.
+      expect(find.text(_sendTitle), findsOneWidget);
+      expect(find.text('Banco Pichincha'), findsOneWidget);
+      expect(find.text('099 123 4567'), findsOneWidget);
+      // It is the seller's step, so it comes before the line that waits.
+      expect(
+        tester.getTopLeft(find.text(_sendTitle)).dy,
+        lessThan(
+          tester
+              .getTopLeft(find.textContaining('Esperando que el comprador'))
+              .dy,
+        ),
+      );
+
+      await tester.tap(find.text('Enviar al comprador'));
+      await tester.pump();
+      await tester.pump();
+      expect(gateway.sent.single.orderId, 'trade-details');
+      expect(
+        gateway.sent.single.content,
+        'Mis datos para recibir el pago:\n\nDe Una\n099 123 4567',
+      );
+      expect(find.text(_sendTitle), findsNothing);
+      expect(
+        find.textContaining('Datos de cobro enviados al comprador'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'SimpleTradeDetailView never asks for payment details before the escrow is locked',
+    (tester) async {
+      // The seller's sats are not locked in any of these: nobody is about
+      // to pay, and the public book's "taken" is not "locked" either.
+      for (final status in [
+        OrderStatus.pending,
+        OrderStatus.waitingMakerBond,
+        OrderStatus.waitingBuyerInvoice,
+        OrderStatus.waitingPayment,
+        OrderStatus.inProgress,
+      ]) {
+        final gateway = FakePaymentDetailsGateway(
+          kept: {'De Una': '099 123 4567'},
+        );
+        await _pumpTrade(
+          tester,
+          status: status,
+          isBuyer: false,
+          gateway: gateway,
+        );
+        expect(find.text(_sendTitle), findsNothing, reason: '$status');
+        expect(find.text('099 123 4567'), findsNothing, reason: '$status');
+        expect(find.text('Enviar al comprador'), findsNothing, reason: '$status');
+      }
+    },
+  );
+
+  testWidgets(
+    'SimpleTradeDetailView stops asking once the buyer has paid',
+    (tester) async {
+      // Never sent from the card: a buyer who marked the payment had an
+      // account to pay into, so the seller is not asked now.
+      await _pumpTrade(tester, status: OrderStatus.fiatSent, isBuyer: false);
+      expect(find.text(_sendTitle), findsNothing);
+      expect(find.text('RECIBÍ EL DINERO'), findsOneWidget);
+
+      // Sent from the card: it says so, and can send them again.
+      final gateway = FakePaymentDetailsGateway();
+      gateway.sentAtByOrder['trade-details'] = DateTime(2026, 10, 7, 14, 32);
+      await _pumpTrade(
+        tester,
+        status: OrderStatus.fiatSent,
+        isBuyer: false,
+        gateway: gateway,
+      );
+      expect(
+        find.textContaining('Datos de cobro enviados al comprador'),
+        findsOneWidget,
+      );
+      expect(find.text('Enviar de nuevo'), findsOneWidget);
     },
   );
 

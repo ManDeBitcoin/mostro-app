@@ -14,6 +14,7 @@ import 'package:mostro/features/order/providers/bond_providers.dart'
 import 'package:mostro/features/order/providers/trade_state_provider.dart'
     show createOrderActionProvider;
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
+import 'package:mostro/features/simple_mode/models/payment_details_rules.dart';
 import 'package:mostro/features/simple_mode/models/simple_order_rules.dart';
 import 'package:mostro/features/simple_mode/providers/simple_identity_provider.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart'
@@ -23,9 +24,13 @@ import 'package:mostro/shared/widgets/nym_avatar.dart';
 import 'package:mostro/src/rust/api/types.dart';
 
 /// Modal bottom sheet for confirming a Sell order in Simple Mode.
-/// Confirms the amount, estimated sats, receiving payment method & details,
-/// the deposit the node asks of makers (when it asks one), and publishes the
+/// Confirms the amount, estimated sats, receiving payment method, the
+/// deposit the node asks of makers (when it asks one), and publishes the
 /// offer to the Mostro node.
+///
+/// The seller's payment details are shown and go nowhere from here: the
+/// order is public and does not carry them. The device keeps them, and the
+/// trade view sends them to the buyer once the escrow is locked.
 class SimpleSellConfirmSheet extends ConsumerStatefulWidget {
   const SimpleSellConfirmSheet({
     super.key,
@@ -42,7 +47,10 @@ class SimpleSellConfirmSheet extends ConsumerStatefulWidget {
 
   /// Every method the seller ticked, at least one.
   final List<String> paymentMethods;
-  final String paymentDetails;
+
+  /// What the seller wrote for the order's methods, the ones with text.
+  /// For the eye only: see the class comment.
+  final List<PaymentDetailsEntry> paymentDetails;
   final double premium;
 
   /// For display only: the order is published at market price and the node
@@ -268,14 +276,8 @@ class _SimpleSellConfirmSheetState
                     value: widget.paymentMethods.join('\n'),
                     pal: pal,
                   ),
-                  if (widget.paymentDetails.isNotEmpty) ...[
-                    const Divider(height: 20),
-                    _buildRow(
-                      label: 'Datos de cobro',
-                      value: widget.paymentDetails,
-                      pal: pal,
-                    ),
-                  ],
+                  const Divider(height: 20),
+                  _buildPaymentDetails(l10n, pal),
                   if (bondFigure != null) ...[
                     const Divider(height: 20),
                     _buildRow(
@@ -360,6 +362,42 @@ class _SimpleSellConfirmSheetState
           ],
         ),
       ),
+    );
+  }
+
+  /// The seller's payment details, a method to a block, and where they go
+  /// from here — which is not into the order.
+  Widget _buildPaymentDetails(AppLocalizations l10n, OrderBookPalette pal) {
+    final note = TextStyle(color: pal.textTertiary, fontSize: 11, height: 1.3);
+    if (widget.paymentDetails.isEmpty) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Text(l10n.simplePayDetailsLater, style: note),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final entry in widget.paymentDetails) ...[
+          // The text under its label, not beside it: an account number
+          // with its holder is longer than the row has room for.
+          Text(
+            '${l10n.simplePayDetailsLabel} · ${entry.method}',
+            style: TextStyle(color: pal.textSecondary, fontSize: 13),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            entry.details,
+            style: TextStyle(
+              color: pal.textTitle,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        Text(l10n.simplePayDetailsNotPublished, style: note),
+      ],
     );
   }
 

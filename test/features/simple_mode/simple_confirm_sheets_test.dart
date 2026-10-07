@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mostro/features/about/models/mostro_instance.dart';
 import 'package:mostro/features/about/providers/mostro_node_provider.dart';
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
+import 'package:mostro/features/simple_mode/models/payment_details_rules.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_buy_confirm_sheet.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_sell_confirm_sheet.dart';
 import 'package:mostro/l10n/app_localizations.dart';
@@ -108,7 +109,7 @@ void main() {
       fiatAmount: 100,
       fiatCode: 'USD',
       paymentMethods: ['Transferencia'],
-      paymentDetails: '',
+      paymentDetails: [],
       premium: 5,
       // The estimate the screen shows. It used to be sent as the order's
       // fixed sats, next to the premium.
@@ -399,6 +400,73 @@ void main() {
     });
   });
 
+  group("SimpleSellConfirmSheet, the seller's payment details", () {
+    const notPublished =
+        'No se publican con la oferta. Se los envías al comprador por el chat cuando tu Bitcoin esté bloqueado.';
+    const later =
+        'Aún no has escrito tus datos de cobro. Podrás escribirlos y enviarlos cuando un comprador tome la oferta.';
+
+    SimpleSellConfirmSheet sheet(List<PaymentDetailsEntry> details) =>
+        SimpleSellConfirmSheet(
+          fiatAmount: 100,
+          fiatCode: 'USD',
+          paymentMethods: const ['Banco Pichincha'],
+          paymentDetails: details,
+          estimatedSats: 118000,
+        );
+
+    testWidgets('are shown, said to stay off the order, and stay off it', (
+      tester,
+    ) async {
+      NewOrderParams? sent;
+      await _pumpSheet(
+        tester,
+        sheet(const [
+          PaymentDetailsEntry(
+            method: 'Banco Pichincha',
+            details: 'Ahorros 2201234567 · Ana P.',
+          ),
+        ]),
+        overrides: [
+          mostroNodeProvider.overrideWith((ref) async => _node()),
+          createOrderActionProvider.overrideWithValue((params) async {
+            sent = params;
+            throw Exception('Order rejected by Mostro: InvalidFiatCurrency');
+          }),
+        ],
+      );
+
+      expect(find.text('Datos de cobro · Banco Pichincha'), findsOneWidget);
+      expect(find.text('Ahorros 2201234567 · Ana P.'), findsOneWidget);
+      expect(find.text(notPublished), findsOneWidget);
+      expect(find.text(later), findsNothing);
+
+      await tester.tap(find.text('CONFIRMAR Y PUBLICAR'));
+      await tester.pump();
+      await tester.pump();
+
+      // The order is public. It names the method and nothing of the account.
+      expect(sent!.paymentMethod, 'Banco Pichincha');
+      for (final carried in [sent!.paymentMethod, sent!.fiatCode]) {
+        expect(carried, isNot(contains('2201234567')));
+        expect(carried, isNot(contains('Ana')));
+      }
+    });
+
+    testWidgets('can be left for later', (tester) async {
+      await _pumpSheet(
+        tester,
+        sheet(const []),
+        overrides: [mostroNodeProvider.overrideWith((ref) async => _node())],
+      );
+
+      // Not a reason to hold the offer back: the trade view asks for them.
+      expect(find.text(later), findsOneWidget);
+      expect(find.text(notPublished), findsNothing);
+      expect(find.textContaining('Datos de cobro ·'), findsNothing);
+    });
+  });
+
   // Each sheet asks the node again when it opens with no answer on hand
   // (`initState`); the rule is the same in both, checked against a node that
   // bonds that sheet's side.
@@ -408,7 +476,7 @@ void main() {
         fiatAmount: 100,
         fiatCode: 'USD',
         paymentMethods: ['Transferencia'],
-        paymentDetails: '',
+        paymentDetails: [],
         premium: 0,
         estimatedSats: 118000,
       ),

@@ -60,7 +60,7 @@ Projects complex protocol states and counterparty tags into a humanized view mod
 | `fiat_code` | `String` | Currency symbol / code |
 | `sats_amount` | `int` | Estimated or confirmed satoshis |
 | `payment_method` | `String` | Selected payment method |
-| `payment_details` | `String?` | Decrypted counterparty payment destination |
+| `payment_details` | — | Not a field of the view. The seller's payment details reach the buyer as a message in the trade's chat (`spec.md` FR-015b); the buyer's view points at the chat, the seller's sends them |
 | `temporary_bond_sats` | `int` | Refundable security deposit in satoshis |
 | `counterparty_name` | `String` | Humanized identifier (e.g. "Usuario 7F3A") |
 | `counterparty_rating` | `double` | 0.0 to 5.0 star rating |

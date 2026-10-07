@@ -12,6 +12,36 @@ import 'package:mostro/l10n/app_localizations_en.dart';
 void main() {
   final l10n = AppLocalizationsEn();
 
+  // The seller's payment details: refused while the escrow is not locked,
+  // and a wait while the buyer's key is not on the device. The second
+  // arrives wrapped around the chat's own marker.
+  test("maps the refusals of the seller's payment details", () {
+    expect(
+      localizedDaemonError(
+        l10n,
+        'PaymentDetailsEscrowNotLocked',
+        fallback: 'x',
+      ),
+      l10n.simplePayDetailsNotLocked,
+    );
+    expect(
+      localizedDaemonError(
+        l10n,
+        'PaymentDetailsPeerUnknown: SessionNotFound: 6f2c',
+        fallback: 'x',
+      ),
+      l10n.simplePayDetailsNoPeerYet,
+    );
+    // The ones with no wording of their own are the screen's to word.
+    for (final marker in [
+      'PaymentDetailsNotSeller',
+      'PaymentDetailsNoTrade',
+      'SendFailed: relay pool not ready',
+    ]) {
+      expect(localizedDaemonError(l10n, marker, fallback: 'x'), 'x');
+    }
+  });
+
   test('maps the payout claim markers', () {
     expect(
       localizedDaemonError(l10n, 'InvoiceAmountMismatch', fallback: 'x'),

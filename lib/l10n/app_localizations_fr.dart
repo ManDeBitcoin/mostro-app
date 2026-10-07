@@ -4359,4 +4359,88 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get tradeBodyWaitingPaymentBuyerCashu =>
       'Ils verrouillent les sats dans l\'escrow. Une fois verrouillé, c\'est à vous de payer le fiat.';
+
+  @override
+  String get simplePayDetailsLocalNote =>
+      'Conservées uniquement sur cet appareil. Elles ne sont pas publiées avec l\'offre : vous les envoyez à l\'acheteur par le chat chiffré une fois vos bitcoins bloqués.';
+
+  @override
+  String get simplePayDetailsPickFirst =>
+      'Choisissez d\'abord comment vous souhaitez être payé.';
+
+  @override
+  String get simplePayDetailsLabel => 'Coordonnées de paiement';
+
+  @override
+  String get simplePayDetailsNotPublished =>
+      'Non publiées avec l\'offre. Vous les envoyez à l\'acheteur par le chat une fois vos bitcoins bloqués.';
+
+  @override
+  String get simplePayDetailsLater =>
+      'Vous n\'avez pas encore saisi vos coordonnées de paiement. Vous pourrez les saisir et les envoyer lorsqu\'un acheteur prendra l\'offre.';
+
+  @override
+  String get simplePayDetailsSendTitle =>
+      'Envoyez vos coordonnées de paiement à l\'acheteur';
+
+  @override
+  String get simplePayDetailsSendBody =>
+      'L\'acheteur en a besoin pour vous payer. Elles voyagent chiffrées par le chat : lui seul les voit.';
+
+  @override
+  String get simplePayDetailsSendAction => 'Envoyer à l\'acheteur';
+
+  @override
+  String get simplePayDetailsSendAgain => 'Envoyer à nouveau';
+
+  @override
+  String simplePayDetailsSentAt(String time) {
+    return 'Coordonnées de paiement envoyées à l\'acheteur · $time';
+  }
+
+  @override
+  String get simplePayDetailsNothingToSend =>
+      'Saisissez vos coordonnées pour au moins un moyen de paiement afin de les envoyer.';
+
+  @override
+  String get simplePayDetailsSendFailed =>
+      'Vos coordonnées n\'ont pas pu être envoyées. Réessayez.';
+
+  @override
+  String get simplePayDetailsNoPeerYet =>
+      'Pas encore de connexion avec l\'acheteur. Patientez un instant et réessayez.';
+
+  @override
+  String get simplePayDetailsNotLocked =>
+      'Vos coordonnées ne peuvent être envoyées qu\'une fois les bitcoins bloqués.';
+
+  @override
+  String get simplePayDetailsMessageHeader =>
+      'Mes coordonnées pour recevoir le paiement :';
+
+  @override
+  String simplePayDetailsInclude(String method) {
+    return 'Inclure $method';
+  }
+
+  @override
+  String get simplePayDetailsViewChat => 'Voir le chat';
+
+  @override
+  String get simplePayDetailsFromSeller =>
+      'Le vendeur vous envoie ses coordonnées de paiement par le chat chiffré. Si elles ne sont pas encore arrivées, demandez-les-lui là.';
+
+  @override
+  String get simplePayDetailsOpenChat => 'Ouvrir le chat';
+
+  @override
+  String simplePayDetailsNewMessages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nouveaux messages',
+      one: '1 nouveau message',
+    );
+    return '$_temp0';
+  }
 }

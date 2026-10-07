@@ -4322,4 +4322,87 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get tradeBodyWaitingPaymentBuyerCashu =>
       'Están bloqueando los sats en el escrow. Cuando esté bloqueado, te toca pagar el fiat.';
+
+  @override
+  String get simplePayDetailsLocalNote =>
+      'Se guardan solo en este dispositivo. No se publican con la oferta: se los envías al comprador por el chat cifrado cuando tu Bitcoin ya esté bloqueado.';
+
+  @override
+  String get simplePayDetailsPickFirst =>
+      'Elige primero cómo quieres recibir el dinero.';
+
+  @override
+  String get simplePayDetailsLabel => 'Datos de cobro';
+
+  @override
+  String get simplePayDetailsNotPublished =>
+      'No se publican con la oferta. Se los envías al comprador por el chat cuando tu Bitcoin esté bloqueado.';
+
+  @override
+  String get simplePayDetailsLater =>
+      'Aún no has escrito tus datos de cobro. Podrás escribirlos y enviarlos cuando un comprador tome la oferta.';
+
+  @override
+  String get simplePayDetailsSendTitle =>
+      'Envía tus datos de cobro al comprador';
+
+  @override
+  String get simplePayDetailsSendBody =>
+      'Los necesita para pagarte. Viajan cifrados por el chat: solo los ve el comprador.';
+
+  @override
+  String get simplePayDetailsSendAction => 'Enviar al comprador';
+
+  @override
+  String get simplePayDetailsSendAgain => 'Enviar de nuevo';
+
+  @override
+  String simplePayDetailsSentAt(String time) {
+    return 'Datos de cobro enviados al comprador · $time';
+  }
+
+  @override
+  String get simplePayDetailsNothingToSend =>
+      'Escribe tus datos en al menos un método para poder enviarlos.';
+
+  @override
+  String get simplePayDetailsSendFailed =>
+      'No se pudieron enviar tus datos. Inténtalo de nuevo.';
+
+  @override
+  String get simplePayDetailsNoPeerYet =>
+      'Todavía no hay conexión con el comprador. Espera un momento e inténtalo de nuevo.';
+
+  @override
+  String get simplePayDetailsNotLocked =>
+      'Tus datos solo se pueden enviar cuando el Bitcoin ya está bloqueado.';
+
+  @override
+  String get simplePayDetailsMessageHeader => 'Mis datos para recibir el pago:';
+
+  @override
+  String simplePayDetailsInclude(String method) {
+    return 'Incluir $method';
+  }
+
+  @override
+  String get simplePayDetailsViewChat => 'Ver chat';
+
+  @override
+  String get simplePayDetailsFromSeller =>
+      'El vendedor te envía sus datos de pago por el chat cifrado. Si aún no han llegado, pídeselos ahí.';
+
+  @override
+  String get simplePayDetailsOpenChat => 'Abrir chat';
+
+  @override
+  String simplePayDetailsNewMessages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count mensajes nuevos',
+      one: '1 mensaje nuevo',
+    );
+    return '$_temp0';
+  }
 }

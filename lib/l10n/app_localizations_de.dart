@@ -4349,4 +4349,88 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get tradeBodyWaitingPaymentBuyerCashu =>
       'Die Gegenseite sperrt die Sats im Escrow. Sobald er gesperrt ist, bist du dran, den Fiat-Betrag zu zahlen.';
+
+  @override
+  String get simplePayDetailsLocalNote =>
+      'Nur auf diesem Gerät gespeichert. Sie werden nicht mit dem Angebot veröffentlicht: Sie senden sie dem Käufer über den verschlüsselten Chat, sobald Ihr Bitcoin gesperrt ist.';
+
+  @override
+  String get simplePayDetailsPickFirst =>
+      'Wählen Sie zuerst, wie Sie bezahlt werden möchten.';
+
+  @override
+  String get simplePayDetailsLabel => 'Zahlungsdaten';
+
+  @override
+  String get simplePayDetailsNotPublished =>
+      'Nicht mit dem Angebot veröffentlicht. Sie senden sie dem Käufer über den Chat, sobald Ihr Bitcoin gesperrt ist.';
+
+  @override
+  String get simplePayDetailsLater =>
+      'Sie haben Ihre Zahlungsdaten noch nicht eingegeben. Sie können sie eingeben und senden, sobald ein Käufer das Angebot annimmt.';
+
+  @override
+  String get simplePayDetailsSendTitle =>
+      'Senden Sie dem Käufer Ihre Zahlungsdaten';
+
+  @override
+  String get simplePayDetailsSendBody =>
+      'Der Käufer braucht sie, um Sie zu bezahlen. Sie werden verschlüsselt über den Chat übertragen: Nur er sieht sie.';
+
+  @override
+  String get simplePayDetailsSendAction => 'An den Käufer senden';
+
+  @override
+  String get simplePayDetailsSendAgain => 'Erneut senden';
+
+  @override
+  String simplePayDetailsSentAt(String time) {
+    return 'Zahlungsdaten an den Käufer gesendet · $time';
+  }
+
+  @override
+  String get simplePayDetailsNothingToSend =>
+      'Geben Sie Ihre Daten für mindestens eine Zahlungsmethode ein, um sie zu senden.';
+
+  @override
+  String get simplePayDetailsSendFailed =>
+      'Ihre Daten konnten nicht gesendet werden. Versuchen Sie es erneut.';
+
+  @override
+  String get simplePayDetailsNoPeerYet =>
+      'Noch keine Verbindung zum Käufer. Warten Sie einen Moment und versuchen Sie es erneut.';
+
+  @override
+  String get simplePayDetailsNotLocked =>
+      'Ihre Daten können erst gesendet werden, wenn der Bitcoin gesperrt ist.';
+
+  @override
+  String get simplePayDetailsMessageHeader =>
+      'Meine Daten für den Zahlungsempfang:';
+
+  @override
+  String simplePayDetailsInclude(String method) {
+    return '$method einschließen';
+  }
+
+  @override
+  String get simplePayDetailsViewChat => 'Chat ansehen';
+
+  @override
+  String get simplePayDetailsFromSeller =>
+      'Der Verkäufer sendet Ihnen seine Zahlungsdaten über den verschlüsselten Chat. Falls sie noch nicht angekommen sind, fragen Sie dort danach.';
+
+  @override
+  String get simplePayDetailsOpenChat => 'Chat öffnen';
+
+  @override
+  String simplePayDetailsNewMessages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count neue Nachrichten',
+      one: '1 neue Nachricht',
+    );
+    return '$_temp0';
+  }
 }

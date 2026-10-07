@@ -106,6 +106,16 @@ String localizedDaemonError(
   if (raw.contains('NoRelayAccepted')) {
     return l10n.noRelayAcceptedMessage;
   }
+  // The seller's payment details (`send_payment_details`) leave only while
+  // the escrow is locked, and only once the buyer's key is on this device —
+  // it arrives with the message that announces the lock, so waiting is the
+  // remedy for the second.
+  if (raw.contains('PaymentDetailsEscrowNotLocked')) {
+    return l10n.simplePayDetailsNotLocked;
+  }
+  if (raw.contains('PaymentDetailsPeerUnknown')) {
+    return l10n.simplePayDetailsNoPeerYet;
+  }
   // A range order carries no fixed sats: it is priced at market when taken.
   if (raw.contains('RangeOrderWithSats')) {
     return l10n.rangeOrderWithSats;

@@ -12,6 +12,7 @@ pub mod nodes;
 pub mod nostr;
 pub mod nwc;
 pub mod orders;
+pub mod payment_details;
 pub mod push;
 pub mod reputation;
 pub mod restore_progress;

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/features/about/providers/mostro_node_provider.dart';
 import 'package:mostro/features/home/providers/home_order_providers.dart';
+import 'package:mostro/features/simple_mode/models/payment_details_rules.dart';
 import 'package:mostro/features/simple_mode/models/payment_method_groups.dart';
 import 'package:mostro/features/simple_mode/providers/community_provider.dart';
 import 'package:mostro/features/simple_mode/providers/payment_method_providers.dart';
@@ -1166,9 +1167,14 @@ void main() {
                 fiatAmount: 100,
                 fiatCode: 'USD',
                 paymentMethods: _bitmaxis,
-                paymentDetails:
-                    'Cuenta de ahorros 2201234567 a nombre de Juan Pérez, '
-                    'cédula 1712345678',
+                paymentDetails: [
+                  PaymentDetailsEntry(
+                    method: 'Banco Pichincha',
+                    details:
+                        'Cuenta de ahorros 2201234567 a nombre de Juan Pérez, '
+                        'cédula 1712345678',
+                  ),
+                ],
                 premium: 2,
                 estimatedSats: 115700,
               ),

@@ -4294,4 +4294,88 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get tradeBodyWaitingPaymentBuyerCashu =>
       'They\'re locking the sats in escrow. Once it\'s locked, it\'s your turn to pay the fiat.';
+
+  @override
+  String get simplePayDetailsLocalNote =>
+      'Kept on this device only. They are not published with the offer: you send them to the buyer over the encrypted chat once your Bitcoin is locked.';
+
+  @override
+  String get simplePayDetailsPickFirst =>
+      'First choose how you want to be paid.';
+
+  @override
+  String get simplePayDetailsLabel => 'Payment details';
+
+  @override
+  String get simplePayDetailsNotPublished =>
+      'Not published with the offer. You send them to the buyer over the chat once your Bitcoin is locked.';
+
+  @override
+  String get simplePayDetailsLater =>
+      'You have not written your payment details yet. You can write and send them once a buyer takes the offer.';
+
+  @override
+  String get simplePayDetailsSendTitle =>
+      'Send your payment details to the buyer';
+
+  @override
+  String get simplePayDetailsSendBody =>
+      'The buyer needs them to pay you. They travel encrypted over the chat: only the buyer sees them.';
+
+  @override
+  String get simplePayDetailsSendAction => 'Send to the buyer';
+
+  @override
+  String get simplePayDetailsSendAgain => 'Send again';
+
+  @override
+  String simplePayDetailsSentAt(String time) {
+    return 'Payment details sent to the buyer · $time';
+  }
+
+  @override
+  String get simplePayDetailsNothingToSend =>
+      'Write your details for at least one method to send them.';
+
+  @override
+  String get simplePayDetailsSendFailed =>
+      'Your details could not be sent. Try again.';
+
+  @override
+  String get simplePayDetailsNoPeerYet =>
+      'There is no connection with the buyer yet. Wait a moment and try again.';
+
+  @override
+  String get simplePayDetailsNotLocked =>
+      'Your details can only be sent once the Bitcoin is locked.';
+
+  @override
+  String get simplePayDetailsMessageHeader =>
+      'My details to receive the payment:';
+
+  @override
+  String simplePayDetailsInclude(String method) {
+    return 'Include $method';
+  }
+
+  @override
+  String get simplePayDetailsViewChat => 'View chat';
+
+  @override
+  String get simplePayDetailsFromSeller =>
+      'The seller sends you their payment details over the encrypted chat. If they have not arrived yet, ask for them there.';
+
+  @override
+  String get simplePayDetailsOpenChat => 'Open chat';
+
+  @override
+  String simplePayDetailsNewMessages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count new messages',
+      one: '1 new message',
+    );
+    return '$_temp0';
+  }
 }

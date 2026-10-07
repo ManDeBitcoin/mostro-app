@@ -7137,6 +7137,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'They\'re locking the sats in escrow. Once it\'s locked, it\'s your turn to pay the fiat.'**
   String get tradeBodyWaitingPaymentBuyerCashu;
+
+  /// Simple Mode, Sell tab: under the title of the seller's payment details, where they are kept and when they leave the device
+  ///
+  /// In en, this message translates to:
+  /// **'Kept on this device only. They are not published with the offer: you send them to the buyer over the encrypted chat once your Bitcoin is locked.'**
+  String get simplePayDetailsLocalNote;
+
+  /// Simple Mode, Sell tab: in place of the payment-details fields while no payment method is chosen
+  ///
+  /// In en, this message translates to:
+  /// **'First choose how you want to be paid.'**
+  String get simplePayDetailsPickFirst;
+
+  /// Simple Mode sell confirm sheet: label of the rows with the seller's payment details, one per method
+  ///
+  /// In en, this message translates to:
+  /// **'Payment details'**
+  String get simplePayDetailsLabel;
+
+  /// Simple Mode sell confirm sheet: under the seller's payment details, that the order does not carry them
+  ///
+  /// In en, this message translates to:
+  /// **'Not published with the offer. You send them to the buyer over the chat once your Bitcoin is locked.'**
+  String get simplePayDetailsNotPublished;
+
+  /// Simple Mode sell confirm sheet: shown instead of the payment details when the seller typed none
+  ///
+  /// In en, this message translates to:
+  /// **'You have not written your payment details yet. You can write and send them once a buyer takes the offer.'**
+  String get simplePayDetailsLater;
+
+  /// Simple Mode trade view, seller, escrow locked: title of the card that sends the payment details to the buyer
+  ///
+  /// In en, this message translates to:
+  /// **'Send your payment details to the buyer'**
+  String get simplePayDetailsSendTitle;
+
+  /// Simple Mode trade view, seller: under the title of the card that sends the payment details
+  ///
+  /// In en, this message translates to:
+  /// **'The buyer needs them to pay you. They travel encrypted over the chat: only the buyer sees them.'**
+  String get simplePayDetailsSendBody;
+
+  /// Simple Mode trade view, seller: button that sends the payment details to the buyer over the chat
+  ///
+  /// In en, this message translates to:
+  /// **'Send to the buyer'**
+  String get simplePayDetailsSendAction;
+
+  /// Simple Mode trade view, seller: link that opens the payment details again after they were sent
+  ///
+  /// In en, this message translates to:
+  /// **'Send again'**
+  String get simplePayDetailsSendAgain;
+
+  /// Simple Mode trade view, seller: the payment details were sent, with the time of day
+  ///
+  /// In en, this message translates to:
+  /// **'Payment details sent to the buyer · {time}'**
+  String simplePayDetailsSentAt(String time);
+
+  /// Simple Mode trade view, seller: beside the send button while no ticked method has any text
+  ///
+  /// In en, this message translates to:
+  /// **'Write your details for at least one method to send them.'**
+  String get simplePayDetailsNothingToSend;
+
+  /// Simple Mode trade view, seller: the payment details could not be sent, for a reason with no wording of its own
+  ///
+  /// In en, this message translates to:
+  /// **'Your details could not be sent. Try again.'**
+  String get simplePayDetailsSendFailed;
+
+  /// Sending the payment details failed because the chat with the buyer is not set up yet (PeerUnknown, SessionNotFound)
+  ///
+  /// In en, this message translates to:
+  /// **'There is no connection with the buyer yet. Wait a moment and try again.'**
+  String get simplePayDetailsNoPeerYet;
+
+  /// Sending the payment details was refused because the seller's Bitcoin is not locked (PaymentDetailsEscrowNotLocked)
+  ///
+  /// In en, this message translates to:
+  /// **'Your details can only be sent once the Bitcoin is locked.'**
+  String get simplePayDetailsNotLocked;
+
+  /// First line of the chat message that carries the seller's payment details to the buyer
+  ///
+  /// In en, this message translates to:
+  /// **'My details to receive the payment:'**
+  String get simplePayDetailsMessageHeader;
+
+  /// Screen-reader label of the tick that puts a payment method's details into the message to the buyer
+  ///
+  /// In en, this message translates to:
+  /// **'Include {method}'**
+  String simplePayDetailsInclude(String method);
+
+  /// Simple Mode trade view, seller: link to the chat, beside the note that the payment details were sent
+  ///
+  /// In en, this message translates to:
+  /// **'View chat'**
+  String get simplePayDetailsViewChat;
+
+  /// Simple Mode trade view, buyer, escrow locked: where the seller's payment details come from
+  ///
+  /// In en, this message translates to:
+  /// **'The seller sends you their payment details over the encrypted chat. If they have not arrived yet, ask for them there.'**
+  String get simplePayDetailsFromSeller;
+
+  /// Simple Mode trade view, buyer: button that opens the chat with the seller, where the payment details arrive
+  ///
+  /// In en, this message translates to:
+  /// **'Open chat'**
+  String get simplePayDetailsOpenChat;
+
+  /// Simple Mode trade view, buyer: unread messages from the seller, beside the button that opens the chat
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 new message} other{{count} new messages}}'**
+  String simplePayDetailsNewMessages(int count);
 }
 
 class _AppLocalizationsDelegate
