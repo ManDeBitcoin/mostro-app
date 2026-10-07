@@ -4411,4 +4411,108 @@ class AppLocalizationsNl extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get simplePriceLabel => 'Prijs';
+
+  @override
+  String get simplePriceMarket => 'Markt';
+
+  @override
+  String get simplePriceLower => '1 % lager';
+
+  @override
+  String get simplePriceRaise => '1 % hoger';
+
+  @override
+  String get simplePriceSellMarket => 'Je verkoopt tegen de marktprijs.';
+
+  @override
+  String simplePriceSellAbove(String percent) {
+    return 'Met premie: je geeft $percent % minder sats.';
+  }
+
+  @override
+  String simplePriceSellBelow(String percent) {
+    return 'Met korting: je geeft $percent % meer sats.';
+  }
+
+  @override
+  String get simplePriceBuyMarket => 'Je koopt tegen de marktprijs.';
+
+  @override
+  String simplePriceBuyAbove(String percent) {
+    return 'Met premie: je ontvangt $percent % minder sats.';
+  }
+
+  @override
+  String simplePriceBuyBelow(String percent) {
+    return 'Met korting: je ontvangt $percent % meer sats.';
+  }
+
+  @override
+  String get simpleBuyOrderPrompt => 'Geen aanbod dat past?';
+
+  @override
+  String get simpleBuyOrderPromptAction => 'Plaats je eigen order';
+
+  @override
+  String get simpleBuyOrderEmptyHint =>
+      'Probeer een andere betaalmethode of plaats je eigen kooporder: de verkopers van de community zien hem.';
+
+  @override
+  String get simpleBuyOrderAction => 'Kooporder plaatsen';
+
+  @override
+  String get simpleBuyOrderOpen => 'Kooporder maken';
+
+  @override
+  String get simpleBuyOrderTitle => 'Plaats je kooporder';
+
+  @override
+  String get simpleBuyOrderAmount => 'Je wilt kopen';
+
+  @override
+  String get simpleBuyOrderMethods => 'Waarmee kun je betalen?';
+
+  @override
+  String get simpleBuyOrderMethodsHint =>
+      'Vink alle manieren aan waarop je kunt betalen. Ze worden met je order gepubliceerd.';
+
+  @override
+  String get simpleBuyOrderNotice =>
+      'De verkopers van de community zien je order. Zodra iemand hem neemt en zijn Bitcoin is vastgezet, zegt de app dat je kunt betalen. Stuur vóór die tijd geen geld.';
+
+  @override
+  String get simpleOfferWaitingTaker =>
+      'Aanbod geplaatst. Wachten tot iemand het neemt';
+
+  @override
+  String get simpleWithdrawOffer => 'Aanbod intrekken';
+
+  @override
+  String get simpleWithdrawTitle => 'Je aanbod intrekken?';
+
+  @override
+  String get simpleWithdrawBody =>
+      'Het is dan niet meer op de markt te zien. Je kunt wanneer je wilt een nieuw aanbod plaatsen.';
+
+  @override
+  String get simpleWithdrawBodyBond =>
+      'Het is dan niet meer op de markt te zien en je tijdelijke garantie komt vrij. Je kunt wanneer je wilt een nieuw aanbod plaatsen.';
+
+  @override
+  String get simpleWithdrawConfirm => 'Ja, intrekken';
+
+  @override
+  String get simpleWithdrawSent =>
+      'Intrekking verzonden. Je aanbod verdwijnt binnen enkele seconden.';
+
+  @override
+  String get simpleWithdrawFailed =>
+      'Het aanbod kon niet worden ingetrokken. Probeer het opnieuw.';
+
+  @override
+  String get simpleWithdrawTaken =>
+      'Iemand heeft je aanbod zojuist genomen: het kan niet meer worden ingetrokken.';
 }

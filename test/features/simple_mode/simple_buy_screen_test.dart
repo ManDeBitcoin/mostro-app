@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mostro/features/home/providers/home_order_providers.dart';
 import 'package:mostro/features/simple_mode/providers/payment_method_providers.dart';
 import 'package:mostro/features/simple_mode/screens/simple_buy_screen.dart';
+import 'package:mostro/features/simple_mode/widgets/simple_buy_order_sheet.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 
 OrderItem _sell({
@@ -103,6 +104,84 @@ void main() {
     ]);
 
     expect(find.text('COMPRAR 50 USD'), findsOneWidget);
+  });
+
+  testWidgets('SimpleBuyScreen leads to a buy order of the user\'s own', (
+    tester,
+  ) async {
+    // A range offer: it stays on the list for either amount typed below.
+    await _pumpBuy(tester, [_sell(id: 'free', min: 20, max: 200)]);
+
+    // Above the offers: the way out for a buyer none of them suits.
+    final row = find.byKey(const ValueKey('simple-buy-order-row'));
+    expect(row, findsOneWidget);
+    expect(find.text('¿Ninguna oferta te sirve?'), findsOneWidget);
+    expect(find.text('Publica la tuya'), findsOneWidget);
+    expect(
+      tester.getTopLeft(row).dy,
+      lessThan(tester.getTopLeft(find.text('COMPRAR 50 USD')).dy),
+    );
+    // With offers on screen the empty state's button is not there too.
+    expect(find.byKey(const ValueKey('simple-buy-order-empty')), findsNothing);
+
+    // The sheet is opened for the amount on the tab, not one of its own.
+    await tester.enterText(find.byType(TextField).first, '75');
+    await tester.pump();
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    final sheet = tester.widget<SimpleBuyOrderSheet>(
+      find.byType(SimpleBuyOrderSheet),
+    );
+    expect(sheet.fiatAmount, 75);
+    expect(find.text('75 USD'), findsWidgets);
+  });
+
+  testWidgets('SimpleBuyScreen offers to publish when no seller matches', (
+    tester,
+  ) async {
+    await _pumpBuy(tester, const []);
+
+    expect(find.text('No hay vendedores activos con estos filtros.'), findsOneWidget);
+    // The line used to say "publish a request" and lead nowhere.
+    expect(
+      find.text(
+        'Prueba con otro método de pago o publica tu orden de compra: los vendedores de la comunidad la verán.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('simple-buy-order-row')), findsNothing);
+
+    // The button opens the sheet and says so: "publish" is the word on the
+    // one that sends the order.
+    expect(find.text('Crear orden de compra'), findsOneWidget);
+    expect(find.text('Publicar orden de compra'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('simple-buy-order-empty')));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<SimpleBuyOrderSheet>(find.byType(SimpleBuyOrderSheet))
+          .fiatAmount,
+      50,
+    );
+  });
+
+  testWidgets('SimpleBuyScreen hands the sheet no amount it cannot read', (
+    tester,
+  ) async {
+    await _pumpBuy(tester, [_sell(id: 'free', fiat: 50)]);
+
+    await tester.enterText(find.byType(TextField).first, '50.5');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('simple-buy-order-row')));
+    await tester.pumpAndSettle();
+
+    // Not 50, and not 505: the sheet is told there is none, and says so.
+    expect(
+      tester
+          .widget<SimpleBuyOrderSheet>(find.byType(SimpleBuyOrderSheet))
+          .fiatAmount,
+      isNull,
+    );
   });
 
   testWidgets('SimpleBuyScreen hides no offer behind a payment method', (

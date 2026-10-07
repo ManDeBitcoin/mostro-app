@@ -13,10 +13,13 @@ import 'package:mostro/features/order/providers/bond_providers.dart'
     show bondEstimateProvider;
 import 'package:mostro/features/order/providers/trade_state_provider.dart'
     show createOrderActionProvider;
+import 'package:mostro/features/order/widgets/price_section.dart'
+    show formatPremium;
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
 import 'package:mostro/features/simple_mode/models/payment_details_rules.dart';
 import 'package:mostro/features/simple_mode/models/simple_order_rules.dart';
 import 'package:mostro/features/simple_mode/providers/simple_identity_provider.dart';
+import 'package:mostro/features/simple_mode/widgets/simple_price_stepper.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart'
     show refreshTrades;
 import 'package:mostro/l10n/app_localizations.dart';
@@ -260,11 +263,28 @@ class _SimpleSellConfirmSheetState
                   ],
                   const Divider(height: 20),
                   _buildRow(
-                    label: 'Prima / Margen',
+                    label: l10n.simplePriceLabel,
+                    // Signed either way — a premium can be a discount — and
+                    // worded and coloured as the control that set it: this
+                    // is the last look before a sale below the market.
                     value: widget.premium == 0
                         ? SimpleL10n.atMarketPrice(context)
-                        : '+${widget.premium.toStringAsFixed(1)}%',
+                        : formatPremium(widget.premium),
                     pal: pal,
+                    valueColor: widget.premium == 0
+                        ? null
+                        : priceFigureColor(
+                            pal,
+                            side: PriceSide.seller,
+                            premium: widget.premium.round(),
+                          ),
+                    subtitle: widget.premium == 0
+                        ? null
+                        : priceMeaning(
+                            l10n,
+                            side: PriceSide.seller,
+                            premium: widget.premium.round(),
+                          ),
                   ),
                   const Divider(height: 20),
                   _buildRow(
@@ -407,6 +427,7 @@ class _SimpleSellConfirmSheetState
     required OrderBookPalette pal,
     String? subtitle,
     bool isHighlight = false,
+    Color? valueColor,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -427,7 +448,9 @@ class _SimpleSellConfirmSheetState
                 value,
                 textAlign: TextAlign.end,
                 style: TextStyle(
-                  color: isHighlight ? pal.limeText : pal.textTitle,
+                  color:
+                      valueColor ??
+                      (isHighlight ? pal.limeText : pal.textTitle),
                   fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
                   fontSize: isHighlight ? 15 : 13,
                 ),

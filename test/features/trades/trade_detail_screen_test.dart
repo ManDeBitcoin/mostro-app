@@ -1939,6 +1939,39 @@ void main() {
       expect(find.text(AppLocalizationsEn().simpleDoNotPayYet), findsNothing);
     });
 
+    testWidgets('shows no public pending before the row says whose it is', (
+      tester,
+    ) async {
+      // A take parked on its deposit: publicly its order still reads
+      // `pending`, which in Simple Mode is "published, waiting for someone
+      // to take it". Until the row is read in, that is not known to be the
+      // user's own order.
+      final rows = Completer<List<TradeInfo>>();
+      await _pumpRoutedTradeDetail(
+        tester,
+        orderId: orderId,
+        status: OrderStatus.pending,
+        loadTrades: () => rows.future,
+        book: [fakeOrder(id: orderId)],
+        uiMode: UiMode.simple,
+      );
+
+      expect(find.byType(SimpleTradeDetailView), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      rows.complete([
+        fakeTrade(orderId: orderId, status: OrderStatus.waitingTakerBond),
+      ]);
+      await tester.pump();
+      await tester.pump();
+      expect(
+        tester
+            .widget<SimpleTradeDetailView>(find.byType(SimpleTradeDetailView))
+            .status,
+        OrderStatus.waitingTakerBond,
+      );
+    });
+
     testWidgets("leaves a take that is no longer this user's", (tester) async {
       // No trade row and a stranger's order in the book: a lost take, handed
       // back to the public book as `pending`.

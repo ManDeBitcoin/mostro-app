@@ -151,6 +151,57 @@ void main() {
       expect(find.textContaining('Exception'), findsNothing);
     });
 
+    testWidgets('says what the price means, and marks a discount', (
+      tester,
+    ) async {
+      SimpleSellConfirmSheet at(double premium) => SimpleSellConfirmSheet(
+        fiatAmount: 100,
+        fiatCode: 'USD',
+        paymentMethods: const ['Transferencia'],
+        paymentDetails: const [],
+        premium: premium,
+        estimatedSats: 112433,
+      );
+      Future<void> pump(double premium) async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await _pumpSheet(
+          tester,
+          at(premium),
+          overrides: [mostroNodeProvider.overrideWith((ref) async => _node())],
+        );
+      }
+
+      Color? color(String figure) =>
+          tester.widget<Text>(find.text(figure)).style?.color;
+
+      // Below the market: the last look before the order goes out. The sign
+      // is its own — the row used to print a plus before any premium — and
+      // it is worded and coloured as on the control that set it.
+      await pump(-3);
+      expect(find.text('Precio'), findsOneWidget);
+      expect(find.text('-3%'), findsOneWidget);
+      expect(find.textContaining('+-'), findsNothing);
+      expect(
+        find.text('Con descuento: entregas un 3 % más de sats.'),
+        findsOneWidget,
+      );
+      expect(color('-3%'), Colors.amber);
+
+      // Above it: the seller's gain, not a warning.
+      await pump(5);
+      expect(find.text('+5%'), findsOneWidget);
+      expect(
+        find.text('Con prima: entregas un 5 % menos de sats.'),
+        findsOneWidget,
+      );
+      expect(color('+5%'), isNot(Colors.amber));
+
+      // At the market there is nothing to explain.
+      await pump(0);
+      expect(find.text('0% (Mercado)'), findsOneWidget);
+      expect(find.textContaining('sats.'), findsNothing);
+    });
+
     testWidgets('shows no deposit on a node with bonds off', (tester) async {
       await _pumpSheet(
         tester,

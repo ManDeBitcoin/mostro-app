@@ -798,39 +798,6 @@ class SimpleL10n {
     _ => 'Show all offers',
   };
 
-  static String sellPremium(BuildContext context) => switch (_lang(context)) {
-    'es' => 'Prima / Margen sobre mercado',
-    'fr' => 'Prime / Marge sur le marché',
-    'de' => 'Aufschlag / Marge auf den Marktpreis',
-    'it' => 'Premio / Margine sul mercato',
-    'nl' => 'Premie / Marge op de markt',
-    _ => 'Premium / Margin over market',
-  };
-
-  static String sellPremiumTooltip(BuildContext context) => switch (_lang(
-    context,
-  )) {
-    'es' => 'Porcentaje adicional que cobrarás sobre la cotización actual',
-    'fr' =>
-      'Pourcentage supplémentaire que vous recevrez par rapport au cours actuel',
-    'de' =>
-      'Zusätzlicher Prozentsatz, den Sie über den aktuellen Kurs berechnen',
-    'it' =>
-      'Percentuale aggiuntiva che riceverai rispetto alla quotazione attuale',
-    'nl' => 'Extra percentage dat u ontvangt bovenop de huidige marktprijs',
-    _ => 'Additional percentage charged over current market rate',
-  };
-
-  static String effectivePrice(BuildContext context) =>
-      switch (_lang(context)) {
-        'es' => 'Precio efectivo de venta',
-        'fr' => 'Prix effectif de vente',
-        'de' => 'Effektiver Verkaufspreis',
-        'it' => 'Prezzo effettivo di vendita',
-        'nl' => 'Effectieve verkoopprijs',
-        _ => 'Effective Selling Price',
-      };
-
   static String atMarketPrice(BuildContext context) => switch (_lang(context)) {
     'es' => '0% (Mercado)',
     'fr' => '0% (Marché)',

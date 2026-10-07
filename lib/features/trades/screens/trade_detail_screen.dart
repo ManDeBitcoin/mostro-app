@@ -696,7 +696,15 @@ class _TradeDetailScreenState extends ConsumerState<TradeDetailScreen>
     // escrow may not be funded.
     if (ref.watch(uiModeProvider) == UiMode.simple) {
       final live = ref.watch(tradeStatusProvider(widget.orderId)).valueOrNull;
-      if (live == null || role == null) {
+      // A public `pending` is the user's own untaken order only once the
+      // row says so (#434, as in `_status`): until it is read in, a take
+      // whose order still reads `pending` would be shown as an offer
+      // waiting for someone to take it.
+      final pendingUnread =
+          live == OrderStatus.pending &&
+          tradeAsync.isLoading &&
+          !tradeAsync.hasValue;
+      if (live == null || role == null || pendingUnread) {
         return Scaffold(
           backgroundColor: book.bg,
           appBar: AppBar(

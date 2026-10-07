@@ -272,6 +272,83 @@ void main() {
       // makes one value of the public order's `pm` tag out of each.
       expect(params.paymentMethod, 'Banco Pichincha,Deuna,Efectivo (USD)');
     });
+
+    test('carries a discount as it carries a premium', () {
+      // The seller's control goes below the market too.
+      final params = simpleSellOrder(
+        fiatAmount: 100,
+        fiatCode: 'USD',
+        paymentMethods: ['Transferencia'],
+        premium: -3,
+      );
+      expect(params.premium, -3);
+      expect(params.amountSats, isNull);
+    });
+  });
+
+  group('simpleBuyOrder', () {
+    test('is the buyer\'s side of the same order', () {
+      for (final premium in [-10.0, -2.0, 0.0, 4.0, 10.0]) {
+        final params = simpleBuyOrder(
+          fiatAmount: 50,
+          fiatCode: 'USD',
+          paymentMethods: ['Banco Pichincha', 'Efectivo'],
+          premium: premium,
+        );
+        expect(params.kind, OrderKind.buy, reason: 'premium $premium');
+        // At market price, like a sale: fixed sats with a premium is what
+        // the node refuses.
+        expect(params.amountSats, isNull);
+        expect(params.premium, premium);
+        expect(params.fiatAmount, 50);
+        expect(params.fiatAmountMin, isNull);
+        expect(params.fiatAmountMax, isNull);
+        expect(params.fiatCode, 'USD');
+        expect(params.paymentMethod, 'Banco Pichincha,Efectivo');
+      }
+    });
+  });
+
+  group('steppedPremium', () {
+    test('moves a whole percent at a time, either way', () {
+      expect(steppedPremium(0, 1), 1);
+      expect(steppedPremium(0, -1), -1);
+      expect(steppedPremium(-1, 1), 0);
+      expect(steppedPremium(4, -1), 3);
+    });
+
+    test('stops at the limit on both sides', () {
+      expect(steppedPremium(simplePremiumLimit, 1), simplePremiumLimit);
+      expect(steppedPremium(-simplePremiumLimit, -1), -simplePremiumLimit);
+      // One short of it still gets there.
+      expect(steppedPremium(simplePremiumLimit - 1, 1), simplePremiumLimit);
+      expect(steppedPremium(1 - simplePremiumLimit, -1), -simplePremiumLimit);
+    });
+  });
+
+  group('priceWithPremium', () {
+    test('is the market price at zero', () {
+      expect(priceWithPremium(rate: 60000, premium: 0), 60000);
+    });
+
+    test('follows the node: the premium comes off the sats', () {
+      // 100 fiat at 60 000 is 166 666 sats; with 10 % off, 150 000 — the
+      // same 100 for fewer sats is 66 666.67 a coin, not 66 000.
+      expect(
+        priceWithPremium(rate: 60000, premium: 10),
+        closeTo(66666.67, 0.01),
+      );
+      // A discount: more sats for the same money, a cheaper coin.
+      expect(
+        priceWithPremium(rate: 60000, premium: -10),
+        closeTo(54545.45, 0.01),
+      );
+    });
+
+    test('is null while there is no rate to price from', () {
+      expect(priceWithPremium(rate: null, premium: 3), isNull);
+      expect(priceWithPremium(rate: 0, premium: 3), isNull);
+    });
   });
 
   group('wholeFiatAmount', () {

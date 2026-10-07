@@ -296,8 +296,19 @@ one node" under Domain gotchas before touching anything node-related.
   premium with `CantDo(InvalidParameters)`. `mostro::actions::validate_new_order` (create) and
   `take_order_once` (range take) refuse both by marker — `FixedSatsWithPremium`,
   `FiatAmountNotWhole`, `PremiumNotWhole` — instead of truncating or sending them. A
-  market-price order carries no sats: the daemon fixes them when it is taken. Simple Mode sells
-  at market price only (`simpleSellOrder`).
+  market-price order carries no sats: the daemon fixes them when it is taken. Simple Mode
+  publishes at market price only, a sale (`simpleSellOrder`) or a purchase (`simpleBuyOrder`,
+  from the sheet the Buy tab opens for a buyer no offer suits), with a whole premium between
+  −10 and +10 set by one control (`SimplePriceStepper`). That control reports a step, not a
+  figure — whoever holds the premium applies it to what it is when the tap lands
+  (`steppedPremium`) — and words the number from the side of whoever sets it, in sats
+  (`priceMeaning`): "10 % fewer sats" is what the node does, "the buyer pays 10 % more" is
+  the formula the next entry warns against. A premium is the seller's gain and the buyer's
+  cost, and is coloured so (`priceFigureColor`). The buy order names the community's methods
+  only — the Buy tab's list also holds what offers were written with — from ticks of its own,
+  opened with the tab's (`buyOrderTickedMethodsProvider`). Its sheet takes what the answer
+  needs before it awaits (`_publish`): a sheet dragged away mid-flight has published all the
+  same, and still leads to the order.
 - **No fiat amount field reshapes a typed separator.** A digits-only filter turns a typed
   `10.50` into `1050`; upstream's grouped field did the same in `es`, where the dot groups
   (`1.050`), and cut an `en` `1.000` to `1.00`. Either way a valid amount the user never meant
@@ -331,7 +342,12 @@ one node" under Domain gotchas before touching anything node-related.
   node's Kind 38385 policy bonds that side (before a trade) or the trade row carries a bond.
   There is no default bond percentage anywhere. The confirm sheets show this side's half of
   the node's fee (`tradeFeeShare`, mostrod's rounding) only when the node announced one: the
-  buyer's "you will receive" is net of it, the seller's is added to what they lock.
+  buyer's "you will receive" is net of it, the seller's is added to what they lock. An order
+  of the user's own reads "published, waiting for someone to take it" — never "accepted" —
+  and only once its row is read in, since a take's order can read `pending` too. That is the
+  one status the view offers to withdraw from (`_handleWithdraw`), and it reads the status
+  again when the question is answered: a cancel sent on a trade that went active meanwhile
+  is a request to the counterparty.
 - **The seller's payment details never ride on the order, and leave the device by one door.**
   An order is public and names methods only (`pm`); the account behind each is kept per method
   in the settings store, with the identity (`payment_details:saved`, `mostro::payment_details`),

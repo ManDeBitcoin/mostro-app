@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mostro/features/order/providers/trade_state_provider.dart';
 import 'package:mostro/features/simple_mode/providers/payment_details_providers.dart';
 import 'package:mostro/features/simple_mode/screens/simple_trade_detail_view.dart';
+import 'package:mostro/features/trades/providers/trades_providers.dart'
+    show rawTradesProvider;
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/src/rust/api/types.dart';
 
@@ -57,7 +61,252 @@ Future<void> _pumpTrade(
   await tester.pump();
 }
 
+/// The view as the app shows it: pushed over another page, under a router,
+/// with the status the trade screen feeds it standing in [status] and the
+/// node's cancel in [cancel]. Returns once the view is on screen.
+Future<void> _pumpPushedTrade(
+  WidgetTester tester, {
+  required ValueNotifier<OrderStatus> status,
+  required Future<void> Function(String) cancel,
+  bool hasBond = false,
+}) async {
+  tester.view.physicalSize = const Size(400, 2000);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+  final router = GoRouter(
+    routes: [
+      GoRoute(
+        path: '/',
+        builder: (context, _) => Scaffold(
+          body: Center(
+            child: TextButton(
+              onPressed: () => context.push('/trade'),
+              child: const Text('mis operaciones'),
+            ),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/trade',
+        builder: (_, _) => ValueListenableBuilder<OrderStatus>(
+          valueListenable: status,
+          builder: (_, now, _) => SimpleTradeDetailView(
+            orderId: 'mine-1',
+            status: now,
+            isBuyer: true,
+            fiatAmount: 50.0,
+            fiatCode: 'USD',
+            paymentMethod: 'Deuna',
+            hasBond: hasBond,
+          ),
+        ),
+      ),
+    ],
+  );
+  addTearDown(router.dispose);
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        paymentDetailsGatewayProvider.overrideWithValue(
+          FakePaymentDetailsGateway(),
+        ),
+        unreadFromPeerProvider.overrideWith((ref, orderId) => 0),
+        rawTradesProvider.overrideWith((ref) async => const []),
+        cancelOrderActionProvider.overrideWithValue(cancel),
+      ],
+      child: MaterialApp.router(
+        routerConfig: router,
+        locale: const Locale('es'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+      ),
+    ),
+  );
+  await tester.pump();
+  await tester.tap(find.text('mis operaciones'));
+  await tester.pumpAndSettle();
+}
+
+const _withdraw = ValueKey('simple-withdraw-offer');
+
 void main() {
+  group('an order of the user\'s own that nobody has taken', () {
+    testWidgets('can be withdrawn, and no other order can', (tester) async {
+      await _pumpTrade(tester, status: OrderStatus.pending, isBuyer: true);
+      expect(find.byKey(_withdraw), findsOneWidget);
+      expect(find.text('Retirar oferta'), findsOneWidget);
+      // A seller's as a buyer's.
+      await _pumpTrade(tester, status: OrderStatus.pending, isBuyer: false);
+      expect(find.byKey(_withdraw), findsOneWidget);
+
+      // Once it is anything else the way out is another: the deposit
+      // screen, the invoice screens, the help of a mediator.
+      for (final status in [
+        OrderStatus.waitingMakerBond,
+        OrderStatus.waitingTakerBond,
+        OrderStatus.inProgress,
+        OrderStatus.waitingBuyerInvoice,
+        OrderStatus.waitingPayment,
+        OrderStatus.active,
+        OrderStatus.fiatSent,
+        OrderStatus.success,
+      ]) {
+        for (final isBuyer in [true, false]) {
+          await _pumpTrade(tester, status: status, isBuyer: isBuyer);
+          expect(
+            find.byKey(_withdraw),
+            findsNothing,
+            reason: '$status, buyer: $isBuyer',
+          );
+        }
+      }
+    });
+
+    testWidgets('is not offered a mediator there is no one to see', (
+      tester,
+    ) async {
+      // "Pedir ayuda" opens a dispute, which the node takes only on a trade
+      // that is active or paid: on an order with no counterparty it was a
+      // button that could only fail.
+      for (final status in [
+        OrderStatus.pending,
+        OrderStatus.waitingMakerBond,
+      ]) {
+        await _pumpTrade(tester, status: status, isBuyer: true);
+        expect(find.text('PEDIR AYUDA'), findsNothing, reason: '$status');
+      }
+
+      // With someone on the other side it is there as before.
+      for (final status in [OrderStatus.active, OrderStatus.fiatSent]) {
+        await _pumpTrade(tester, status: status, isBuyer: true);
+        expect(find.text('PEDIR AYUDA'), findsOneWidget, reason: '$status');
+      }
+    });
+
+    testWidgets('is withdrawn after a question, once, and the view is left', (
+      tester,
+    ) async {
+      final sent = <String>[];
+      await _pumpPushedTrade(
+        tester,
+        status: ValueNotifier(OrderStatus.pending),
+        cancel: (orderId) async => sent.add(orderId),
+      );
+
+      // Never in one tap.
+      await tester.tap(find.byKey(_withdraw));
+      await tester.pumpAndSettle();
+      expect(find.text('¿Retirar tu oferta?'), findsOneWidget);
+      expect(
+        find.text(
+          'Dejará de verse en el mercado. Puedes publicar otra cuando quieras.',
+        ),
+        findsOneWidget,
+      );
+      expect(sent, isEmpty);
+
+      // "Back" sends nothing and leaves the order where it was.
+      await tester.tap(find.text('Volver'));
+      await tester.pumpAndSettle();
+      expect(sent, isEmpty);
+      expect(find.byType(SimpleTradeDetailView), findsOneWidget);
+
+      await tester.tap(find.byKey(_withdraw));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sí, retirar'));
+      await tester.pumpAndSettle();
+
+      expect(sent, ['mine-1']);
+      // Sent, which is not yet gone from the book: said as it is.
+      expect(
+        find.text('Retiro enviado. Tu oferta dejará de verse en unos segundos.'),
+        findsOneWidget,
+      );
+      // Nothing is left to follow: back where the user came from.
+      expect(find.byType(SimpleTradeDetailView), findsNothing);
+      expect(find.text('mis operaciones'), findsOneWidget);
+    });
+
+    testWidgets('says a locked guarantee comes back with it', (tester) async {
+      await _pumpPushedTrade(
+        tester,
+        status: ValueNotifier(OrderStatus.pending),
+        cancel: (_) async {},
+        hasBond: true,
+      );
+
+      await tester.tap(find.byKey(_withdraw));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'Dejará de verse en el mercado y tu garantía temporal quedará liberada. Puedes publicar otra cuando quieras.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('is not cancelled once someone has taken it', (tester) async {
+      // Taken while the question is up. A cancel sent now would not be a
+      // withdrawal: on a trade gone active it is a request to the other
+      // side.
+      final status = ValueNotifier(OrderStatus.pending);
+      final sent = <String>[];
+      await _pumpPushedTrade(
+        tester,
+        status: status,
+        cancel: (orderId) async => sent.add(orderId),
+      );
+
+      await tester.tap(find.byKey(_withdraw));
+      await tester.pumpAndSettle();
+      status.value = OrderStatus.active;
+      await tester.pump();
+      await tester.tap(find.text('Sí, retirar'));
+      await tester.pumpAndSettle();
+
+      expect(sent, isEmpty);
+      expect(
+        find.text('Alguien acaba de tomar tu oferta: ya no se puede retirar.'),
+        findsOneWidget,
+      );
+      expect(find.byType(SimpleTradeDetailView), findsOneWidget);
+      expect(find.byKey(_withdraw), findsNothing);
+    });
+
+    testWidgets('stays, and says why, when the withdrawal fails', (
+      tester,
+    ) async {
+      var attempts = 0;
+      await _pumpPushedTrade(
+        tester,
+        status: ValueNotifier(OrderStatus.pending),
+        cancel: (_) async {
+          attempts += 1;
+          throw Exception('relay pool offline');
+        },
+      );
+
+      await tester.tap(find.byKey(_withdraw));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sí, retirar'));
+      await tester.pumpAndSettle();
+
+      expect(attempts, 1);
+      expect(
+        find.text('No se pudo retirar la oferta. Inténtalo de nuevo.'),
+        findsOneWidget,
+      );
+      // No raw error on screen, the order still there, and the button
+      // back on for another try.
+      expect(find.textContaining('relay pool'), findsNothing);
+      expect(find.byType(SimpleTradeDetailView), findsOneWidget);
+      expect(
+        tester.widget<OutlinedButton>(find.byKey(_withdraw)).onPressed,
+        isNotNull,
+      );
+    });
+  });
+
   testWidgets(
     'SimpleTradeDetailView renders YA PAGUÉ for buyer in active state',
     (tester) async {

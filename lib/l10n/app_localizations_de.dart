@@ -4433,4 +4433,108 @@ class AppLocalizationsDe extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get simplePriceLabel => 'Preis';
+
+  @override
+  String get simplePriceMarket => 'Markt';
+
+  @override
+  String get simplePriceLower => '1 % niedriger';
+
+  @override
+  String get simplePriceRaise => '1 % höher';
+
+  @override
+  String get simplePriceSellMarket => 'Du verkaufst zum Marktpreis.';
+
+  @override
+  String simplePriceSellAbove(String percent) {
+    return 'Mit Aufschlag: Du gibst $percent % weniger Sats ab.';
+  }
+
+  @override
+  String simplePriceSellBelow(String percent) {
+    return 'Mit Rabatt: Du gibst $percent % mehr Sats ab.';
+  }
+
+  @override
+  String get simplePriceBuyMarket => 'Du kaufst zum Marktpreis.';
+
+  @override
+  String simplePriceBuyAbove(String percent) {
+    return 'Mit Aufschlag: Du erhältst $percent % weniger Sats.';
+  }
+
+  @override
+  String simplePriceBuyBelow(String percent) {
+    return 'Mit Rabatt: Du erhältst $percent % mehr Sats.';
+  }
+
+  @override
+  String get simpleBuyOrderPrompt => 'Kein Angebot passt?';
+
+  @override
+  String get simpleBuyOrderPromptAction => 'Eigenes veröffentlichen';
+
+  @override
+  String get simpleBuyOrderEmptyHint =>
+      'Versuche eine andere Zahlungsmethode oder veröffentliche deine eigene Kauforder: Die Verkäufer der Community sehen sie.';
+
+  @override
+  String get simpleBuyOrderAction => 'Kauforder veröffentlichen';
+
+  @override
+  String get simpleBuyOrderOpen => 'Kauforder erstellen';
+
+  @override
+  String get simpleBuyOrderTitle => 'Deine Kauforder veröffentlichen';
+
+  @override
+  String get simpleBuyOrderAmount => 'Du möchtest kaufen';
+
+  @override
+  String get simpleBuyOrderMethods => 'Womit kannst du zahlen?';
+
+  @override
+  String get simpleBuyOrderMethodsHint =>
+      'Markiere alle Wege, auf denen du zahlen kannst. Sie werden mit deiner Order veröffentlicht.';
+
+  @override
+  String get simpleBuyOrderNotice =>
+      'Die Verkäufer der Community sehen deine Order. Wenn einer sie annimmt und sein Bitcoin gesperrt ist, sagt dir die App, dass du zahlen kannst. Sende vorher kein Geld.';
+
+  @override
+  String get simpleOfferWaitingTaker =>
+      'Angebot veröffentlicht. Warten, bis jemand es annimmt';
+
+  @override
+  String get simpleWithdrawOffer => 'Angebot zurückziehen';
+
+  @override
+  String get simpleWithdrawTitle => 'Dein Angebot zurückziehen?';
+
+  @override
+  String get simpleWithdrawBody =>
+      'Es ist dann nicht mehr auf dem Markt zu sehen. Du kannst jederzeit ein neues veröffentlichen.';
+
+  @override
+  String get simpleWithdrawBodyBond =>
+      'Es ist dann nicht mehr auf dem Markt zu sehen und deine vorübergehende Garantie wird freigegeben. Du kannst jederzeit ein neues veröffentlichen.';
+
+  @override
+  String get simpleWithdrawConfirm => 'Ja, zurückziehen';
+
+  @override
+  String get simpleWithdrawSent =>
+      'Rückzug gesendet. Dein Angebot verschwindet in wenigen Sekunden.';
+
+  @override
+  String get simpleWithdrawFailed =>
+      'Das Angebot konnte nicht zurückgezogen werden. Versuche es erneut.';
+
+  @override
+  String get simpleWithdrawTaken =>
+      'Jemand hat dein Angebot gerade angenommen: Es lässt sich nicht mehr zurückziehen.';
 }

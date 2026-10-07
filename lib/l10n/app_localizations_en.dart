@@ -4378,4 +4378,108 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get simplePriceLabel => 'Price';
+
+  @override
+  String get simplePriceMarket => 'Market';
+
+  @override
+  String get simplePriceLower => '1 % lower';
+
+  @override
+  String get simplePriceRaise => '1 % higher';
+
+  @override
+  String get simplePriceSellMarket => 'You sell at the market price.';
+
+  @override
+  String simplePriceSellAbove(String percent) {
+    return 'At a premium: you hand over $percent % fewer sats.';
+  }
+
+  @override
+  String simplePriceSellBelow(String percent) {
+    return 'At a discount: you hand over $percent % more sats.';
+  }
+
+  @override
+  String get simplePriceBuyMarket => 'You buy at the market price.';
+
+  @override
+  String simplePriceBuyAbove(String percent) {
+    return 'At a premium: you receive $percent % fewer sats.';
+  }
+
+  @override
+  String simplePriceBuyBelow(String percent) {
+    return 'At a discount: you receive $percent % more sats.';
+  }
+
+  @override
+  String get simpleBuyOrderPrompt => 'No offer suits you?';
+
+  @override
+  String get simpleBuyOrderPromptAction => 'Publish your own';
+
+  @override
+  String get simpleBuyOrderEmptyHint =>
+      'Try another payment method, or publish your own buy order: the community\'s sellers will see it.';
+
+  @override
+  String get simpleBuyOrderAction => 'Publish buy order';
+
+  @override
+  String get simpleBuyOrderOpen => 'Create a buy order';
+
+  @override
+  String get simpleBuyOrderTitle => 'Publish your buy order';
+
+  @override
+  String get simpleBuyOrderAmount => 'You want to buy';
+
+  @override
+  String get simpleBuyOrderMethods => 'How can you pay?';
+
+  @override
+  String get simpleBuyOrderMethodsHint =>
+      'Tick every way you can pay. They are published with your order.';
+
+  @override
+  String get simpleBuyOrderNotice =>
+      'The community\'s sellers will see your order. When one takes it and their Bitcoin is locked, the app tells you to pay. Do not send money before that.';
+
+  @override
+  String get simpleOfferWaitingTaker =>
+      'Offer published. Waiting for someone to take it';
+
+  @override
+  String get simpleWithdrawOffer => 'Withdraw offer';
+
+  @override
+  String get simpleWithdrawTitle => 'Withdraw your offer?';
+
+  @override
+  String get simpleWithdrawBody =>
+      'It will no longer show on the market. You can publish another whenever you like.';
+
+  @override
+  String get simpleWithdrawBodyBond =>
+      'It will no longer show on the market and your temporary guarantee is released. You can publish another whenever you like.';
+
+  @override
+  String get simpleWithdrawConfirm => 'Yes, withdraw';
+
+  @override
+  String get simpleWithdrawSent =>
+      'Withdrawal sent. Your offer will stop showing in a few seconds.';
+
+  @override
+  String get simpleWithdrawFailed =>
+      'The offer could not be withdrawn. Try again.';
+
+  @override
+  String get simpleWithdrawTaken =>
+      'Someone has just taken your offer: it can no longer be withdrawn.';
 }

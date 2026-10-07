@@ -86,3 +86,17 @@ final sellTickedMethodsProvider = StateProvider.autoDispose<Set<String>>(
 final buyTickedMethodsProvider = StateProvider.autoDispose<Set<String>>(
   (_) => const {},
 );
+
+/// What the buyer's own order names ([SimpleBuyOrderSheet]), as
+/// [paymentMethodKey]s: the sheet's ticks, not the tab's.
+///
+/// It opens with the tab's — the buyer has already said how they can pay —
+/// and is read against the community's list ([sellMethodGroupsProvider]),
+/// as a seller's ticks are: a filter can name a method only some offer
+/// carries, free text from any client, and an order published from here
+/// does not repeat it. A tick made in the sheet stays in the sheet: it
+/// changes what the order says, not which offers the tab shows. Alive while
+/// the sheet is, so the next opening starts from the tab's ticks again.
+final buyOrderTickedMethodsProvider = StateProvider.autoDispose<Set<String>>(
+  (ref) => ref.read(buyTickedMethodsProvider),
+);

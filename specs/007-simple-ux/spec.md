@@ -126,6 +126,23 @@ In Simple Mode, the user selects **"Comprar Bitcoin"** from the navigation bar. 
 4. *"Revisar y confirmar"* (Summarizes sats to receive, fee, and temporary refundable security guarantee).  
 Upon tapping **"Comprar"**, the trade initiates and moves directly to the humanized trade timeline.
 
+A buyer none of the offers suits is not left there. A line above the list — *"¿Ninguna oferta te sirve? Publica la tuya"* — and a button where the list is empty (*"Crear orden de compra"*) open a sheet that publishes a buy order of their own, for the amount on the tab and starting from the payment methods ticked there:
+```text
+Publica tu orden de compra
+
+Quieres comprar                 50 USD
+Recibirás                  ~78716 sats
+
+%  Precio          ( − )   +2%   ( + )
+Con prima: recibes un 2 % menos de sats. 1 BTC ≈ 63.265,31 USD
+
+¿Con qué puedes pagar?
+[ Banco Pichincha × ] [ Efectivo × ]
+
+[ PUBLICAR ORDEN DE COMPRA ]
+```
+The community's sellers see it under *"Compradores activos en el mercado"* on their Sell tab.
+
 **Why this priority**: Matches the standard mental model of consumer financial applications (Amazon, Uber, fintech apps: choose amount -> choose payment -> confirm).
 
 **Independent Test**:  
@@ -141,6 +158,10 @@ Can be tested by selecting an amount and payment method and asserting that match
      node's own figure. With bonds off, or before the node has answered, no
      guarantee is shown at all; no default percentage exists.
 3. **Given** the user confirms the purchase, **Then** the taker order request is dispatched via Mostro protocol v2 and navigates to the trade timeline.
+4. **Given** 50 USD typed and two methods ticked, **When** the user opens the sheet from the line above the offers, sets the price to +2 % and publishes, **Then** a buy order for 50 USD goes out at market price with a premium of 2, naming both methods, and the app moves to its timeline, whose step under way reads *"Oferta publicada. Esperando a que alguien la tome"* — not *"Oferta aceptada"*.
+5. **Given** no method ticked (every offer, on the tab) or an amount that is not whole, **Then** the sheet says which is missing and publishes nothing. A method ticked in the sheet is the order's, not the tab's filter.
+6. **Given** the tab filters by a method only an offer carries (not on the community's list), **Then** the sheet does not show it and the order does not name it.
+7. **Given** the order is on its way to the node, **Then** nothing on the sheet can be changed and a second tap sends nothing; **and Given** the sheet is dragged away meanwhile, **When** the node accepts, **Then** the app still opens the order's timeline — the order went out.
 
 ---
 
@@ -325,9 +346,12 @@ When toggled:
 ### 3.3 Transaction & Order Workflows
 - **FR-010**: The Buy flow MUST allow the user to specify an amount in fiat, tick any number of payment methods — the community's, grouped by category, plus the ones only the offers carry — and present a curated list of active sellers: the offers that take at least one ticked method, and every offer while none is ticked. The amount is a **whole number**; the list holds only orders still `pending` on the public book that are not the user's own; a range order is taken for the amount typed and only when it lies inside the order's limits — never for a default.
 - **FR-011**: The Sell flow MUST allow the user to create an offer specifying amount, one or more receive methods and payment details without exposing raw Nostr event structures. The methods are ticked from the community's own list, grouped by category; none is preselected, and the offer cannot be published with none. The order carries all of them. The offer is always published **at market price** (no sats; the node fixes them when it is taken and applies the premium then), for a whole amount, and cannot be published while the amount field holds anything else.
+- **FR-011b**: Both tabs set an order's price against the market with one control on one row — a step down, the figure, a step up (`SimplePriceStepper`) — in whole percent, from −10 to +10: a seller can ask for more **or sell at a discount**, a buyer can offer more or ask for less. Under the row the figure is said in words from the side of whoever sets it, **in sats** — *"Con prima: entregas un 3 % menos de sats"*, *"Con descuento: recibes un 2 % más de sats"* — with the price of one BTC it comes to. In sats because that is mostrod's arithmetic and so exact at every figure: the premium comes off the sats, and the same money for 10 % fewer sats is a coin 11.1 % dearer, not 10 %. The figure is lime where it favours that side and the warning colour where it costs them; the sell confirmation repeats both for the price it is about to publish. On the Sell tab a buyer's premium is coloured from the seller's side too: one who pays over the market is the better offer there.
+- **FR-011c**: The Buy flow MUST let the user publish a buy order of their own (`SimpleBuyOrderSheet`, `simpleBuyOrder`) without leaving Simple Mode: for the whole amount typed on the tab, in the tab's currency as it reads when the order is sent, at the price of FR-011b; at market price, never with fixed sats. Its payment methods are the **community's list** — as a seller's are, not the tab's wider filter list, which also holds whatever offers on the book were written with — at least one, opened with the tab's ticks and from then on the sheet's own (`buyOrderTickedMethodsProvider`): a tick made there does not change which offers the tab shows. The sheet shows what the buyer would receive net of their half of the node's fee, and a guarantee only when the node bonds makers. It opens from a line above the offers and from the empty list. While the order is on its way its controls are off and it is sent once; the answer does not depend on the sheet still being open — accepted, the order's timeline (or its guarantee) opens either way.
 - **FR-012**: All anti-abuse bonds MUST be labeled as **"Garantía temporal"** (Temporary Security Guarantee) with an explanatory tooltip: *"Se devuelve automáticamente al completar la operación con éxito"*. A guarantee is shown only where one exists: before a trade, when the node's Kind 38385 policy bonds the user's side; in a trade, when its row carries a bond. Never a default figure.
 - **FR-013**: The active trade screen MUST present a progressive vertical timeline mapping internal Mostro wire states to clear human-readable milestones:
   - `WaitingMakerBond` / `WaitingTakerBond` -> *Garantía temporal en proceso* (the milestone exists only for a trade that has a bond)
+  - `Pending` (the user's own order, untaken) -> *Oferta publicada. Esperando a que alguien la tome*, the step under way; with a maker's guarantee, that step comes first and this one second. Never *Oferta aceptada*, and the escrow step is not under way: there is no counterparty yet. A public `pending` is shown only once the trade row is read in: before that it may be a take whose order still reads `pending`.
   - `InProgress` -> *Operación tomada, esperando al nodo*. This is the public book's "taken" bucket, which lasts from the take until the trade ends: it is **not** `Active`, offers no payment action, and tells the buyer not to send money yet.
   - `WaitingBuyerInvoice` -> *Conectando wallet de recepción*
   - `WaitingServerPayment` -> *Bitcoin protegido en custodia*
@@ -335,13 +359,14 @@ When toggled:
   - `FiatSent` -> *Verificar cuenta bancaria*
   - `SettledHoldInvoice` / `Success` -> *Operación completada*
   - `DisputeInitiatedByYou` / `DisputeInitiatedByPeer` -> *En mediación comunitaria*
+- **FR-013c**: The trade view MUST let the user withdraw their own order while nobody has taken it (`Pending`): a `[ Retirar oferta ]` button, a question before anything is sent (*"¿Retirar tu oferta?"* — which says a locked guarantee is released, when the order has one), then the order's cancel to the node, a notice that the withdrawal was **sent** (the node's answer is what takes the order off the book) and back to where the user came from. The status is read again when the question is answered: an order taken meanwhile is not cancelled — on a trade gone active a cancel is a request to the counterparty — and the user is told why. No other status offers it: a maker's unpaid guarantee is abandoned from its own screen, a taken order is cancelled from the invoice screens or goes to mediation.
 - **FR-013b**: The trade view MUST NOT assume a status or a side it has not read. While either is unknown it shows a loading state, never the `Active` buyer view.
 - **FR-014**: Before marking payment as sent, the app MUST display a safety checkpoint: *"Verifica cuidadosamente los datos de pago antes de continuar"*.
 - **FR-015**: Before releasing Bitcoin, the app MUST display an irreversible action checkpoint: *"Confirma únicamente después de ver el dinero reflejado en tu propia cuenta bancaria. Esta acción no se puede deshacer."*
 - **FR-015b**: The seller's payment details (account, holder, phone) are written once per payment method and kept on the device, with the identity. They are **never part of the order**. They reach the buyer as a message in the trade's encrypted chat, sent by the seller's own tap from the trade view, and only while the escrow is locked (`Active`, `FiatSent`, `Dispute` on the trade row) — the core enforces both (`specs/004-mostro-p2p-client/contracts/payment_details.md`). A seller who took a buy offer writes them on that same card. The app says they were sent only for a message a relay accepted.
 
 ### 3.4 Assistance & Mediation ("Pedir Ayuda")
-- **FR-016**: The active trade view MUST feature a prominent `[ PEDIR AYUDA ]` button instead of "Open Dispute".
+- **FR-016**: The active trade view MUST feature a prominent `[ PEDIR AYUDA ]` button instead of "Open Dispute". It is not shown on the user's own order while nobody has taken it (`Pending`, `WaitingMakerBond`): there is no counterparty to mediate with, the node refuses a dispute outside `active` and `fiat-sent`, and what can be done with such an order is to withdraw it (FR-013c).
 - **FR-017**: Tapping `[ PEDIR AYUDA ]` MUST prompt the user for an explanation, trigger the dispute mechanism on the Mostro node, and connect the in-trade chat to the community solver.
 - **FR-018**: The mediation view MUST show the status of the case (*Caso recibido*, *Mediador asignado*, *Esperando decisión*).
 
