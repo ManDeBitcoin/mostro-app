@@ -10,6 +10,8 @@ import 'package:mostro/features/order/models/create_order_rules.dart'
     show takerBondApplies;
 import 'package:mostro/features/order/models/invoice_rules.dart'
     show tradeFeeShare;
+import 'package:mostro/features/order/models/order_detail_rules.dart'
+    show paymentMethodsSummary;
 import 'package:mostro/features/order/providers/bond_providers.dart'
     show bondEstimateProvider;
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
@@ -132,6 +134,11 @@ class _SimpleBuyConfirmSheetState extends ConsumerState<SimpleBuyConfirmSheet> {
     // node has said, no deposit is shown.
     final node = ref.watch(mostroNodeProvider).valueOrNull;
     final sats = widget.estimatedSats;
+    // The order's methods, one list for the label's number and the lines
+    // under it.
+    final paymentMethods = paymentMethodsSummary(
+      widget.order.paymentMethod,
+    ).all;
     final l10n = AppLocalizations.of(context);
     // This side's half of the node's fee, when the node has said its fee.
     final feeShare = tradeFeeShare(sats: sats, nodeFee: node?.fee);
@@ -147,7 +154,9 @@ class _SimpleBuyConfirmSheetState extends ConsumerState<SimpleBuyConfirmSheet> {
         : null;
 
     return SafeArea(
-      child: Padding(
+      // Scrolls: an offer's methods run to as many lines as they need, and
+      // on a short screen the summary is taller than the sheet.
+      child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -301,8 +310,12 @@ class _SimpleBuyConfirmSheetState extends ConsumerState<SimpleBuyConfirmSheet> {
                   ),
                   const Divider(height: 20),
                   _buildRow(
-                    label: SimpleL10n.selectPaymentMethod(context),
-                    value: widget.order.paymentMethod,
+                    // What the seller takes, not a choice made here: the
+                    // two agree on one of them once the trade is on.
+                    label: l10n.simpleSummaryMethods(paymentMethods.length),
+                    // One to a line: run together, a name breaks across
+                    // two lines and reads as two methods.
+                    value: paymentMethods.join('\n'),
                     pal: pal,
                   ),
                   const Divider(height: 20),
@@ -429,21 +442,25 @@ class _SimpleBuyConfirmSheetState extends ConsumerState<SimpleBuyConfirmSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               label,
-              style: TextStyle(
-                color: pal.textSecondary,
-                fontSize: 13,
-              ),
+              style: TextStyle(color: pal.textSecondary, fontSize: 13),
             ),
-            Text(
-              value,
-              style: TextStyle(
-                color: isHighlight ? pal.limeText : pal.textTitle,
-                fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
-                fontSize: isHighlight ? 15 : 13,
+            const SizedBox(width: 16),
+            // What is left of the row, and as many lines as it takes: a
+            // list of payment methods does not fit beside its label, and a
+            // value that is not allowed to wrap runs off the sheet.
+            Expanded(
+              child: Text(
+                value,
+                textAlign: TextAlign.end,
+                style: TextStyle(
+                  color: isHighlight ? pal.limeText : pal.textTitle,
+                  fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
+                  fontSize: isHighlight ? 15 : 13,
+                ),
               ),
             ),
           ],

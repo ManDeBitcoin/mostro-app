@@ -107,7 +107,7 @@ void main() {
     const sheet = SimpleSellConfirmSheet(
       fiatAmount: 100,
       fiatCode: 'USD',
-      paymentMethod: 'Transferencia',
+      paymentMethods: ['Transferencia'],
       paymentDetails: '',
       premium: 5,
       // The estimate the screen shows. It used to be sent as the order's
@@ -407,7 +407,7 @@ void main() {
       () => const SimpleSellConfirmSheet(
         fiatAmount: 100,
         fiatCode: 'USD',
-        paymentMethod: 'Transferencia',
+        paymentMethods: ['Transferencia'],
         paymentDetails: '',
         premium: 0,
         estimatedSats: 118000,

@@ -29,16 +29,21 @@ int? wholeFiatAmount(String text) {
 /// then. Fixed sats together with a premium is what the node refuses with
 /// `CantDo(InvalidParameters)`; fixed sats with no premium would freeze a
 /// price the screen calls "market". The estimate on screen is for display.
+///
+/// [paymentMethods] are every method the seller takes, at least one. An
+/// order carries them as one string, comma-separated: the node splits it
+/// into the values of the public order's `pm` tag, which is why no method's
+/// name may hold a comma.
 NewOrderParams simpleSellOrder({
   required double fiatAmount,
   required String fiatCode,
-  required String paymentMethod,
+  required List<String> paymentMethods,
   required double premium,
 }) => NewOrderParams(
   kind: OrderKind.sell,
   fiatAmount: fiatAmount,
   fiatCode: fiatCode,
-  paymentMethod: paymentMethod,
+  paymentMethod: paymentMethods.join(','),
   premium: premium,
   amountSats: null,
 );
@@ -84,10 +89,16 @@ const simpleFallbackPaymentMethods = [
 
 /// [methods] trimmed, without blanks, and without a second spelling of one
 /// already there (`Zelle`, `zelle`), in the order given.
+///
+/// A comma in a name is written as a space. An order carries its methods
+/// comma-separated, so a name with one would leave as two methods, neither
+/// of them on the list, and as a filter it would match no offer at all.
 List<String> _distinctMethods(Iterable<String> methods) {
   final seen = <String>{};
   return [
-    for (final method in methods.map((m) => m.trim()))
+    for (final method in methods.map(
+      (m) => m.replaceAll(',', ' ').replaceAll(RegExp(r'\s+'), ' ').trim(),
+    ))
       if (method.isNotEmpty && seen.add(method.toLowerCase())) method,
   ];
 }
@@ -101,24 +112,30 @@ List<String> sellPaymentMethods(List<String>? official) {
 
 /// How many methods of the book's own the Buy tab offers as filters, beyond
 /// the community's list. The book is free text any seller writes, from any
-/// client: without a limit one order listing fifty methods is fifty chips.
+/// client: without a limit one order listing fifty methods is fifty rows.
 const maxBookPaymentMethods = 12;
 
-/// The methods the Buy tab can filter by: the seller's list
-/// ([sellPaymentMethods]), then the other methods the offers on the book
-/// carry — the ones most offers share first, then alphabetically, and no
-/// more than [maxBookPaymentMethods] of them.
+/// The methods the offers on the book carry that the community's list
+/// ([sellPaymentMethods]) does not: the ones most offers share first, then
+/// alphabetically, and no more than [maxBookPaymentMethods] of them — plus
+/// any beyond that limit the user has [ticked].
 ///
-/// The book's own methods are there so that a method the list does not know
-/// yet — the operator has not added it, or a seller used another client —
-/// can still be filtered by. No offer depends on it to be seen: the tab
-/// starts on "all", which shows every one.
-List<String> buyPaymentMethods({
+/// The Buy tab offers them as filters next to the community's own, so that
+/// a method the list does not know yet — the operator has not added it, or
+/// a seller used another client — can still be filtered by. No offer
+/// depends on it to be seen: with nothing ticked the tab shows every one.
+///
+/// A ticked one stays listed while any offer carries it, whatever its rank:
+/// dropped for being the thirteenth, it would stop filtering — and could no
+/// longer be unticked — with its offers still on the book.
+List<String> offerOnlyPaymentMethods({
   required List<String>? official,
   required Iterable<OrderItem> offers,
+  Set<String> ticked = const {},
 }) {
-  final listed = sellPaymentMethods(official);
-  final known = {for (final method in listed) method.trim().toLowerCase()};
+  final known = {
+    for (final method in sellPaymentMethods(official)) paymentMethodKey(method),
+  };
   final spelling = <String, String>{};
   final count = <String, int>{};
   for (final offer in offers) {
@@ -126,7 +143,7 @@ List<String> buyPaymentMethods({
     final seen = <String>{};
     for (final method in offer.paymentMethod.split(',')) {
       final label = method.trim();
-      final key = label.toLowerCase();
+      final key = paymentMethodKey(label);
       if (label.isEmpty || known.contains(key) || !seen.add(key)) continue;
       spelling.putIfAbsent(key, () => label);
       count[key] = (count[key] ?? 0) + 1;
@@ -138,28 +155,58 @@ List<String> buyPaymentMethods({
       return byUse != 0 ? byUse : a.compareTo(b);
     });
   return [
-    ...listed,
-    for (final key in fromBook.take(maxBookPaymentMethods)) spelling[key]!,
+    for (final (rank, key) in fromBook.indexed)
+      if (rank < maxBookPaymentMethods || ticked.contains(key)) spelling[key]!,
   ];
 }
 
-/// The entry of [methods] that [chosen] names, as the list writes it now, or
-/// null when [chosen] is null or is not on the list any more. Matched
-/// without regard to case or outer spaces: a list that comes back writing
-/// `efectivo` still holds the user's `Efectivo`.
-String? methodOnList(List<String> methods, String? chosen) {
-  if (chosen == null) return null;
-  final key = chosen.trim().toLowerCase();
-  for (final method in methods) {
-    if (method.trim().toLowerCase() == key) return method;
-  }
-  return null;
-}
+/// How a payment method is told from another: without regard to case or
+/// outer spaces. It is how the book's own filter compares them
+/// (`OrderItem.paymentTokens`), and what lets a list that comes back
+/// writing `efectivo` still hold the user's `Efectivo`.
+String paymentMethodKey(String method) => method.trim().toLowerCase();
 
-/// Whether [order] can be paid by [method]; any order when [method] is null
-/// ("all methods").
-bool isPaidBy(OrderItem order, String? method) =>
-    method == null || order.paymentTokens.contains(method.trim().toLowerCase());
+/// The entries of [methods] the user has ticked, in the order and the
+/// spelling of [methods].
+///
+/// [ticked] holds [paymentMethodKey]s. It can name a method that has left
+/// the list since — the operator dropped it, its last offer was taken: that
+/// one is not here, and comes back if the list takes it up again before the
+/// user changes their ticks ([listedTicks]). A method the user never ticked
+/// is never here, so nothing is chosen in their place.
+List<String> tickedMethods(List<String> methods, Set<String> ticked) => [
+  for (final method in methods)
+    if (ticked.contains(paymentMethodKey(method))) method,
+];
+
+/// Of [ticked], the ticks on [methods]: what a change the user makes starts
+/// from.
+///
+/// A tick whose method has left the list is kept while the user leaves
+/// their ticks alone, so that it counts again if the list takes the method
+/// back ([tickedMethods]). But they cannot see it, and so cannot take it
+/// off; the first change they make is made to what they do see, and drops
+/// it.
+Set<String> listedTicks(List<String> methods, Set<String> ticked) =>
+    ticked.intersection({for (final method in methods) paymentMethodKey(method)});
+
+/// Whether [order] can be paid by at least one of [methods]; any order when
+/// [methods] is empty ("any method").
+bool isPaidByAny(OrderItem order, Iterable<String> methods) =>
+    methods.isEmpty ||
+    methods.any((m) => order.paymentTokens.contains(paymentMethodKey(m)));
+
+/// How many of [offers] each method can pay, by [paymentMethodKey].
+Map<String, int> offersByMethod(Iterable<OrderItem> offers) {
+  final count = <String, int>{};
+  for (final offer in offers) {
+    // A set: an order counts once for a method, however it repeats it.
+    for (final key in offer.paymentTokens) {
+      if (key.isNotEmpty) count[key] = (count[key] ?? 0) + 1;
+    }
+  }
+  return count;
+}
 
 /// The currency Simple Mode trades in: the community card's, else the one
 /// currency the node accepts when it accepts exactly one, else USD.

@@ -49,11 +49,28 @@ void main() {
         'DeUna',
       ]);
     });
+
+    test('writes a comma in a name as a space', () {
+      // An order carries its methods comma-separated: with its comma this
+      // one would leave as `Transferencia (Pichincha` and `Guayaquil)`.
+      expect(
+        sellPaymentMethods(['Transferencia (Pichincha, Guayaquil)', ' , ']),
+        ['Transferencia (Pichincha Guayaquil)'],
+      );
+      // And the order made of what is listed splits back into the list.
+      final order = simpleSellOrder(
+        fiatAmount: 100,
+        fiatCode: 'USD',
+        paymentMethods: sellPaymentMethods(['A, B', 'C']),
+        premium: 0,
+      );
+      expect(order.paymentMethod.split(','), ['A B', 'C']);
+    });
   });
 
-  group('buyPaymentMethods', () {
-    test('adds what the offers carry to the community list', () {
-      final methods = buyPaymentMethods(
+  group('offerOnlyPaymentMethods', () {
+    test("is what the offers carry beyond the community's list", () {
+      final methods = offerOnlyPaymentMethods(
         official: ['Transferencia', 'DeUna'],
         offers: [
           _order(method: 'Venmo,PayPal'),
@@ -63,31 +80,27 @@ void main() {
         ],
       );
 
-      // The community's first, as it wrote them; the rest alphabetically.
-      expect(methods, [
-        'Transferencia',
-        'DeUna',
-        'Banco Pichincha',
-        'PayPal',
-        'Venmo',
-      ]);
+      // None of the community's own; the rest alphabetically.
+      expect(methods, ['Banco Pichincha', 'PayPal', 'Venmo']);
     });
 
-    test('is the seller list when the book adds nothing', () {
+    test('is nothing when the book adds nothing', () {
       expect(
-        buyPaymentMethods(official: ['DeUna'], offers: const []),
-        ['DeUna'],
+        offerOnlyPaymentMethods(official: ['DeUna'], offers: const []),
+        isEmpty,
       );
+      // With no card the built-in list is the community's.
       expect(
-        buyPaymentMethods(official: null, offers: const []),
-        simpleFallbackPaymentMethods,
+        offerOnlyPaymentMethods(
+          official: null,
+          offers: [_order(method: 'Efectivo, zelle')],
+        ),
+        isEmpty,
       );
     });
-  });
 
-  group('buyPaymentMethods, the book\'s own methods', () {
     test('the ones most offers share come first', () {
-      final methods = buyPaymentMethods(
+      final methods = offerOnlyPaymentMethods(
         official: ['Transferencia'],
         offers: [
           _order(method: 'Venmo'),
@@ -99,47 +112,113 @@ void main() {
         ],
       );
 
-      expect(methods, ['Transferencia', 'Venmo', 'PayPal', 'Zelle']);
+      expect(methods, ['Venmo', 'PayPal', 'Zelle']);
     });
 
-    test('are capped, so one order cannot fill the screen with chips', () {
+    test('are capped, so one order cannot fill the picker with rows', () {
       final many = [for (var i = 0; i < 50; i++) 'Metodo ${i.toString().padLeft(2, '0')}'];
-      final methods = buyPaymentMethods(
+      final methods = offerOnlyPaymentMethods(
         official: ['Transferencia'],
         offers: [_order(method: many.join(','))],
       );
 
-      expect(methods, hasLength(1 + maxBookPaymentMethods));
-      expect(methods.first, 'Transferencia');
+      expect(methods, hasLength(maxBookPaymentMethods));
+      expect(methods.first, 'Metodo 00');
       expect(methods.last, 'Metodo 11');
     });
+
+    test('keep a ticked one past the cap, while an offer carries it', () {
+      final many = [for (var i = 0; i < 50; i++) 'Metodo ${i.toString().padLeft(2, '0')}'];
+      final methods = offerOnlyPaymentMethods(
+        official: ['Transferencia'],
+        offers: [_order(method: many.join(','))],
+        // The fortieth by rank, and one no offer carries.
+        ticked: {'metodo 39', 'venmo'},
+      );
+
+      // Dropped for its rank, it would stop filtering with its offer still
+      // on the book, and could not be unticked.
+      expect(methods, hasLength(maxBookPaymentMethods + 1));
+      expect(methods.last, 'Metodo 39');
+      expect(methods, isNot(contains('venmo')));
+    });
   });
 
-  group('methodOnList', () {
-    test('finds the choice however the list now writes it', () {
-      expect(methodOnList(['efectivo', 'DeUna'], 'Efectivo'), 'efectivo');
-      expect(methodOnList([' DeUna '], 'deuna'), ' DeUna ');
+  group('tickedMethods', () {
+    test('are the ticked ones, as the list writes and orders them', () {
+      expect(
+        tickedMethods(
+          ['efectivo', ' DeUna ', 'Zelle'],
+          {paymentMethodKey('deuna'), paymentMethodKey('Efectivo')},
+        ),
+        ['efectivo', ' DeUna '],
+      );
     });
 
-    test('is null for no choice, and for one that left the list', () {
-      expect(methodOnList(['Efectivo'], null), isNull);
-      expect(methodOnList(['Efectivo'], 'Zelle'), isNull);
-      expect(methodOnList(const [], 'Zelle'), isNull);
+    test('never hold a method the user did not tick', () {
+      expect(tickedMethods(['Efectivo', 'Zelle'], const {}), isEmpty);
+      // One that left the list is not replaced by one that is on it.
+      expect(tickedMethods(['Efectivo'], {'zelle'}), isEmpty);
+      expect(tickedMethods(const [], {'zelle'}), isEmpty);
+    });
+
+    test('take a method back when the list does', () {
+      final ticked = {paymentMethodKey('Zelle')};
+      expect(tickedMethods(['Efectivo'], ticked), isEmpty);
+      expect(tickedMethods(['Efectivo', 'ZELLE'], ticked), ['ZELLE']);
     });
   });
 
-  group('isPaidBy', () {
+  group('isPaidByAny', () {
     test('no method is every method', () {
-      expect(isPaidBy(_order(method: 'Venmo'), null), isTrue);
+      expect(isPaidByAny(_order(method: 'Venmo'), const []), isTrue);
     });
 
     test('matches one of the order methods whole, whatever the case', () {
       final order = _order(method: 'Banco Pichincha, Transferencia');
-      expect(isPaidBy(order, 'Transferencia'), isTrue);
-      expect(isPaidBy(order, 'banco pichincha'), isTrue);
-      expect(isPaidBy(order, 'Venmo'), isFalse);
+      expect(isPaidByAny(order, ['Transferencia']), isTrue);
+      expect(isPaidByAny(order, ['banco pichincha']), isTrue);
+      expect(isPaidByAny(order, ['Venmo']), isFalse);
       // Not a fragment: `Banco` is not this order's method.
-      expect(isPaidBy(order, 'Banco'), isFalse);
+      expect(isPaidByAny(order, ['Banco']), isFalse);
+    });
+
+    test('one method in common is enough', () {
+      final order = _order(method: 'Banco Pichincha, Transferencia');
+      expect(isPaidByAny(order, ['Venmo', 'Transferencia']), isTrue);
+      expect(isPaidByAny(order, ['Venmo', 'PayPal']), isFalse);
+    });
+  });
+
+  group('offersByMethod', () {
+    test('counts an offer once for each method it takes', () {
+      expect(
+        offersByMethod([
+          _order(method: 'Banco Pichincha, Deuna'),
+          _order(method: 'deuna'),
+          // Named twice by one order: one offer all the same.
+          _order(method: 'Zelle, zelle'),
+          _order(method: ' , '),
+        ]),
+        {'banco pichincha': 1, 'deuna': 2, 'zelle': 1},
+      );
+    });
+  });
+
+  group('listedTicks', () {
+    test('are the ticks a change starts from: the ones on the list', () {
+      expect(
+        listedTicks(['Efectivo', ' DeUna '], {'deuna', 'zelle', 'efectivo'}),
+        {'deuna', 'efectivo'},
+      );
+      expect(listedTicks(const [], {'zelle'}), isEmpty);
+      expect(listedTicks(['Zelle'], const {}), isEmpty);
+    });
+
+    test('are a set of their own, safe to change', () {
+      final ticked = {'deuna'};
+      listedTicks(['DeUna'], ticked).remove('deuna');
+      expect(ticked, {'deuna'});
     });
   });
 
@@ -169,7 +248,7 @@ void main() {
         final params = simpleSellOrder(
           fiatAmount: 100,
           fiatCode: 'USD',
-          paymentMethod: 'Transferencia',
+          paymentMethods: ['Transferencia'],
           premium: premium,
         );
         expect(params.amountSats, isNull, reason: 'premium $premium');
@@ -178,7 +257,20 @@ void main() {
         expect(params.fiatAmount, 100);
         expect(params.fiatAmountMin, isNull);
         expect(params.fiatAmountMax, isNull);
+        expect(params.paymentMethod, 'Transferencia');
       }
+    });
+
+    test('carries every method ticked, as the node splits them', () {
+      final params = simpleSellOrder(
+        fiatAmount: 100,
+        fiatCode: 'USD',
+        paymentMethods: ['Banco Pichincha', 'Deuna', 'Efectivo (USD)'],
+        premium: 0,
+      );
+      // One string, comma-separated and nothing else between: the node
+      // makes one value of the public order's `pm` tag out of each.
+      expect(params.paymentMethod, 'Banco Pichincha,Deuna,Efectivo (USD)');
     });
   });
 

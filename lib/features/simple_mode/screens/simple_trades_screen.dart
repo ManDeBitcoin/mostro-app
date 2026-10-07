@@ -229,23 +229,42 @@ class _SimpleTradesScreenState extends ConsumerState<SimpleTradesScreen> {
                             ),
                             const SizedBox(height: 6),
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  'Método: ${row.paymentMethod}',
-                                  style: TextStyle(
-                                    color: pal.textSecondary,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                if (row.peerHandle != null)
-                                  Text(
-                                    'Con: ${row.peerHandle}',
+                                // The first method and how many more, on
+                                // one line that gives way to the peer's
+                                // name: an order can take a dozen, and
+                                // written out they ran off the card.
+                                Expanded(
+                                  child: Text(
+                                    'Método: ${paymentMethodLabel(row.paymentMethod)}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                      color: pal.textTertiary,
+                                      color: pal.textSecondary,
                                       fontSize: 12,
                                     ),
                                   ),
+                                ),
+                                if (row.peerHandle != null) ...[
+                                  const SizedBox(width: 12),
+                                  // As wide as it is, up to a limit: a
+                                  // long name read at a large text size
+                                  // must leave the method some of the row.
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 170,
+                                    ),
+                                    child: Text(
+                                      'Con: ${row.peerHandle}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: pal.textTertiary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ],

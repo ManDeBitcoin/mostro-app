@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mostro/features/home/providers/home_order_providers.dart';
+import 'package:mostro/features/simple_mode/providers/payment_method_providers.dart';
 import 'package:mostro/features/simple_mode/screens/simple_buy_screen.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 
@@ -105,36 +108,174 @@ void main() {
   testWidgets('SimpleBuyScreen hides no offer behind a payment method', (
     tester,
   ) async {
-    // Both for the amount the field starts with, so neither is filtered
-    // out by amount.
+    // All for the amount the field starts with, so none is filtered out by
+    // amount.
     await _pumpBuy(tester, [
       _sell(id: 'a', fiat: 50, method: 'Transferencia'),
       // A method the built-in list does not know: with a method always
       // selected, this offer could never be seen.
       _sell(id: 'b', fiat: 50, method: 'Banco Pichincha'),
+      _sell(id: 'c', fiat: 50, method: 'Venmo, Zelle'),
     ]);
 
-    // Every offer to begin with, and a chip for each method on the book.
+    // Every offer to begin with: nothing ticked is every method.
+    expect(find.text('Cualquier método de pago'), findsOneWidget);
     expect(find.text('Pago: Transferencia'), findsOneWidget);
     expect(find.text('Pago: Banco Pichincha'), findsOneWidget);
-    expect(find.widgetWithText(ChoiceChip, 'Todos'), findsOneWidget);
-    expect(find.widgetWithText(ChoiceChip, 'Banco Pichincha'), findsOneWidget);
-    expect(
-      tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Todos')).selected,
-      isTrue,
-    );
+    expect(find.text('Pago: Venmo, Zelle'), findsOneWidget);
 
-    // One method chosen: only its offers.
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Banco Pichincha'));
+    // The picker lists the community's methods under their headings, then
+    // the ones only the offers carry, and says how many offers take each.
+    await tester.tap(find.text('Cualquier método de pago'));
+    await tester.pumpAndSettle();
+    for (final heading in [
+      'BANCOS',
+      'BILLETERAS Y APPS',
+      'EFECTIVO',
+      'TAMBIÉN EN LAS OFERTAS',
+    ]) {
+      expect(find.text(heading), findsOneWidget, reason: heading);
+    }
+    for (final method in ['Transferencia', 'Zelle', 'Banco Pichincha', 'Venmo']) {
+      expect(find.text(method), findsOneWidget, reason: method);
+    }
+    // Four methods with an offer each; the two without say nothing.
+    expect(find.text('1 oferta'), findsNWidgets(4));
+
+    // Two ticked: the offers that take either, and they move under the
+    // open picker — a tick applies as it is made.
+    await tester.tap(find.text('Banco Pichincha'));
+    await tester.tap(find.text('Venmo'));
     await tester.pump();
+    expect(find.text('Pago: Transferencia'), findsNothing);
+    await tester.tap(find.text('Listo · 2 elegidos'));
+    await tester.pumpAndSettle();
+    expect(find.text('2 elegidos'), findsOneWidget);
     expect(find.text('Pago: Banco Pichincha'), findsOneWidget);
+    expect(find.text('Pago: Venmo, Zelle'), findsOneWidget);
     expect(find.text('Pago: Transferencia'), findsNothing);
 
-    // And back to all of them.
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Todos'));
+    // One unticked where it stands: only the other's offers.
+    await tester.tap(find.bySemanticsLabel('Quitar Banco Pichincha'));
     await tester.pump();
+    expect(find.text('1 elegido'), findsOneWidget);
+    expect(find.text('Pago: Venmo, Zelle'), findsOneWidget);
+    expect(find.text('Pago: Banco Pichincha'), findsNothing);
+
+    // And back to all of them.
+    await tester.tap(find.text('1 elegido'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Quitar todos'));
+    await tester.pump();
+    await tester.tap(find.text('Listo'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cualquier método de pago'), findsOneWidget);
     expect(find.text('Pago: Transferencia'), findsOneWidget);
     expect(find.text('Pago: Banco Pichincha'), findsOneWidget);
+    expect(find.text('Pago: Venmo, Zelle'), findsOneWidget);
+  });
+
+  testWidgets('SimpleBuyScreen sets aside a filter no offer can meet', (
+    tester,
+  ) async {
+    final book = StreamController<List<OrderItem>>();
+    addTearDown(book.close);
+    tester.view.physicalSize = const Size(1400, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          orderBookProvider.overrideWith((ref) => book.stream),
+          // Ticked: a method only an offer carries.
+          buyTickedMethodsProvider.overrideWith((ref) => {'venmo'}),
+        ],
+        child: const MaterialApp(
+          locale: Locale('es'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: SimpleBuyScreen()),
+        ),
+      ),
+    );
+    book.add([
+      _sell(id: 'a', fiat: 50, method: 'Transferencia'),
+      _sell(id: 'b', fiat: 50, method: 'Venmo'),
+    ]);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('1 elegido'), findsOneWidget);
+    expect(find.text('Pago: Venmo'), findsOneWidget);
+    expect(find.text('Pago: Transferencia'), findsNothing);
+
+    // The Venmo offer is taken. The method is no longer one to filter by,
+    // and a filter the user cannot see or untick would hide every offer.
+    book.add([_sell(id: 'a', fiat: 50, method: 'Transferencia')]);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Cualquier método de pago'), findsOneWidget);
+    expect(find.text('Pago: Transferencia'), findsOneWidget);
+
+    // Another Venmo offer comes, and the user has not touched their
+    // filter: it is still what they asked for.
+    book.add([
+      _sell(id: 'a', fiat: 50, method: 'Transferencia'),
+      _sell(id: 'c', fiat: 50, method: 'venmo'),
+    ]);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('1 elegido'), findsOneWidget);
+    expect(find.text('Pago: venmo'), findsOneWidget);
+    expect(find.text('Pago: Transferencia'), findsNothing);
+  });
+
+  testWidgets('SimpleBuyScreen drops an unseen filter when the user picks', (
+    tester,
+  ) async {
+    final book = StreamController<List<OrderItem>>();
+    addTearDown(book.close);
+    tester.view.physicalSize = const Size(1400, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          orderBookProvider.overrideWith((ref) => book.stream),
+          buyTickedMethodsProvider.overrideWith((ref) => {'venmo'}),
+        ],
+        child: const MaterialApp(
+          locale: Locale('es'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: SimpleBuyScreen()),
+        ),
+      ),
+    );
+    // No Venmo offer: the filter is set aside, and nothing shows it.
+    book.add([_sell(id: 'a', fiat: 50, method: 'Transferencia')]);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Cualquier método de pago'), findsOneWidget);
+
+    // The user picks a method. What they see ticked is all that is ticked.
+    await tester.tap(find.text('Cualquier método de pago'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Transferencia'));
+    await tester.pump();
+    await tester.tap(find.text('Listo · 1 elegido'));
+    await tester.pumpAndSettle();
+
+    // So a Venmo offer that comes later is not let in by a filter they
+    // never saw again.
+    book.add([
+      _sell(id: 'a', fiat: 50, method: 'Transferencia'),
+      _sell(id: 'c', fiat: 50, method: 'Venmo'),
+    ]);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('1 elegido'), findsOneWidget);
+    expect(find.text('Pago: Transferencia'), findsOneWidget);
+    expect(find.text('Pago: Venmo'), findsNothing);
   });
 
   testWidgets('SimpleBuyScreen takes a range order only for a valid amount',
