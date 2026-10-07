@@ -231,12 +231,42 @@ one node" under Domain gotchas before touching anything node-related.
   active node signed, and each read starts another look once the last is ten minutes old; Dart
   re-reads every 45 s (`ActiveCommunityNotifier`), which is how a method the operator adds
   reaches an open app. From the card come name, methods, currency, website and contact — never
-  the fee or the bond, which are Kind 38385's. In Simple Mode the Sell list is the card's,
-  exactly (`sellPaymentMethods`, a built-in list until a card exists), and a method the user
-  picked is never swapped for another when the list changes: nothing is selected, and nothing
-  publishes, until they pick again (`methodOnList`). The Buy filter adds the methods on the
-  book, capped, and starts on "all" (`buyPaymentMethods`), so no offer hides behind a method
-  the list does not know.
+  the fee or the bond, which are Kind 38385's. Of a method it carries the name and nothing
+  else: the panel keeps a category for each (`PaymentMethod.category` in the Manager's
+  `api/src/config.rs`), and its card (`payment_methods: Vec<String>`) leaves it behind.
+- **Simple Mode picks payment methods in one place, any number of them.** A tab shows what is
+  ticked (`PaymentMethodField`) and opens the list over itself (`PaymentMethodPickerSheet`),
+  every method under a heading, with a search box over them (`searchPaymentMethods`: every word
+  typed has to be in the method's name or its heading, case and accents aside). The sheet draws
+  `MostroSheet`'s frame itself for two reasons: the title and the search box stay put while the
+  list scrolls under them, and the sheet has one height whatever the search finds — sized to its
+  content it moved the box being typed in with every letter. While a keyboard is up, or in a
+  window short to begin with, it leaves out its title and clear link; where a keyboard leaves
+  only a strip in sight, its button too — never without a keyboard, when nothing would bring it
+  back. The box and the list are keyed: title and foot go in one frame from either side of them,
+  and unkeyed they were built anew, the box without the focus the keyboard had come for. A tick
+  applies as it is made — there is no draft to confirm or to lose — and is kept as a
+  `paymentMethodKey` in `sellTickedMethodsProvider` / `buyTickedMethodsProvider`. Tab and sheet
+  both read the list from a provider (`payment_method_providers.dart`), because it moves under
+  an open sheet: the card arrives, the operator edits it, the book changes. On **Sell** the list
+  is the card's, exactly (`sellPaymentMethods`, a built-in list until a card exists). Nothing is
+  ticked for the seller — the first method used to be, so an order could name a bank its seller
+  never chose — and nothing publishes until they tick. The order carries every ticked method in
+  one string, comma-joined (`simpleSellOrder`): mostrod splits it into the values of the `pm`
+  tag, which is why a comma in a card's name is read as a space. On **Buy** the list adds the
+  methods only the offers carry, capped (`offerOnlyPaymentMethods`); nothing ticked is every
+  offer, and an offer shows when it takes any ticked method (`isPaidByAny`), so none hides
+  behind a method the list does not know; a ticked one stays listed past the cap while an offer
+  carries it. A ticked method that leaves the list is not replaced by another (`tickedMethods`).
+  It counts again if the list takes it back — until the user changes their ticks: a change is
+  made to the ticks on the list (`listedTicks`), and drops the rest. A tick a search hides is on
+  the list, and stays. The headings are read off each method's **name**
+  (`paymentMethodCategory`: the first rule a name matches, `other` for one no rule is sure of),
+  because the card has nothing else to go by. A handler there starts from the provider's state
+  at the tap, not from the ticks its frame was built with: of two taps in one frame the second
+  otherwise undoes the first. Elsewhere in Simple Mode an order's methods are split by the two
+  helpers that already did it (`paymentMethodsSummary`, `paymentMethodLabel`), never shown as
+  the wire string: the user's own order reads `A,B,C`.
 - **Reputation/ratings come from Kind 38383 event tags, not a DB.** In-memory
   `RATING_STORE`/`DISPUTE_STORE` are correct by design — don't invent "persist to DB" tasks.
   Chat history persists to the `messages` table since #246 — on web to the IndexedDB `messages`

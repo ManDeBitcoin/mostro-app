@@ -4,15 +4,17 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:mostro/core/app_routes.dart';
 import 'package:mostro/core/order_book_palette.dart';
-import 'package:mostro/features/about/providers/mostro_node_provider.dart';
 import 'package:mostro/features/home/providers/home_order_providers.dart';
 import 'package:mostro/features/order/models/order_detail_rules.dart'
     show estimateSats;
 import 'package:mostro/features/order/providers/exchange_rate_provider.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
+import 'package:mostro/features/simple_mode/models/payment_method_groups.dart'
+    show methodsOf;
 import 'package:mostro/features/simple_mode/models/simple_order_rules.dart';
-import 'package:mostro/features/simple_mode/providers/community_provider.dart';
+import 'package:mostro/features/simple_mode/providers/payment_method_providers.dart';
 import 'package:mostro/features/simple_mode/providers/simple_identity_provider.dart';
+import 'package:mostro/features/simple_mode/widgets/payment_method_field.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_sell_confirm_sheet.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/providers/peer_nym_provider.dart';
@@ -22,7 +24,7 @@ import 'package:mostro/shared/widgets/nym_avatar.dart';
 
 /// Simple Mode: Amount-first Sell Wizard.
 /// 1. Amount input with live Satoshi conversion
-/// 2. Payment method selector (filtered by community if active)
+/// 2. Payment methods: the community's, any number of them, picked by category
 /// 3. Recipient payment details input
 /// 4. Explanatory stages of security escrow
 /// 5. Bottom sheet confirmation summary before publishing offer
@@ -36,7 +38,6 @@ class SimpleSellScreen extends ConsumerStatefulWidget {
 class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
   final _amountController = TextEditingController(text: '100');
   final _detailsController = TextEditingController();
-  String? _selectedMethod;
   double _premium = 0.0;
 
   @override
@@ -49,7 +50,7 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
   void _openConfirmSheet({
     required double fiatAmount,
     required String fiatCode,
-    required String paymentMethod,
+    required List<String> paymentMethods,
     required String paymentDetails,
     required double premium,
     required int? estimatedSats,
@@ -59,7 +60,7 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
       builder: (_) => SimpleSellConfirmSheet(
         fiatAmount: fiatAmount,
         fiatCode: fiatCode,
-        paymentMethod: paymentMethod,
+        paymentMethods: paymentMethods,
         paymentDetails: paymentDetails,
         premium: premium,
         estimatedSats: estimatedSats,
@@ -71,12 +72,8 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
   Widget build(BuildContext context) {
     final pal = OrderBookPalette.of(context);
     final theme = Theme.of(context);
-    final communityAsync = ref.watch(activeCommunityProfileProvider);
-    final community = communityAsync.valueOrNull;
-    final currency = simpleCurrency(
-      card: community?.currency,
-      accepted: ref.watch(mostroNodeProvider).valueOrNull?.fiatCurrenciesAccepted,
-    );
+    final l10n = AppLocalizations.of(context);
+    final currency = ref.watch(simpleCurrencyProvider);
 
     // Live exchange rate & Satoshi estimation
     final rateAsync = ref.watch(exchangeRateProvider(currency));
@@ -93,15 +90,16 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
         ? rate / (1 - _premium / 100)
         : 0.0;
 
-    // The community's own list, exactly; it can change while the screen is
-    // up — the card arrives after startup, the operator edits it. Until the
-    // user picks, the first method stands. A pick that left the list is not
-    // swapped for another behind their back: nothing is selected, and
-    // nothing can be published, until they pick again.
-    final paymentMethods = sellPaymentMethods(community?.paymentMethods);
-    final String? selectedMethod = _selectedMethod == null
-        ? paymentMethods.first
-        : methodOnList(paymentMethods, _selectedMethod);
+    // What the seller ticked, of the community's own list. That list can
+    // change while the screen is up — the card arrives after startup, the
+    // operator edits it — and a method that left it is no longer offered.
+    // None stands in for it, and none stands before the first tick either:
+    // an order names a way to be paid only if the seller chose it, so with
+    // nothing ticked nothing can be published.
+    final paymentMethods = tickedMethods(
+      methodsOf(ref.watch(sellMethodGroupsProvider)),
+      ref.watch(sellTickedMethodsProvider),
+    );
 
     final allOrders = ref.watch(orderBookProvider).valueOrNull ?? [];
     final matchingBuyOrders = allOrders
@@ -138,16 +136,27 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
                   size: 18,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  '${SimpleL10n.referencePrice(context)}: ',
-                  style: TextStyle(color: pal.textSecondary, fontSize: 12),
-                ),
-                Text(
-                  '1 BTC ≈ ${NumberFormat('#,##0.00', Localizations.localeOf(context).toString()).format(rate)} $currency',
-                  style: TextStyle(
-                    color: pal.limeText,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                // A Wrap: on a narrow phone the price drops to a line of
+                // its own instead of running off the card.
+                Expanded(
+                  child: Wrap(
+                    children: [
+                      Text(
+                        '${SimpleL10n.referencePrice(context)}: ',
+                        style: TextStyle(
+                          color: pal.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                      Text(
+                        '1 BTC ≈ ${NumberFormat('#,##0.00', Localizations.localeOf(context).toString()).format(rate)} $currency',
+                        style: TextStyle(
+                          color: pal.limeText,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -209,7 +218,7 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
                   Flexible(
                     child: Text(
                       amount == null
-                          ? AppLocalizations.of(context).orderAmountMustBeWhole
+                          ? l10n.orderAmountMustBeWhole
                           : estimatedSats != null
                           ? '≈ $estimatedSats sats'
                           : (rateAsync.isLoading
@@ -350,24 +359,11 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: paymentMethods.map((method) {
-            final isSelected = selectedMethod == method;
-            return ChoiceChip(
-              label: Text(method),
-              selected: isSelected,
-              onSelected: (_) {
-                setState(() => _selectedMethod = method);
-              },
-              selectedColor: pal.limeBorder,
-              labelStyle: TextStyle(
-                color: isSelected ? pal.limeText : pal.textSecondary,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            );
-          }).toList(),
+        PaymentMethodField(
+          groups: sellMethodGroupsProvider,
+          ticked: sellTickedMethodsProvider,
+          placeholder: l10n.simpleMethodsChoose,
+          hint: l10n.simpleMethodsSellHint,
         ),
 
         const SizedBox(height: 20),
@@ -453,11 +449,11 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
 
         // Why the button below is off, said next to it: by here the amount
         // card and its own line are a screen away.
-        if (amount == null || selectedMethod == null) ...[
+        if (amount == null || paymentMethods.isEmpty) ...[
           Text(
             amount == null
-                ? AppLocalizations.of(context).orderAmountMustBeWhole
-                : SimpleL10n.selectReceiveMethod(context),
+                ? l10n.orderAmountMustBeWhole
+                : l10n.simpleMethodsChooseOne,
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.amber, fontSize: 13),
           ),
@@ -466,13 +462,13 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
 
         // Publish Button
         FilledButton.icon(
-          onPressed: amount == null || selectedMethod == null
+          onPressed: amount == null || paymentMethods.isEmpty
               ? null
               : () {
                   _openConfirmSheet(
                     fiatAmount: amount.toDouble(),
                     fiatCode: currency,
-                    paymentMethod: selectedMethod,
+                    paymentMethods: paymentMethods,
                     paymentDetails: _detailsController.text.trim(),
                     premium: _premium,
                     estimatedSats: estimatedSats,
@@ -643,6 +639,9 @@ class _BuyerOfferCard extends ConsumerWidget {
                       ),
                       const SizedBox(height: 3),
                       Row(
+                        // The star stays on the first line when the text
+                        // beside it takes two.
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Icon(
                             Icons.star_rounded,
@@ -661,19 +660,26 @@ class _BuyerOfferCard extends ConsumerWidget {
                                 fontSize: 12,
                               ),
                             ),
-                            Text(
-                              ' (${SimpleL10n.counterpartyTrades(order.tradeCount, context)} · ${SimpleL10n.daysActive(order.daysActive, context)})',
-                              style: TextStyle(
-                                color: pal.textSecondary,
-                                fontSize: 12,
+                            // Flexible, so it wraps: beside the
+                            // amount this line has less room than it
+                            // needs on a narrow phone, and ran over it.
+                            Flexible(
+                              child: Text(
+                                ' (${SimpleL10n.counterpartyTrades(order.tradeCount, context)} · ${SimpleL10n.daysActive(order.daysActive, context)})',
+                                style: TextStyle(
+                                  color: pal.textSecondary,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
                           ] else ...[
-                            Text(
-                              '${SimpleL10n.newTrader(context)} · ${SimpleL10n.daysActive(order.daysActive, context)}',
-                              style: TextStyle(
-                                color: pal.textTertiary,
-                                fontSize: 12,
+                            Flexible(
+                              child: Text(
+                                '${SimpleL10n.newTrader(context)} · ${SimpleL10n.daysActive(order.daysActive, context)}',
+                                style: TextStyle(
+                                  color: pal.textTertiary,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
                           ],
@@ -739,30 +745,31 @@ class _BuyerOfferCard extends ConsumerWidget {
               ),
             ),
             const Divider(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    'Paga con: ${order.paymentMethod}',
-                    style: TextStyle(color: pal.textSecondary, fontSize: 13),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+            // On lines of its own: a buyer can offer several methods, and
+            // which ones is what the seller is reading for. Eight lines
+            // hold the community's whole list on the narrowest phone; the
+            // limit is for an order written to fill the screen.
+            Text(
+              'Paga con: ${order.paymentMethod}',
+              style: TextStyle(color: pal.textSecondary, fontSize: 13),
+              maxLines: 8,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                onPressed: onSellPressed,
+                style: FilledButton.styleFrom(
+                  backgroundColor: pal.limeText,
+                  foregroundColor: Colors.black,
+                  visualDensity: VisualDensity.compact,
                 ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: onSellPressed,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: pal.limeText,
-                    foregroundColor: Colors.black,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  child: const Text(
-                    'Vender a este comprador',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                child: const Text(
+                  'Vender a este comprador',
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-              ],
+              ),
             ),
           ],
         ),

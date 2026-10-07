@@ -323,7 +323,113 @@ class AppLocalizationsFr extends AppLocalizations {
       'Le nœud de la communauté a refusé la demande sans en indiquer la raison.';
 
   @override
-  String get simpleAllPaymentMethods => 'Tous';
+  String get simpleMethodsChoose => 'Choisissez-en un ou plusieurs';
+
+  @override
+  String get simpleMethodsAny => 'Tout moyen de paiement';
+
+  @override
+  String get simpleMethodsPick => 'Choisir';
+
+  @override
+  String get simpleMethodsEdit => 'Modifier';
+
+  @override
+  String get simpleMethodsSellHint =>
+      'Cochez tous les moyens par lesquels vous pouvez être payé. L\'acheteur vous paiera par l\'un d\'eux.';
+
+  @override
+  String get simpleMethodsBuyHint =>
+      'Cochez les moyens avec lesquels vous pouvez payer : vous verrez les offres qui en acceptent au moins un. Sans rien cocher, vous les voyez toutes.';
+
+  @override
+  String simpleMethodsDone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Terminé · $count choisis',
+      one: 'Terminé · 1 choisi',
+      zero: 'Terminé',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get simpleMethodsClear => 'Tout décocher';
+
+  @override
+  String simpleMethodsNoMatch(String query) {
+    return 'Aucun moyen ne correspond à « $query ».';
+  }
+
+  @override
+  String get simpleMethodsChooseOne =>
+      'Choisissez au moins un moyen de paiement';
+
+  @override
+  String simpleSummaryMethods(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Moyens de paiement',
+      one: 'Moyen de paiement',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get simpleCategoryTickAll => 'Tous';
+
+  @override
+  String get simpleCategoryTickNone => 'Aucun';
+
+  @override
+  String simpleCategoryTickAllLabel(String category) {
+    return 'Tout cocher dans $category';
+  }
+
+  @override
+  String simpleCategoryTickNoneLabel(String category) {
+    return 'Tout décocher dans $category';
+  }
+
+  @override
+  String simpleCategoryCount(int chosen, int total) {
+    return '$chosen sur $total';
+  }
+
+  @override
+  String simpleOffersCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count offres',
+      one: '1 offre',
+      zero: 'Aucune offre',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get simpleCategoryBanks => 'Banques';
+
+  @override
+  String get simpleCategoryCooperatives => 'Coopératives';
+
+  @override
+  String get simpleCategoryWallets => 'Portefeuilles et applis';
+
+  @override
+  String get simpleCategoryCash => 'Espèces';
+
+  @override
+  String get simpleCategoryCrypto => 'Crypto';
+
+  @override
+  String get simpleCategoryOther => 'Autres';
+
+  @override
+  String get simpleCategoryOnOffers => 'Aussi dans les offres';
 
   @override
   String simpleRangeAmountHint(String min, String max, String code) {

@@ -268,4 +268,47 @@ void main() {
       expect(find.text('Garantía temporal bloqueada'), findsOneWidget);
     },
   );
+
+  testWidgets("SimpleTradeDetailView writes an order's methods as a list", (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    Future<void> pump({required bool isBuyer}) => tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          locale: const Locale('es'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SimpleTradeDetailView(
+            // A fresh view per side.
+            key: ValueKey(isBuyer),
+            orderId: 'trade-methods',
+            status: OrderStatus.active,
+            isBuyer: isBuyer,
+            fiatAmount: 50.0,
+            fiatCode: 'USD',
+            amountSats: 125000,
+            // As the user's own order carries them: nothing after the comma.
+            paymentMethod: 'Banco Pichincha,Deuna, USDT',
+          ),
+        ),
+      ),
+    );
+
+    // The buyer, told how to pay.
+    await pump(isBuyer: true);
+    expect(find.text('Método: Banco Pichincha, Deuna, USDT'), findsOneWidget);
+    expect(find.textContaining('Pichincha,Deuna'), findsNothing);
+
+    // The seller, told what they are waiting for.
+    await pump(isBuyer: false);
+    expect(
+      find.textContaining('Banco Pichincha, Deuna, USDT'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Pichincha,Deuna'), findsNothing);
+  });
 }

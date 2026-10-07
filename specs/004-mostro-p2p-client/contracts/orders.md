@@ -86,7 +86,7 @@ NewOrderParams {
   fiat_amount_min: f64?       # Min amount for range orders (null if fixed)
   fiat_amount_max: f64?       # Max amount for range orders (null if fixed)
   fiat_code: String           # ISO 4217 code
-  payment_method: String      # Payment method description
+  payment_method: String      # Every method the maker takes, comma-separated
   premium: f64                # Price premium/discount %
   amount_sats: u64?           # Optional fixed sat amount
 }
@@ -107,7 +107,12 @@ NewOrderParams {
   `CantDo(InvalidParameters)`. A market-price order carries no sats; the
   daemon fixes them when the order is taken.
 - `fiat_code` MUST be valid ISO 4217
-- `payment_method` MUST not be empty
+- `payment_method` MUST not be empty. It is free text to the daemon, which
+  splits it on commas into the values of the public order's `pm` tag — one
+  per method — so a method's name MUST NOT hold a comma. Both create forms
+  join the methods picked with `,`; the book reads them back joined with
+  `, ` (`nostr::order_events`), and the payment filters compare them one by
+  one, trimmed and in lower case.
 - The node MUST be announcing itself and open for business
   (`mostro::node_liveness::ensure_live`, see *Node liveness* under
   `take_order`). Fails with `NodeNotAnnouncing` or `MaintenanceMode` before

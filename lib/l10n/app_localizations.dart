@@ -616,11 +616,149 @@ abstract class AppLocalizations {
   /// **'The community\'s node refused the request without giving a reason.'**
   String get orderRejectedNoReason;
 
-  /// Simple Mode, Buy tab: the first payment-method chip, which shows the offers of every method
+  /// Simple Mode, Sell tab: the payment-method field while the seller has ticked none
+  ///
+  /// In en, this message translates to:
+  /// **'Choose one or more'**
+  String get simpleMethodsChoose;
+
+  /// Simple Mode, Buy tab: the payment-method field while no method is ticked, so every offer is shown
+  ///
+  /// In en, this message translates to:
+  /// **'Any payment method'**
+  String get simpleMethodsAny;
+
+  /// Simple Mode payment-method field: what opens the picker while nothing is ticked
+  ///
+  /// In en, this message translates to:
+  /// **'Choose'**
+  String get simpleMethodsPick;
+
+  /// Simple Mode payment-method field: what opens the picker once something is ticked
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get simpleMethodsEdit;
+
+  /// Simple Mode payment-method picker opened from the Sell tab: what ticking several methods means for the order
+  ///
+  /// In en, this message translates to:
+  /// **'Tick every way you can be paid. The buyer will pay you by one of them.'**
+  String get simpleMethodsSellHint;
+
+  /// Simple Mode payment-method picker opened from the Buy tab: how the ticked methods filter the offers
+  ///
+  /// In en, this message translates to:
+  /// **'Tick the ways you can pay: you will see the offers that take at least one of them. With none ticked you see them all.'**
+  String get simpleMethodsBuyHint;
+
+  /// Simple Mode payment-method picker: the button that closes it, with how many methods are ticked
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Done} =1{Done · 1 chosen} other{Done · {count} chosen}}'**
+  String simpleMethodsDone(int count);
+
+  /// Simple Mode payment-method picker: link that unticks every method
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all'**
+  String get simpleMethodsClear;
+
+  /// Simple Mode payment-method picker: shown in place of the list when the search box finds no method
+  ///
+  /// In en, this message translates to:
+  /// **'No method matches “{query}”.'**
+  String simpleMethodsNoMatch(String query);
+
+  /// Simple Mode, Sell tab: beside the publish button while it is off because no payment method is ticked
+  ///
+  /// In en, this message translates to:
+  /// **'Choose at least one payment method'**
+  String get simpleMethodsChooseOne;
+
+  /// Simple Mode confirm sheets: label of the row that lists the order's payment methods, by how many there are
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Payment method} other{Payment methods}}'**
+  String simpleSummaryMethods(int count);
+
+  /// Simple Mode payment-method picker: beside a heading, ticks every method under it
   ///
   /// In en, this message translates to:
   /// **'All'**
-  String get simpleAllPaymentMethods;
+  String get simpleCategoryTickAll;
+
+  /// Simple Mode payment-method picker: beside a heading whose methods are all ticked, unticks them
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get simpleCategoryTickNone;
+
+  /// Screen-reader label of the control that ticks every method under a heading of the payment-method picker
+  ///
+  /// In en, this message translates to:
+  /// **'Tick all in {category}'**
+  String simpleCategoryTickAllLabel(String category);
+
+  /// Screen-reader label of the control that unticks every method under a heading of the payment-method picker
+  ///
+  /// In en, this message translates to:
+  /// **'Untick all in {category}'**
+  String simpleCategoryTickNoneLabel(String category);
+
+  /// Simple Mode payment-method picker: beside a heading, how many of its methods are ticked
+  ///
+  /// In en, this message translates to:
+  /// **'{chosen} of {total}'**
+  String simpleCategoryCount(int chosen, int total);
+
+  /// Simple Mode payment-method picker opened from the Buy tab: beside a method, how many offers on the book take it
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No offers} =1{1 offer} other{{count} offers}}'**
+  String simpleOffersCount(int count);
+
+  /// Heading of the payment-method picker: banks
+  ///
+  /// In en, this message translates to:
+  /// **'Banks'**
+  String get simpleCategoryBanks;
+
+  /// Heading of the payment-method picker: savings and credit cooperatives
+  ///
+  /// In en, this message translates to:
+  /// **'Credit unions'**
+  String get simpleCategoryCooperatives;
+
+  /// Heading of the payment-method picker: wallets and payment apps
+  ///
+  /// In en, this message translates to:
+  /// **'Wallets & apps'**
+  String get simpleCategoryWallets;
+
+  /// Heading of the payment-method picker: cash, in person or from a cash machine
+  ///
+  /// In en, this message translates to:
+  /// **'Cash'**
+  String get simpleCategoryCash;
+
+  /// Heading of the payment-method picker: stablecoins and other crypto
+  ///
+  /// In en, this message translates to:
+  /// **'Crypto'**
+  String get simpleCategoryCrypto;
+
+  /// Heading of the payment-method picker: methods that fit no other heading
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get simpleCategoryOther;
+
+  /// Heading of the payment-method picker on the Buy tab: methods some offer takes that the community's own list does not carry
+  ///
+  /// In en, this message translates to:
+  /// **'Also on offers'**
+  String get simpleCategoryOnOffers;
 
   /// Simple Mode, on a range offer while the amount typed is not one it can be taken for
   ///

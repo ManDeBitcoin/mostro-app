@@ -31,7 +31,7 @@ class SimpleSellConfirmSheet extends ConsumerStatefulWidget {
     super.key,
     required this.fiatAmount,
     required this.fiatCode,
-    required this.paymentMethod,
+    required this.paymentMethods,
     required this.paymentDetails,
     this.premium = 0.0,
     this.estimatedSats,
@@ -39,7 +39,9 @@ class SimpleSellConfirmSheet extends ConsumerStatefulWidget {
 
   final double fiatAmount;
   final String fiatCode;
-  final String paymentMethod;
+
+  /// Every method the seller ticked, at least one.
+  final List<String> paymentMethods;
   final String paymentDetails;
   final double premium;
 
@@ -95,7 +97,7 @@ class _SimpleSellConfirmSheetState
       final params = simpleSellOrder(
         fiatAmount: widget.fiatAmount,
         fiatCode: widget.fiatCode,
-        paymentMethod: widget.paymentMethod,
+        paymentMethods: widget.paymentMethods,
         premium: widget.premium,
       );
 
@@ -151,7 +153,9 @@ class _SimpleSellConfirmSheetState
         : null;
 
     return SafeArea(
-      child: Padding(
+      // Scrolls: the methods and the details run to as many lines as they
+      // need, and on a short screen the summary is taller than the sheet.
+      child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -256,8 +260,12 @@ class _SimpleSellConfirmSheetState
                   ),
                   const Divider(height: 20),
                   _buildRow(
-                    label: 'Método de pago',
-                    value: widget.paymentMethod,
+                    label: l10n.simpleSummaryMethods(
+                      widget.paymentMethods.length,
+                    ),
+                    // One to a line: run together, a name breaks across
+                    // two lines and reads as two methods.
+                    value: widget.paymentMethods.join('\n'),
                     pal: pal,
                   ),
                   if (widget.paymentDetails.isNotEmpty) ...[
@@ -366,18 +374,25 @@ class _SimpleSellConfirmSheetState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               label,
               style: TextStyle(color: pal.textSecondary, fontSize: 13),
             ),
-            Text(
-              value,
-              style: TextStyle(
-                color: isHighlight ? pal.limeText : pal.textTitle,
-                fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
-                fontSize: isHighlight ? 15 : 13,
+            const SizedBox(width: 16),
+            // What is left of the row, and as many lines as it takes: a
+            // list of payment methods does not fit beside its label, and a
+            // value that is not allowed to wrap runs off the sheet.
+            Expanded(
+              child: Text(
+                value,
+                textAlign: TextAlign.end,
+                style: TextStyle(
+                  color: isHighlight ? pal.limeText : pal.textTitle,
+                  fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
+                  fontSize: isHighlight ? 15 : 13,
+                ),
               ),
             ),
           ],

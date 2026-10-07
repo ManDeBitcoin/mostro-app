@@ -121,7 +121,7 @@ Can be tested by feeding a valid signed `CommunityProfile` JSON/bech32 payload t
 **Narrative**:  
 In Simple Mode, the user selects **"Comprar Bitcoin"** from the navigation bar. Instead of an overwhelming order book, they are presented with a simple 3-step wizard:
 1. *"¿Cuánto quieres comprar?"* (User inputs 50 USD, sees estimated sats based on current rate).
-2. *"Selecciona tu método de pago"* (Presents community payment methods, e.g., Zelle, Bank Transfer).
+2. *"Selecciona método de pago"* (Opens a picker with the community's payment methods under category headings — banks, cooperatives, wallets and apps, cash, crypto. Any number can be ticked; with none ticked every offer is shown. A search box narrows the list to the names — or the category — typed into it).
 3. *"Seleccionar vendedor"* (Displays filtered active sellers with 5-star rating, completed trades count, and price premium/discount).
 4. *"Revisar y confirmar"* (Summarizes sats to receive, fee, and temporary refundable security guarantee).  
 Upon tapping **"Comprar"**, the trade initiates and moves directly to the humanized trade timeline.
@@ -132,7 +132,7 @@ Upon tapping **"Comprar"**, the trade initiates and moves directly to the humani
 Can be tested by selecting an amount and payment method and asserting that matching public sell orders are queried, filtered, and presented with humanized reputation metrics.
 
 **Acceptance Scenarios**:
-1. **Given** the user selects 50 USD and "Bancolombia", **When** searching for sellers, **Then** only active sell orders matching USD and Bancolombia within range are displayed.
+1. **Given** the user selects 50 USD and ticks "Bancolombia" and "Nequi", **When** searching for sellers, **Then** only active sell orders in USD that take at least one of the two, within range, are displayed — each with every method it takes written out.
 2. **Given** an order selection, **When** reviewing the confirmation card, **Then** display:
    - "Recibes: X sats"
    - "Comisión: $Y"
@@ -308,8 +308,8 @@ When toggled:
   4. Cache the community's payment methods for filtering.
 
 ### 3.3 Transaction & Order Workflows
-- **FR-010**: The Buy flow MUST allow the user to specify an amount in fiat, select from available community payment methods, and present a curated list of active sellers. The amount is a **whole number**; the list holds only orders still `pending` on the public book that are not the user's own; a range order is taken for the amount typed and only when it lies inside the order's limits — never for a default.
-- **FR-011**: The Sell flow MUST allow the user to create an offer specifying amount, receive method, and payment details without exposing raw Nostr event structures. The offer is always published **at market price** (no sats; the node fixes them when it is taken and applies the premium then), for a whole amount, and cannot be published while the amount field holds anything else.
+- **FR-010**: The Buy flow MUST allow the user to specify an amount in fiat, tick any number of payment methods — the community's, grouped by category, plus the ones only the offers carry — and present a curated list of active sellers: the offers that take at least one ticked method, and every offer while none is ticked. The amount is a **whole number**; the list holds only orders still `pending` on the public book that are not the user's own; a range order is taken for the amount typed and only when it lies inside the order's limits — never for a default.
+- **FR-011**: The Sell flow MUST allow the user to create an offer specifying amount, one or more receive methods and payment details without exposing raw Nostr event structures. The methods are ticked from the community's own list, grouped by category; none is preselected, and the offer cannot be published with none. The order carries all of them. The offer is always published **at market price** (no sats; the node fixes them when it is taken and applies the premium then), for a whole amount, and cannot be published while the amount field holds anything else.
 - **FR-012**: All anti-abuse bonds MUST be labeled as **"Garantía temporal"** (Temporary Security Guarantee) with an explanatory tooltip: *"Se devuelve automáticamente al completar la operación con éxito"*. A guarantee is shown only where one exists: before a trade, when the node's Kind 38385 policy bonds the user's side; in a trade, when its row carries a bond. Never a default figure.
 - **FR-013**: The active trade screen MUST present a progressive vertical timeline mapping internal Mostro wire states to clear human-readable milestones:
   - `WaitingMakerBond` / `WaitingTakerBond` -> *Garantía temporal en proceso* (the milestone exists only for a trade that has a bond)

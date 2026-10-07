@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:mostro/core/app_routes.dart';
 import 'package:mostro/core/daemon_errors.dart';
 import 'package:mostro/core/order_book_palette.dart';
+import 'package:mostro/features/order/models/order_detail_rules.dart'
+    show paymentMethodsSummary;
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_request_help_dialog.dart';
@@ -129,6 +131,12 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
         widget.status == OrderStatus.settledHoldInvoice;
 
     final title = widget.isBuyer ? 'Compra de Bitcoin' : 'Venta de Bitcoin';
+    // The order's methods as a list to read. An order carries them in one
+    // string, comma-separated and — the user's own — with nothing after
+    // the comma.
+    final paymentMethods = paymentMethodsSummary(
+      widget.paymentMethod,
+    ).all.join(', ');
 
     // The deposit step exists only for a trade that has one, or is waiting
     // on it right now.
@@ -576,7 +584,7 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Método: ${widget.paymentMethod}',
+                    'Método: $paymentMethods',
                     style: TextStyle(
                       color: pal.textSecondary,
                       fontSize: 13,
@@ -639,7 +647,7 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
                       SimpleL10n.waitingFiatPaymentDesc(
                         widget.fiatAmount?.toString() ?? '—',
                         widget.fiatCode,
-                        widget.paymentMethod,
+                        paymentMethods,
                         context,
                       ),
                       style: TextStyle(color: pal.textTitle, fontSize: 13),
