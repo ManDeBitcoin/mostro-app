@@ -2725,6 +2725,9 @@ class AppLocalizationsNl extends AppLocalizations {
   String get aboutLimitsFootnote => 'Grenzen in satoshi per order';
 
   @override
+  String get aboutNodeDepositNone => 'Nee';
+
+  @override
   String get aboutNodeTechnicalDataRow => 'Technische gegevens van de node';
 
   @override

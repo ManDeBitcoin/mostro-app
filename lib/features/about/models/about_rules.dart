@@ -119,6 +119,55 @@ class NodeLimits {
   final String fee;
 }
 
+/// The facts the connected-node card lists under its limits: whether the
+/// node asks for a deposit and how much, the currencies it accepts, and how
+/// long an order stays published. [missingFigure] for what the node did not
+/// send, and for all three while [MostroInstance] is `null`.
+@immutable
+class NodeSummary {
+  const NodeSummary({
+    required this.deposit,
+    required this.currencies,
+    required this.orderLifetime,
+  });
+
+  /// [currencies] is the node's accepted list as Rust parsed it: empty when
+  /// the node sets no limit.
+  factory NodeSummary.of(
+    MostroInstance? node,
+    List<String> currencies,
+    AppLocalizations l10n,
+  ) {
+    if (node == null) {
+      return const NodeSummary(
+        deposit: missingFigure,
+        currencies: missingFigure,
+        orderLifetime: missingFigure,
+      );
+    }
+    final hours = node.expirationHours;
+    return NodeSummary(
+      // A node that predates deposits asks for none either.
+      deposit: switch (node.bondPolicy) {
+        BondPolicy.enabled =>
+          formatFee(node.bondAmountPct, l10n) ?? missingFigure,
+        BondPolicy.disabled ||
+        BondPolicy.unsupported => l10n.aboutNodeDepositNone,
+      },
+      currencies:
+          currencies.isEmpty
+              ? l10n.aboutFiatCurrenciesAll
+              : currencies.join(', '),
+      orderLifetime:
+          hours == null ? missingFigure : l10n.aboutHoursShort(hours),
+    );
+  }
+
+  final String deposit;
+  final String currencies;
+  final String orderLifetime;
+}
+
 // ── 12b · sections ────────────────────────────────────────────────────────────
 
 /// The app's own group, first on 12b and first in the clipboard block.

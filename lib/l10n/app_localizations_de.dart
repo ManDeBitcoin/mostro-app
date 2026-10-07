@@ -2738,6 +2738,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get aboutLimitsFootnote => 'Limits in Satoshis pro Auftrag';
 
   @override
+  String get aboutNodeDepositNone => 'Nein';
+
+  @override
   String get aboutNodeTechnicalDataRow => 'Technische Knotendaten';
 
   @override

@@ -883,6 +883,7 @@
   "aboutFeeCell": "Gebühr",
   "aboutFeeValue": "{value} %",
   "aboutLimitsFootnote": "Limits in Satoshis pro Auftrag",
+  "aboutNodeDepositNone": "Nein",
   "aboutNodeTechnicalDataRow": "Technische Knotendaten",
   "aboutFieldCount": "{count, plural, =1{{count} Feld} other{{count} Felder}}",
   "aboutTechnicalDataTitle": "Technische Daten",

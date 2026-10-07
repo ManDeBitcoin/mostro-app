@@ -883,6 +883,7 @@
   "aboutFeeCell": "Commissione",
   "aboutFeeValue": "{value}%",
   "aboutLimitsFootnote": "Limiti in satoshi per ordine",
+  "aboutNodeDepositNone": "No",
   "aboutNodeTechnicalDataRow": "Dati tecnici del nodo",
   "aboutFieldCount": "{count, plural, =1{{count} campo} other{{count} campi}}",
   "aboutTechnicalDataTitle": "Dati tecnici",

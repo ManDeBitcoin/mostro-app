@@ -883,6 +883,7 @@
   "aboutFeeCell": "Kosten",
   "aboutFeeValue": "{value}%",
   "aboutLimitsFootnote": "Grenzen in satoshi per order",
+  "aboutNodeDepositNone": "Nee",
   "aboutNodeTechnicalDataRow": "Technische gegevens van de node",
   "aboutFieldCount": "{count, plural, =1{{count} veld} other{{count} velden}}",
   "aboutTechnicalDataTitle": "Technische gegevens",

@@ -84,6 +84,65 @@ void main() {
     });
   });
 
+  group('NodeSummary', () {
+    const node = MostroInstance(
+      pubKey: 'node',
+      expirationHours: 24,
+      bondPolicy: BondPolicy.enabled,
+      bondAmountPct: 0.015,
+    );
+
+    test('a node that asks for a deposit reads its share, in the locale', () {
+      expect(NodeSummary.of(node, const [], _en).deposit, '1.5%');
+      expect(NodeSummary.of(node, const [], _es).deposit, '1,5 %');
+    });
+
+    test('a node with no deposit, or one that predates them, reads no', () {
+      for (final policy in [BondPolicy.disabled, BondPolicy.unsupported]) {
+        final summary = NodeSummary.of(
+          MostroInstance(pubKey: 'node', bondPolicy: policy),
+          const [],
+          _en,
+        );
+        expect(summary.deposit, _en.aboutNodeDepositNone, reason: '$policy');
+      }
+    });
+
+    test('lists the accepted currencies, or all when the node sets none', () {
+      expect(
+        NodeSummary.of(node, const ['ARS', 'EUR', 'USD'], _en).currencies,
+        'ARS, EUR, USD',
+      );
+      expect(
+        NodeSummary.of(node, const [], _en).currencies,
+        _en.aboutFiatCurrenciesAll,
+      );
+    });
+
+    test('says how long an order stays published', () {
+      expect(NodeSummary.of(node, const [], _en).orderLifetime, '24 h');
+    });
+
+    test('reads a dash for what the node did not send', () {
+      final summary = NodeSummary.of(
+        const MostroInstance(pubKey: 'node', bondPolicy: BondPolicy.enabled),
+        const [],
+        _en,
+      );
+      expect(summary.deposit, missingFigure);
+      expect(summary.orderLifetime, missingFigure);
+    });
+
+    test('reads a dash for every fact while the node is missing', () {
+      final summary = NodeSummary.of(null, const ['ARS'], _en);
+      expect([
+        summary.deposit,
+        summary.currencies,
+        summary.orderLifetime,
+      ], everyElement(missingFigure));
+    });
+  });
+
   group('nodeTechSections', () {
     test('the handoff node lists its rows in the handoff order', () {
       final sections = nodeTechSections(_handoffNode, _en);

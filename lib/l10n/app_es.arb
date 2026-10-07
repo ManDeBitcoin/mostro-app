@@ -883,6 +883,7 @@
   "aboutFeeCell": "Comisión",
   "aboutFeeValue": "{value} %",
   "aboutLimitsFootnote": "Límites en satoshis por orden",
+  "aboutNodeDepositNone": "No",
   "aboutNodeTechnicalDataRow": "Datos técnicos del nodo",
   "aboutFieldCount": "{count, plural, =1{{count} campo} other{{count} campos}}",
   "aboutTechnicalDataTitle": "Datos técnicos",

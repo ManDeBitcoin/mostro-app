@@ -4612,6 +4612,12 @@ abstract class AppLocalizations {
   /// **'Limits in satoshis per order'**
   String get aboutLimitsFootnote;
 
+  /// Value of the deposit row on the About screen's connected node card when the node asks for no anti-abuse deposit (disabled, or a node that predates deposits)
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get aboutNodeDepositNone;
+
   /// About screen redesign (12a/12b)
   ///
   /// In en, this message translates to:

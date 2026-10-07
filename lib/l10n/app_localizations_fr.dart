@@ -2733,6 +2733,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get aboutLimitsFootnote => 'Limites en satoshis par commande';
 
   @override
+  String get aboutNodeDepositNone => 'Non';
+
+  @override
   String get aboutNodeTechnicalDataRow => 'Données techniques du nœud';
 
   @override

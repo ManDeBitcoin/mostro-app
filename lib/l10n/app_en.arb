@@ -3527,6 +3527,10 @@
   "@aboutLimitsFootnote": {
     "description": "About screen redesign (12a/12b)"
   },
+  "aboutNodeDepositNone": "No",
+  "@aboutNodeDepositNone": {
+    "description": "Value of the deposit row on the About screen's connected node card when the node asks for no anti-abuse deposit (disabled, or a node that predates deposits)"
+  },
   "aboutNodeTechnicalDataRow": "Node technical data",
   "@aboutNodeTechnicalDataRow": {
     "description": "About screen redesign (12a/12b)"

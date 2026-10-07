@@ -883,6 +883,7 @@
   "aboutFeeCell": "Frais",
   "aboutFeeValue": "{value} %",
   "aboutLimitsFootnote": "Limites en satoshis par commande",
+  "aboutNodeDepositNone": "Non",
   "aboutNodeTechnicalDataRow": "Données techniques du nœud",
   "aboutFieldCount": "{count, plural, =1{{count} champ} other{{count} champs}}",
   "aboutTechnicalDataTitle": "Données techniques",

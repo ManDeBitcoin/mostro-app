@@ -2702,6 +2702,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutLimitsFootnote => 'Limits in satoshis per order';
 
   @override
+  String get aboutNodeDepositNone => 'No';
+
+  @override
   String get aboutNodeTechnicalDataRow => 'Node technical data';
 
   @override
