@@ -113,11 +113,6 @@ BondCancelCopy bondCancelCopy(TradeUpdateReason? reason) => switch (reason) {
   null => BondCancelCopy.neutral,
 };
 
-/// The explainer accordion is open the first time a user sees the screen
-/// and then remembers what they did with it — per user, not per screen
-/// (handoff, "estado del acordeón persistente").
-bool bondExplainerOpens({required bool? stored}) => stored ?? true;
-
 /// `2 060 ARS`: the fiat equivalent rounded to whole units in [locale]'s
 /// digit grouping, with the order's currency code.
 String formatBondFiat(String locale, double amount, String fiatCode) {

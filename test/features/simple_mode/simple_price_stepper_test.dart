@@ -144,6 +144,45 @@ void main() {
     expect(figureColor(), gain);
   });
 
+  testWidgets('draws its two signs itself, without the icon font', (
+    tester,
+  ) async {
+    await _pump(tester, side: PriceSide.seller);
+
+    // On the web the icon font is cut down to what a build uses, and a
+    // browser can still hold the one from before a deploy: the minus sign
+    // was new with this control and came out blank there. A sign that
+    // changes a price is drawn, one bar or two.
+    for (final key in [_lower, _raise]) {
+      expect(
+        find.descendant(of: find.byKey(key), matching: find.byType(Icon)),
+        findsNothing,
+      );
+    }
+    Iterable<Size> bars(Key key) => tester
+        .widgetList<Container>(
+          find.descendant(of: find.byKey(key), matching: find.byType(Container)),
+        )
+        .map((bar) => tester.getSize(find.byWidget(bar)));
+    final minus = bars(_lower).toList();
+    final plus = bars(_raise).toList();
+    // A minus is one bar lying down; a plus is that bar and one upright.
+    expect(minus, hasLength(1));
+    expect(minus.single.width, greaterThan(minus.single.height));
+    expect(plus, hasLength(2));
+    expect(plus.where((bar) => bar.height > bar.width), hasLength(1));
+    // Painted in the button's colour, so it is there to be seen.
+    for (final key in [_lower, _raise]) {
+      for (final bar in tester.widgetList<Container>(
+        find.descendant(of: find.byKey(key), matching: find.byType(Container)),
+      )) {
+        final color = (bar.decoration! as BoxDecoration).color;
+        expect(color, isNotNull);
+        expect(color!.a, greaterThan(0));
+      }
+    }
+  });
+
   testWidgets('stops at the limit, and turns that button off', (tester) async {
     await _pump(
       tester,

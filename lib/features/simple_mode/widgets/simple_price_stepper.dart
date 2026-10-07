@@ -125,7 +125,7 @@ class SimplePriceStepper extends StatelessWidget {
               ),
               _StepButton(
                 key: const ValueKey('simple-price-lower'),
-                icon: Icons.remove_rounded,
+                plus: false,
                 tooltip: l10n.simplePriceLower,
                 onPressed:
                     premium > -simplePremiumLimit ? () => onStep(-1) : null,
@@ -151,7 +151,7 @@ class SimplePriceStepper extends StatelessWidget {
               ),
               _StepButton(
                 key: const ValueKey('simple-price-raise'),
-                icon: Icons.add_rounded,
+                plus: true,
                 tooltip: l10n.simplePriceRaise,
                 onPressed:
                     premium < simplePremiumLimit ? () => onStep(1) : null,
@@ -181,12 +181,13 @@ class SimplePriceStepper extends StatelessWidget {
 class _StepButton extends StatelessWidget {
   const _StepButton({
     super.key,
-    required this.icon,
+    required this.plus,
     required this.tooltip,
     required this.onPressed,
   });
 
-  final IconData icon;
+  /// A step up (`+`) or a step down (`−`).
+  final bool plus;
   final String tooltip;
   final VoidCallback? onPressed;
 
@@ -195,7 +196,7 @@ class _StepButton extends StatelessWidget {
     final pal = OrderBookPalette.of(context);
 
     return IconButton(
-      icon: Icon(icon, size: 20),
+      icon: _StepSign(plus: plus),
       tooltip: tooltip,
       onPressed: onPressed,
       color: pal.limeText,
@@ -204,6 +205,45 @@ class _StepButton extends StatelessWidget {
       style: IconButton.styleFrom(
         side: BorderSide(color: pal.navBorder),
         shape: const CircleBorder(),
+      ),
+    );
+  }
+}
+
+/// The sign on a step button, drawn as one bar or two.
+///
+/// Not a glyph of the icon font. On the web that font is cut down, build by
+/// build, to the icons the build uses, and a browser can hold the one from
+/// before a deploy: the minus sign was new with this control, and where the
+/// old font was still in use the button to sell at a discount showed
+/// nothing in it. The sign that changes a price is not left to that.
+class _StepSign extends StatelessWidget {
+  const _StepSign({required this.plus});
+
+  final bool plus;
+
+  static const double _length = 14;
+  static const double _thickness = 2.4;
+
+  @override
+  Widget build(BuildContext context) {
+    // The button's own colour for its state: lime, or the faded one when
+    // the control has reached its limit.
+    final color = IconTheme.of(context).color;
+    Widget bar({required bool upright}) => Container(
+      width: upright ? _thickness : _length,
+      height: upright ? _length : _thickness,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(_thickness / 2),
+      ),
+    );
+
+    return SizedBox.square(
+      dimension: 20,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [bar(upright: false), if (plus) bar(upright: true)],
       ),
     );
   }
