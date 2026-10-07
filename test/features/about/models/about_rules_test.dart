@@ -114,6 +114,17 @@ void main() {
         'ARS, EUR, USD',
       );
       expect(
+        NodeSummary.of(node, const [
+          'ARS',
+          'BRL',
+          'CUP',
+          'EUR',
+          'USD',
+          'VES',
+        ], _en).currencies,
+        'ARS, BRL +4',
+      );
+      expect(
         NodeSummary.of(node, const [], _en).currencies,
         _en.aboutFiatCurrenciesAll,
       );
@@ -131,6 +142,10 @@ void main() {
       );
       expect(summary.deposit, missingFigure);
       expect(summary.orderLifetime, missingFigure);
+    });
+
+    test('reads a dash for the currencies while their list loads', () {
+      expect(NodeSummary.of(node, null, _en).currencies, missingFigure);
     });
 
     test('reads a dash for every fact while the node is missing', () {

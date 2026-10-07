@@ -4606,17 +4606,29 @@ abstract class AppLocalizations {
   /// **'{value}%'**
   String aboutFeeValue(String value);
 
-  /// About screen redesign (12a/12b)
-  ///
-  /// In en, this message translates to:
-  /// **'Limits in satoshis per order'**
-  String get aboutLimitsFootnote;
-
   /// Value of the deposit row on the About screen's connected node card when the node asks for no anti-abuse deposit (disabled, or a node that predates deposits)
   ///
   /// In en, this message translates to:
   /// **'No'**
   String get aboutNodeDepositNone;
+
+  /// Cell label on the About screen's connected node card: the anti-abuse deposit the node asks for (glossary term)
+  ///
+  /// In en, this message translates to:
+  /// **'Deposit'**
+  String get aboutDepositCell;
+
+  /// Cell label on the About screen's connected node card: the fiat currencies the node accepts
+  ///
+  /// In en, this message translates to:
+  /// **'Currencies'**
+  String get aboutCurrenciesCell;
+
+  /// Cell label on the About screen's connected node card: how long an order stays published before it expires
+  ///
+  /// In en, this message translates to:
+  /// **'Order expiry'**
+  String get aboutOrderExpiryCell;
 
   /// About screen redesign (12a/12b)
   ///

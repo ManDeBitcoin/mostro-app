@@ -16,6 +16,8 @@ import 'package:mostro/features/order/widgets/order_detail_cards.dart'
     show orderDetailAppBar;
 import 'package:mostro/features/settings/providers/mostro_nodes_provider.dart'
     show truncatePubkey;
+import 'package:mostro/features/settings/providers/node_stats_provider.dart'
+    show activeNodeCurrenciesProvider;
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
 
@@ -256,7 +258,7 @@ class _BrandCard extends StatelessWidget {
               excludeFromSemantics: true,
             ),
           ),
-          const SizedBox(width: 13),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,12 +267,12 @@ class _BrandCard extends StatelessWidget {
                 Text(
                   'Mostro',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 17,
                     fontWeight: FontWeight.w600,
                     color: book.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 4),
                 Text(
                   l10n.footerTagline,
                   style: TextStyle(fontSize: 11, color: book.textSecondary),
@@ -283,7 +285,7 @@ class _BrandCard extends StatelessWidget {
             label: '${l10n.aboutVersionLabel} $appVersion',
             excludeSemantics: true,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: pal.pillFill,
                 borderRadius: BorderRadius.circular(999),
@@ -332,7 +334,16 @@ class _ConnectedNodeCard extends ConsumerWidget {
         node != null ? node.pubKey : ref.watch(activeMostroPubkeyProvider);
     final name = ref.watch(activeNodeNameProvider) ?? l10n.aboutMostroNodeTitle;
     final limits = NodeLimits.of(node, l10n);
-
+    // The unit sits with each amount; a missing figure gets none.
+    String? sats(String figure) =>
+        figure == missingFigure ? null : l10n.satsUnitLabel;
+    // The list Rust parsed from the node's info, as the create-order picker
+    // reads it; unknown while it loads.
+    final summary = NodeSummary.of(
+      node,
+      ref.watch(activeNodeCurrenciesProvider).valueOrNull,
+      l10n,
+    );
     return AboutCard(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(
@@ -354,7 +365,7 @@ class _ConnectedNodeCard extends ConsumerWidget {
                       shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(width: 9),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       name,
@@ -367,7 +378,7 @@ class _ConnectedNodeCard extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 9),
+                  const SizedBox(width: 8),
                   Semantics(
                     label: pubkey,
                     excludeSemantics: true,
@@ -394,22 +405,57 @@ class _ConnectedNodeCard extends ConsumerWidget {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Row(
-              children: [
-                Expanded(child: _LimitCell(l10n.aboutMinOrderCell, limits.min)),
-                const SizedBox(width: 8),
-                Expanded(child: _LimitCell(l10n.aboutMaxOrderCell, limits.max)),
-                const SizedBox(width: 8),
-                Expanded(child: _LimitCell(l10n.aboutFeeCell, limits.fee)),
-              ],
+            // One height for the row when a unit drops to a second line.
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _LimitCell(
+                      l10n.aboutMinOrderCell,
+                      limits.min,
+                      unit: sats(limits.min),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _LimitCell(
+                      l10n.aboutMaxOrderCell,
+                      limits.max,
+                      unit: sats(limits.max),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(child: _LimitCell(l10n.aboutFeeCell, limits.fee)),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+          // What a trader weighs before choosing this node, in the cells the
+          // limits use; the whole policy stays in the technical data.
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Text(
-              l10n.aboutLimitsFootnote,
-              style: TextStyle(fontSize: 10, color: pal.groupHeader),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _LimitCell(l10n.aboutDepositCell, summary.deposit),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _LimitCell(
+                    l10n.aboutCurrenciesCell,
+                    summary.currencies,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _LimitCell(
+                    l10n.aboutOrderExpiryCell,
+                    summary.orderLifetime,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -419,16 +465,20 @@ class _ConnectedNodeCard extends ConsumerWidget {
 }
 
 class _LimitCell extends StatelessWidget {
-  const _LimitCell(this.label, this.value);
+  const _LimitCell(this.label, this.value, {this.unit});
 
   final String label;
   final String value;
+
+  /// Beside the value when both fit, on the line below otherwise: the cell
+  /// grows a line rather than shrinking the figure to make room.
+  final String? unit;
 
   @override
   Widget build(BuildContext context) {
     final book = OrderBookPalette.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: AboutPalette.of(context).cell,
         borderRadius: BorderRadius.circular(12),
@@ -442,19 +492,30 @@ class _LimitCell extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(fontSize: 10, color: book.textSecondary),
           ),
-          const SizedBox(height: 3),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: TextStyle(
-                fontFamily: AppFonts.figures,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: book.textStrong,
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.end,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontFamily: AppFonts.figures,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: book.textStrong,
+                  ),
+                ),
               ),
-            ),
+              if (unit != null)
+                Text(
+                  unit!,
+                  style: TextStyle(fontSize: 11, color: book.textSecondary),
+                ),
+            ],
           ),
         ],
       ),

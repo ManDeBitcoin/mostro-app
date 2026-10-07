@@ -132,10 +132,12 @@ class NodeSummary {
   });
 
   /// [currencies] is the node's accepted list as Rust parsed it: empty when
-  /// the node sets no limit.
+  /// the node sets no limit, null while it has not been read. A cell holds
+  /// up to three codes; a longer list shows its first two and how many more
+  /// (`ARS, EUR +5`), whole in the technical data.
   factory NodeSummary.of(
     MostroInstance? node,
-    List<String> currencies,
+    List<String>? currencies,
     AppLocalizations l10n,
   ) {
     if (node == null) {
@@ -154,10 +156,12 @@ class NodeSummary {
         BondPolicy.disabled ||
         BondPolicy.unsupported => l10n.aboutNodeDepositNone,
       },
-      currencies:
-          currencies.isEmpty
-              ? l10n.aboutFiatCurrenciesAll
-              : currencies.join(', '),
+      currencies: switch (currencies) {
+        null => missingFigure,
+        [] => l10n.aboutFiatCurrenciesAll,
+        _ when currencies.length <= 3 => currencies.join(', '),
+        _ => '${currencies.take(2).join(', ')} +${currencies.length - 2}',
+      },
       orderLifetime:
           hours == null ? missingFigure : l10n.aboutHoursShort(hours),
     );

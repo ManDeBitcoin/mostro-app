@@ -12,6 +12,7 @@ import 'package:mostro/features/about/providers/mostro_node_provider.dart';
 import 'package:mostro/features/about/screens/about_screen.dart';
 import 'package:mostro/features/about/screens/node_technical_data_screen.dart';
 import 'package:mostro/features/about/widgets/about_widgets.dart';
+import 'package:mostro/features/settings/providers/node_stats_provider.dart';
 import 'package:mostro/features/settings/widgets/mostro_node_selector.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 
@@ -62,13 +63,14 @@ Widget _app(ProviderContainer container, Widget home) =>
       ),
     );
 
-/// Pumps [home] with the node fetch, node name and app version overridden, so
-/// no Rust bridge call is made. The surface is tall enough to keep every row
-/// of 12b built without scrolling.
+/// Pumps [home] with the node fetch, node name, accepted [currencies] and app
+/// version overridden, so no Rust bridge call is made. The surface is tall
+/// enough to keep every row of 12b built without scrolling.
 Future<ProviderContainer> _pump(
   WidgetTester tester,
   Widget home, {
   required List<Override> overrides,
+  List<String> currencies = const [],
 }) async {
   tester.view.physicalSize = const Size(1200, 4000);
   tester.view.devicePixelRatio = 1.0;
@@ -79,6 +81,7 @@ Future<ProviderContainer> _pump(
     overrides: [
       appVersionProvider.overrideWith((ref) async => '2.0.0'),
       activeNodeNameProvider.overrideWith((ref) => 'Mostro'),
+      activeNodeCurrenciesProvider.overrideWith((ref) async => currencies),
       ...overrides,
     ],
   );
@@ -121,6 +124,9 @@ void main() {
       expect(find.text('500'), findsOneWidget);
       expect(find.text('300,000'), findsOneWidget);
       expect(find.text('0.6%'), findsOneWidget);
+      // The unit sits in each amount's cell, not in a footnote.
+      expect(find.text('sats'), findsNWidgets(2));
+      expect(find.text('Limits in satoshis per order'), findsNothing);
       // Public key, fiat currencies and bond status.
       expect(find.text('3 fields'), findsOneWidget);
       expect(find.text('Mostro'), findsWidgets);
@@ -153,15 +159,58 @@ void main() {
       );
 
       expect(find.text('CONNECTED NODE'), findsOneWidget);
-      // Three limit cells plus the field count.
-      expect(find.text('—'), findsNWidgets(4));
+      // Three limit cells, the three facts under them and the field count.
+      expect(find.text('—'), findsNWidgets(7));
+      // A missing amount gets no unit.
+      expect(find.text('sats'), findsNothing);
+    });
+
+    testWidgets('sums up the deposit, currencies and order expiry', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        const AboutScreen(),
+        currencies: const ['ARS', 'EUR', 'USD'],
+        overrides: [
+          mostroNodeProvider.overrideWith(
+            (ref) async => MostroInstance.fromTags(
+              _tags({..._enabledBondTags, 'expiration_hours': '24'}),
+            ),
+          ),
+        ],
+      );
+
+      expect(find.text('Deposit'), findsOneWidget);
+      expect(find.text('5%'), findsOneWidget);
+      expect(find.text('Currencies'), findsOneWidget);
+      expect(find.text('ARS, EUR, USD'), findsOneWidget);
+      expect(find.text('Order expiry'), findsOneWidget);
+      expect(find.text('24 h'), findsOneWidget);
+      // The rest of the policy stays in the technical data.
+      for (final label in _parameterLabels) {
+        expect(find.text(label), findsNothing, reason: label);
+      }
+    });
+
+    testWidgets('a node with no deposit, or every currency, says so', (
+      tester,
+    ) async {
+      await _pumpWithNode(
+        tester,
+        MostroInstance.fromTags(_tags({'bond_enabled': 'false'})),
+        home: const AboutScreen(),
+      );
+
+      expect(find.text('No'), findsOneWidget);
+      expect(find.text('All'), findsOneWidget);
     });
 
     testWidgets('offers a retry when the node does not answer', (tester) async {
       await _pumpWithNode(tester, null, home: const AboutScreen());
 
       expect(find.text('Retry'), findsOneWidget);
-      expect(find.text('—'), findsNWidgets(3));
+      expect(find.text('—'), findsNWidgets(6));
     });
   });
 

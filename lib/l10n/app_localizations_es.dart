@@ -2723,10 +2723,16 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get aboutLimitsFootnote => 'Límites en satoshis por orden';
+  String get aboutNodeDepositNone => 'No';
 
   @override
-  String get aboutNodeDepositNone => 'No';
+  String get aboutDepositCell => 'Depósito';
+
+  @override
+  String get aboutCurrenciesCell => 'Monedas';
+
+  @override
+  String get aboutOrderExpiryCell => 'Expiración';
 
   @override
   String get aboutNodeTechnicalDataRow => 'Datos técnicos del nodo';

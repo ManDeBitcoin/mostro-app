@@ -3523,13 +3523,21 @@
       }
     }
   },
-  "aboutLimitsFootnote": "Limits in satoshis per order",
-  "@aboutLimitsFootnote": {
-    "description": "About screen redesign (12a/12b)"
-  },
   "aboutNodeDepositNone": "No",
   "@aboutNodeDepositNone": {
     "description": "Value of the deposit row on the About screen's connected node card when the node asks for no anti-abuse deposit (disabled, or a node that predates deposits)"
+  },
+  "aboutDepositCell": "Deposit",
+  "@aboutDepositCell": {
+    "description": "Cell label on the About screen's connected node card: the anti-abuse deposit the node asks for (glossary term)"
+  },
+  "aboutCurrenciesCell": "Currencies",
+  "@aboutCurrenciesCell": {
+    "description": "Cell label on the About screen's connected node card: the fiat currencies the node accepts"
+  },
+  "aboutOrderExpiryCell": "Order expiry",
+  "@aboutOrderExpiryCell": {
+    "description": "Cell label on the About screen's connected node card: how long an order stays published before it expires"
   },
   "aboutNodeTechnicalDataRow": "Node technical data",
   "@aboutNodeTechnicalDataRow": {
