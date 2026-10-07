@@ -119,6 +119,10 @@ it (issue #533).
   dispute markers, invoice-step starts, wipe tombstones, retained claim
   nodes, the last restore's snapshot). `Storage::clear_identity_data`, one
   transaction on native.
+- With them, how the identity's owner is paid: the payment details kept per
+  method (`payment_details:saved`) and the per-order marks of having sent
+  them (`payment_details_sent:<order>`). They are a person's account
+  numbers, not a device preference (`contracts/payment_details.md`).
 - The restore snapshot also names the identity that took it. A history pass
   ignores (and drops) any snapshot that is not the loaded identity's,
   including one stored before snapshots named theirs, and any snapshot whose

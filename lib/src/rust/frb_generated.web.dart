@@ -21,6 +21,7 @@ import 'api/nodes.dart';
 import 'api/nostr.dart';
 import 'api/nwc.dart';
 import 'api/orders.dart';
+import 'api/payment_details.dart';
 import 'api/push.dart';
 import 'api/reputation.dart';
 import 'api/restore_progress.dart';
@@ -826,6 +827,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<OrderInfo> dco_decode_list_order_info(dynamic raw);
 
   @protected
+  List<PaymentDetails> dco_decode_list_payment_details(dynamic raw);
+
+  @protected
   List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
 
   @protected
@@ -1002,6 +1006,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PaymentDestination dco_decode_payment_destination(dynamic raw);
+
+  @protected
+  PaymentDetails dco_decode_payment_details(dynamic raw);
 
   @protected
   PaymentResult dco_decode_payment_result(dynamic raw);
@@ -1826,6 +1833,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<OrderInfo> sse_decode_list_order_info(SseDeserializer deserializer);
 
   @protected
+  List<PaymentDetails> sse_decode_list_payment_details(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
 
   @protected
@@ -2056,6 +2068,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PaymentDestination sse_decode_payment_destination(
     SseDeserializer deserializer,
   );
+
+  @protected
+  PaymentDetails sse_decode_payment_details(SseDeserializer deserializer);
 
   @protected
   PaymentResult sse_decode_payment_result(SseDeserializer deserializer);
@@ -3082,6 +3097,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_payment_details(
+    List<PaymentDetails> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
 
   @protected
@@ -3372,6 +3393,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_payment_destination(
     PaymentDestination self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_payment_details(
+    PaymentDetails self,
     SseSerializer serializer,
   );
 

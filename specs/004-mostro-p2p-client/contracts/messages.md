@@ -89,6 +89,12 @@ failure also degrades to local-only.
 
 **Errors**: `NoActiveTrade`, `TradeNotFound`, `MessageEmpty`.
 
+A message whose sender is then told it arrived cannot go through this
+function, for the degradation above: the seller's payment details are sent
+by `send_payment_details` (`contracts/payment_details.md`), over
+`send_delivered` — the same envelope, but it fails, and stores nothing,
+unless a relay accepted the event.
+
 ---
 
 ### get_messages(trade_id: String) → Vec<ChatMessage>

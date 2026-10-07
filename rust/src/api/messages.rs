@@ -513,6 +513,70 @@ pub async fn send_message(trade_id: String, content: String) -> Result<ChatMessa
     Ok(msg)
 }
 
+/// What a send that must arrive makes of a publish: the envelope a relay
+/// took, or the marker to fail with.
+fn accepted_or_marker(published: Result<PublishedChat>) -> Result<PublishedChat> {
+    match published {
+        Ok(published) if published.delivered => Ok(published),
+        Ok(_) => Err(anyhow!("NoRelayAccepted")),
+        Err(e) if e.to_string().contains("MessageTooLarge") => Err(e),
+        Err(e) => Err(anyhow!("SendFailed: {e}")),
+    }
+}
+
+/// Send `content` to the trade's counterparty and return only once a relay
+/// has taken it.
+///
+/// [`send_message`] never fails for transport reasons: with no session, no
+/// peer or no relay it keeps the message on this device and returns it like
+/// one that left. That is the chat's contract, and the wrong one for a
+/// message whose sender is then told it arrived — the seller's payment
+/// details (`api::payment_details`). Here nothing is stored, and nothing is
+/// returned, unless a relay accepted the envelope.
+///
+/// Errors are markers: `MessageEmpty`, `MessageTooLarge`, `SessionNotFound`,
+/// `PeerUnknown`, `NoRelayAccepted`, `SendFailed`.
+pub(crate) async fn send_delivered(trade_id: &str, content: &str) -> Result<ChatMessage> {
+    let content = content.trim();
+    if content.is_empty() {
+        bail!("MessageEmpty: content must not be empty");
+    }
+    // The same cheap bound as `send_message`; `mostro_wrap` holds the exact one.
+    if content.len() > crate::nostr::transport::MAX_CONTENT_BYTES {
+        bail!(
+            "MessageTooLarge: {} bytes exceeds the maximum message size",
+            content.len()
+        );
+    }
+    let session = session_or_rebuild(trade_id)
+        .await
+        .ok_or_else(|| anyhow!("SessionNotFound: {trade_id}"))?;
+    let peer_hex = session
+        .peer_pubkey
+        .clone()
+        .ok_or_else(|| anyhow!("PeerUnknown: the counterpart's key has not arrived yet"))?;
+    let ctx = chat_context(session.trade_key_index, &peer_hex)
+        .await
+        .map_err(|e| anyhow!("SendFailed: {e}"))?;
+    let published = accepted_or_marker(publish_chat_payload(&ctx, content).await)?;
+    crate::api::push::wake_peer(&peer_hex);
+
+    let msg = ChatMessage {
+        id: published.inner.id.to_hex(),
+        trade_id: trade_id.to_string(),
+        sender_pubkey: ctx.trade_keys.public_key().to_hex(),
+        content: content.to_string(),
+        message_type: MessageType::Peer,
+        is_mine: true,
+        is_read: true,
+        has_attachment: false,
+        attachment: None,
+        created_at: published.inner.created_at.as_secs() as i64,
+    };
+    let _ = message_store().add_message(msg.clone()).await;
+    Ok(msg)
+}
+
 /// Get all messages for a trade, ordered by creation time (oldest first).
 pub async fn get_messages(trade_id: String) -> Result<Vec<ChatMessage>> {
     let mut msgs = message_store().get_messages(&trade_id).await;
@@ -2056,6 +2120,50 @@ mod tests {
         assert_eq!(peer_to_wake(true, PEER), Some(PEER));
     }
 
+    fn published(delivered: bool) -> PublishedChat {
+        use nostr_sdk::prelude::*;
+        let inner = EventBuilder::new(Kind::TextNote, "hola")
+            .finalize(&Keys::generate())
+            .unwrap();
+        PublishedChat { inner, delivered }
+    }
+
+    /// The chat's own send keeps a message no relay took. The send that must
+    /// arrive fails instead, by the marker Dart already has words for.
+    #[test]
+    fn a_send_that_must_arrive_fails_when_no_relay_took_it() {
+        assert!(accepted_or_marker(Ok(published(true))).is_ok());
+
+        let err = accepted_or_marker(Ok(published(false))).err().unwrap();
+        assert_eq!(err.to_string(), "NoRelayAccepted");
+
+        let err = accepted_or_marker(Err(anyhow!("relay pool not ready")))
+            .err()
+            .unwrap();
+        assert!(err.to_string().starts_with("SendFailed"), "got: {err}");
+
+        // A message no receiver would accept is the caller's error, as in
+        // `send_message`.
+        let err = accepted_or_marker(Err(anyhow!("MessageTooLarge: 70000 bytes")))
+            .err()
+            .unwrap();
+        assert!(err.to_string().starts_with("MessageTooLarge"), "got: {err}");
+    }
+
+    /// With nobody to send to, nothing is kept: a message stored here would
+    /// read as sent in the conversation.
+    #[tokio::test]
+    async fn a_send_that_must_arrive_keeps_nothing_without_a_counterpart() {
+        let trade_id = uuid::Uuid::new_v4().to_string();
+
+        let err = send_delivered(&trade_id, "Banco X: 123").await.unwrap_err();
+        assert!(err.to_string().starts_with("SessionNotFound"), "got: {err}");
+        let err = send_delivered(&trade_id, "   ").await.unwrap_err();
+        assert!(err.to_string().starts_with("MessageEmpty"), "got: {err}");
+
+        assert!(get_messages(trade_id).await.unwrap().is_empty());
+    }
+
     #[test]
     fn the_two_channels_of_one_order_never_collide() {
         let order = "order-1";
@@ -2931,6 +3039,89 @@ mod tests {
                 .is_none(),
             "no session may be rebuilt toward the node's pubkey"
         );
+
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// The seam test of the seller's payment details: the rule, the send and
+    /// the mark, end to end from persisted rows. The details leave only for
+    /// a trade this user sells and whose escrow is locked, and "sent" is
+    /// recorded only for a message a relay took — here none can, there is no
+    /// relay pool, so the send that passes the rule must fail and leave
+    /// nothing behind. Sending through `send_message` instead, or marking
+    /// before the send returned, fails this test.
+    ///
+    /// `#[ignore]`d for the same reason, and with the same mnemonic, as
+    /// `send_message_rebuilds_session_from_trade_row`. Run with:
+    ///   cargo test --lib payment_details_leave_only -- --ignored
+    #[tokio::test]
+    #[ignore = "claims the process-global app_db and identity — run with --ignored"]
+    async fn payment_details_leave_only_for_a_locked_sale_and_only_if_a_relay_took_them() {
+        use crate::api::payment_details::{payment_details_sent_at, send_payment_details};
+        use crate::api::types::{OrderStatus, TradeRole};
+
+        let db_path = std::env::temp_dir().join(format!(
+            "mostro-payment-details-seam-test-{}.db",
+            uuid::Uuid::new_v4()
+        ));
+        crate::db::app_db::init_db(db_path.to_str().unwrap())
+            .await
+            .expect("init app db");
+        crate::api::identity::import_from_mnemonic(
+            "abandon abandon abandon abandon abandon abandon abandon abandon \
+             abandon abandon abandon about"
+                .split_whitespace()
+                .map(String::from)
+                .collect(),
+            false,
+        )
+        .await
+        .expect("import identity");
+        let db = crate::db::app_db::db().expect("db just initialized");
+        let peer_hex = nostr_sdk::prelude::Keys::generate().public_key().to_hex();
+        let details = "Banco X: Ahorros 2201234567";
+
+        // The buyer of a locked trade has nothing of the kind to send.
+        let bought = uuid::Uuid::new_v4().to_string();
+        db.save_trade(&live_trade(&bought, &peer_hex, 11))
+            .await
+            .expect("save the buyer's row");
+        // A seller whose sats are not locked yet: nobody is about to pay.
+        let unlocked = uuid::Uuid::new_v4().to_string();
+        let mut row = live_trade(&unlocked, &peer_hex, 12);
+        row.role = TradeRole::Seller;
+        row.order.status = OrderStatus::WaitingPayment;
+        db.save_trade(&row).await.expect("save the unlocked row");
+        // No row at all.
+        let unknown = uuid::Uuid::new_v4().to_string();
+
+        for (order_id, marker) in [
+            (&bought, "PaymentDetailsNotSeller"),
+            (&unlocked, "PaymentDetailsEscrowNotLocked"),
+            (&unknown, "PaymentDetailsNoTrade"),
+        ] {
+            let err = send_payment_details(order_id.clone(), details.into())
+                .await
+                .unwrap_err();
+            assert_eq!(err.to_string(), marker);
+        }
+
+        // The seller of a locked trade passes the rule and reaches the send.
+        let locked = uuid::Uuid::new_v4().to_string();
+        let mut row = live_trade(&locked, &peer_hex, 13);
+        row.role = TradeRole::Seller;
+        db.save_trade(&row).await.expect("save the locked row");
+        let err = send_payment_details(locked.clone(), details.into())
+            .await
+            .unwrap_err();
+        assert!(err.to_string().starts_with("SendFailed"), "got: {err}");
+
+        // Refused or failed, nothing reads as sent: not in the conversation,
+        // not on the mark.
+        for order_id in [bought, unlocked, unknown, locked] {
+            assert!(get_messages(order_id.clone()).await.unwrap().is_empty());
+            assert_eq!(payment_details_sent_at(order_id).await.unwrap(), None);
+        }
 
         let _ = std::fs::remove_file(&db_path);
     }

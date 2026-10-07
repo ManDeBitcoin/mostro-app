@@ -219,14 +219,43 @@ pub mod settings_keys {
     /// canceled order can be legitimately re-taken (`persist_trade_row`).
     pub const TRADE_WIPED_PREFIX: &str = "trade_wiped:";
 
-    /// Every per-order key family above. The single identity-scoped keys —
-    /// [`BOND_CLAIM_RETAINED_NODES`] and [`RESTORE_SNAPSHOT`] — are dropped
-    /// by name next to them.
-    /// All of it describes trades of the identity that wrote it, so
-    /// [`super::Storage::clear_identity_data`] drops it with the rows. What
-    /// is left in the store is device preference: the active node, custom
-    /// nodes, node caches, push token and toggle, developer overrides.
-    pub const IDENTITY_SCOPED_PREFIXES: [&str; 7] = [
+    /// Prefix of [`PAYMENT_DETAILS_SAVED`], the one key under it. A prefix
+    /// for a single key because the prefix is what puts it in
+    /// [`IDENTITY_SCOPED_PREFIXES`], and so in the identity wipe of both
+    /// backends, with no line added to either.
+    pub const PAYMENT_DETAILS_PREFIX: &str = "payment_details:";
+
+    /// How the seller is paid, per payment method, as they typed it: a JSON
+    /// array of `{method, details}` (`mostro::payment_details`).
+    ///
+    /// Account numbers, holder names, phone numbers. They belong to the person
+    /// behind the identity, not to the device, so they go with the identity.
+    /// Never logged, and never sent anywhere but to the buyer of a trade whose
+    /// escrow is locked, inside a chat envelope.
+    pub const PAYMENT_DETAILS_SAVED: &str = "payment_details:saved";
+
+    /// Per-order mark that the seller's payment details went to the buyer:
+    /// the `created_at` (unix seconds, decimal string) of the chat message
+    /// that carried them, which a relay accepted. Full key is
+    /// `payment_details_sent:<order_id>`; build it with
+    /// [`payment_details_sent`].
+    pub const PAYMENT_DETAILS_SENT_PREFIX: &str = "payment_details_sent:";
+
+    /// Build the settings key holding when `order_id`'s payment details were
+    /// sent.
+    pub fn payment_details_sent(order_id: &str) -> String {
+        format!("{PAYMENT_DETAILS_SENT_PREFIX}{order_id}")
+    }
+
+    /// Every key family above that an identity wrote. The single
+    /// identity-scoped keys — [`BOND_CLAIM_RETAINED_NODES`] and
+    /// [`RESTORE_SNAPSHOT`] — are dropped by name next to them.
+    /// All of it describes the identity that wrote it — its trades, and how
+    /// its owner is paid — so [`super::Storage::clear_identity_data`] drops it
+    /// with the rows. What is left in the store is device preference: the
+    /// active node, custom nodes, node caches, push token and toggle,
+    /// developer overrides.
+    pub const IDENTITY_SCOPED_PREFIXES: [&str; 9] = [
         CHAT_CURSOR_PREFIX,
         DISPUTE_ADMIN_PREFIX,
         DISPUTE_MINE_PREFIX,
@@ -234,6 +263,8 @@ pub mod settings_keys {
         STATUS_CURSOR_PREFIX,
         INVOICE_STEP_PREFIX,
         TRADE_WIPED_PREFIX,
+        PAYMENT_DETAILS_PREFIX,
+        PAYMENT_DETAILS_SENT_PREFIX,
     ];
 
     /// Build the settings key marking `order_id`'s trade row as wiped.
