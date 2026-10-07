@@ -13,6 +13,8 @@ import 'package:mostro/features/simple_mode/providers/payment_details_providers.
 import 'package:mostro/features/simple_mode/widgets/payment_details_send_card.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_request_help_dialog.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_trade_timeline.dart';
+import 'package:mostro/features/trades/providers/trades_providers.dart'
+    show rawTradesProvider;
 import 'package:mostro/features/trades/widgets/release_confirmation_sheet.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
@@ -22,7 +24,8 @@ import 'package:mostro/src/rust/api/types.dart';
 /// Simple Mode: Full Humanized Trade Detail View.
 /// Displays progressive vertical milestones, payment instruction checkpoints,
 /// primary action buttons ("YA PAGUÉ", "RECIBÍ EL DINERO"), direct counterparty chat,
-/// and the community mediation ("PEDIR AYUDA") flow.
+/// and the community mediation ("PEDIR AYUDA") flow. For the user's own
+/// order while nobody has taken it, the way to take it back off the book.
 class SimpleTradeDetailView extends ConsumerStatefulWidget {
   const SimpleTradeDetailView({
     super.key,
@@ -56,6 +59,78 @@ class SimpleTradeDetailView extends ConsumerStatefulWidget {
 
 class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
   bool _markingPaid = false;
+  bool _withdrawing = false;
+
+  /// Withdraws the user's own order while nobody has taken it.
+  ///
+  /// Never in one tap, and never for an order that stopped being untaken
+  /// while the question was up: a cancel sent on a trade that has just gone
+  /// active is a request to the counterparty, not a withdrawal.
+  Future<void> _handleWithdraw() async {
+    if (_withdrawing) return;
+    final confirmed = await showMostroSheet<bool>(
+      context: context,
+      builder: (ctx) {
+        final l10n = AppLocalizations.of(ctx);
+        return MostroSheet(
+          title: l10n.simpleWithdrawTitle,
+          // A maker's deposit is released by any cancel made before a
+          // timeout (docs/ANTI_ABUSE_BOND.md): said where there is one.
+          body: widget.hasBond
+              ? l10n.simpleWithdrawBodyBond
+              : l10n.simpleWithdrawBody,
+          secondary: ModalAction(
+            label: l10n.goBackButtonLabel,
+            onPressed: () => Navigator.of(ctx).pop(false),
+          ),
+          primary: ModalAction(
+            label: l10n.simpleWithdrawConfirm,
+            onPressed: () => Navigator.of(ctx).pop(true),
+            tone: ModalTone.destructive,
+          ),
+        );
+      },
+    );
+    if (confirmed != true || !mounted) return;
+
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    // The status as it reads now, not as it read when the button was
+    // tapped: the view is pushed every change, under the sheet too.
+    if (widget.status != OrderStatus.pending) {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.simpleWithdrawTaken)));
+      return;
+    }
+
+    // Taken before the wait, for an answer that finds the view gone.
+    final container = ProviderScope.containerOf(context, listen: false);
+    final navigator = Navigator.of(context);
+    final router = GoRouter.maybeOf(context);
+    setState(() => _withdrawing = true);
+    try {
+      await ref.read(cancelOrderActionProvider)(widget.orderId);
+      // The row of an order that never went active is not marked locally:
+      // the node's `canceled` wipes it. Read the list again now.
+      container.invalidate(rawTradesProvider);
+      if (!mounted) return;
+      // Sent, not done: the node's answer is what takes the order off the
+      // book, a moment later.
+      messenger.showSnackBar(SnackBar(content: Text(l10n.simpleWithdrawSent)));
+      // Nothing is left to follow here.
+      navigator.canPop() ? navigator.pop() : router?.go(AppRoute.home);
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            localizedDaemonError(l10n, e, fallback: l10n.simpleWithdrawFailed),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _withdrawing = false);
+    }
+  }
 
   Future<void> _handleFiatPaid() async {
     final confirmed = await showMostroDialog<bool>(
@@ -127,6 +202,11 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
   Widget build(BuildContext context) {
     final pal = OrderBookPalette.of(context);
     final isDisputed = widget.status == OrderStatus.dispute;
+    // The user's own order with no counterparty yet: on the book, or one
+    // step short of it while the maker's deposit is unpaid.
+    final isUntaken =
+        widget.status == OrderStatus.pending ||
+        widget.status == OrderStatus.waitingMakerBond;
     final isSuccess =
         widget.status == OrderStatus.success ||
         widget.status == OrderStatus.settledHoldInvoice;
@@ -860,6 +940,37 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
               ),
             ),
             const SizedBox(height: 16),
+          ] else if (widget.status == OrderStatus.pending) ...[
+            // The user's own order, on the book and untaken: the one thing
+            // left to do with it is take it back. `pending` is shown for
+            // nothing else (`shownTradeStatus`).
+            OutlinedButton.icon(
+              key: const ValueKey('simple-withdraw-offer'),
+              onPressed: _withdrawing ? null : _handleWithdraw,
+              icon: _withdrawing
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.undo_rounded, size: 18),
+              label: Text(
+                l10n.simpleWithdrawOffer,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.redAccent,
+                side: const BorderSide(color: Colors.redAccent),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
           ] else if (isSuccess) ...[
             Container(
               padding: const EdgeInsets.all(16),
@@ -890,8 +1001,11 @@ class _SimpleTradeDetailViewState extends ConsumerState<SimpleTradeDetailView> {
             const SizedBox(height: 16),
           ],
 
-          // Assistance section ("Pedir Ayuda")
-          if (!isSuccess && !isDisputed) ...[
+          // Assistance section ("Pedir Ayuda"). Not for an order nobody has
+          // taken: asking for help opens a dispute, and there is no one yet
+          // to have one with — the node refuses it outside `active` and
+          // `fiat-sent`. What the user can do with such an order is above.
+          if (!isSuccess && !isDisputed && !isUntaken) ...[
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(

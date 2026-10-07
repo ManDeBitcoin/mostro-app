@@ -4443,4 +4443,108 @@ class AppLocalizationsFr extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get simplePriceLabel => 'Prix';
+
+  @override
+  String get simplePriceMarket => 'Marché';
+
+  @override
+  String get simplePriceLower => 'Baisser de 1 %';
+
+  @override
+  String get simplePriceRaise => 'Augmenter de 1 %';
+
+  @override
+  String get simplePriceSellMarket => 'Vous vendez au prix du marché.';
+
+  @override
+  String simplePriceSellAbove(String percent) {
+    return 'Avec prime : vous remettez $percent % de sats en moins.';
+  }
+
+  @override
+  String simplePriceSellBelow(String percent) {
+    return 'Avec remise : vous remettez $percent % de sats en plus.';
+  }
+
+  @override
+  String get simplePriceBuyMarket => 'Vous achetez au prix du marché.';
+
+  @override
+  String simplePriceBuyAbove(String percent) {
+    return 'Avec prime : vous recevez $percent % de sats en moins.';
+  }
+
+  @override
+  String simplePriceBuyBelow(String percent) {
+    return 'Avec remise : vous recevez $percent % de sats en plus.';
+  }
+
+  @override
+  String get simpleBuyOrderPrompt => 'Aucune offre ne vous convient ?';
+
+  @override
+  String get simpleBuyOrderPromptAction => 'Publiez la vôtre';
+
+  @override
+  String get simpleBuyOrderEmptyHint =>
+      'Essayez un autre moyen de paiement ou publiez votre ordre d\'achat : les vendeurs de la communauté le verront.';
+
+  @override
+  String get simpleBuyOrderAction => 'Publier l\'ordre d\'achat';
+
+  @override
+  String get simpleBuyOrderOpen => 'Créer un ordre d\'achat';
+
+  @override
+  String get simpleBuyOrderTitle => 'Publiez votre ordre d\'achat';
+
+  @override
+  String get simpleBuyOrderAmount => 'Vous voulez acheter';
+
+  @override
+  String get simpleBuyOrderMethods => 'Comment pouvez-vous payer ?';
+
+  @override
+  String get simpleBuyOrderMethodsHint =>
+      'Cochez tous les moyens par lesquels vous pouvez payer. Ils sont publiés avec votre ordre.';
+
+  @override
+  String get simpleBuyOrderNotice =>
+      'Les vendeurs de la communauté verront votre ordre. Quand l\'un d\'eux le prendra et que son Bitcoin sera bloqué, l\'application vous dira de payer. N\'envoyez pas d\'argent avant.';
+
+  @override
+  String get simpleOfferWaitingTaker =>
+      'Offre publiée. En attente que quelqu\'un la prenne';
+
+  @override
+  String get simpleWithdrawOffer => 'Retirer l\'offre';
+
+  @override
+  String get simpleWithdrawTitle => 'Retirer votre offre ?';
+
+  @override
+  String get simpleWithdrawBody =>
+      'Elle ne sera plus visible sur le marché. Vous pourrez en publier une autre quand vous voudrez.';
+
+  @override
+  String get simpleWithdrawBodyBond =>
+      'Elle ne sera plus visible sur le marché et votre garantie temporaire sera libérée. Vous pourrez en publier une autre quand vous voudrez.';
+
+  @override
+  String get simpleWithdrawConfirm => 'Oui, retirer';
+
+  @override
+  String get simpleWithdrawSent =>
+      'Retrait envoyé. Votre offre disparaîtra dans quelques secondes.';
+
+  @override
+  String get simpleWithdrawFailed =>
+      'L\'offre n\'a pas pu être retirée. Réessayez.';
+
+  @override
+  String get simpleWithdrawTaken =>
+      'Quelqu\'un vient de prendre votre offre : elle ne peut plus être retirée.';
 }

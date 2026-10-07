@@ -35,6 +35,94 @@ void main() {
     expect(find.text('fiat-sent'), findsNothing);
   });
 
+  testWidgets('SimpleTradeTimeline does not call an untaken order accepted', (
+    tester,
+  ) async {
+    Future<void> pump(OrderStatus status, {bool showBond = false}) =>
+        tester.pumpWidget(
+          MaterialApp(
+            locale: const Locale('es'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SimpleTradeTimeline(
+                status: status,
+                isBuyer: true,
+                showBond: showBond,
+              ),
+            ),
+          ),
+        );
+    // The step in progress is the one drawn in bold.
+    FontWeight? weight(String title) =>
+        tester.widget<Text>(find.text(title)).style?.fontWeight;
+    const waiting = 'Oferta publicada. Esperando a que alguien la tome';
+
+    // On the book and nobody has taken it: that is the step under way, and
+    // the escrow — which no seller exists yet to fund — is not.
+    await pump(OrderStatus.pending);
+    expect(find.text('Oferta aceptada'), findsNothing);
+    expect(weight(waiting), FontWeight.bold);
+    expect(weight('Bitcoin protegido en custodia'), isNot(FontWeight.bold));
+    expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
+
+    // A maker's deposit comes before the order is published: paid, it is
+    // the step done, above the wait.
+    await pump(OrderStatus.pending, showBond: true);
+    expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Garantía temporal bloqueada')).dy,
+      lessThan(tester.getTopLeft(find.text(waiting)).dy),
+    );
+    expect(weight(waiting), FontWeight.bold);
+
+    // Unpaid, it is the step under way and the order is not on the book.
+    await pump(OrderStatus.waitingMakerBond, showBond: true);
+    expect(find.text('Oferta aceptada'), findsNothing);
+    expect(weight('Garantía temporal bloqueada'), FontWeight.bold);
+    expect(weight(waiting), isNot(FontWeight.bold));
+
+    // Taken, it reads as before.
+    await pump(OrderStatus.waitingBuyerInvoice);
+    expect(find.text('Oferta aceptada'), findsOneWidget);
+    expect(find.text(waiting), findsNothing);
+  });
+
+  testWidgets('SimpleTradeTimeline makes room for a title of several lines', (
+    tester,
+  ) async {
+    // A phone's width, where the test font — every glyph a square — breaks
+    // the untaken order's title over more lines than any language will.
+    tester.view.physicalSize = const Size(360, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      const MaterialApp(
+        locale: Locale('es'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: SimpleTradeTimeline(
+              status: OrderStatus.pending,
+              isBuyer: true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final title = find.text('Oferta publicada. Esperando a que alguien la tome');
+    final next = find.text('Bitcoin protegido en custodia');
+    // It did wrap: the rows used to be a fixed height, and the second line
+    // ran into the step under it.
+    expect(tester.getSize(title).height, greaterThan(30));
+    expect(
+      tester.getTopLeft(next).dy,
+      greaterThanOrEqualTo(tester.getBottomLeft(title).dy),
+    );
+  });
+
   testWidgets('SimpleTradeTimeline renders mediation steps when disputed',
       (tester) async {
     await tester.pumpWidget(

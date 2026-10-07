@@ -39,14 +39,69 @@ NewOrderParams simpleSellOrder({
   required String fiatCode,
   required List<String> paymentMethods,
   required double premium,
-}) => NewOrderParams(
+}) => _simpleOrder(
   kind: OrderKind.sell,
+  fiatAmount: fiatAmount,
+  fiatCode: fiatCode,
+  paymentMethods: paymentMethods,
+  premium: premium,
+);
+
+/// The order Simple Mode publishes for a purchase of [fiatAmount] (a whole
+/// amount): the buyer's side of [simpleSellOrder], and built the same way —
+/// at market price, without sats, every method the buyer can pay with in
+/// one string.
+///
+/// [premium] reads as on any order: the percent taken off the sats. Above
+/// zero the buyer gets fewer sats for the same money, which is paying over
+/// the market; below zero is asking for a discount.
+NewOrderParams simpleBuyOrder({
+  required double fiatAmount,
+  required String fiatCode,
+  required List<String> paymentMethods,
+  required double premium,
+}) => _simpleOrder(
+  kind: OrderKind.buy,
+  fiatAmount: fiatAmount,
+  fiatCode: fiatCode,
+  paymentMethods: paymentMethods,
+  premium: premium,
+);
+
+NewOrderParams _simpleOrder({
+  required OrderKind kind,
+  required double fiatAmount,
+  required String fiatCode,
+  required List<String> paymentMethods,
+  required double premium,
+}) => NewOrderParams(
+  kind: kind,
   fiatAmount: fiatAmount,
   fiatCode: fiatCode,
   paymentMethod: paymentMethods.join(','),
   premium: premium,
   amountSats: null,
 );
+
+/// How far from the market price Simple Mode sets an order, in whole percent
+/// either way. The protocol has no limit of its own; this is the reach of
+/// the control ([steppedPremium]), the same the create form's bar opens
+/// with.
+const simplePremiumLimit = 10;
+
+/// [premium] moved by [step] percent, and no further than
+/// [simplePremiumLimit] from the market either way. Whole, because the wire
+/// carries a premium as an integer.
+int steppedPremium(int premium, int step) =>
+    (premium + step).clamp(-simplePremiumLimit, simplePremiumLimit);
+
+/// What one BTC costs the buyer of an order with [premium], given the
+/// market's [rate]: the node takes the premium off the sats, so the same
+/// fiat buys fewer of them. Null while the rate is unknown.
+double? priceWithPremium({required double? rate, required int premium}) =>
+    rate == null || rate <= 0 || premium >= 100
+        ? null
+        : rate / (1 - premium / 100);
 
 /// Whether Simple Mode offers [order] to someone looking for an order of
 /// [kind] (`sell` on the Buy tab, `buy` on the Sell tab): untaken on the

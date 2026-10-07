@@ -19,6 +19,7 @@ import 'package:mostro/features/simple_mode/providers/payment_method_providers.d
 import 'package:mostro/features/simple_mode/providers/simple_identity_provider.dart';
 import 'package:mostro/features/simple_mode/widgets/payment_method_field.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_buy_confirm_sheet.dart';
+import 'package:mostro/features/simple_mode/widgets/simple_buy_order_sheet.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/providers/peer_nym_provider.dart';
 import 'package:mostro/shared/utils/whole_amount_input.dart';
@@ -30,6 +31,10 @@ import 'package:mostro/shared/widgets/nym_avatar.dart';
 /// 2. Payment methods to filter the offers by, picked by category
 /// 3. Filtered sellers list with humanized reputation and refundable guarantee
 /// 4. Bottom sheet confirmation summary before taking order
+///
+/// And, for a buyer none of those offers suits, a way to publish a buy
+/// order of their own for the amount and the methods already on the tab
+/// ([SimpleBuyOrderSheet]).
 class SimpleBuyScreen extends ConsumerStatefulWidget {
   const SimpleBuyScreen({super.key});
 
@@ -61,6 +66,16 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
         fiatCode: fiatCode,
         estimatedSats: estimatedSats,
       ),
+    );
+  }
+
+  void _openBuyOrderSheet({required int? fiatAmount}) {
+    // The amount field would take the focus back when the sheet closes,
+    // and its keyboard would come up over the sheet's own picker.
+    FocusManager.instance.primaryFocus?.unfocus();
+    showMostroSheet(
+      context: context,
+      builder: (_) => SimpleBuyOrderSheet(fiatAmount: fiatAmount),
     );
   }
 
@@ -395,14 +410,37 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
                 ],
                 const SizedBox(height: 4),
                 Text(
-                  'Prueba con otro método de pago o publica una solicitud.',
+                  l10n.simpleBuyOrderEmptyHint,
                   style: TextStyle(color: pal.textTertiary, fontSize: 12),
                   textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 14),
+                FilledButton.icon(
+                  key: const ValueKey('simple-buy-order-empty'),
+                  onPressed: () => _openBuyOrderSheet(fiatAmount: typedAmount),
+                  icon: const Icon(Icons.campaign_outlined, size: 18),
+                  // Not the sheet's own "publish": this opens it, and
+                  // nothing goes out before the button at its foot.
+                  label: Text(
+                    l10n.simpleBuyOrderOpen,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: pal.limeText,
+                    foregroundColor: Colors.black,
+                  ),
                 ),
               ],
             ),
           )
-        else
+        else ...[
+          // Above the offers, not under them: with a dozen on the list a
+          // buyer none of them suits would never scroll to it.
+          _OwnOrderRow(
+            pal: pal,
+            onTap: () => _openBuyOrderSheet(fiatAmount: typedAmount),
+          ),
+          const SizedBox(height: 12),
           ...displayedSellOrders.map((order) {
             final isRange = order.isRange;
             // A fixed order is taken for its own amount; a range order for
@@ -447,7 +485,82 @@ class _SimpleBuyScreenState extends ConsumerState<SimpleBuyScreen> {
                     },
             );
           }),
+        ],
       ],
+    );
+  }
+}
+
+/// The way to a buy order of one's own, a line above the offers: the
+/// question a buyer scanning them is asking, and what to do about it.
+class _OwnOrderRow extends StatelessWidget {
+  const _OwnOrderRow({required this.pal, required this.onTap});
+
+  final OrderBookPalette pal;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return Material(
+      color: pal.surfaceCard,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: pal.navBorder),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Semantics(
+        button: true,
+        child: InkWell(
+          key: const ValueKey('simple-buy-order-row'),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 4, 8, 4),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44),
+              child: Row(
+                children: [
+                  Icon(Icons.campaign_outlined, size: 20, color: pal.limeText),
+                  const SizedBox(width: 10),
+                  // A Wrap: on a narrow phone, or in a longer language, the
+                  // action drops under the question instead of being cut.
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 2,
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          l10n.simpleBuyOrderPrompt,
+                          style: TextStyle(
+                            color: pal.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Text(
+                          l10n.simpleBuyOrderPromptAction,
+                          style: TextStyle(
+                            color: pal.limeText,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 22,
+                    color: pal.limeText,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

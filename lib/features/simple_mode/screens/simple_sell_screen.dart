@@ -17,6 +17,7 @@ import 'package:mostro/features/simple_mode/providers/payment_method_providers.d
 import 'package:mostro/features/simple_mode/providers/simple_identity_provider.dart';
 import 'package:mostro/features/simple_mode/widgets/payment_details_editor.dart';
 import 'package:mostro/features/simple_mode/widgets/payment_method_field.dart';
+import 'package:mostro/features/simple_mode/widgets/simple_price_stepper.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_sell_confirm_sheet.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/providers/peer_nym_provider.dart';
@@ -26,11 +27,12 @@ import 'package:mostro/shared/widgets/nym_avatar.dart';
 
 /// Simple Mode: Amount-first Sell Wizard.
 /// 1. Amount input with live Satoshi conversion
-/// 2. Payment methods: the community's, any number of them, picked by category
-/// 3. The seller's payment details, a field to each ticked method: kept on
+/// 2. The price against the market: a premium, a discount, or neither
+/// 3. Payment methods: the community's, any number of them, picked by category
+/// 4. The seller's payment details, a field to each ticked method: kept on
 ///    the device, never part of the order
-/// 4. Explanatory stages of security escrow
-/// 5. Bottom sheet confirmation summary before publishing offer
+/// 5. Explanatory stages of security escrow
+/// 6. Bottom sheet confirmation summary before publishing offer
 class SimpleSellScreen extends ConsumerStatefulWidget {
   const SimpleSellScreen({super.key});
 
@@ -43,7 +45,9 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
 
   /// What the payment-details fields hold, as they last reported it.
   List<PaymentDetailsEntry> _details = const [];
-  double _premium = 0.0;
+
+  /// The order's premium, a whole percent either side of the market.
+  int _premium = 0;
 
   @override
   void dispose() {
@@ -87,12 +91,11 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
     final int? amount = wholeFiatAmount(_amountController.text);
     final int? estimatedSats = amount == null
         ? null
-        : estimateSats(fiat: amount.toDouble(), rate: rate, premium: _premium);
-    // What one BTC costs the buyer once the node has taken the premium off
-    // the sats: the same fiat for fewer sats.
-    final double effectiveRate = (rate != null && rate > 0 && _premium < 100)
-        ? rate / (1 - _premium / 100)
-        : 0.0;
+        : estimateSats(
+            fiat: amount.toDouble(),
+            rate: rate,
+            premium: _premium.toDouble(),
+          );
 
     // What the seller ticked, of the community's own list. That list can
     // change while the screen is up — the card arrives after startup, the
@@ -269,87 +272,14 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
 
         const SizedBox(height: 20),
 
-        // Premium / Margin selector
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: pal.surfaceCard,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: pal.navBorder),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.percent_rounded, size: 18, color: pal.limeText),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      SimpleL10n.sellPremium(context),
-                      style: TextStyle(
-                        color: pal.textTitle,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _premium == 0
-                        ? SimpleL10n.atMarketPrice(context)
-                        : '+${_premium.toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      color: _premium > 0 ? pal.limeText : pal.textSecondary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                SimpleL10n.sellPremiumTooltip(context),
-                style: TextStyle(color: pal.textTertiary, fontSize: 11),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [0.0, 1.0, 2.0, 3.0, 5.0, 8.0, 10.0].map((val) {
-                  final isSelected = _premium == val;
-                  final label = val == 0.0
-                      ? SimpleL10n.atMarketPrice(context)
-                      : '+${val.toInt()}%';
-                  return ChoiceChip(
-                    label: Text(label),
-                    selected: isSelected,
-                    onSelected: (_) => setState(() => _premium = val),
-                    selectedColor: pal.limeBorder,
-                    labelStyle: TextStyle(
-                      color: isSelected ? pal.limeText : pal.textSecondary,
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                      fontSize: 12,
-                    ),
-                  );
-                }).toList(),
-              ),
-              if (_premium > 0 && effectiveRate > 0) ...[
-                const SizedBox(height: 10),
-                Text(
-                  '${SimpleL10n.effectivePrice(context)}: 1 BTC ≈ ${NumberFormat('#,##0.00', Localizations.localeOf(context).toString()).format(effectiveRate)} $currency',
-                  style: TextStyle(
-                    color: pal.limeText,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ],
-          ),
+        // The price against the market: a step down, the figure, a step up.
+        SimplePriceStepper(
+          premium: _premium,
+          onStep: (step) =>
+              setState(() => _premium = steppedPremium(_premium, step)),
+          side: PriceSide.seller,
+          rate: rate,
+          currency: currency,
         ),
 
         const SizedBox(height: 20),
@@ -488,7 +418,7 @@ class _SimpleSellScreenState extends ConsumerState<SimpleSellScreen> {
                         ),
                       ),
                     ),
-                    premium: _premium,
+                    premium: _premium.toDouble(),
                     estimatedSats: estimatedSats,
                   );
                 },
@@ -718,7 +648,9 @@ class _BuyerOfferCard extends ConsumerWidget {
                 ),
               ],
             ),
-            // Premium tag
+            // Premium tag. Read from the side of the seller looking at it:
+            // a buyer who pays over the market is the better offer here,
+            // where on the Buy tab it is the dearer one.
             Container(
               margin: const EdgeInsets.only(top: 8),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -734,7 +666,7 @@ class _BuyerOfferCard extends ConsumerWidget {
                         ? Icons.trending_down
                         : Icons.trending_up,
                     size: 13,
-                    color: order.premium <= 0
+                    color: order.premium >= 0
                         ? pal.limeText
                         : Colors.orangeAccent,
                   ),
@@ -753,7 +685,7 @@ class _BuyerOfferCard extends ConsumerWidget {
                                 )),
                     style: TextStyle(
                       fontSize: 11,
-                      color: order.premium <= 0
+                      color: order.premium >= 0
                           ? pal.limeText
                           : Colors.orangeAccent,
                       fontWeight: FontWeight.w600,

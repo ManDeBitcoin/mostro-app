@@ -7257,6 +7257,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 new message} other{{count} new messages}}'**
   String simplePayDetailsNewMessages(int count);
+
+  /// Simple Mode, Sell tab and the sheet that publishes a buy order: label of the control that sets the order's price against the market
+  ///
+  /// In en, this message translates to:
+  /// **'Price'**
+  String get simplePriceLabel;
+
+  /// Simple Mode price control: the figure shown at 0 %, the market price. One short word, it sits between two buttons
+  ///
+  /// In en, this message translates to:
+  /// **'Market'**
+  String get simplePriceMarket;
+
+  /// Simple Mode price control: tooltip and screen-reader label of the button that takes one percent off the price
+  ///
+  /// In en, this message translates to:
+  /// **'1 % lower'**
+  String get simplePriceLower;
+
+  /// Simple Mode price control: tooltip and screen-reader label of the button that adds one percent to the price
+  ///
+  /// In en, this message translates to:
+  /// **'1 % higher'**
+  String get simplePriceRaise;
+
+  /// Simple Mode price control, seller: what 0 % means
+  ///
+  /// In en, this message translates to:
+  /// **'You sell at the market price.'**
+  String get simplePriceSellMarket;
+
+  /// Simple Mode price control, seller: what a premium means, said in sats because that is exact (the node takes the premium off the sats). {percent} is a whole number without sign
+  ///
+  /// In en, this message translates to:
+  /// **'At a premium: you hand over {percent} % fewer sats.'**
+  String simplePriceSellAbove(String percent);
+
+  /// Simple Mode price control, seller: what a discount means, said in sats. {percent} is a whole number without sign
+  ///
+  /// In en, this message translates to:
+  /// **'At a discount: you hand over {percent} % more sats.'**
+  String simplePriceSellBelow(String percent);
+
+  /// Simple Mode price control, buyer publishing a buy order: what 0 % means
+  ///
+  /// In en, this message translates to:
+  /// **'You buy at the market price.'**
+  String get simplePriceBuyMarket;
+
+  /// Simple Mode price control, buyer publishing a buy order: what a premium means, said in sats. {percent} is a whole number without sign
+  ///
+  /// In en, this message translates to:
+  /// **'At a premium: you receive {percent} % fewer sats.'**
+  String simplePriceBuyAbove(String percent);
+
+  /// Simple Mode price control, buyer publishing a buy order: what a discount means, said in sats. {percent} is a whole number without sign
+  ///
+  /// In en, this message translates to:
+  /// **'At a discount: you receive {percent} % more sats.'**
+  String simplePriceBuyBelow(String percent);
+
+  /// Simple Mode, Buy tab: question on the row above the offers that leads to publishing a buy order
+  ///
+  /// In en, this message translates to:
+  /// **'No offer suits you?'**
+  String get simpleBuyOrderPrompt;
+
+  /// Simple Mode, Buy tab: the action on the row above the offers; opens the sheet that publishes a buy order
+  ///
+  /// In en, this message translates to:
+  /// **'Publish your own'**
+  String get simpleBuyOrderPromptAction;
+
+  /// Simple Mode, Buy tab: shown when no offer matches, above the button that publishes a buy order
+  ///
+  /// In en, this message translates to:
+  /// **'Try another payment method, or publish your own buy order: the community\'s sellers will see it.'**
+  String get simpleBuyOrderEmptyHint;
+
+  /// Simple Mode, buy order sheet: the button at its foot that publishes the user's buy order
+  ///
+  /// In en, this message translates to:
+  /// **'Publish buy order'**
+  String get simpleBuyOrderAction;
+
+  /// Simple Mode, Buy tab: button on the empty list that opens the sheet where a buy order is set up. It does not publish, so it must not read like the sheet own publish button
+  ///
+  /// In en, this message translates to:
+  /// **'Create a buy order'**
+  String get simpleBuyOrderOpen;
+
+  /// Simple Mode: title of the sheet that publishes a buy order
+  ///
+  /// In en, this message translates to:
+  /// **'Publish your buy order'**
+  String get simpleBuyOrderTitle;
+
+  /// Simple Mode, buy order sheet: label of the fiat amount the user wants to buy
+  ///
+  /// In en, this message translates to:
+  /// **'You want to buy'**
+  String get simpleBuyOrderAmount;
+
+  /// Simple Mode, buy order sheet: heading over the payment methods the buyer can pay with
+  ///
+  /// In en, this message translates to:
+  /// **'How can you pay?'**
+  String get simpleBuyOrderMethods;
+
+  /// Simple Mode, buy order sheet: said in the payment method picker opened from the sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Tick every way you can pay. They are published with your order.'**
+  String get simpleBuyOrderMethodsHint;
+
+  /// Simple Mode, buy order sheet: what happens after publishing, and the warning not to pay before the seller's Bitcoin is locked
+  ///
+  /// In en, this message translates to:
+  /// **'The community\'s sellers will see your order. When one takes it and their Bitcoin is locked, the app tells you to pay. Do not send money before that.'**
+  String get simpleBuyOrderNotice;
+
+  /// Simple Mode trade timeline: first step of the user's own order while nobody has taken it
+  ///
+  /// In en, this message translates to:
+  /// **'Offer published. Waiting for someone to take it'**
+  String get simpleOfferWaitingTaker;
+
+  /// Simple Mode trade view: button that withdraws (cancels) the user's own order while nobody has taken it
+  ///
+  /// In en, this message translates to:
+  /// **'Withdraw offer'**
+  String get simpleWithdrawOffer;
+
+  /// Simple Mode trade view: title of the sheet that confirms withdrawing the user's own untaken order
+  ///
+  /// In en, this message translates to:
+  /// **'Withdraw your offer?'**
+  String get simpleWithdrawTitle;
+
+  /// Simple Mode trade view: body of the sheet that confirms withdrawing an untaken order, when the order has no guarantee locked
+  ///
+  /// In en, this message translates to:
+  /// **'It will no longer show on the market. You can publish another whenever you like.'**
+  String get simpleWithdrawBody;
+
+  /// Simple Mode trade view: body of the sheet that confirms withdrawing an untaken order whose maker locked a guarantee (bond): cancelling releases it
+  ///
+  /// In en, this message translates to:
+  /// **'It will no longer show on the market and your temporary guarantee is released. You can publish another whenever you like.'**
+  String get simpleWithdrawBodyBond;
+
+  /// Simple Mode trade view: the button that confirms withdrawing the order
+  ///
+  /// In en, this message translates to:
+  /// **'Yes, withdraw'**
+  String get simpleWithdrawConfirm;
+
+  /// Simple Mode trade view: shown once the withdrawal was sent to the node. The node's answer arrives later, so it does not say the order is gone already
+  ///
+  /// In en, this message translates to:
+  /// **'Withdrawal sent. Your offer will stop showing in a few seconds.'**
+  String get simpleWithdrawSent;
+
+  /// Simple Mode trade view: fallback when withdrawing the order failed for a reason with no wording of its own
+  ///
+  /// In en, this message translates to:
+  /// **'The offer could not be withdrawn. Try again.'**
+  String get simpleWithdrawFailed;
+
+  /// Simple Mode trade view: the order was taken while the user was confirming its withdrawal; nothing was sent
+  ///
+  /// In en, this message translates to:
+  /// **'Someone has just taken your offer: it can no longer be withdrawn.'**
+  String get simpleWithdrawTaken;
 }
 
 class _AppLocalizationsDelegate

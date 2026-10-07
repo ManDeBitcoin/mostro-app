@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mostro/core/order_book_palette.dart';
 import 'package:mostro/features/about/providers/mostro_node_provider.dart';
+import 'package:mostro/features/home/providers/home_order_providers.dart';
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
 import 'package:mostro/features/simple_mode/models/payment_details_rules.dart';
 import 'package:mostro/features/simple_mode/models/simple_order_rules.dart';
@@ -11,6 +13,7 @@ import 'package:mostro/features/simple_mode/providers/payment_method_providers.d
 import 'package:mostro/features/simple_mode/screens/simple_sell_screen.dart';
 import 'package:mostro/features/simple_mode/widgets/payment_details_editor.dart';
 import 'package:mostro/features/simple_mode/widgets/payment_method_field.dart';
+import 'package:mostro/features/simple_mode/widgets/simple_price_stepper.dart';
 import 'package:mostro/features/simple_mode/widgets/simple_sell_confirm_sheet.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/src/rust/api/community.dart' show CommunityProfile;
@@ -279,6 +282,125 @@ void main() {
     // And it is what the summary says, one method to a line.
     expect(find.text('Métodos de pago'), findsOneWidget);
     expect(find.text('Banco Pichincha\nDeuna'), findsOneWidget);
+  });
+
+  testWidgets('SimpleSellScreen sells at a discount as it sells at a premium', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    NewOrderParams? published;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sellTickedMethodsProvider.overrideWith((ref) => {'transferencia'}),
+          paymentDetailsGatewayProvider.overrideWithValue(
+            FakePaymentDetailsGateway(),
+          ),
+          mostroNodeProvider.overrideWith((ref) async => null),
+          createOrderActionProvider.overrideWithValue((params) async {
+            published = params;
+            throw Exception('Order rejected by Mostro: InvalidFiatCurrency');
+          }),
+        ],
+        child: const MaterialApp(
+          locale: Locale('es'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: SimpleSellScreen()),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    // One control on one row where seven chips stood, none of them below
+    // the market.
+    expect(find.byType(SimplePriceStepper), findsOneWidget);
+    expect(find.byType(ChoiceChip), findsNWidgets(4));
+    expect(find.text('Mercado'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('simple-price-lower')));
+    await tester.tap(find.byKey(const ValueKey('simple-price-lower')));
+    await tester.pump();
+    expect(find.text('-2%'), findsOneWidget);
+
+    await tester.tap(find.text('Publicar oferta'));
+    await tester.pumpAndSettle();
+    // The summary signs it as it is: it used to print a plus before any
+    // premium.
+    expect(
+      tester
+          .widget<SimpleSellConfirmSheet>(find.byType(SimpleSellConfirmSheet))
+          .premium,
+      -2,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(SimpleSellConfirmSheet),
+        matching: find.text('-2%'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('+-'), findsNothing);
+
+    await tester.tap(find.text('CONFIRMAR Y PUBLICAR'));
+    await tester.pump();
+    await tester.pump();
+    expect(published!.premium, -2);
+    expect(published!.amountSats, isNull);
+  });
+
+  testWidgets("SimpleSellScreen reads a buyer's premium from the seller's side", (
+    tester,
+  ) async {
+    // Wide and tall: the buyers' cards are the end of a lazy list.
+    tester.view.physicalSize = const Size(1400, 3000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    OrderItem buy(String id, double premium) => OrderItem(
+      id: id,
+      kind: 'buy',
+      fiatAmount: 50,
+      fiatCode: 'USD',
+      paymentMethod: 'Transferencia',
+      premium: premium,
+      creatorPubkey: 'peer-$id',
+      createdAt: DateTime.utc(2026),
+      status: OrderStatus.pending,
+      isMine: false,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          orderBookProvider.overrideWith(
+            (ref) => Stream.value([buy('over', 2), buy('under', -2)]),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('es'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: SimpleSellScreen()),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final pal = OrderBookPalette.of(
+      tester.element(find.byType(SimpleSellScreen)),
+    );
+    Color? color(String text) =>
+        tester.widget<Text>(find.text(text)).style?.color;
+    // A buyer who pays over the market is the better offer for whoever
+    // sells to them, and one who asks a discount the worse: the card used
+    // to colour them as the Buy tab colours a seller's.
+    expect(color('+2.0% sobre mercado'), pal.limeText);
+    expect(color('-2.0% bajo mercado'), Colors.orangeAccent);
   });
 
   testWidgets(

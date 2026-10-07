@@ -4405,4 +4405,108 @@ class AppLocalizationsEs extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get simplePriceLabel => 'Precio';
+
+  @override
+  String get simplePriceMarket => 'Mercado';
+
+  @override
+  String get simplePriceLower => 'Bajar un 1 %';
+
+  @override
+  String get simplePriceRaise => 'Subir un 1 %';
+
+  @override
+  String get simplePriceSellMarket => 'Vendes al precio de mercado.';
+
+  @override
+  String simplePriceSellAbove(String percent) {
+    return 'Con prima: entregas un $percent % menos de sats.';
+  }
+
+  @override
+  String simplePriceSellBelow(String percent) {
+    return 'Con descuento: entregas un $percent % más de sats.';
+  }
+
+  @override
+  String get simplePriceBuyMarket => 'Compras al precio de mercado.';
+
+  @override
+  String simplePriceBuyAbove(String percent) {
+    return 'Con prima: recibes un $percent % menos de sats.';
+  }
+
+  @override
+  String simplePriceBuyBelow(String percent) {
+    return 'Con descuento: recibes un $percent % más de sats.';
+  }
+
+  @override
+  String get simpleBuyOrderPrompt => '¿Ninguna oferta te sirve?';
+
+  @override
+  String get simpleBuyOrderPromptAction => 'Publica la tuya';
+
+  @override
+  String get simpleBuyOrderEmptyHint =>
+      'Prueba con otro método de pago o publica tu orden de compra: los vendedores de la comunidad la verán.';
+
+  @override
+  String get simpleBuyOrderAction => 'Publicar orden de compra';
+
+  @override
+  String get simpleBuyOrderOpen => 'Crear orden de compra';
+
+  @override
+  String get simpleBuyOrderTitle => 'Publica tu orden de compra';
+
+  @override
+  String get simpleBuyOrderAmount => 'Quieres comprar';
+
+  @override
+  String get simpleBuyOrderMethods => '¿Con qué puedes pagar?';
+
+  @override
+  String get simpleBuyOrderMethodsHint =>
+      'Marca todos los medios con los que puedes pagar. Se publican con tu orden.';
+
+  @override
+  String get simpleBuyOrderNotice =>
+      'Los vendedores de la comunidad verán tu orden. Cuando uno la tome y su Bitcoin quede bloqueado, la app te avisará para que pagues. No envíes dinero antes.';
+
+  @override
+  String get simpleOfferWaitingTaker =>
+      'Oferta publicada. Esperando a que alguien la tome';
+
+  @override
+  String get simpleWithdrawOffer => 'Retirar oferta';
+
+  @override
+  String get simpleWithdrawTitle => '¿Retirar tu oferta?';
+
+  @override
+  String get simpleWithdrawBody =>
+      'Dejará de verse en el mercado. Puedes publicar otra cuando quieras.';
+
+  @override
+  String get simpleWithdrawBodyBond =>
+      'Dejará de verse en el mercado y tu garantía temporal quedará liberada. Puedes publicar otra cuando quieras.';
+
+  @override
+  String get simpleWithdrawConfirm => 'Sí, retirar';
+
+  @override
+  String get simpleWithdrawSent =>
+      'Retiro enviado. Tu oferta dejará de verse en unos segundos.';
+
+  @override
+  String get simpleWithdrawFailed =>
+      'No se pudo retirar la oferta. Inténtalo de nuevo.';
+
+  @override
+  String get simpleWithdrawTaken =>
+      'Alguien acaba de tomar tu oferta: ya no se puede retirar.';
 }

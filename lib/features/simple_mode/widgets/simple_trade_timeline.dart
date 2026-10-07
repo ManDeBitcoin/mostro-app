@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mostro/core/order_book_palette.dart';
 import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
+import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/src/rust/api/types.dart';
 
 enum MilestoneState { completed, current, upcoming }
@@ -49,6 +50,12 @@ class SimpleTradeTimeline extends StatelessWidget {
     final isSuccess =
         status == OrderStatus.success || status == OrderStatus.settledHoldInvoice;
 
+    // An order of ours nobody has taken: on the book (`pending`), or one
+    // step short of it while the maker's deposit is unpaid. Nothing has
+    // been accepted, and nothing after the take has begun.
+    final isUntaken = status == OrderStatus.pending ||
+        status == OrderStatus.waitingMakerBond;
+
     // Milestone 1: Accepted
     const m1 = MilestoneState.completed;
 
@@ -58,7 +65,7 @@ class SimpleTradeTimeline extends StatelessWidget {
     // Milestone 3: Escrow secured
     final m3 = isEscrowFunded
         ? MilestoneState.completed
-        : (!showBond || isBondPaid
+        : (!isUntaken && (!showBond || isBondPaid)
               ? MilestoneState.current
               : MilestoneState.upcoming);
 
@@ -85,18 +92,38 @@ class SimpleTradeTimeline extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildMilestoneRow(
-            title: SimpleL10n.tradeAccepted(context),
-            state: m1,
-            pal: pal,
-            isFirst: true,
-          ),
-          if (showBond)
+          if (isUntaken) ...[
+            // A maker's deposit comes before the order is on the book, so
+            // here it is the first step and the wait for a taker the next.
+            if (showBond)
+              _buildMilestoneRow(
+                title: SimpleL10n.guaranteeLocked(context),
+                state: m2,
+                pal: pal,
+                isFirst: true,
+              ),
             _buildMilestoneRow(
-              title: SimpleL10n.guaranteeLocked(context),
-              state: m2,
+              title: AppLocalizations.of(context).simpleOfferWaitingTaker,
+              state: status == OrderStatus.pending
+                  ? MilestoneState.current
+                  : MilestoneState.upcoming,
               pal: pal,
+              isFirst: !showBond,
             ),
+          ] else ...[
+            _buildMilestoneRow(
+              title: SimpleL10n.tradeAccepted(context),
+              state: m1,
+              pal: pal,
+              isFirst: true,
+            ),
+            if (showBond)
+              _buildMilestoneRow(
+                title: SimpleL10n.guaranteeLocked(context),
+                state: m2,
+                pal: pal,
+              ),
+          ],
           _buildMilestoneRow(
             title: SimpleL10n.bitcoinSecured(context),
             state: m3,
@@ -222,41 +249,47 @@ class SimpleTradeTimeline extends StatelessWidget {
       MilestoneState.upcoming => Icons.radio_button_unchecked,
     };
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Column(
-          children: [
-            Icon(icon, size: 20, color: color),
-            if (!isLast)
-              Container(
-                width: 2,
-                height: 24,
-                color: state == MilestoneState.completed
-                    ? pal.limeText.withValues(alpha: 0.5)
-                    : pal.navBorder,
-              ),
-          ],
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 1),
-            child: Text(
-              title,
-              style: TextStyle(
-                color: state == MilestoneState.upcoming
-                    ? pal.textTertiary
-                    : pal.textTitle,
-                fontWeight: state == MilestoneState.current
-                    ? FontWeight.bold
-                    : FontWeight.w500,
-                fontSize: 13,
+    // As tall as its title: one that takes two lines pushes the next step
+    // down, and the line between the two icons grows with it.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            children: [
+              Icon(icon, size: 20, color: color),
+              if (!isLast)
+                Expanded(
+                  child: Container(
+                    width: 2,
+                    constraints: const BoxConstraints(minHeight: 24),
+                    color: state == MilestoneState.completed
+                        ? pal.limeText.withValues(alpha: 0.5)
+                        : pal.navBorder,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(top: 1, bottom: isLast ? 0 : 8),
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: state == MilestoneState.upcoming
+                      ? pal.textTertiary
+                      : pal.textTitle,
+                  fontWeight: state == MilestoneState.current
+                      ? FontWeight.bold
+                      : FontWeight.w500,
+                  fontSize: 13,
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
