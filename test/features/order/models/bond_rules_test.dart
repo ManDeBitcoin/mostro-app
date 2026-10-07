@@ -281,10 +281,4 @@ void main() {
     );
     expect(bondCancelCopy(null), BondCancelCopy.neutral);
   });
-
-  test('the explainer opens the first time and then as last left', () {
-    expect(bondExplainerOpens(stored: null), isTrue);
-    expect(bondExplainerOpens(stored: false), isFalse);
-    expect(bondExplainerOpens(stored: true), isTrue);
-  });
 }

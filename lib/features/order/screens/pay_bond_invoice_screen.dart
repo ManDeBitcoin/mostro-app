@@ -41,9 +41,12 @@ const _docsUrl = 'https://mostro.network/docs-english/';
 ///
 /// The taker pays the bond hold invoice the daemon asks for before the trade
 /// starts (`docs/ANTI_ABUSE_BOND.md` §6.1). 14a puts the amount first, the
-/// three things that can happen to it, and the wallet as the primary action;
-/// 14b is the same scroll with the long explanation open. Mostro detects the
-/// payment and the trade moves on: the screen leaves on its own.
+/// invoice's QR, how long it stands, the three things that can happen to
+/// the deposit, and the wallet as the primary action; it is how the screen
+/// is always arrived at. 14b is the same scroll once the user opens the
+/// long explanation, which takes the QR's place until they close it.
+/// Mostro detects the payment and the trade moves on: the screen leaves on
+/// its own.
 class PayBondInvoiceScreen extends ConsumerStatefulWidget {
   const PayBondInvoiceScreen({super.key, required this.orderId});
 

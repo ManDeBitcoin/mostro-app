@@ -16,7 +16,6 @@ import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/utils/platform_int64.dart';
 import 'package:mostro/src/rust/api/types.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../support/fake_trades.dart';
 
@@ -36,7 +35,6 @@ BondInfo _bond({
 Future<void> _pump(
   WidgetTester tester, {
   required TradeInfo trade,
-  bool explainerOpen = false,
   bool walletConnected = false,
   bool? slashOnTimeout,
   Future<TradeInfo> Function(String)? requestAgain,
@@ -44,9 +42,6 @@ Future<void> _pump(
   Future<void> Function(String)? abandon,
   Future<bool> Function(String)? closeExpired,
 }) async {
-  SharedPreferences.setMockInitialValues({
-    kBondExplainerOpenKey: explainerOpen,
-  });
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -183,12 +178,47 @@ void main() {
     expect(find.text("Don't take the order"), findsOneWidget);
   });
 
-  testWidgets('the explainer opens the way the user last left it', (
-    tester,
-  ) async {
-    await _pump(tester, trade: fakeTrade(bond: _bond()), explainerOpen: true);
+  testWidgets('arrives on the QR, with the explanation closed', (tester) async {
+    // Taller than the default surface: the explanation is under the three
+    // consequences, and the accordion has to be on screen to be tapped.
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    Future<void> arrive() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await _pump(
+        tester,
+        trade: fakeTrade(bond: _bond()),
+        slashOnTimeout: false,
+      );
+    }
+
+    // What someone sent here to pay sees: the invoice, and what can happen
+    // to the deposit. The explanation used to open the first time, in the
+    // QR's place.
+    await arrive();
+    expect(find.byType(QrImageView), findsOneWidget);
+    expect(
+      find.text(
+        'The sats stay held in your wallet, they are not spent',
+        findRichText: true,
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Why Mostro asks for a deposit'), findsOneWidget);
+    expect(find.text('Read the documentation'), findsNothing);
+
+    // Opened, it is the reading view: the long text, no QR.
+    await tester.tap(find.text('Why Mostro asks for a deposit'));
+    await tester.pump();
     expect(find.byType(QrImageView), findsNothing);
     expect(find.text('Read the documentation'), findsOneWidget);
+
+    // And it was open for that reading, not from then on: the next deposit
+    // arrives on its QR again.
+    await arrive();
+    expect(find.byType(QrImageView), findsOneWidget);
+    expect(find.text('Read the documentation'), findsNothing);
   });
 
   testWidgets('a row without its bolt11 offers the same-take re-request', (

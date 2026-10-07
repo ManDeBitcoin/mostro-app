@@ -49,6 +49,15 @@ flutter gen-l10n                            # after editing lib/l10n/*.arb
   (`--base-href` for the sub-path, `--pwa-strategy=none` so Flutter's service worker does not
   take the isolation shim's scope). Every one of these, when wrong, yields a **blank page** —
   `test/web/pages_bundle_test.dart` guards them statically.
+- **This fork's production is `Dockerfile.web` behind `docker/nginx.conf`, and nothing it
+  serves may be reused by a browser without asking.** A web build writes the same file names
+  with other contents every time, the assets included: `assets/fonts/MaterialIcons-Regular.otf`
+  is cut down to the icons that build draws. `/assets/` used to be kept for a day
+  (`max-age=86400`), so after a deploy a browser that had the app open drew the new screens
+  with the old icon font and every icon the deploy added was blank — the price control's minus
+  sign, in October 2026. Every `location` now sends `no-cache` (a 304 when unchanged);
+  `test/web/nginx_cache_test.dart` holds that. An icon new to the app is still worth a second
+  look before it carries meaning on its own: `SimplePriceStepper` draws its two signs itself.
 - `cargo check --target wasm32-unknown-unknown` is **not** a substitute for `build-web.sh`: two
   wasm-only requirements fail later than type-checking. `getrandom` (0.2 via bip32/k256, 0.4 via
   nostr's `rand`) needs its JS backend feature enabled in `rust/Cargo.toml`, and nostr 0.45's
