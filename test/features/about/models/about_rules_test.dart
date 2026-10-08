@@ -129,6 +129,55 @@ void main() {
       expect((summary.deposit, summary.depositUnit), ('1,000', 'sats'));
     });
 
+    test(
+      'a share the node did not send usably reads as the floor it locks',
+      () {
+        // bond_amount_pct negative or malformed: the parser drops it, and the
+        // daemon, reading it as zero, locks the floor alone.
+        final summary = NodeSummary.of(
+          const MostroInstance(
+            pubKey: 'node',
+            bondPolicy: BondPolicy.enabled,
+            bondBaseAmountSats: 1000,
+          ),
+          _en,
+        );
+
+        expect((summary.deposit, summary.depositUnit), ('1,000', 'sats'));
+      },
+    );
+
+    test('no share and no floor lock nothing, so read no', () {
+      for (final pct in const [0.0, null]) {
+        final summary = NodeSummary.of(
+          MostroInstance(
+            pubKey: 'node',
+            bondPolicy: BondPolicy.enabled,
+            bondAmountPct: pct,
+            bondBaseAmountSats: 0,
+          ),
+          _en,
+        );
+
+        expect(summary.deposit, _en.aboutNodeDepositNone, reason: '$pct');
+        expect(summary.depositUnit, isNull, reason: '$pct');
+      }
+    });
+
+    test('a share too large to show reads a dash, not the floor', () {
+      final summary = NodeSummary.of(
+        const MostroInstance(
+          pubKey: 'node',
+          bondPolicy: BondPolicy.enabled,
+          bondAmountPct: 1e308,
+          bondBaseAmountSats: 1000,
+        ),
+        _en,
+      );
+
+      expect((summary.deposit, summary.depositUnit), (missingFigure, null));
+    });
+
     test('a share with no floor goes alone', () {
       final summary = NodeSummary.of(
         const MostroInstance(

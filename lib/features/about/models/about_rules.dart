@@ -162,9 +162,13 @@ class NodeSummary {
   }
 
   /// The daemon locks the larger of the share of the order and the floor
-  /// (`bond_base_amount_sats`), so a floor goes with the share (`1%` over
-  /// `min. 1,000 sats`), and alone when the share is zero (`1,000` `sats`).
-  /// A node that predates deposits asks for none either.
+  /// (`bond_base_amount_sats`), and only the floor when the share is not
+  /// above zero. So a floor goes with the share (`1%` over `min. 1,000
+  /// sats`), alone when there is no share (`1,000` `sats`), and with neither
+  /// the node locks nothing (`No`). A share the parser dropped (negative,
+  /// malformed) is no share: the daemon reads it as zero. `—` only when the
+  /// node sent neither, or a share too large to show. A node that predates
+  /// deposits asks for none either.
   static (String, String?) _deposit(
     MostroInstance node,
     AppLocalizations l10n,
@@ -173,13 +177,18 @@ class NodeSummary {
       return (l10n.aboutNodeDepositNone, null);
     }
     final pct = node.bondAmountPct;
+    final floor = node.bondBaseAmountSats;
+    if (pct == null && floor == null) return (missingFigure, null);
+    final sats = formatSats(floor ?? 0, l10n.localeName);
+    if (pct == null || pct == 0) {
+      return (floor ?? 0) == 0
+          ? (l10n.aboutNodeDepositNone, null)
+          : (sats, l10n.satsUnitLabel);
+    }
     final share = formatPercent(pct, l10n);
     if (share == null) return (missingFigure, null);
-    final floor = node.bondBaseAmountSats ?? 0;
-    if (floor == 0) return (share, null);
-    final sats = formatSats(floor, l10n.localeName);
-    return pct == 0
-        ? (sats, l10n.satsUnitLabel)
+    return (floor ?? 0) == 0
+        ? (share, null)
         : (share, l10n.aboutNodeDepositFloor(sats));
   }
 
