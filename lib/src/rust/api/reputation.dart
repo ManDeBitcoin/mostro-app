@@ -36,7 +36,9 @@ Future<bool> getPrivacyMode() =>
 /// When enabled, no reputation data is sent or received in future trades and
 /// session recovery becomes unavailable.
 ///
-/// **Errors**: `NoIdentity` (identity check deferred to Phase 14+ bridge).
+/// Non-async on purpose, and it must stay free of anything that needs a
+/// runtime: on native, FRB runs it on its thread pool, where no Tokio runtime
+/// exists, and a spawn there panicked before the flag was stored (#774).
 Future<void> setPrivacyMode({required bool enabled}) =>
     RustLib.instance.api.crateApiReputationSetPrivacyMode(enabled: enabled);
 
