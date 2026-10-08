@@ -3,6 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mostro/src/rust/api/reputation.dart' as reputation_api;
 import 'package:mostro/src/rust/api/types.dart';
 
+/// Reads one trade's rating through the bridge; injectable for tests.
+final ratingReaderProvider = Provider<Future<RatingInfo?> Function(String)>(
+  (ref) => (tradeId) => reputation_api.getRatingForTrade(tradeId: tradeId),
+);
+
 /// The rating held for [tradeId], or `null` when neither side has rated.
 ///
 /// The Rust store is in-memory (ratings live in the daemon's kind 38383 tags,
@@ -12,7 +17,7 @@ import 'package:mostro/src/rust/api/types.dart';
 /// rated and the rate prompt does not come back.
 final tradeRatingProvider = FutureProvider.autoDispose
     .family<RatingInfo?, String>((ref, tradeId) async {
-  return reputation_api.getRatingForTrade(tradeId: tradeId);
+  return ref.watch(ratingReaderProvider)(tradeId);
 });
 
 /// Whether the local user has rated their counterpart on [tradeId].
