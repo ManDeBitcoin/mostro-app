@@ -12897,6 +12897,7 @@ mod tests {
         let id = |tag: &str| format!("{tag}-{}", uuid::Uuid::new_v4());
         let (done, dead, settled, live, fresh) =
             (id("done"), id("dead"), id("settled"), id("live"), id("fresh"));
+        let mut rows = Vec::new();
         for (oid, status, index) in [
             (&done, S::Success, 40),
             (&dead, S::Pending, 41),
@@ -12907,6 +12908,7 @@ mod tests {
             let mut row = seam_trade_row(oid, status);
             row.trade_key_index = index;
             db.save_trade(&row).await.unwrap();
+            rows.push(row);
         }
         let snapshot = RestoreSnapshot {
             floor: 97,
@@ -12915,7 +12917,9 @@ mod tests {
             identity: None,
         };
 
-        let dropped = reconcile_history_with(&snapshot).await;
+        // Only this test's rows: the store is shared, and the floor covers
+        // the low indices of every row the tests beside it write.
+        let dropped = drop_history_rows(&snapshot, rows).await;
 
         for oid in [&done, &dead, &settled] {
             assert!(trade_row_gone(oid).await, "{oid}: history keeps no row");
