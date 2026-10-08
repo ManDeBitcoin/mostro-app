@@ -4300,4 +4300,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsMintCopied => 'Mint URL copied';
+
+  @override
+  String get pwaInstallTitle => 'Install Mostro';
+
+  @override
+  String get pwaInstallBody =>
+      'Open it from your home screen, full screen, like any other app.';
+
+  @override
+  String get pwaInstallAction => 'Install';
+
+  @override
+  String get pwaInstallNotNow => 'Not now';
+
+  @override
+  String get pwaInstallSettingTitle => 'Install app';
+
+  @override
+  String get pwaInstallStepsTitle => 'Add Mostro to your home screen';
+
+  @override
+  String get pwaInstallStepShare =>
+      'Tap the Share button in your browser\'s toolbar.';
+
+  @override
+  String get pwaInstallStepAdd => 'Choose “Add to Home Screen”.';
+
+  @override
+  String get pwaInstallStepsDone => 'Got it';
 }

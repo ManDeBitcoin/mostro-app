@@ -4345,4 +4345,33 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get settingsMintCopied => 'URL del mint copiato';
+
+  @override
+  String get pwaInstallTitle => 'Installa Mostro';
+
+  @override
+  String get pwaInstallBody =>
+      'Aprila dalla schermata Home, a schermo intero, come qualsiasi altra app.';
+
+  @override
+  String get pwaInstallAction => 'Installa';
+
+  @override
+  String get pwaInstallNotNow => 'Non ora';
+
+  @override
+  String get pwaInstallSettingTitle => 'Installa app';
+
+  @override
+  String get pwaInstallStepsTitle => 'Aggiungi Mostro alla schermata Home';
+
+  @override
+  String get pwaInstallStepShare =>
+      'Tocca il pulsante Condividi nella barra del browser.';
+
+  @override
+  String get pwaInstallStepAdd => 'Scegli «Aggiungi a schermata Home».';
+
+  @override
+  String get pwaInstallStepsDone => 'Ho capito';
 }

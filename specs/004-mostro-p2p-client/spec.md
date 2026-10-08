@@ -68,6 +68,8 @@ A user browses available buy/sell offers in the public order book. The list is o
 4. **Given** there are no matching orders for the active filter, **When** the filter is applied, **Then** a "No orders available" empty state is shown.
 5. **Given** the user applied filters, **When** they close the app completely and reopen it, **Then** the same filters are still applied and the Filter chip shows that the book is filtered and how many filters are on (#575).
 6. **Given** filters are applied, **When** the user taps Reset in the Filters dialog or Clear filters in the empty state, **Then** the book is unfiltered and stays unfiltered after the app is reopened.
+7. **Given** the web app open in a phone browser that can install it, not yet installed, **When** the order book has loaded, **Then** a card under the app bar offers to install it (#778): Install opens the browser's own install dialog on Android and the Share → Add to Home Screen steps on iOS, and Not now closes it.
+8. **Given** the user answered the install card either way, **When** they reopen the app on the same device, **Then** the card does not show again, even under a new identity.
 
 ---
 
@@ -280,6 +282,7 @@ The app always has all three payment methods: Lightning, NWC and the Cashu walle
 3. **Given** the user has a Lightning address saved, **When** they start a buy trade, **Then** the invoice input is pre-filled with the saved address.
 4. **Given** the user manages relays, **When** they toggle a relay off, **Then** the app stops connecting to that relay.
 5. **Given** any active Mostro node, Lightning or Cashu, **When** the user opens Settings, **Then** the Lightning address, the NWC wallet and the Cashu wallet are all shown and all open. Switching to a node with the other escrow backend shows the same three.
+6. **Given** the web app in a browser that can install it, not yet installed, **When** the user opens Settings, **Then** the App group lists Install app, which installs it as the order book's card does (FR-018a), whether or not that card was answered. Native builds and the installed web app do not list it.
 
 ---
 
@@ -343,6 +346,7 @@ Users manage their cryptographic identity from the Account screen: view their 12
 - **FR-016a**: The order-book filters MUST persist across app restarts, as a device preference (a new identity keeps them). A stored value MUST be validated on load — ranges clamped to the slider bounds, an unreadable control reset to "no filter" on its own — and every selected value MUST stay visible in the Filters dialog even when the currency catalogue or the method list no longer offers it, so it can be deselected. While any filter is on, the Filter chip MUST say so and how many are on (#575).
 - **FR-017**: The system MUST display only orders with "pending" status in the public order book.
 - **FR-018**: Orders in the public order book MUST be sorted by ascending expiration time (soonest expiring first).
+- **FR-018a**: On the web build, the order book MUST offer to install the app once per device (#778), with a card under the app bar shown only when all hold: the browser runs on a phone or tablet (Android or iOS); the page is not already the installed app (`display-mode: standalone`, or `navigator.standalone` on iOS); the browser can install it (Android: it fired `beforeinstallprompt`, which the page keeps and whose own mini-infobar it suppresses; iOS: always, as instructions, since Safari has no install API); the book has loaded; and the user has not answered the card. Install MUST ask for the browser's dialog within the tap, before anything is awaited, since browsers refuse it once the user activation is gone. Install and Not now are both the answer: it MUST be stored as a device preference (`pwaInstallAnswered`; a new identity keeps it), and an ignored card shows again on the next visit. The card MUST show in portrait only: in landscape or a wider-than-tall window the order book's fixed header already fills most of the height, so it waits, and not shown is not answered. It MUST never take more than a third of the screen's height; on a short screen its text scrolls inside it and its answers stay in view. Settings keeps the install available (User Story 14, scenario 6).
 
 **Order Creation**
 

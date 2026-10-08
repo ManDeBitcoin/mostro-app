@@ -15,6 +15,7 @@ import 'package:mostro/features/home/widgets/order_filter_chip.dart';
 import 'package:mostro/features/home/widgets/order_list_empty.dart';
 import 'package:mostro/features/home/widgets/order_sort_sheet.dart';
 import 'package:mostro/features/home/widgets/side_swipe.dart';
+import 'package:mostro/features/install/widgets/pwa_install_card.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/utils/fiat_currencies.dart';
 import 'package:mostro/shared/widgets/add_order_button.dart';
@@ -124,6 +125,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           // Mostro shuffles while the book keeps the user waiting.
           waiting: book.isLoading,
         ),
+        // Offered once the book has loaded: never before the user has seen
+        // the app work (#778). Nothing at all off web and in the installed app.
+        if (book.hasValue) const PwaInstallCard(),
         _SideTabs(palette: pal, selected: orderType, onSelected: selectSide),
         _FilterRow(
           palette: pal,
