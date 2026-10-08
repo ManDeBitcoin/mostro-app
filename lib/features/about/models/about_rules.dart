@@ -85,9 +85,10 @@ List<String> splitTagList(String? raw) => (raw ?? '')
 String formatSats(int sats, String locale) =>
     NumberFormat.decimalPattern(locale).format(sats);
 
-/// The node fee (a fraction, `0.006`) as `0.6%` in the locale's style, or
-/// `null` when the node sent nothing usable.
-String? formatFee(double? fraction, AppLocalizations l10n) {
+/// A fraction the node sends (`0.006`) as `0.6%` in the locale's style, or
+/// `null` when the node sent nothing usable: its fee, its deposit and the
+/// share of a slashed deposit it keeps, alike on 12a and 12b.
+String? formatPercent(double? fraction, AppLocalizations l10n) {
   if (fraction == null) return null;
   final pct = fraction * 100;
   if (!pct.isFinite || pct < 0) return null;
@@ -110,7 +111,7 @@ class NodeLimits {
     return NodeLimits(
       min: min == null ? missingFigure : formatSats(min, l10n.localeName),
       max: max == null ? missingFigure : formatSats(max, l10n.localeName),
-      fee: formatFee(node?.fee, l10n) ?? missingFigure,
+      fee: formatPercent(node?.fee, l10n) ?? missingFigure,
     );
   }
 
@@ -149,7 +150,7 @@ class NodeSummary {
       // A node that predates deposits asks for none either.
       deposit: switch (node.bondPolicy) {
         BondPolicy.enabled =>
-          formatFee(node.bondAmountPct, l10n) ?? missingFigure,
+          formatPercent(node.bondAmountPct, l10n) ?? missingFigure,
         BondPolicy.disabled ||
         BondPolicy.unsupported => l10n.aboutNodeDepositNone,
       },
@@ -291,12 +292,8 @@ List<TechRow> _bondRows(MostroInstance node, AppLocalizations l10n) {
     TechRow(l10n.aboutBondStatusLabel, status, TechValueStyle.text),
     if (applyTo != null)
       TechRow(l10n.aboutBondAppliesToLabel, applyTo, TechValueStyle.text),
-    if (node.bondAmountPercent != null)
-      TechRow(
-        l10n.aboutBondAmountLabel,
-        node.bondAmountPercent!,
-        TechValueStyle.figure,
-      ),
+    if (formatPercent(node.bondAmountPct, l10n) case final amount?)
+      TechRow(l10n.aboutBondAmountLabel, amount, TechValueStyle.figure),
     if (node.bondBaseAmountSats != null)
       TechRow(
         l10n.aboutBondBaseAmountLabel,
@@ -304,12 +301,8 @@ List<TechRow> _bondRows(MostroInstance node, AppLocalizations l10n) {
         '${l10n.aboutSatoshisSuffix}',
         TechValueStyle.figure,
       ),
-    if (node.bondSlashNodeSharePercent != null)
-      TechRow(
-        l10n.aboutBondNodeShareLabel,
-        node.bondSlashNodeSharePercent!,
-        TechValueStyle.figure,
-      ),
+    if (formatPercent(node.bondSlashNodeSharePct, l10n) case final share?)
+      TechRow(l10n.aboutBondNodeShareLabel, share, TechValueStyle.figure),
     if (node.bondSlashOnWaitingTimeout != null)
       TechRow(
         l10n.aboutBondSlashOnTimeoutLabel,

@@ -59,12 +59,16 @@ void main() {
       expect(splitTagList(null), isEmpty);
     });
 
-    test('formatFee follows the locale and rejects unusable values', () {
-      expect(formatFee(0.006, _en), '0.6%');
-      expect(formatFee(0.006, _es), '0,6 %');
-      expect(formatFee(0, _en), '0%');
-      expect(formatFee(double.infinity, _en), isNull);
-      expect(formatFee(null, _en), isNull);
+    test('formatPercent follows the locale and rejects unusable values', () {
+      expect(formatPercent(0.006, _en), '0.6%');
+      expect(formatPercent(0.006, _es), '0,6 %');
+      expect(formatPercent(0.335, _en), '33.5%');
+      expect(formatPercent(0, _en), '0%');
+      expect(formatPercent(double.infinity, _en), isNull);
+      // A finite fraction the parser accepts (bond_amount_pct is uncapped)
+      // that overflows once scaled to a percentage.
+      expect(formatPercent(1e308, _en), isNull);
+      expect(formatPercent(null, _en), isNull);
     });
   });
 
@@ -144,6 +148,23 @@ void main() {
   });
 
   group('nodeTechSections', () {
+    test('the deposit reads the same on About and in the technical data', () {
+      const node = MostroInstance(
+        pubKey: 'node',
+        bondPolicy: BondPolicy.enabled,
+        bondAmountPct: 0.015,
+        bondSlashNodeSharePct: 0.335,
+      );
+      final sections = nodeTechSections(node, _es);
+
+      expect(_row(sections, _es.aboutBondAmountLabel).value, '1,5 %');
+      expect(
+        _row(sections, _es.aboutBondAmountLabel).value,
+        NodeSummary.of(node, _es).deposit,
+      );
+      expect(_row(sections, _es.aboutBondNodeShareLabel).value, '33,5 %');
+    });
+
     test('the handoff node lists its rows in the handoff order', () {
       final sections = nodeTechSections(_handoffNode, _en);
 
