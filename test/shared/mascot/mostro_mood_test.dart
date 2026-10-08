@@ -190,4 +190,71 @@ void main() {
       expect(isLoopingMood(MostroMood.neutral), isFalse);
     });
   });
+
+  group('moodSticker', () {
+    test('each mood wears its sticker, and rest wears the plain mascot', () {
+      expect(moodSticker(MostroMood.neutral), isNull);
+      expect(moodSticker(MostroMood.happy), 'waving');
+      expect(moodSticker(MostroMood.dizzy), 'confused');
+      expect(moodSticker(MostroMood.asleep), 'bored');
+      expect(moodSticker(MostroMood.impatient), 'thinking');
+      expect(moodSticker(MostroMood.celebrating), 'celebrate');
+    });
+
+    test('every mood but rest has one', () {
+      for (final mood in MostroMood.values) {
+        if (mood == MostroMood.neutral) continue;
+        expect(moodSticker(mood), isNotNull, reason: mood.name);
+      }
+    });
+  });
+
+  group('isFreshEvent', () {
+    final now = DateTime.utc(2026, 6, 1, 12);
+
+    test('something that just happened is news', () {
+      expect(isFreshEvent(occurredAt: now, now: now), isTrue);
+      expect(
+        isFreshEvent(
+          occurredAt: now.subtract(const Duration(seconds: 30)),
+          now: now,
+        ),
+        isTrue,
+      );
+    });
+
+    test('a relay slow by up to two minutes still counts', () {
+      expect(
+        isFreshEvent(occurredAt: now.subtract(mostroFreshEvent), now: now),
+        isTrue,
+      );
+    });
+
+    test('a replayed past is not news', () {
+      expect(
+        isFreshEvent(
+          occurredAt: now.subtract(const Duration(minutes: 3)),
+          now: now,
+        ),
+        isFalse,
+      );
+      expect(
+        isFreshEvent(
+          occurredAt: now.subtract(const Duration(days: 40)),
+          now: now,
+        ),
+        isFalse,
+      );
+    });
+
+    test('a sender clock a little ahead of ours is still news', () {
+      expect(
+        isFreshEvent(
+          occurredAt: now.add(const Duration(seconds: 20)),
+          now: now,
+        ),
+        isTrue,
+      );
+    });
+  });
 }

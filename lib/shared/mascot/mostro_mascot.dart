@@ -11,7 +11,8 @@ import 'package:mostro/shared/mascot/mostro_mood.dart';
 
 /// The Mostro mascot, with a pulse.
 ///
-/// Same artwork everywhere; only the motion changes. Reactions to a tap play
+/// At rest it is the plain artwork; a mood moves it and dresses it in that
+/// mood's sticker ([moodSticker]), in the same box. Reactions to a tap play
 /// once and are over ([MostroMood.happy], [MostroMood.dizzy]); ambient moods
 /// loop until they are replaced ([MostroMood.asleep],
 /// [MostroMood.impatient]).
@@ -47,6 +48,16 @@ class MostroMascot extends StatefulWidget {
   final MostroSeason? season;
 
   static const String asset = 'assets/images/mostro_mascot.webp';
+
+  /// The asset of the sticker named [name] (see [moodSticker]).
+  static String stickerAsset(String name) =>
+      'assets/images/mascot/mostro-$name.webp';
+
+  /// How much taller than the box a sticker is drawn. Its arms, props and
+  /// confetti surround the same body, so at the box's height the body would
+  /// shrink; at this scale it stays the plain mascot's size, and the extra
+  /// spills over the box without moving anything around it.
+  static const double stickerScale = 1.2;
 
   /// The artwork is 199 × 288.
   static const double aspect = 199 / 288;
@@ -101,7 +112,18 @@ class _MostroMascotState extends State<MostroMascot>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _syncAmbient();
+    if (!_stickersCached) {
+      _stickersCached = true;
+      // Decoded ahead, or the first switch to a mood draws one empty frame.
+      for (final mood in MostroMood.values) {
+        final sticker = moodSticker(mood);
+        if (sticker == null) continue;
+        precacheImage(AssetImage(MostroMascot.stickerAsset(sticker)), context);
+      }
+    }
   }
+
+  bool _stickersCached = false;
 
   @override
   void dispose() {
@@ -218,11 +240,7 @@ class _MostroMascotState extends State<MostroMascot>
           ),
         );
       },
-      child: Image.asset(
-        MostroMascot.asset,
-        height: height,
-        excludeFromSemantics: true,
-      ),
+      child: _artwork(height),
     );
 
     final opaque =
@@ -245,6 +263,29 @@ class _MostroMascotState extends State<MostroMascot>
           height: math.max(height, MostroMascot.minTapTarget),
           child: Center(child: opaque),
         ),
+      ),
+    );
+  }
+
+  /// The plain mascot at rest, or the sticker of the mood on show, drawn
+  /// [MostroMascot.stickerScale] taller and centred over the same box.
+  Widget _artwork(double height) {
+    final sticker = moodSticker(_mood);
+    if (sticker == null) {
+      return Image.asset(
+        MostroMascot.asset,
+        height: height,
+        excludeFromSemantics: true,
+      );
+    }
+    final drawn = height * MostroMascot.stickerScale;
+    return OverflowBox(
+      maxWidth: double.infinity,
+      maxHeight: drawn,
+      child: Image.asset(
+        MostroMascot.stickerAsset(sticker),
+        height: drawn,
+        excludeFromSemantics: true,
       ),
     );
   }

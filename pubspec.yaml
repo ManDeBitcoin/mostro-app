@@ -120,6 +120,7 @@ flutter:
     - assets/data/fiat.json
     - assets/data/payment_methods.json
     - assets/images/
+    - assets/images/mascot/
     - assets/images/walkthrough/
     - assets/fonts/outfit/OFL.txt
     - assets/fonts/manrope/OFL.txt

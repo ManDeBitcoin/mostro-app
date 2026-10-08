@@ -2,8 +2,8 @@
 /// rule is unit-testable; the widgets only render what these return.
 library;
 
-/// How Mostro is feeling. Everything else about the mascot is the same
-/// artwork: the mood only decides how it moves.
+/// How Mostro is feeling: how it moves, and which sticker it wears
+/// ([moodSticker]).
 enum MostroMood {
   /// Resting. No motion at all.
   neutral,
@@ -118,6 +118,36 @@ String? seasonEmoji(MostroSeason season) => switch (season) {
   MostroSeason.pizzaDay => '🍕',
   MostroSeason.none => null,
 };
+
+/// The sticker [mood] wears, by name, or null for the plain artwork.
+///
+/// Until #770 a mood only moved the one artwork. Each one now also has its
+/// face from the Mostro sticker set, and keeps its motion on top. The
+/// stickers carry their own props (confetti, Zs, question marks), which
+/// read even at the header's 26 dp. Swapping the artwork is not motion, so
+/// it stays when the viewer has asked for less of it.
+String? moodSticker(MostroMood mood) => switch (mood) {
+  MostroMood.neutral => null,
+  MostroMood.happy => 'waving',
+  MostroMood.dizzy => 'confused',
+  MostroMood.asleep => 'bored',
+  MostroMood.impatient => 'thinking',
+  MostroMood.celebrating => 'celebrate',
+};
+
+/// How old a trade event may be and still count as news.
+///
+/// A daemon message carries its own `created_at`, which a relay slow to
+/// deliver, or a sender's clock a little off ours, can push back by a minute
+/// or so. A history replay after a restore is days or months old (#474):
+/// celebrating that would be celebrating the past.
+const Duration mostroFreshEvent = Duration(minutes: 2);
+
+/// Whether something that happened at [occurredAt] is still news at [now].
+/// A time slightly ahead of ours is a sender clock, not the future, so it
+/// counts.
+bool isFreshEvent({required DateTime occurredAt, required DateTime now}) =>
+    now.difference(occurredAt) <= mostroFreshEvent;
 
 /// The streak length after a tap at [now], given the previous [count] and the
 /// time of the [lastTap].
