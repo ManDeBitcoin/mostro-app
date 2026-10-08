@@ -199,6 +199,7 @@ void main() {
         'Order is already canceled.',
         'MaintenanceMode',
         'InvalidTradeIndex',
+        'MakerCancelRefused',
         'AnyhowException(ProtocolError: CantDo:IsNotYourDispute)',
       ]) {
         expect(isDaemonRefusal(raw), isTrue, reason: raw);

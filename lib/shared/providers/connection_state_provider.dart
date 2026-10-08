@@ -9,9 +9,11 @@ import 'package:mostro/src/rust/api/types.dart' show ConnectionState;
 /// Subscribes before reading, so a change between the two is not lost. Before
 /// the pool exists both calls throw, and the provider stays in error: read
 /// that as "unknown", never as offline.
-final connectionStateProvider = StreamProvider.autoDispose<ConnectionState>((
-  ref,
-) async* {
+///
+/// One stream for the app's life, not one per mascot: the header remounts on
+/// every tab change, and a Rust stream given up mid-`next()` stays parked
+/// until the state next changes. Device state, not identity state.
+final connectionStateProvider = StreamProvider<ConnectionState>((ref) async* {
   final changes = await nostr_api.onConnectionStateChanged();
   yield await nostr_api.getConnectionState();
   while (true) {

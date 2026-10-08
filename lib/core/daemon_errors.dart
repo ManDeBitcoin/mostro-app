@@ -9,9 +9,11 @@ bool isStatusRejection(Object error) {
       raw.contains('not allowed in the current order status');
 }
 
-/// What Rust's `cant_do_message` (`rust/src/api/orders.rs`) words a daemon
-/// `CantDo` as: the prose it still returns for a few reasons, the markers
-/// for the ones Dart localizes, and `CantDo:<reason>` for the rest.
+/// How Rust words the node refusing an action: what `cant_do_message`
+/// (`rust/src/api/orders.rs`) makes of a daemon `CantDo` — the prose it
+/// still returns for a few reasons, the markers for the ones Dart localizes,
+/// `CantDo:<reason>` for the rest — and the refusals with a marker of their
+/// own.
 const List<String> _refusalMarkers = [
   'CantDo:',
   'Order rejected:',
@@ -19,6 +21,8 @@ const List<String> _refusalMarkers = [
   'Order is already canceled',
   'MaintenanceMode',
   'InvalidTradeIndex',
+  // The node refusing a maker's bond cancel, its bond having locked first.
+  'MakerCancelRefused',
 ];
 
 /// Whether [error] is the node answering no (a `CantDo`), as opposed to a

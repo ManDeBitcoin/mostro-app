@@ -46,8 +46,9 @@ class _HeaderMascotState extends ConsumerState<HeaderMascot> {
   /// The cue on show, while it lasts ([mostroCueHold]).
   MostroMood? _cue;
 
-  /// Whether this mascot is on screen. A route pushed over the tab mutes
-  /// its tickers, and so does a tab that is not the current one.
+  /// Whether the user is looking at this mascot: its tickers run (no opaque
+  /// route covers the tab) and its route is the current one (no dialog over
+  /// it, and not the page a navigation is leaving).
   bool _visible = false;
 
   @override
@@ -66,7 +67,9 @@ class _HeaderMascotState extends ConsumerState<HeaderMascot> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final visible = TickerMode.valuesOf(context).enabled;
+    final visible =
+        TickerMode.valuesOf(context).enabled &&
+        (ModalRoute.of(context)?.isCurrent ?? true);
     if (visible && !_visible) scheduleMicrotask(_takeCue);
     _visible = visible;
   }
@@ -117,13 +120,15 @@ class _HeaderMascotState extends ConsumerState<HeaderMascot> {
   /// Shows the waiting cue, if this mascot is on screen to show it.
   ///
   /// Out of sight, or scared by an outage, the cue stays where it is and
-  /// waits. A cue weaker than the one on show is taken and dropped: it would
-  /// be over by the time the stronger one is.
+  /// waits.
   void _takeCue() {
     if (!mounted || !_visible || _offline) return;
     final mood = ref.read(mascotCueProvider.notifier).take();
     if (mood == null) return;
     final showing = _cue;
+    // The same step told twice (a local write, then the daemon's echo) is
+    // already on show; a weaker one would be over by the time it is.
+    if (showing == mood) return;
     if (showing != null && pickMood([showing, mood]) != mood) return;
     _hold?.cancel();
     setState(() => _cue = mood);

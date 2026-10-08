@@ -288,6 +288,52 @@ void main() {
       });
     });
 
+    testWidgets('a dialog over the tab holds the cue until it closes', (
+      tester,
+    ) async {
+      await withClock(Clock.fixed(_plainDay), () async {
+        final header = await _pump(tester);
+        // A dialog leaves the tab painted, and its tickers running, but the
+        // user is looking at the dialog: the tab's route is not current.
+        final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+        unawaited(
+          showDialog<void>(
+            context: navigator.context,
+            builder: (_) => const AlertDialog(content: Text('dialog')),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        header.trade(OrderStatus.fiatSent);
+        await _settle(tester);
+        await tester.pump(mostroCueHold);
+        expect(_mascot(tester).mood, MostroMood.neutral);
+
+        navigator.pop();
+        await tester.pumpAndSettle(const Duration(milliseconds: 100));
+        expect(_mascot(tester).mood, MostroMood.fiatSent);
+      });
+    });
+
+    testWidgets('the same step told twice is shown once, not for longer', (
+      tester,
+    ) async {
+      await withClock(Clock.fixed(_plainDay), () async {
+        final header = await _pump(tester);
+
+        // Rust tells a local fiat-sent, then the daemon's echo of it.
+        header.trade(OrderStatus.fiatSent);
+        await _settle(tester);
+        await tester.pump(const Duration(seconds: 1));
+        header.trade(OrderStatus.fiatSent);
+        await _settle(tester);
+        expect(_mascot(tester).mood, MostroMood.fiatSent);
+
+        await tester.pump(const Duration(seconds: 1));
+        expect(_mascot(tester).mood, MostroMood.neutral);
+      });
+    });
+
     testWidgets('a dispute on show is not cut short by a lesser step', (
       tester,
     ) async {
