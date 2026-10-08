@@ -735,7 +735,7 @@ class _CounterpartyCard extends StatelessWidget {
                       ),
                     ),
           ),
-          const SizedBox(width: 11),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -760,7 +760,7 @@ class _CounterpartyCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 4),
                 Text.rich(
                   TextSpan(
                     children: [
@@ -815,10 +815,10 @@ class _TakeButton extends StatelessWidget {
       TakeOrderCta.idle => OrderPrimaryButton(
         label: l10n.takeOrderButton,
         onPressed: onPressed,
-        verticalPadding: 15,
+        verticalPadding: 16,
       ),
       TakeOrderCta.loading => Container(
-        padding: const EdgeInsets.symmetric(vertical: 15),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
           color: pal.ctaLoadingBg,
           borderRadius: BorderRadius.circular(16),
@@ -844,7 +844,7 @@ class _TakeButton extends StatelessWidget {
         ),
       ),
       TakeOrderCta.unavailable => Container(
-        padding: const EdgeInsets.symmetric(vertical: 15),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: pal.ctaDeadBg,

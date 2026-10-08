@@ -154,7 +154,8 @@ class _MyOrderScreenState extends ConsumerState<MyOrderScreen> {
         order = OrderItem.fromInfo(tradeInfo.value!.order);
       } else if (tradeInfo.isLoading) {
         return Scaffold(
-          appBar: AppBar(title: const Text('')),
+          backgroundColor: OrderBookPalette.of(context).bg,
+          appBar: orderDetailAppBar(context, title: '', onBack: _close),
           body: const Center(child: CircularProgressIndicator()),
         );
       }
@@ -162,7 +163,12 @@ class _MyOrderScreenState extends ConsumerState<MyOrderScreen> {
     final l10n = AppLocalizations.of(context);
     if (order == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.orderNotFoundTitle)),
+        backgroundColor: OrderBookPalette.of(context).bg,
+        appBar: orderDetailAppBar(
+          context,
+          title: l10n.orderNotFoundTitle,
+          onBack: _close,
+        ),
         body: Center(child: Text(l10n.orderNotFoundMessage)),
       );
     }
@@ -381,7 +387,7 @@ class _SideChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: fill,
         border: Border.all(color: border),
