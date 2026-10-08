@@ -2,8 +2,8 @@
 /// rule is unit-testable; the widgets only render what these return.
 library;
 
-/// How Mostro is feeling. Everything else about the mascot is the same
-/// artwork: the mood only decides how it moves.
+/// How Mostro is feeling: how it moves, and which sticker it wears
+/// ([moodSticker]).
 enum MostroMood {
   /// Resting. No motion at all.
   neutral,
@@ -117,6 +117,22 @@ String? seasonEmoji(MostroSeason season) => switch (season) {
   MostroSeason.genesis => '📰',
   MostroSeason.pizzaDay => '🍕',
   MostroSeason.none => null,
+};
+
+/// The sticker [mood] wears, by name, or null for the plain artwork.
+///
+/// Until #770 a mood only moved the one artwork. Each one now also has its
+/// face from the Mostro sticker set, and keeps its motion on top. The
+/// stickers carry their own props (confetti, Zs, question marks), which
+/// read even at the header's 26 dp. Swapping the artwork is not motion, so
+/// it stays when the viewer has asked for less of it.
+String? moodSticker(MostroMood mood) => switch (mood) {
+  MostroMood.neutral => null,
+  MostroMood.happy => 'waving',
+  MostroMood.dizzy => 'confused',
+  MostroMood.asleep => 'bored',
+  MostroMood.impatient => 'thinking',
+  MostroMood.celebrating => 'celebrate',
 };
 
 /// How old a trade event may be and still count as news.
