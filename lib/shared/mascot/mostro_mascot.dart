@@ -35,8 +35,9 @@ class MostroMascot extends StatefulWidget {
   /// The ambient mood. A tap reaction overrides it while it plays.
   final MostroMood mood;
 
-  /// Whether tapping earns a reaction. Only the one in the order book's app
-  /// bar does, which is where v1 put its easter egg.
+  /// Whether tapping earns a reaction. Only the one in the tabs' app bar
+  /// ([HeaderMascot]) does: v1 put its easter egg in the order book's logo,
+  /// and since #770 every tab shows that same header.
   final bool interactive;
 
   final double opacity;
@@ -49,6 +50,10 @@ class MostroMascot extends StatefulWidget {
 
   /// The artwork is 199 × 288.
   static const double aspect = 199 / 288;
+
+  /// Smallest side of the area a tap lands on (DS-CMP-6). The header's
+  /// artwork is 18 × 26, so its target is padded out around it.
+  static const double minTapTarget = 48;
 
   @override
   State<MostroMascot> createState() => _MostroMascotState();
@@ -235,7 +240,11 @@ class _MostroMascotState extends State<MostroMascot>
         onTap: _onTap,
         behavior: HitTestBehavior.opaque,
         excludeFromSemantics: true,
-        child: opaque,
+        child: SizedBox(
+          width: math.max(width, MostroMascot.minTapTarget),
+          height: math.max(height, MostroMascot.minTapTarget),
+          child: Center(child: opaque),
+        ),
       ),
     );
   }
