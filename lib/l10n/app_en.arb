@@ -3516,7 +3516,7 @@
   },
   "aboutFeeValue": "{value}%",
   "@aboutFeeValue": {
-    "description": "About screen — node fee figure; value is the locale-formatted percentage number",
+    "description": "About screen — node fee figure; value is the locale-formatted percentage number. Keep the non-breaking space (U+00A0) wherever the locale puts a space before the unit, so a line never splits the figure from it",
     "placeholders": {
       "value": {
         "type": "String"
@@ -3577,9 +3577,9 @@
   "@aboutWaitingTimeoutLabel": {
     "description": "About screen redesign (12a/12b)"
   },
-  "aboutHoursShort": "{count} h",
+  "aboutHoursShort": "{count}\u00A0h",
   "@aboutHoursShort": {
-    "description": "About screen — a duration in hours, abbreviated",
+    "description": "About screen — a duration in hours, abbreviated. Keep the non-breaking space (U+00A0) between the number and the unit, so a line never splits them",
     "placeholders": {
       "count": {
         "type": "int"

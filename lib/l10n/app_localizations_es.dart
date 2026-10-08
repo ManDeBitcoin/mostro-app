@@ -2719,7 +2719,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String aboutFeeValue(String value) {
-    return '$value %';
+    return '$value %';
   }
 
   @override
@@ -2767,7 +2767,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String aboutHoursShort(int count) {
-    return '$count h';
+    return '$count h';
   }
 
   @override

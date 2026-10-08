@@ -193,8 +193,9 @@ class AboutFact {
 /// [facts] in rows of cells of one height: three to a row, or two, or one
 /// per line, whichever is the most that lets every label read whole and every
 /// value keep its size with no word split. A value may break between words
-/// (`ARS, EUR,` / `USD`), never inside one (`10.000.000`), and is never
-/// shrunk to fit.
+/// (`ARS, EUR,` / `USD`), never inside one (`10.000.000`, `0,6 %`, whose
+/// space is a non-breaking one), and is never shrunk to fit. A unit is one
+/// piece: beside the value, or whole on the line below.
 ///
 /// The grid is as wide as [AboutContentWidth] less [inset] on each side: the
 /// borders and paddings between the page's column and the grid.
@@ -206,8 +207,9 @@ class AboutFactGrid extends StatelessWidget {
 
   static const _gap = 8.0;
 
-  /// The most cells to a row, at most three, whose width holds every label
-  /// and the widest word of every value, as the cells draw them.
+  /// The most cells to a row, at most three, whose width holds every label,
+  /// the widest word of every value and every unit whole, as the cells draw
+  /// them.
   int _perRow(BuildContext context, double width) {
     final painter = TextPainter(
       textScaler: MediaQuery.textScalerOf(context),
@@ -224,11 +226,14 @@ class AboutFactGrid extends StatelessWidget {
 
     final labelStyle = _AboutFactCell.labelStyle(context);
     final valueStyle = _AboutFactCell.valueStyle(context);
+    final unitStyle = _AboutFactCell.unitStyle(context);
     for (final fact in facts) {
       measure(fact.label, labelStyle);
       for (final word in fact.value.split(' ')) {
         measure(word, valueStyle);
       }
+      final unit = fact.unit;
+      if (unit != null) measure(_AboutFactCell.unbroken(unit), unitStyle);
     }
     painter.dispose();
     for (var perRow = 3; perRow > 1; perRow--) {
@@ -303,9 +308,17 @@ class _AboutFactCell extends StatelessWidget {
     ),
   );
 
+  static TextStyle unitStyle(BuildContext context) => _resolved(
+    context,
+    TextStyle(fontSize: 11, color: OrderBookPalette.of(context).textSecondary),
+  );
+
+  /// [unit] with non-breaking spaces, so a line never splits it
+  /// (`min. 1,000 sats`).
+  static String unbroken(String unit) => unit.replaceAll(' ', '\u00A0');
+
   @override
   Widget build(BuildContext context) {
-    final book = OrderBookPalette.of(context);
     final unit = fact.unit;
     // One node per cell, so a screen reader reads its label, value and unit
     // together rather than the grid row by row (DS-A11Y-3).
@@ -329,19 +342,20 @@ class _AboutFactCell extends StatelessWidget {
               style: labelStyle(context),
             ),
             const SizedBox(height: 4),
-            // The unit sits beside the value when both fit, on the line below
-            // otherwise.
-            Wrap(
-              spacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.end,
-              children: [
-                Text(fact.value, style: valueStyle(context)),
-                if (unit != null)
-                  Text(
-                    unit,
-                    style: TextStyle(fontSize: 11, color: book.textSecondary),
-                  ),
-              ],
+            // One paragraph, so the unit sits on the figure's baseline when
+            // both fit (DS-CMP-23), and the space before it is where the line
+            // breaks otherwise.
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: fact.value, style: valueStyle(context)),
+                  if (unit != null)
+                    TextSpan(
+                      text: ' ${unbroken(unit)}',
+                      style: unitStyle(context),
+                    ),
+                ],
+              ),
             ),
           ],
         ),

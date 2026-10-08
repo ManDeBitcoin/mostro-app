@@ -25,6 +25,20 @@ final _node = MostroInstance.fromTags(const [
   ['bond_base_amount_sats', '1000'],
 ]);
 
+/// The same node at the widest figures: a ten-million maximum and a floor
+/// that does not fit three cells to a row.
+final _wideNode = MostroInstance.fromTags(const [
+  ['d', '00007cb3a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a195d23f91'],
+  ['min_order_amount', '1000000'],
+  ['max_order_amount', '10000000'],
+  ['fee', '0.006'],
+  ['expiration_hours', '24'],
+  ['bond_enabled', 'true'],
+  ['bond_amount_pct', '0.015'],
+  ['bond_base_amount_sats', '100000'],
+  ['fiat_currencies_accepted', 'ARS,BRL,CUP,EUR,USD,VES'],
+]);
+
 /// Pumps 12a on a [width] × 800 phone with a 24 dp status bar and a 48 dp
 /// navigation bar, in [locale], with the app's fonts so text keeps its width.
 Future<void> _pump(
@@ -71,8 +85,11 @@ void main() {
   // One test per phone, so each starts from a fresh tree.
   for (final width in const [360.0, 393.0]) {
     for (final locale in AppLocalizations.supportedLocales) {
-      for (final node in [_node, null]) {
-        final state = node == null ? 'loading' : 'loaded';
+      for (final (state, node) in [
+        ('loaded', _node),
+        ('wide', _wideNode),
+        ('loading', null),
+      ]) {
         testWidgets('the way into the technical data is on the first screen: '
             '$width dp, $locale, $state', (tester) async {
           await _pump(

@@ -893,7 +893,7 @@
   "aboutPublicKeyLabel": "Publieke sleutel",
   "aboutOrderExpiryLabel": "Verlooptijd van een order",
   "aboutWaitingTimeoutLabel": "Tijdslimiet in de wachtstand",
-  "aboutHoursShort": "{count} u",
+  "aboutHoursShort": "{count}\u00A0u",
   "aboutSecondsShort": "{count} s",
   "aboutAliasLabel": "Naam",
   "aboutNodePublicKeyLabel": "Publieke sleutel van de node",

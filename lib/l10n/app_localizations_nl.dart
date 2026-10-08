@@ -2766,7 +2766,7 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String aboutHoursShort(int count) {
-    return '$count u';
+    return '$count u';
   }
 
   @override

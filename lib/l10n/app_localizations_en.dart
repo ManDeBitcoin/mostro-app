@@ -2743,7 +2743,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String aboutHoursShort(int count) {
-    return '$count h';
+    return '$count h';
   }
 
   @override

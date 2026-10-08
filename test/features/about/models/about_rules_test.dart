@@ -61,7 +61,7 @@ void main() {
 
     test('formatPercent follows the locale and rejects unusable values', () {
       expect(formatPercent(0.006, _en), '0.6%');
-      expect(formatPercent(0.006, _es), '0,6 %');
+      expect(formatPercent(0.006, _es), '0,6\u00A0%');
       expect(formatPercent(0.335, _en), '33.5%');
       expect(formatPercent(0, _en), '0%');
       expect(formatPercent(double.infinity, _en), isNull);
@@ -98,7 +98,7 @@ void main() {
 
     test('a node that asks for a deposit reads its share, in the locale', () {
       expect(NodeSummary.of(node, _en).deposit, '1.5%');
-      expect(NodeSummary.of(node, _es).deposit, '1,5 %');
+      expect(NodeSummary.of(node, _es).deposit, '1,5\u00A0%');
     });
 
     test('a floor goes under the share, in the locale', () {
@@ -112,7 +112,7 @@ void main() {
       final es = NodeSummary.of(floored, _es);
 
       expect((en.deposit, en.depositUnit), ('1%', 'min. 1,000 sats'));
-      expect((es.deposit, es.depositUnit), ('1 %', 'mín. 1.000 sats'));
+      expect((es.deposit, es.depositUnit), ('1\u00A0%', 'mín. 1.000 sats'));
     });
 
     test('a zero share reads as the floor it locks, not 0%', () {
@@ -168,7 +168,7 @@ void main() {
     });
 
     test('says how long an order stays published', () {
-      expect(NodeSummary.of(node, _en).orderLifetime, '24 h');
+      expect(NodeSummary.of(node, _en).orderLifetime, '24\u00A0h');
     });
 
     test('reads a dash for what the node did not send', () {
@@ -200,12 +200,12 @@ void main() {
       );
       final sections = nodeTechSections(node, _es);
 
-      expect(_row(sections, _es.aboutBondAmountLabel).value, '1,5 %');
+      expect(_row(sections, _es.aboutBondAmountLabel).value, '1,5\u00A0%');
       expect(
         _row(sections, _es.aboutBondAmountLabel).value,
         NodeSummary.of(node, _es).deposit,
       );
-      expect(_row(sections, _es.aboutBondNodeShareLabel).value, '33,5 %');
+      expect(_row(sections, _es.aboutBondNodeShareLabel).value, '33,5\u00A0%');
     });
 
     test('the handoff node lists its rows in the handoff order', () {

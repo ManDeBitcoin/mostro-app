@@ -117,11 +117,10 @@ void main() {
         home: const AboutScreen(),
       );
 
-      expect(find.text('500'), findsOneWidget);
-      expect(find.text('300,000'), findsOneWidget);
-      expect(find.text('0.6%'), findsOneWidget);
       // The unit sits in each amount's cell, not in a footnote.
-      expect(find.text('sats'), findsNWidgets(2));
+      expect(find.text('500 sats'), findsOneWidget);
+      expect(find.text('300,000 sats'), findsOneWidget);
+      expect(find.text('0.6%'), findsOneWidget);
       expect(find.text('Limits in satoshis per order'), findsNothing);
       // Public key, fiat currencies and bond status.
       expect(find.text('3 fields'), findsOneWidget);
@@ -158,7 +157,7 @@ void main() {
       // Three limit cells, the three facts under them and the field count.
       expect(find.text('—'), findsNWidgets(7));
       // A missing amount gets no unit.
-      expect(find.text('sats'), findsNothing);
+      expect(find.textContaining('sats'), findsNothing);
     });
 
     testWidgets('sums up the deposit, currencies and order expiry', (
@@ -181,12 +180,12 @@ void main() {
       );
 
       expect(find.text('Deposit'), findsOneWidget);
-      expect(find.text('5%'), findsOneWidget);
-      expect(find.text('min. 1,000 sats'), findsOneWidget);
+      // The floor follows the share as one unbreakable piece.
+      expect(find.text('5% min.\u00A01,000\u00A0sats'), findsOneWidget);
       expect(find.text('Currencies'), findsOneWidget);
       expect(find.text('ARS, EUR, USD'), findsOneWidget);
       expect(find.text('Expiration'), findsOneWidget);
-      expect(find.text('24 h'), findsOneWidget);
+      expect(find.text('24\u00A0h'), findsOneWidget);
       // The rest of the policy stays in the technical data.
       for (final label in _parameterLabels) {
         expect(find.text(label), findsNothing, reason: label);

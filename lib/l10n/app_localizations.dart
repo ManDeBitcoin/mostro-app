@@ -4600,7 +4600,7 @@ abstract class AppLocalizations {
   /// **'Fee'**
   String get aboutFeeCell;
 
-  /// About screen — node fee figure; value is the locale-formatted percentage number
+  /// About screen — node fee figure; value is the locale-formatted percentage number. Keep the non-breaking space (U+00A0) wherever the locale puts a space before the unit, so a line never splits the figure from it
   ///
   /// In en, this message translates to:
   /// **'{value}%'**
@@ -4672,10 +4672,10 @@ abstract class AppLocalizations {
   /// **'Waiting timeout'**
   String get aboutWaitingTimeoutLabel;
 
-  /// About screen — a duration in hours, abbreviated
+  /// About screen — a duration in hours, abbreviated. Keep the non-breaking space (U+00A0) between the number and the unit, so a line never splits them
   ///
   /// In en, this message translates to:
-  /// **'{count} h'**
+  /// **'{count} h'**
   String aboutHoursShort(int count);
 
   /// About screen — a duration in seconds, abbreviated

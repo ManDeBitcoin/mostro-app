@@ -8,14 +8,23 @@ import 'package:mostro/features/about/widgets/about_widgets.dart';
 import '../../../support/load_app_fonts.dart';
 
 /// The six facts of 12a's node card, as a German node with a wide range
-/// shows them.
+/// shows them. The sign and the hour unit follow a non-breaking space, as
+/// `aboutFeeValue` and `aboutHoursShort` write them.
 const _facts = [
-  AboutFact('Mindestbetrag', '100.000', unit: 'sats'),
-  AboutFact('Höchstbetrag', '10.000.000', unit: 'sats'),
-  AboutFact('Gebühr', '0,6 %'),
-  AboutFact('Einlage', '5 %'),
+  AboutFact('Mindestbetrag', '100.000', unit: 'Sats'),
+  AboutFact('Höchstbetrag', '10.000.000', unit: 'Sats'),
+  AboutFact('Gebühr', '0,6\u00A0%'),
+  AboutFact('Einlage', '5\u00A0%'),
   AboutFact('Währungen', 'ARS, EUR, USD'),
-  AboutFact('Ablauf', '24 h'),
+  AboutFact('Ablauf', '24\u00A0h'),
+];
+
+/// The German card on a node whose deposit has a wide floor.
+final _floored = [
+  for (final fact in _facts)
+    fact.label == 'Einlage'
+        ? const AboutFact('Einlage', '1,5\u00A0%', unit: 'mind. 100.000 Sats')
+        : fact,
 ];
 
 /// The same card in English, at the widest figures a node sends.
@@ -23,9 +32,9 @@ const _wideEnglish = [
   AboutFact('Min order', '1,000,000', unit: 'sats'),
   AboutFact('Max order', '10,000,000', unit: 'sats'),
   AboutFact('Fee', '0.6%'),
-  AboutFact('Deposit', '1.5%'),
+  AboutFact('Deposit', '1.5%', unit: 'min. 10,000 sats'),
   AboutFact('Currencies', 'ARS, EUR +5'),
-  AboutFact('Expiration', '24 h'),
+  AboutFact('Expiration', '24\u00A0h'),
 ];
 
 /// The German card while the node has not answered.
@@ -82,26 +91,46 @@ int _firstRowCount(WidgetTester tester, List<AboutFact> facts) {
       .length;
 }
 
-/// Lines [value]'s paragraph takes.
-int _lines(WidgetTester tester, String value) {
+/// Lines [text]'s paragraph takes.
+int _lines(WidgetTester tester, String text) {
   final paragraph = tester.renderObject<RenderParagraph>(
-    find.text(value).first,
+    find.text(text, findRichText: true).first,
   );
   final line = paragraph.getFullHeightForCaret(const TextPosition(offset: 0));
   return (paragraph.size.height / line).round();
 }
 
-/// The facts whose value or label does not read whole: a one-word value on
-/// more than one line, or a label cut by its ellipsis.
-List<String> _broken(WidgetTester tester, List<AboutFact> facts) => [
-  for (final fact in facts)
-    if (!fact.value.contains(' ') && _lines(tester, fact.value) > 1) fact.value,
-  for (final fact in facts)
-    if (tester
-        .renderObject<RenderParagraph>(find.text(fact.label))
-        .didExceedMaxLines)
-      fact.label,
+/// What in the grid does not read whole: a label cut by its ellipsis, or a
+/// piece of a value or unit (the text between two breaking spaces) that
+/// spans two lines.
+List<String> _broken(WidgetTester tester) => [
+  for (final paragraph in tester.renderObjectList<RenderParagraph>(
+    find.descendant(
+      of: find.byType(AboutFactGrid),
+      matching: find.byType(RichText),
+    ),
+  ))
+    ..._brokenIn(paragraph),
 ];
+
+List<String> _brokenIn(RenderParagraph paragraph) {
+  final text = paragraph.text.toPlainText();
+  if (paragraph.didExceedMaxLines) return [text];
+  final broken = <String>[];
+  var start = 0;
+  for (final piece in text.split(' ')) {
+    final end = start + piece.length;
+    final tops = {
+      for (final box in paragraph.getBoxesForSelection(
+        TextSelection(baseOffset: start, extentOffset: end),
+      ))
+        box.top.round(),
+    };
+    if (tops.length > 1) broken.add(piece);
+    start = end + 1;
+  }
+  return broken;
+}
 
 void main() {
   setUpAll(loadAppFonts);
@@ -110,7 +139,7 @@ void main() {
     await _pump(tester, screenWidth: 393);
 
     expect(_firstRowCount(tester, _facts), 3);
-    expect(_lines(tester, '10.000.000'), 1);
+    expect(_broken(tester), isEmpty);
   });
 
   testWidgets('a list wraps between its codes, at full size', (tester) async {
@@ -126,7 +155,16 @@ void main() {
     await _pump(tester, screenWidth: 320);
 
     expect(_firstRowCount(tester, _facts), 2);
-    expect(_lines(tester, '10.000.000'), 1);
+    expect(_broken(tester), isEmpty);
+  });
+
+  testWidgets('a floor goes whole: two to a row where it does not fit three', (
+    tester,
+  ) async {
+    await _pump(tester, screenWidth: 393, facts: _floored);
+
+    expect(_firstRowCount(tester, _floored), 2);
+    expect(_broken(tester), isEmpty);
   });
 
   testWidgets('one per line at 2x on a 320 dp phone, nothing split', (
@@ -136,28 +174,22 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(_firstRowCount(tester, _facts), 1);
-    for (final fact in _facts) {
-      expect(_lines(tester, fact.value), 1, reason: fact.value);
-    }
+    expect(_broken(tester), isEmpty);
   });
 
-  testWidgets('no figure splits and no label is cut, at any phone width', (
+  testWidgets('no figure or unit splits and no label is cut, at any width', (
     tester,
   ) async {
     for (final scale in const [1.0, 1.15, 1.3]) {
       for (var width = 320.0; width <= 430; width++) {
-        for (final facts in [_facts, _wideEnglish]) {
+        for (final facts in [_facts, _floored, _wideEnglish]) {
           await _pump(
             tester,
             screenWidth: width,
             textScale: scale,
             facts: facts,
           );
-          expect(
-            _broken(tester, facts),
-            isEmpty,
-            reason: '$width dp at ${scale}x',
-          );
+          expect(_broken(tester), isEmpty, reason: '$width dp at ${scale}x');
         }
       }
     }
@@ -166,7 +198,7 @@ void main() {
   testWidgets('bold text is measured bold', (tester) async {
     await _pump(tester, screenWidth: 360, facts: _wideEnglish, boldText: true);
 
-    expect(_broken(tester, _wideEnglish), isEmpty);
+    expect(_broken(tester), isEmpty);
   });
 
   testWidgets('the system insets narrow the grid', (tester) async {
@@ -178,14 +210,14 @@ void main() {
       padding: const EdgeInsets.only(right: 48),
     );
 
-    expect(_broken(tester, _wideEnglish), isEmpty);
+    expect(_broken(tester), isEmpty);
   });
 
   testWidgets('the labels read whole while the node loads', (tester) async {
     for (final width in const [320.0, 360.0, 393.0]) {
       await _pump(tester, screenWidth: width, facts: _loading);
 
-      expect(_broken(tester, _loading), isEmpty, reason: '$width dp');
+      expect(_broken(tester), isEmpty, reason: '$width dp');
     }
   });
 
@@ -195,7 +227,7 @@ void main() {
 
     expect(
       tester.getSemantics(find.text('Max order')).label,
-      'Max order\n10,000,000\nsats',
+      'Max order\n10,000,000 sats',
     );
     expect(tester.getSemantics(find.text('Fee')).label, 'Fee\n0.6%');
     semantics.dispose();
