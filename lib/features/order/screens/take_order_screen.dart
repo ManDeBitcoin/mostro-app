@@ -29,6 +29,7 @@ import 'package:mostro/features/order/widgets/range_amount_modal.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart'
     show refreshTrades;
 import 'package:mostro/l10n/app_localizations.dart';
+import 'package:mostro/shared/mascot/mascot_cues.dart';
 import 'package:mostro/shared/utils/countdown.dart';
 import 'package:mostro/shared/widgets/countdown_urgency_announcer.dart';
 import 'package:mostro/src/rust/api/settings.dart' as settings_api;
@@ -271,6 +272,7 @@ class _TakeOrderScreenState extends ConsumerState<TakeOrderScreen> {
       }
     } catch (e) {
       if (!mounted) return;
+      ref.read(mascotCueProvider.notifier).daemonRefused(e);
       _showTakeError(e);
     } finally {
       // The countdown holds its fire while a take is in flight, so an expiry

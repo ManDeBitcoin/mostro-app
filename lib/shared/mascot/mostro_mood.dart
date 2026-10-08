@@ -22,6 +22,39 @@ enum MostroMood {
 
   /// A trade just completed. Jumps, with sparkles.
   celebrating,
+
+  // ── Trade steps (#770 part 3), from `TradeUpdate` alone ──────────────────
+
+  /// The seller's hold invoice is paid: the sats are in escrow. Settles in.
+  escrowLocked,
+
+  /// The buyer says the fiat is on its way. A hop.
+  fiatSent,
+
+  /// A dispute was opened. A stern shake, and it outranks every other step.
+  disputed,
+
+  /// The trade ended without one: canceled, by either side or an admin, or
+  /// expired. Sinks a little.
+  canceled,
+
+  // ── The app around it ────────────────────────────────────────────────────
+
+  /// No relay is reachable, and has not been for [mostroOfflineGrace].
+  /// Shivers until one is, and outranks everything.
+  offline,
+
+  /// The node confirmed a new order. Lifts off.
+  published,
+
+  /// The user gave the counterparty five stars. A nod.
+  loved,
+
+  /// The user rated the counterparty, below five stars. A nod.
+  thankful,
+
+  /// The node refused an action (a `CantDo`). Shakes its head.
+  refused,
 }
 
 /// A date Bitcoin remembers, and Mostro with it.
@@ -67,9 +100,7 @@ MostroSeason seasonOn(DateTime date) => switch ((date.month, date.day)) {
 /// ```bash
 /// flutter run -d linux --dart-define=MOSTRO_FORCE_SEASON=whitepaper
 /// ```
-const String _forceSeasonDefine = String.fromEnvironment(
-  'MOSTRO_FORCE_SEASON',
-);
+const String _forceSeasonDefine = String.fromEnvironment('MOSTRO_FORCE_SEASON');
 
 /// True in a release build. Read from the VM's own define rather than from
 /// `kReleaseMode`, which would drag Flutter into these pure rules.
@@ -133,7 +164,57 @@ String? moodSticker(MostroMood mood) => switch (mood) {
   MostroMood.asleep => 'bored',
   MostroMood.impatient => 'thinking',
   MostroMood.celebrating => 'celebrate',
+  MostroMood.escrowLocked => 'escrow',
+  MostroMood.fiatSent => 'money',
+  MostroMood.disputed => 'dispute',
+  MostroMood.canceled => 'cry',
+  MostroMood.offline => 'scared',
+  MostroMood.published => 'rocket',
+  MostroMood.loved => 'love',
+  MostroMood.thankful => 'thanks',
+  MostroMood.refused => 'facepalm',
 };
+
+/// How long a reaction to something that happened stays on show: long
+/// enough to read the sticker, short enough not to become the new rest.
+const Duration mostroCueHold = Duration(milliseconds: 1800);
+
+/// How long the relays may stay out of reach before Mostro is scared. A cold
+/// start, a node switch or a network change drops them for a moment, and
+/// that is not an outage worth a face.
+const Duration mostroOfflineGrace = Duration(seconds: 8);
+
+/// The top score a rating can give.
+const int mostroTopRating = 5;
+
+/// The mood a rating of [score] earns: love for the top score, thanks for
+/// any other.
+MostroMood moodForRating(int score) =>
+    score >= mostroTopRating ? MostroMood.loved : MostroMood.thankful;
+
+/// How strongly [mood] claims the mascot when several apply at once.
+///
+/// An outage hides everything else, because nothing that happens while it
+/// lasts can be trusted to have reached the node. A dispute is the step the
+/// user must not miss. Every other reaction outranks the moods that only
+/// set the scene, and those outrank rest.
+int _rank(MostroMood mood) => switch (mood) {
+  MostroMood.offline => 4,
+  MostroMood.disputed => 3,
+  MostroMood.neutral => 0,
+  _ when isLoopingMood(mood) => 1,
+  _ => 2,
+};
+
+/// The one mood to show of [moods], listed oldest first: the strongest
+/// ([_rank]), and the newest of equals. Rest when there is none.
+MostroMood pickMood(Iterable<MostroMood> moods) {
+  var shown = MostroMood.neutral;
+  for (final mood in moods) {
+    if (_rank(mood) >= _rank(shown)) shown = mood;
+  }
+  return shown;
+}
 
 /// How old a trade event may be and still count as news.
 ///
@@ -175,4 +256,6 @@ MostroMood moodForTaps(int count) =>
 /// settle, so the looping moods are the ones the mascot gates behind the
 /// viewer's reduce-motion setting.
 bool isLoopingMood(MostroMood mood) =>
-    mood == MostroMood.asleep || mood == MostroMood.impatient;
+    mood == MostroMood.asleep ||
+    mood == MostroMood.impatient ||
+    mood == MostroMood.offline;

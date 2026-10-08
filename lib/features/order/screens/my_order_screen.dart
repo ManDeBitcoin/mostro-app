@@ -20,6 +20,7 @@ import 'package:mostro/features/order/widgets/order_detail_cards.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart';
 import 'package:mostro/features/trades/widgets/bond_claim_banner.dart';
 import 'package:mostro/l10n/app_localizations.dart';
+import 'package:mostro/shared/mascot/mascot_cues.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
 import 'package:mostro/shared/utils/fiat_currencies.dart';
 
@@ -70,6 +71,7 @@ class _MyOrderScreenState extends ConsumerState<MyOrderScreen> {
     } catch (e, stackTrace) {
       debugPrint('[MyOrderScreen] cancel failed: $e\n$stackTrace');
       if (!mounted) return;
+      ref.read(mascotCueProvider.notifier).daemonRefused(e);
       final l10n = AppLocalizations.of(context);
       showOrderDetailSnackBar(
         context,

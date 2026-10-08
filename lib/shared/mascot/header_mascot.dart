@@ -1,24 +1,24 @@
 import 'dart:async';
 
-import 'package:clock/clock.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide ConnectionState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:mostro/features/order/providers/trade_state_provider.dart';
+import 'package:mostro/shared/mascot/mascot_cues.dart';
 import 'package:mostro/shared/mascot/mostro_mascot.dart';
 import 'package:mostro/shared/mascot/mostro_mood.dart';
-import 'package:mostro/shared/utils/platform_int64.dart';
-import 'package:mostro/src/rust/api/types.dart' show OrderStatus, TradeUpdate;
+import 'package:mostro/shared/providers/connection_state_provider.dart';
+import 'package:mostro/src/rust/api/types.dart' show ConnectionState;
 
 /// The Mostro in every tab's app bar: tap it and it reacts, and it picks up
 /// the mood of the app around it.
 ///
 /// v1 hid an easter egg in the order book's logo, so this is where v2 keeps
 /// its own, now in all three tabs so the bar does not change as the user
-/// moves between them (#770). The ambient moods are deliberately cheap: the
-/// tab hands in whether it is [waiting], and the trade stream is already
-/// alive for the bottom bar's badge, so neither costs a subscription of its
-/// own.
+/// moves between them (#770). The tab hands in whether it is [waiting]; the
+/// trade steps and app events arrive as cues ([mascotCueProvider]), taken
+/// only while this mascot is on screen; and an outage longer than
+/// [mostroOfflineGrace] scares it until a relay is back. When several apply,
+/// [pickMood] decides.
 class HeaderMascot extends ConsumerStatefulWidget {
   const HeaderMascot({super.key, this.waiting = false});
 
@@ -37,24 +37,45 @@ class _HeaderMascotState extends ConsumerState<HeaderMascot> {
   /// How long a tab may wait before Mostro starts shuffling.
   static const Duration _patienceRunsOut = Duration(seconds: 6);
 
-  /// How long the party lasts after a trade completes.
-  static const Duration _celebration = Duration(milliseconds: 1400);
-
-  static const Set<OrderStatus> _completed = {
-    OrderStatus.success,
-    OrderStatus.settledByAdmin,
-    OrderStatus.completedByAdmin,
-  };
-
   Timer? _patience;
-  Timer? _party;
+  Timer? _outage;
+  Timer? _hold;
   bool _impatient = false;
-  bool _celebrating = false;
+  bool _offline = false;
+
+  /// The cue on show, while it lasts ([mostroCueHold]).
+  MostroMood? _cue;
+
+  /// Whether this mascot is on screen. A route pushed over the tab mutes
+  /// its tickers, and so does a tab that is not the current one.
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    ref.listenManual(
+      connectionStateProvider,
+      (_, next) => _syncConnection(next.valueOrNull),
+      fireImmediately: true,
+    );
+    ref.listenManual(mascotCueProvider, (_, next) {
+      if (next != null) scheduleMicrotask(_takeCue);
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = TickerMode.valuesOf(context).enabled;
+    if (visible && !_visible) scheduleMicrotask(_takeCue);
+    _visible = visible;
+  }
 
   @override
   void dispose() {
     _patience?.cancel();
-    _party?.cancel();
+    _outage?.cancel();
+    _hold?.cancel();
     super.dispose();
   }
 
@@ -76,34 +97,50 @@ class _HeaderMascotState extends ConsumerState<HeaderMascot> {
     });
   }
 
-  void _onTradeUpdate(
-    AsyncValue<TradeUpdate>? _,
-    AsyncValue<TradeUpdate> next,
-  ) {
-    final update = next.valueOrNull;
-    if (update == null || !_completed.contains(update.status)) return;
-    // A restore replays trades that ended long ago; only news is a party.
-    final occurredAt = DateTime.fromMillisecondsSinceEpoch(
-      platformInt64ToInt(update.occurredAt) * 1000,
-    );
-    if (!isFreshEvent(occurredAt: occurredAt, now: clock.now())) return;
-    _party?.cancel();
-    setState(() => _celebrating = true);
-    _party = Timer(_celebration, () {
-      if (mounted) setState(() => _celebrating = false);
+  /// Scared once the relays have been out of reach for the grace period;
+  /// calm, and ready for the cue that waited, as soon as one is back. An
+  /// unknown state (no pool yet) is not an outage.
+  void _syncConnection(ConnectionState? state) {
+    if (state != null && isDisconnected(state)) {
+      _outage ??= Timer(mostroOfflineGrace, () {
+        if (mounted) setState(() => _offline = true);
+      });
+      return;
+    }
+    _outage?.cancel();
+    _outage = null;
+    if (!_offline) return;
+    setState(() => _offline = false);
+    scheduleMicrotask(_takeCue);
+  }
+
+  /// Shows the waiting cue, if this mascot is on screen to show it.
+  ///
+  /// Out of sight, or scared by an outage, the cue stays where it is and
+  /// waits. A cue weaker than the one on show is taken and dropped: it would
+  /// be over by the time the stronger one is.
+  void _takeCue() {
+    if (!mounted || !_visible || _offline) return;
+    final mood = ref.read(mascotCueProvider.notifier).take();
+    if (mood == null) return;
+    final showing = _cue;
+    if (showing != null && pickMood([showing, mood]) != mood) return;
+    _hold?.cancel();
+    setState(() => _cue = mood);
+    _hold = Timer(mostroCueHold, () {
+      if (mounted) setState(() => _cue = null);
     });
   }
 
   @override
   Widget build(BuildContext context) {
     _syncPatience(widget.waiting);
-    ref.listen(tradeUpdatesProvider, _onTradeUpdate);
 
-    final mood = switch ((_celebrating, _impatient)) {
-      (true, _) => MostroMood.celebrating,
-      (_, true) => MostroMood.impatient,
-      _ => MostroMood.neutral,
-    };
+    final mood = pickMood([
+      if (_impatient) MostroMood.impatient,
+      if (_cue case final cue?) cue,
+      if (_offline) MostroMood.offline,
+    ]);
 
     return MostroMascot(
       height: HeaderMascot.height,
