@@ -199,5 +199,27 @@ void main() {
         expect(mascot.overlaps(bell), isFalse);
       });
     });
+
+    testWidgets('a completion replayed from history is not celebrated', (
+      tester,
+    ) async {
+      await withClock(Clock.fixed(_plainDay), () async {
+        final updates = await _pump(tester);
+
+        // A restore re-emits a trade that ended days ago (#474).
+        final daysAgo = _plainDay.subtract(const Duration(days: 3));
+        updates.add(
+          TradeUpdate(
+            orderId: 'order-old',
+            status: OrderStatus.success,
+            occurredAt: daysAgo.millisecondsSinceEpoch ~/ 1000,
+          ),
+        );
+        await tester.pump();
+        await tester.pump();
+
+        expect(_mascot(tester).mood, MostroMood.neutral);
+      });
+    });
   });
 }
