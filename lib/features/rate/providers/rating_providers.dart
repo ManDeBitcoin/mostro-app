@@ -12,18 +12,16 @@ import 'package:mostro/src/rust/api/types.dart';
 /// rated and the rate prompt does not come back.
 final tradeRatingProvider = FutureProvider.autoDispose
     .family<RatingInfo?, String>((ref, tradeId) async {
-      return reputation_api.getRatingForTrade(tradeId: tradeId);
-    });
+  return reputation_api.getRatingForTrade(tradeId: tradeId);
+});
 
 /// Whether the local user has rated their counterpart on [tradeId].
 ///
 /// `getRatingForTrade` falls back to the counterpart's rating when the local
 /// user has not submitted one, so `isMine` is what separates "I rated them"
 /// from "they rated me" — only the former resolves the rate prompt.
-final ratedByMeProvider = Provider.autoDispose.family<bool, String>((
-  ref,
-  tradeId,
-) {
+final ratedByMeProvider =
+    Provider.autoDispose.family<bool, String>((ref, tradeId) {
   final rating = ref.watch(tradeRatingProvider(tradeId)).valueOrNull;
   return rating != null && rating.isMine;
 });
