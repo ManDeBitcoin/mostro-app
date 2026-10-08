@@ -23,7 +23,13 @@ Future<ProviderContainer> _pump(
   Locale locale = const Locale('en'),
   double textScale = 1,
   Brightness brightness = Brightness.dark,
+  Widget body = const SingleChildScrollView(child: PwaInstallCard()),
+  // A phone held upright: the card waits for portrait.
+  Size viewSize = const Size(400, 800),
 }) async {
+  tester.view.physicalSize = viewSize;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
   final container = createContainer(
     overrides: [
       pwaInstallBridgeProvider.overrideWithValue(bridge),
@@ -53,9 +59,7 @@ Future<ProviderContainer> _pump(
           GlobalCupertinoLocalizations.delegate,
         ],
         supportedLocales: AppLocalizations.supportedLocales,
-        home: const Scaffold(
-          body: SingleChildScrollView(child: PwaInstallCard()),
-        ),
+        home: Scaffold(body: body),
       ),
     ),
   );
@@ -154,14 +158,13 @@ void main() {
         tester,
       ) async {
         // Arrange
-        tester.view.physicalSize = const Size(320, 1200);
-        tester.view.devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
+        const viewSize = Size(320, 640);
         final de = AppLocalizationsDe();
 
         // Act
         await _pump(
           tester,
+          viewSize: viewSize,
           FakePwaInstallBridge(),
           platform: TargetPlatform.iOS,
           locale: const Locale('de'),
@@ -178,5 +181,65 @@ void main() {
         expect(find.text(de.pwaInstallStepAdd), findsOneWidget);
       });
     }
+
+    // A phone in landscape or a wide split screen: the order book's fixed
+    // header already fills most of the height (#779 review). The card waits
+    // for a portrait screen; not shown is not answered.
+    testWidgets('waits for portrait, without counting as an answer', (
+      tester,
+    ) async {
+      // Arrange
+      const viewSize = Size(800, 360);
+      final bridge = FakePwaInstallBridge(canPromptNatively: true);
+
+      // Act
+      await _pump(tester, bridge, viewSize: viewSize);
+      final shownInLandscape = find.text(_en.pwaInstallTitle).evaluate().length;
+      tester.view.physicalSize = const Size(360, 800);
+      await tester.pumpAndSettle();
+
+      // Assert
+      expect(shownInLandscape, 0);
+      expect(find.text(_en.pwaInstallTitle), findsOneWidget);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool(kPwaInstallAnsweredKey), isNull);
+    });
+
+    // A short portrait screen at 2× text: the card keeps to a third of the
+    // height, its text scrolls, and its answers stay in view.
+    testWidgets('takes at most a third of a short screen', (tester) async {
+      // Arrange
+      const viewSize = Size(320, 480);
+      const listKey = Key('book');
+      final de = AppLocalizationsDe();
+
+      // Act
+      await _pump(
+        tester,
+        viewSize: viewSize,
+        FakePwaInstallBridge(),
+        platform: TargetPlatform.iOS,
+        locale: const Locale('de'),
+        textScale: 2,
+        body: const Column(
+          children: [
+            PwaInstallCard(),
+            Expanded(child: SizedBox.expand(key: listKey)),
+          ],
+        ),
+      );
+
+      // Assert
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getSize(find.byType(PwaInstallCard)).height,
+        lessThanOrEqualTo(480 / 3),
+      );
+      expect(tester.getSize(find.byKey(listKey)).height, greaterThan(0));
+      expect(
+        tester.getRect(find.text(de.pwaInstallAction)).bottom,
+        lessThanOrEqualTo(480 / 3),
+      );
+    });
   });
 }

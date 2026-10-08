@@ -8,6 +8,9 @@ import 'package:mostro/shared/widgets/redesign_app_bar.dart';
 
 const _cardRadius = BorderRadius.all(Radius.circular(18));
 
+/// The most of the screen's height the card may take.
+const double _maxHeightShare = 1 / 3;
+
 /// The order book's offer to install the web app, once, on a phone (#778).
 ///
 /// A flat card rather than a modal, and links rather than a filled button:
@@ -21,90 +24,120 @@ class PwaInstallCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final offered = ref.watch(pwaInstallProvider.select((s) => s.offersCard));
-    if (!offered) return const SizedBox.shrink();
+    // In landscape or a wide split screen the order book's fixed header
+    // already fills most of the height: the card waits for portrait. Not
+    // shown is not answered, so it is offered again then.
+    final portrait = MediaQuery.orientationOf(context) == Orientation.portrait;
+    if (!offered || !portrait) return const SizedBox.shrink();
 
     final l10n = AppLocalizations.of(context);
     final book = OrderBookPalette.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        redesignSidePadding,
-        0,
-        redesignSidePadding,
-        12,
+    // On a short portrait screen (large text) it keeps to a third of the
+    // height rather than squeezing the list out (DS-SPC-5). The text scrolls
+    // inside it; the answers stay in view below.
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * _maxHeightShare,
       ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: book.surface,
-          borderRadius: _cardRadius,
-          border: Border.all(color: book.border),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          redesignSidePadding,
+          0,
+          redesignSidePadding,
+          12,
         ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.install_mobile_outlined,
-                    size: 20,
-                    color: book.limeIcon,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.pwaInstallTitle,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: book.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          l10n.pwaInstallBody,
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.45,
-                            color: book.textSecondary,
-                          ),
-                        ),
-                      ],
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: book.surface,
+            borderRadius: _cardRadius,
+            border: Border.all(color: book.border),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: _Message(
+                      title: l10n.pwaInstallTitle,
+                      body: l10n.pwaInstallBody,
                     ),
                   ),
-                ],
+                ),
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  children: [
+                    _CardLink(
+                      label: l10n.pwaInstallNotNow,
+                      color: book.textSecondary,
+                      weight: FontWeight.w500,
+                      onPressed:
+                          () =>
+                              ref
+                                  .read(pwaInstallProvider.notifier)
+                                  .markAnswered(),
+                    ),
+                    _CardLink(
+                      label: l10n.pwaInstallAction,
+                      color: book.limeText,
+                      weight: FontWeight.w600,
+                      onPressed: () => startPwaInstall(context, ref),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The card's icon, title and body.
+class _Message extends StatelessWidget {
+  const _Message({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final book = OrderBookPalette.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.install_mobile_outlined, size: 20, color: book.limeIcon),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: book.textPrimary,
+                ),
               ),
-              Wrap(
-                alignment: WrapAlignment.end,
-                spacing: 8,
-                children: [
-                  _CardLink(
-                    label: l10n.pwaInstallNotNow,
-                    color: book.textSecondary,
-                    weight: FontWeight.w500,
-                    onPressed:
-                        () =>
-                            ref
-                                .read(pwaInstallProvider.notifier)
-                                .markAnswered(),
-                  ),
-                  _CardLink(
-                    label: l10n.pwaInstallAction,
-                    color: book.limeText,
-                    weight: FontWeight.w600,
-                    onPressed: () => startPwaInstall(context, ref),
-                  ),
-                ],
+              const SizedBox(height: 4),
+              Text(
+                body,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.45,
+                  color: book.textSecondary,
+                ),
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 }
