@@ -883,6 +883,7 @@
   "aboutFeeCell": "Frais",
   "aboutFeeValue": "{value} %",
   "aboutNodeDepositNone": "Non",
+  "aboutNodeDepositFloor": "min. {amount} sats",
   "aboutDepositCell": "Dépôt",
   "aboutCurrenciesCell": "Devises",
   "aboutOrderExpiryCell": "Expiration",

@@ -101,6 +101,48 @@ void main() {
       expect(NodeSummary.of(node, _es).deposit, '1,5 %');
     });
 
+    test('a floor goes under the share, in the locale', () {
+      const floored = MostroInstance(
+        pubKey: 'node',
+        bondPolicy: BondPolicy.enabled,
+        bondAmountPct: 0.01,
+        bondBaseAmountSats: 1000,
+      );
+      final en = NodeSummary.of(floored, _en);
+      final es = NodeSummary.of(floored, _es);
+
+      expect((en.deposit, en.depositUnit), ('1%', 'min. 1,000 sats'));
+      expect((es.deposit, es.depositUnit), ('1 %', 'mín. 1.000 sats'));
+    });
+
+    test('a zero share reads as the floor it locks, not 0%', () {
+      final summary = NodeSummary.of(
+        const MostroInstance(
+          pubKey: 'node',
+          bondPolicy: BondPolicy.enabled,
+          bondAmountPct: 0,
+          bondBaseAmountSats: 1000,
+        ),
+        _en,
+      );
+
+      expect((summary.deposit, summary.depositUnit), ('1,000', 'sats'));
+    });
+
+    test('a share with no floor goes alone', () {
+      final summary = NodeSummary.of(
+        const MostroInstance(
+          pubKey: 'node',
+          bondPolicy: BondPolicy.enabled,
+          bondAmountPct: 0.01,
+          bondBaseAmountSats: 0,
+        ),
+        _en,
+      );
+
+      expect((summary.deposit, summary.depositUnit), ('1%', null));
+    });
+
     test('a node with no deposit, or one that predates them, reads no', () {
       for (final policy in [BondPolicy.disabled, BondPolicy.unsupported]) {
         final summary = NodeSummary.of(
@@ -108,6 +150,7 @@ void main() {
           _en,
         );
         expect(summary.deposit, _en.aboutNodeDepositNone, reason: '$policy');
+        expect(summary.depositUnit, isNull, reason: '$policy');
       }
     });
 

@@ -4612,6 +4612,12 @@ abstract class AppLocalizations {
   /// **'No'**
   String get aboutNodeDepositNone;
 
+  /// Under the deposit share on the About screen's connected node card: the least the node locks whatever the order's amount (bond_base_amount_sats). amount is the locale-formatted number of sats
+  ///
+  /// In en, this message translates to:
+  /// **'min. {amount} sats'**
+  String aboutNodeDepositFloor(String amount);
+
   /// Cell label on the About screen's connected node card: the anti-abuse deposit the node asks for (glossary term)
   ///
   /// In en, this message translates to:

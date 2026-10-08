@@ -883,6 +883,7 @@
   "aboutFeeCell": "Commissione",
   "aboutFeeValue": "{value}%",
   "aboutNodeDepositNone": "No",
+  "aboutNodeDepositFloor": "min. {amount} sats",
   "aboutDepositCell": "Deposito",
   "aboutCurrenciesCell": "Valute",
   "aboutOrderExpiryCell": "Scadenza",

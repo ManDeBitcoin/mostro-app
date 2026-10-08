@@ -883,6 +883,7 @@
   "aboutFeeCell": "Gebühr",
   "aboutFeeValue": "{value} %",
   "aboutNodeDepositNone": "Nein",
+  "aboutNodeDepositFloor": "mind. {amount} Sats",
   "aboutDepositCell": "Einlage",
   "aboutCurrenciesCell": "Währungen",
   "aboutOrderExpiryCell": "Ablauf",

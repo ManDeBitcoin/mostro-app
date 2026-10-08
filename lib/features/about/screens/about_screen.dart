@@ -414,7 +414,11 @@ class _ConnectedNodeCard extends ConsumerWidget {
                   unit: sats(limits.max),
                 ),
                 AboutFact(l10n.aboutFeeCell, limits.fee),
-                AboutFact(l10n.aboutDepositCell, summary.deposit),
+                AboutFact(
+                  l10n.aboutDepositCell,
+                  summary.deposit,
+                  unit: summary.depositUnit,
+                ),
                 AboutFact(l10n.aboutCurrenciesCell, summary.currencies),
                 AboutFact(l10n.aboutOrderExpiryCell, summary.orderLifetime),
               ],

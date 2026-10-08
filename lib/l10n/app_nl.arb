@@ -883,6 +883,7 @@
   "aboutFeeCell": "Kosten",
   "aboutFeeValue": "{value}%",
   "aboutNodeDepositNone": "Nee",
+  "aboutNodeDepositFloor": "min. {amount} sats",
   "aboutDepositCell": "Borg",
   "aboutCurrenciesCell": "Valuta",
   "aboutOrderExpiryCell": "Verloop",

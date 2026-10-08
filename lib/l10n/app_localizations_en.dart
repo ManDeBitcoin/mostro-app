@@ -2702,6 +2702,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutNodeDepositNone => 'No';
 
   @override
+  String aboutNodeDepositFloor(String amount) {
+    return 'min. $amount sats';
+  }
+
+  @override
   String get aboutDepositCell => 'Deposit';
 
   @override

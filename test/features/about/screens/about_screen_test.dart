@@ -182,6 +182,7 @@ void main() {
 
       expect(find.text('Deposit'), findsOneWidget);
       expect(find.text('5%'), findsOneWidget);
+      expect(find.text('min. 1,000 sats'), findsOneWidget);
       expect(find.text('Currencies'), findsOneWidget);
       expect(find.text('ARS, EUR, USD'), findsOneWidget);
       expect(find.text('Expiration'), findsOneWidget);

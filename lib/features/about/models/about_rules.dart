@@ -128,6 +128,7 @@ class NodeLimits {
 class NodeSummary {
   const NodeSummary({
     required this.deposit,
+    this.depositUnit,
     required this.currencies,
     required this.orderLifetime,
   });
@@ -146,14 +147,10 @@ class NodeSummary {
     }
     final hours = node.expirationHours;
     final currencies = node.acceptedFiatCodes;
+    final (deposit, depositUnit) = _deposit(node, l10n);
     return NodeSummary(
-      // A node that predates deposits asks for none either.
-      deposit: switch (node.bondPolicy) {
-        BondPolicy.enabled =>
-          formatPercent(node.bondAmountPct, l10n) ?? missingFigure,
-        BondPolicy.disabled ||
-        BondPolicy.unsupported => l10n.aboutNodeDepositNone,
-      },
+      deposit: deposit,
+      depositUnit: depositUnit,
       currencies: switch (currencies) {
         [] => l10n.aboutFiatCurrenciesAll,
         _ when currencies.length <= 3 => currencies.join(', '),
@@ -164,7 +161,33 @@ class NodeSummary {
     );
   }
 
+  /// The daemon locks the larger of the share of the order and the floor
+  /// (`bond_base_amount_sats`), so a floor goes with the share (`1%` over
+  /// `min. 1,000 sats`), and alone when the share is zero (`1,000` `sats`).
+  /// A node that predates deposits asks for none either.
+  static (String, String?) _deposit(
+    MostroInstance node,
+    AppLocalizations l10n,
+  ) {
+    if (node.bondPolicy != BondPolicy.enabled) {
+      return (l10n.aboutNodeDepositNone, null);
+    }
+    final pct = node.bondAmountPct;
+    final share = formatPercent(pct, l10n);
+    if (share == null) return (missingFigure, null);
+    final floor = node.bondBaseAmountSats ?? 0;
+    if (floor == 0) return (share, null);
+    final sats = formatSats(floor, l10n.localeName);
+    return pct == 0
+        ? (sats, l10n.satsUnitLabel)
+        : (share, l10n.aboutNodeDepositFloor(sats));
+  }
+
   final String deposit;
+
+  /// What follows [deposit] in its cell: the floor beside a share, or the
+  /// unit of a floor shown alone.
+  final String? depositUnit;
   final String currencies;
   final String orderLifetime;
 }

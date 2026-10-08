@@ -3527,6 +3527,15 @@
   "@aboutNodeDepositNone": {
     "description": "Value of the deposit row on the About screen's connected node card when the node asks for no anti-abuse deposit (disabled, or a node that predates deposits)"
   },
+  "aboutNodeDepositFloor": "min. {amount} sats",
+  "@aboutNodeDepositFloor": {
+    "description": "Under the deposit share on the About screen's connected node card: the least the node locks whatever the order's amount (bond_base_amount_sats). amount is the locale-formatted number of sats",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "aboutDepositCell": "Deposit",
   "@aboutDepositCell": {
     "description": "Cell label on the About screen's connected node card: the anti-abuse deposit the node asks for (glossary term)"
