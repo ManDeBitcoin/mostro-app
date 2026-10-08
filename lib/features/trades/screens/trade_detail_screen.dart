@@ -1226,7 +1226,7 @@ class _TradeDetailScreenState extends ConsumerState<TradeDetailScreen>
     String? alias,
   ) {
     final rating = ref.watch(tradeRatingProvider(widget.orderId)).valueOrNull;
-    final mine = rating != null && rating.isMine ? rating.score : null;
+    final mine = myRatingScore(rating);
     final picking = status == TradeStatus.pendingRating && canRate;
     return TradeCompletedCard(
       amount: amount,
