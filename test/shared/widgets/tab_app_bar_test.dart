@@ -23,6 +23,7 @@ final DateTime _plainDay = DateTime(2026, 6, 1, 12);
 Future<StreamController<TradeUpdate>> _pump(
   WidgetTester tester, {
   bool waiting = false,
+  Locale? locale,
 }) async {
   final updates = StreamController<TradeUpdate>();
   addTearDown(updates.close);
@@ -39,6 +40,7 @@ Future<StreamController<TradeUpdate>> _pump(
       ),
       child: MaterialApp(
         theme: buildDarkTheme(),
+        locale: locale,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(body: TabAppBar(onMenuTap: () {}, waiting: waiting)),
@@ -169,6 +171,32 @@ void main() {
         // The party is over once the celebration has played.
         await tester.pump(const Duration(seconds: 2));
         expect(_mascot(tester).mood, MostroMood.neutral);
+      });
+    });
+
+    testWidgets('fits 320 dp at 2× text in German, targets apart', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 760);
+      tester.view.devicePixelRatio = 1.0;
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      await withClock(Clock.fixed(_plainDay), () async {
+        await _pump(tester, locale: const Locale('de'));
+        expect(tester.takeException(), isNull);
+
+        // The mascot's 48-dp target must not reach under the menu or bell,
+        // or a tap near either edge of it would go to the wrong one.
+        final mascot = tester.getRect(find.byType(MostroMascot));
+        final menu = tester.getRect(
+          find.widgetWithIcon(IconButton, Icons.menu_rounded),
+        );
+        final bell = tester.getRect(find.byType(NotificationBell));
+        expect(mascot.width, greaterThanOrEqualTo(48));
+        expect(mascot.overlaps(menu), isFalse);
+        expect(mascot.overlaps(bell), isFalse);
       });
     });
   });
