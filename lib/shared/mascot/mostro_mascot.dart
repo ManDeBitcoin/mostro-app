@@ -107,6 +107,15 @@ class _MostroMascotState extends State<MostroMascot>
     MostroMood.loved ||
     MostroMood.thankful => const Duration(milliseconds: 480),
     MostroMood.refused => const Duration(milliseconds: 900),
+    MostroMood.greeting ||
+    MostroMood.backedUp ||
+    MostroMood.agreed => const Duration(milliseconds: 480),
+    MostroMood.orderTaken ||
+    MostroMood.invoiceAccepted => const Duration(milliseconds: 600),
+    MostroMood.cancelAsked => const Duration(milliseconds: 600),
+    MostroMood.laughing => const Duration(milliseconds: 1100),
+    MostroMood.cool => const Duration(milliseconds: 700),
+    MostroMood.onFire => const Duration(milliseconds: 900),
     MostroMood.neutral => Duration.zero,
   };
 
@@ -123,9 +132,12 @@ class _MostroMascotState extends State<MostroMascot>
     if (!_stickersCached) {
       _stickersCached = true;
       // Decoded ahead, or the first switch to a mood draws one empty frame.
-      for (final mood in MostroMood.values) {
-        final sticker = moodSticker(mood);
-        if (sticker == null) continue;
+      final stickers =
+          [
+            for (final mood in MostroMood.values) moodSticker(mood),
+            seasonSticker(_season),
+          ].nonNulls;
+      for (final sticker in stickers) {
         precacheImage(AssetImage(MostroMascot.stickerAsset(sticker)), context);
       }
     }
@@ -195,14 +207,23 @@ class _MostroMascotState extends State<MostroMascot>
       ..duration = _durationOf(mood)
       ..forward(from: 0);
 
-    if (mood == MostroMood.dizzy) {
-      HapticFeedback.mediumImpact();
-    } else {
+    if (mood == MostroMood.happy) {
       HapticFeedback.selectionClick();
+    } else {
+      HapticFeedback.mediumImpact();
     }
 
     // Once per streak, so insisting does not turn into a wall of snackbars.
     if (count == 1) _sayTheDate();
+  }
+
+  /// Held: shades on. Its own reaction, outside the tap streak.
+  void _onLongPress() {
+    setState(() => _reaction = MostroMood.cool);
+    _reactionPlayer
+      ..duration = _durationOf(MostroMood.cool)
+      ..forward(from: 0);
+    HapticFeedback.selectionClick();
   }
 
   void _sayTheDate() {
@@ -243,7 +264,9 @@ class _MostroMascotState extends State<MostroMascot>
             children: [
               _posed(child!, mood, t, height, width),
               ..._flourishes(mood, t, height, width),
-              MascotSeasonBadge(season: _season, mascotHeight: height),
+              // A season with its own sticker wears it instead of a badge.
+              if (seasonSticker(_season) == null)
+                MascotSeasonBadge(season: _season, mascotHeight: height),
             ],
           ),
         );
@@ -264,6 +287,7 @@ class _MostroMascotState extends State<MostroMascot>
     return ExcludeSemantics(
       child: GestureDetector(
         onTap: _onTap,
+        onLongPress: _onLongPress,
         behavior: HitTestBehavior.opaque,
         excludeFromSemantics: true,
         child: SizedBox(
@@ -275,10 +299,11 @@ class _MostroMascotState extends State<MostroMascot>
     );
   }
 
-  /// The plain mascot at rest, or the sticker of the mood on show, drawn
-  /// [MostroMascot.stickerScale] taller and centred over the same box.
+  /// The plain mascot at rest (or its season's sticker, [seasonSticker]), or
+  /// the sticker of the mood on show, drawn [MostroMascot.stickerScale]
+  /// taller and centred over the same box.
   Widget _artwork(double height) {
-    final sticker = moodSticker(_mood);
+    final sticker = moodSticker(_mood) ?? seasonSticker(_season);
     if (sticker == null) {
       return Image.asset(
         MostroMascot.asset,
@@ -315,7 +340,10 @@ class _MostroMascotState extends State<MostroMascot>
       // A springy nod: up, over, and back.
       MostroMood.happy ||
       MostroMood.loved ||
-      MostroMood.thankful => Transform.rotate(
+      MostroMood.thankful ||
+      MostroMood.greeting ||
+      MostroMood.backedUp ||
+      MostroMood.agreed => Transform.rotate(
         angle: 0.12 * wave,
         child: Transform.scale(scale: 1 + 0.18 * arc, child: image),
       ),
@@ -327,7 +355,7 @@ class _MostroMascotState extends State<MostroMascot>
       ),
 
       // A jump, with the squash that sells it.
-      MostroMood.celebrating => Transform.translate(
+      MostroMood.celebrating || MostroMood.onFire => Transform.translate(
         offset: Offset(0, -height * 0.28 * arc),
         child: Transform.scale(
           scaleX: 1 - 0.06 * arc,
@@ -356,7 +384,9 @@ class _MostroMascotState extends State<MostroMascot>
       ),
 
       // A small hop.
-      MostroMood.fiatSent => Transform.translate(
+      MostroMood.fiatSent ||
+      MostroMood.orderTaken ||
+      MostroMood.invoiceAccepted => Transform.translate(
         offset: Offset(0, -height * 0.14 * arc),
         child: image,
       ),
@@ -390,6 +420,24 @@ class _MostroMascotState extends State<MostroMascot>
         angle: 0.12 * math.sin(4 * math.pi * t) * (1 - t),
         child: image,
       ),
+
+      // Jumps back, wide-eyed.
+      MostroMood.cancelAsked => Transform.translate(
+        offset: Offset(0, -height * 0.08 * arc),
+        child: Transform.scale(scale: 1 + 0.14 * arc, child: image),
+      ),
+
+      // Shakes with laughter, bouncing.
+      MostroMood.laughing => Transform.translate(
+        offset: Offset(0, -height * 0.06 * arc),
+        child: Transform.rotate(
+          angle: 0.10 * math.sin(6 * math.pi * t) * (1 - t),
+          child: image,
+        ),
+      ),
+
+      // Leans back.
+      MostroMood.cool => Transform.rotate(angle: -0.10 * arc, child: image),
     };
   }
 

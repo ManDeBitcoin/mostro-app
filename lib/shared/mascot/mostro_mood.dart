@@ -55,6 +55,35 @@ enum MostroMood {
 
   /// The node refused an action (a `CantDo`). Shakes its head.
   refused,
+
+  // ── Easter eggs (#770 part 4) ────────────────────────────────────────────
+
+  /// The first look of a morning session ([isMorning]). Waves.
+  greeting,
+
+  /// The node confirmed a take. A hop.
+  orderTaken,
+
+  /// The counterparty asked to cancel. Jumps back.
+  cancelAsked,
+
+  /// The node accepted the buyer's invoice. A zap.
+  invoiceAccepted,
+
+  /// The user just verified their backup. A nod.
+  backedUp,
+
+  /// Tapped [mostroLaughTaps] times in a row. Shakes with laughter.
+  laughing,
+
+  /// Held. Leans back, shades on.
+  cool,
+
+  /// The [mostroFireStreak]th trade completed in a day, or later. Jumps.
+  onFire,
+
+  /// The counterparty agreed to the cancel this side asked for. A nod.
+  agreed,
 }
 
 /// A date Bitcoin remembers, and Mostro with it.
@@ -74,6 +103,10 @@ enum MostroSeason {
 /// Taps in a row that make Mostro dizzy. One tap is a greeting; this many is
 /// someone who kept going, which is the point of an easter egg.
 const int mostroDizzyTaps = 7;
+
+/// Taps in a row that make Mostro laugh: 21, for the 21 million. On the way
+/// there it gets dizzy every [mostroDizzyTaps].
+const int mostroLaughTaps = 21;
 
 /// How long a tap streak survives without another tap. Short enough that a
 /// stray tap tomorrow does not count towards today's.
@@ -173,7 +206,24 @@ String? moodSticker(MostroMood mood) => switch (mood) {
   MostroMood.loved => 'love',
   MostroMood.thankful => 'thanks',
   MostroMood.refused => 'facepalm',
+  MostroMood.greeting => 'gm',
+  MostroMood.orderTaken => 'p2p',
+  MostroMood.cancelAsked => 'surprised',
+  MostroMood.invoiceAccepted => 'lightning',
+  MostroMood.backedUp => 'check',
+  MostroMood.laughing => 'laugh',
+  MostroMood.cool => 'cool',
+  MostroMood.onFire => 'fire',
+  MostroMood.agreed => 'thumbsup',
 };
+
+/// The sticker Mostro wears at rest on [season], in place of its badge, or
+/// null when the season keeps the plain artwork and its badge.
+///
+/// The genesis block's day is the day to hodl. Only the mascot that wears
+/// stickers does: the drawer keeps its artwork and its 📰 badge.
+String? seasonSticker(MostroSeason season) =>
+    season == MostroSeason.genesis ? 'hodl' : null;
 
 /// How long a reaction to something that happened stays on show: long
 /// enough to read the sticker, short enough not to become the new rest.
@@ -233,8 +283,8 @@ bool isFreshEvent({required DateTime occurredAt, required DateTime now}) =>
 /// The streak length after a tap at [now], given the previous [count] and the
 /// time of the [lastTap].
 ///
-/// Starts over both when the streak has gone cold and right after the dizzy
-/// tap, so the easter egg can be earned again rather than staying dizzy.
+/// Starts over both when the streak has gone cold and right after the laugh,
+/// so the easter eggs can be earned again.
 int nextTapCount({
   required int count,
   required DateTime? lastTap,
@@ -242,12 +292,33 @@ int nextTapCount({
 }) {
   if (lastTap == null || now.difference(lastTap) > mostroTapWindow) return 1;
   final next = count + 1;
-  return next > mostroDizzyTaps ? 1 : next;
+  return next > mostroLaughTaps ? 1 : next;
 }
 
-/// The mood a streak of [count] taps earns.
-MostroMood moodForTaps(int count) =>
-    count >= mostroDizzyTaps ? MostroMood.dizzy : MostroMood.happy;
+/// The mood a streak of [count] taps earns: a laugh on the 21st, dizzy on
+/// every seventh before it, pleased otherwise.
+MostroMood moodForTaps(int count) {
+  if (count >= mostroLaughTaps) return MostroMood.laughing;
+  if (count % mostroDizzyTaps == 0) return MostroMood.dizzy;
+  return MostroMood.happy;
+}
+
+/// Trades completed in one day that set Mostro on fire.
+const int mostroFireStreak = 3;
+
+/// The mood a completed trade earns, the [completedToday]th of its day.
+MostroMood moodForCompletion(int completedToday) =>
+    completedToday >= mostroFireStreak
+        ? MostroMood.onFire
+        : MostroMood.celebrating;
+
+/// The morning, in local hours: from [_morningStarts] until [_morningEnds].
+const int _morningStarts = 5;
+const int _morningEnds = 11;
+
+/// Whether [local] is morning, when a session opens with a gm.
+bool isMorning(DateTime local) =>
+    local.hour >= _morningStarts && local.hour < _morningEnds;
 
 /// Whether [mood] is an ambient state that runs until it is replaced, as
 /// opposed to a reaction that plays once and is over.

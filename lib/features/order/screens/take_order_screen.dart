@@ -215,6 +215,8 @@ class _TakeOrderScreenState extends ConsumerState<TakeOrderScreen> {
       // reach `_showTakeError` (whose errors mean no trade was created): it
       // falls back to the Lightning routing, as before Cashu existed.
       final bondFirst = trade.order.status == OrderStatus.waitingTakerBond;
+      // Behind a bond the order is still anyone's until it locks.
+      if (!bondFirst) ref.read(mascotCueProvider.notifier).orderTaken();
       var cashu = false;
       if (!bondFirst) {
         try {

@@ -139,6 +139,10 @@ class BackupCompletedNotifier extends StateNotifier<bool> {
 
   bool _loaded = false;
 
+  /// Whether the stored flag has been read. Until then a change of state is
+  /// the flag arriving, not the user completing a backup.
+  bool get isLoaded => _loaded;
+
   Future<void> load() async {
     if (_loaded) return;
     final prefs = await SharedPreferences.getInstance();
