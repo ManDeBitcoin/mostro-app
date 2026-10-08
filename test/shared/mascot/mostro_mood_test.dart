@@ -191,6 +191,24 @@ void main() {
     });
   });
 
+  group('moodSticker', () {
+    test('each mood wears its sticker, and rest wears the plain mascot', () {
+      expect(moodSticker(MostroMood.neutral), isNull);
+      expect(moodSticker(MostroMood.happy), 'waving');
+      expect(moodSticker(MostroMood.dizzy), 'confused');
+      expect(moodSticker(MostroMood.asleep), 'bored');
+      expect(moodSticker(MostroMood.impatient), 'thinking');
+      expect(moodSticker(MostroMood.celebrating), 'celebrate');
+    });
+
+    test('every mood but rest has one', () {
+      for (final mood in MostroMood.values) {
+        if (mood == MostroMood.neutral) continue;
+        expect(moodSticker(mood), isNotNull, reason: mood.name);
+      }
+    });
+  });
+
   group('isFreshEvent', () {
     final now = DateTime.utc(2026, 6, 1, 12);
 
