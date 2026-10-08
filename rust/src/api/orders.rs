@@ -5087,7 +5087,11 @@ async fn persist_restored_bond_rows(info: &mostro_core::message::RestoreSessionI
                 crate::api::logging::short_id(&order_id),
             ),
         );
-        emit_trade_update_with(&order_id, status, Some(crate::api::types::TradeUpdateReason::Replayed));
+        emit_trade_update_with(
+            &order_id,
+            status,
+            Some(crate::api::types::TradeUpdateReason::Replayed),
+        );
     }
 }
 
@@ -5305,7 +5309,11 @@ async fn persist_restored_trade_row(
             crate::api::logging::short_id(&order_id),
         ),
     );
-    emit_trade_update_with(&order_id, row.order.status, Some(crate::api::types::TradeUpdateReason::Replayed));
+    emit_trade_update_with(
+        &order_id,
+        row.order.status,
+        Some(crate::api::types::TradeUpdateReason::Replayed),
+    );
     true
 }
 
@@ -5354,7 +5362,11 @@ async fn apply_restored_status(
             existing.order.status,
         ),
     );
-    emit_trade_update_with(order_id, status, Some(crate::api::types::TradeUpdateReason::Replayed));
+    emit_trade_update_with(
+        order_id,
+        status,
+        Some(crate::api::types::TradeUpdateReason::Replayed),
+    );
     true
 }
 
@@ -9351,7 +9363,12 @@ async fn persist_peer_reputation(
     }
     if let Some(info) = order_book().get_order(order_id).await {
         // A re-read, not a step: the status is the book's (#770).
-        emit_trade_update_at(order_id, info.status, Some(crate::api::types::TradeUpdateReason::Replayed), occurred_at);
+        emit_trade_update_at(
+            order_id,
+            info.status,
+            Some(crate::api::types::TradeUpdateReason::Replayed),
+            occurred_at,
+        );
     }
 }
 
