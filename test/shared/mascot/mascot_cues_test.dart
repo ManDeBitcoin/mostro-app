@@ -81,6 +81,25 @@ void main() {
       }
     });
 
+    test('a status Rust only re-states is not news', () {
+      // A restore, the startup sweep and a reputation re-read are dated now,
+      // so the reason is all that tells them from a step (#770).
+      for (final status in const [
+        OrderStatus.success,
+        OrderStatus.canceled,
+        OrderStatus.dispute,
+        OrderStatus.active,
+      ]) {
+        expect(
+          moodForTradeUpdate(
+            _update(status, reason: TradeUpdateReason.replayed),
+          ),
+          isNull,
+          reason: status.name,
+        );
+      }
+    });
+
     test('the waiting steps leave Mostro as it is', () {
       for (final status in const [
         OrderStatus.pending,

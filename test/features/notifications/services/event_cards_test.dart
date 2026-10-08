@@ -135,6 +135,20 @@ void main() {
       expect(stateOf(notifier), hasLength(1));
     });
 
+    test(
+      'a re-stated status is the same card as the step it repeats',
+      () async {
+        // A restore, the startup sweep and a reputation re-read re-state a
+        // status as `replayed` (#770); the card must not count it twice.
+        await cards.onTradeUpdate(update(OrderStatus.active));
+        await cards.onTradeUpdate(
+          update(OrderStatus.active, reason: TradeUpdateReason.replayed),
+        );
+
+        expect(stateOf(notifier).map((n) => n.id), ['trade-order-1-active']);
+      },
+    );
+
     test('a later status on the same order adds its own card', () async {
       await cards.onTradeUpdate(update(OrderStatus.active));
       await cards.onTradeUpdate(update(OrderStatus.fiatSent, at: 2000));
