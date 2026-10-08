@@ -119,6 +119,20 @@ String? seasonEmoji(MostroSeason season) => switch (season) {
   MostroSeason.none => null,
 };
 
+/// How old a trade event may be and still count as news.
+///
+/// A daemon message carries its own `created_at`, which a relay slow to
+/// deliver, or a sender's clock a little off ours, can push back by a minute
+/// or so. A history replay after a restore is days or months old (#474):
+/// celebrating that would be celebrating the past.
+const Duration mostroFreshEvent = Duration(minutes: 2);
+
+/// Whether something that happened at [occurredAt] is still news at [now].
+/// A time slightly ahead of ours is a sender clock, not the future, so it
+/// counts.
+bool isFreshEvent({required DateTime occurredAt, required DateTime now}) =>
+    now.difference(occurredAt) <= mostroFreshEvent;
+
 /// The streak length after a tap at [now], given the previous [count] and the
 /// time of the [lastTap].
 ///

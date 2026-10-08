@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -80,6 +81,11 @@ class _HeaderMascotState extends ConsumerState<HeaderMascot> {
   ) {
     final update = next.valueOrNull;
     if (update == null || !_completed.contains(update.status)) return;
+    // A restore replays trades that ended long ago; only news is a party.
+    final occurredAt = DateTime.fromMillisecondsSinceEpoch(
+      update.occurredAt * 1000,
+    );
+    if (!isFreshEvent(occurredAt: occurredAt, now: clock.now())) return;
     _party?.cancel();
     setState(() => _celebrating = true);
     _party = Timer(_celebration, () {
