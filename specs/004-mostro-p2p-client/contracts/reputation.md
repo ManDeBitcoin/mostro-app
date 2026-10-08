@@ -30,7 +30,9 @@ Enable or disable privacy mode.
 **Side effects**: When enabled, no reputation data is sent/received
 in future trades. Session recovery becomes unavailable.
 
-**Errors**: `NoIdentity`.
+**Errors**: none. The flag is stored whether or not an identity is loaded; both
+callers (the Account toggle and the launch-time restore) run after the identity
+is loaded.
 
 ---
 
