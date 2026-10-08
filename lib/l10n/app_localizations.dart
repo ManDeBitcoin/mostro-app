@@ -4627,7 +4627,7 @@ abstract class AppLocalizations {
   /// Cell label on the About screen's connected node card: how long an order stays published before it expires
   ///
   /// In en, this message translates to:
-  /// **'Order expiry'**
+  /// **'Expiration'**
   String get aboutOrderExpiryCell;
 
   /// About screen redesign (12a/12b)

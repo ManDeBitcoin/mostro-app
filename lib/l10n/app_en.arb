@@ -3535,7 +3535,7 @@
   "@aboutCurrenciesCell": {
     "description": "Cell label on the About screen's connected node card: the fiat currencies the node accepts"
   },
-  "aboutOrderExpiryCell": "Order expiry",
+  "aboutOrderExpiryCell": "Expiration",
   "@aboutOrderExpiryCell": {
     "description": "Cell label on the About screen's connected node card: how long an order stays published before it expires"
   },

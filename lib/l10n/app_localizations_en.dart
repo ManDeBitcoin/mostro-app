@@ -2708,7 +2708,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutCurrenciesCell => 'Currencies';
 
   @override
-  String get aboutOrderExpiryCell => 'Order expiry';
+  String get aboutOrderExpiryCell => 'Expiration';
 
   @override
   String get aboutNodeTechnicalDataRow => 'Node technical data';

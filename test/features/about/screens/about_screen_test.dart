@@ -184,7 +184,7 @@ void main() {
       expect(find.text('5%'), findsOneWidget);
       expect(find.text('Currencies'), findsOneWidget);
       expect(find.text('ARS, EUR, USD'), findsOneWidget);
-      expect(find.text('Order expiry'), findsOneWidget);
+      expect(find.text('Expiration'), findsOneWidget);
       expect(find.text('24 h'), findsOneWidget);
       // The rest of the policy stays in the technical data.
       for (final label in _parameterLabels) {

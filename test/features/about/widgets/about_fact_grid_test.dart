@@ -25,7 +25,7 @@ const _wideEnglish = [
   AboutFact('Fee', '0.6%'),
   AboutFact('Deposit', '1.5%'),
   AboutFact('Currencies', 'ARS, EUR +5'),
-  AboutFact('Order expiration', '24 h'),
+  AboutFact('Expiration', '24 h'),
 ];
 
 /// The German card while the node has not answered.
