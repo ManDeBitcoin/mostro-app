@@ -19,6 +19,8 @@ import 'package:mostro/src/rust/api/types.dart'
     show BondPolicy, BondPolicyInfo, MostroNodeEntry;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../support/load_app_fonts.dart';
+
 const _home = 'home screen';
 const _cubaPubkey =
     '00000235a3e904cfe1213a8a54d6f1ec1bef7cc6bfaabd6193e82931ccf1366a';
@@ -84,8 +86,12 @@ Future<_Harness> _pump(
   WidgetTester tester, {
   String activePubkey = defaultMostroPubkey,
   bool failSelect = false,
+  Size size = const Size(1200, 3000),
+  Locale locale = const Locale('en'),
+  Brightness brightness = Brightness.dark,
+  double textScale = 1,
 }) async {
-  tester.view.physicalSize = const Size(1200, 3000);
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
@@ -145,10 +151,20 @@ Future<_Harness> _pump(
       container: container,
       child: MaterialApp.router(
         routerConfig: router,
-        theme: buildDarkTheme(),
-        locale: const Locale('en'),
+        theme:
+            brightness == Brightness.dark
+                ? buildDarkTheme()
+                : buildLightTheme(),
+        locale: locale,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
+        builder:
+            (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(textScale)),
+              child: child!,
+            ),
       ),
     ),
   );
@@ -161,11 +177,11 @@ Future<_Harness> _pump(
 AppLocalizations _en() => lookupAppLocalizations(const Locale('en'));
 
 /// "Use this node" is a [FilledButton]; enabled when it has a callback.
-bool _confirmEnabled(WidgetTester tester) =>
+bool _confirmEnabled(WidgetTester tester, [AppLocalizations? l10n]) =>
     tester
         .widget<FilledButton>(
           find.ancestor(
-            of: find.text(_en().nodeChoiceConfirm),
+            of: find.text((l10n ?? _en()).nodeChoiceConfirm),
             matching: find.byType(FilledButton),
           ),
         )
@@ -173,6 +189,7 @@ bool _confirmEnabled(WidgetTester tester) =>
     null;
 
 void main() {
+  setUpAll(loadAppFonts);
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   testWidgets('shows the default node first, then the others', (tester) async {
@@ -258,4 +275,39 @@ void main() {
     // Both actions are live again for a retry.
     expect(_confirmEnabled(tester), isTrue);
   });
+
+  // DS-SPC-5 / DS-A11Y-4: the longest locale, the narrowest screen, the
+  // largest text. The disclaimer scrolls with the cards; the actions stay.
+  for (final brightness in Brightness.values) {
+    testWidgets('fits 320 x 640 in German at 2x text (${brightness.name})', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        size: const Size(320, 640),
+        locale: const Locale('de'),
+        brightness: brightness,
+        textScale: 2,
+      );
+      final de = lookupAppLocalizations(const Locale('de'));
+
+      expect(tester.takeException(), isNull);
+      expect(find.text(de.nodeChoiceConfirm).hitTestable(), findsOneWidget);
+      expect(find.text(de.skip).hitTestable(), findsOneWidget);
+
+      // The cards are reachable below the disclaimer.
+      // Built lazily below the tall header: scroll to it, and let the scroll
+      // settle so the tap is not taken as a stop.
+      await tester.scrollUntilVisible(
+        find.text('Mostro'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mostro'));
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(_confirmEnabled(tester, de), isTrue);
+    });
+  }
 }

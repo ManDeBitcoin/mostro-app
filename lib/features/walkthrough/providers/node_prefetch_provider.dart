@@ -10,8 +10,8 @@ import 'package:mostro/features/settings/providers/node_stats_provider.dart';
 /// event (fee, range, currencies, bond — [nodeInfoWarmUpProvider], read back
 /// by [cachedNodeStatsProvider]), then the order counts ([nodeStatsProvider],
 /// which waits for the first). The node names (kind 0) are fetched again once
-/// the first pass has the relays connected: the registry's own fetch may
-/// have run before any was.
+/// the first pass has the relays connected — after the registry's own fetch,
+/// which may have run before any was, rather than coalesced into it.
 ///
 /// Watched by the walkthrough and by the node choice: the second subscribes
 /// before the first is gone, so the fetch in flight carries over.
@@ -20,7 +20,7 @@ final firstRunNodePrefetchProvider = Provider.autoDispose<void>((ref) {
   ref.listen(nodeStatsProvider, (_, __) {});
   ref.listen<AsyncValue<void>>(nodeInfoWarmUpProvider, (_, warmUp) {
     if (warmUp.hasValue) {
-      ref.read(mostroNodesProvider.notifier).refreshMetadata();
+      ref.read(mostroNodesProvider.notifier).refreshMetadataAfterPending();
     }
   }, fireImmediately: true);
 });

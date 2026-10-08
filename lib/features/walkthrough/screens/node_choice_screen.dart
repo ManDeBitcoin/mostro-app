@@ -27,9 +27,10 @@ import 'package:mostro/src/rust/api/node_stats.dart' show MostroNodeStats;
 /// The first run's last step, after the walkthrough: which Mostro node to
 /// trade on (v1's community selector).
 ///
-/// Every node of the registry as a [NodeCard], the default node first, above
-/// the operator disclaimer. Tapping a card picks it and "Use this node" makes
-/// it the active node; Skip keeps the default node. Either one completes the
+/// The operator disclaimer, then every node of the registry as a [NodeCard],
+/// the default node first, all in one scroll over the pinned actions
+/// (DS-SPC-5). Tapping a card picks it and "Use this node" makes it the
+/// active node; Skip keeps the default node. Either one completes the
 /// first run, arms the backup reminder and goes home.
 ///
 /// The figures were downloaded during the walkthrough
@@ -64,15 +65,16 @@ class _NodeChoiceScreenState extends ConsumerState<NodeChoiceScreen> {
       _snack(l10n.errorSwitchingNode);
       return;
     }
-    final reminder = ref.read(backupReminderProvider.notifier);
     try {
+      // The reminder first: once the first run is complete this screen never
+      // comes back to arm it again.
+      await ref.read(backupReminderProvider.notifier).showBackupReminder();
       await ref.read(firstRunProvider.notifier).markFirstRunComplete();
     } catch (_) {
       // A failed write must not leave both actions dead: let a retry in.
       if (mounted) setState(() => _busy = false);
       rethrow;
     }
-    reminder.showBackupReminder();
     if (mounted) context.go(AppRoute.home);
   }
 
@@ -116,31 +118,9 @@ class _NodeChoiceScreenState extends ConsumerState<NodeChoiceScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 18),
-              Semantics(
-                header: true,
-                child: Text(
-                  l10n.selectMostroNode,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                    height: 1.15,
-                    color: book.textPrimary,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                l10n.nodeChoiceSubtitle,
-                style: TextStyle(
-                  fontSize: 14,
-                  height: 1.5,
-                  color: book.textBody,
-                ),
-              ),
-              const SizedBox(height: 14),
               Expanded(
                 child: _NodeList(
+                  header: const _Header(),
                   picked: picked,
                   onPick: (pubkey) {
                     HapticFeedback.selectionClick();
@@ -150,8 +130,6 @@ class _NodeChoiceScreenState extends ConsumerState<NodeChoiceScreen> {
                   onCopyPubkey: () => _snack(l10n.nodePubkeyCopied),
                 ),
               ),
-              const SizedBox(height: 12),
-              _DisclaimerNote(text: l10n.nodeOperatorDisclaimer),
               const SizedBox(height: 14),
               OrderPrimaryButton(
                 label: l10n.nodeChoiceConfirm,
@@ -170,16 +148,55 @@ class _NodeChoiceScreenState extends ConsumerState<NodeChoiceScreen> {
   }
 }
 
-/// The registry as node cards, the default node first and the rest in the
-/// selector's order.
+/// The title, what is asked and the operator disclaimer: the top of the
+/// scroll, so a narrow screen at large text still reaches the cards.
+class _Header extends StatelessWidget {
+  const _Header();
+
+  @override
+  Widget build(BuildContext context) {
+    final book = OrderBookPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 18),
+        Semantics(
+          header: true,
+          child: Text(
+            l10n.selectMostroNode,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              height: 1.15,
+              color: book.textPrimary,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          l10n.nodeChoiceSubtitle,
+          style: TextStyle(fontSize: 14, height: 1.5, color: book.textBody),
+        ),
+        const SizedBox(height: 14),
+        _DisclaimerNote(text: l10n.nodeOperatorDisclaimer),
+      ],
+    );
+  }
+}
+
+/// [header], then the registry as node cards, the default node first and
+/// the rest in the selector's order.
 class _NodeList extends ConsumerWidget {
   const _NodeList({
+    required this.header,
     required this.picked,
     required this.onPick,
     required this.onBlocked,
     required this.onCopyPubkey,
   });
 
+  final Widget header;
   final String? picked;
   final ValueChanged<String> onPick;
   final ValueChanged<NodeBlocker> onBlocked;
@@ -216,10 +233,11 @@ class _NodeList extends ConsumerWidget {
     );
 
     return ListView.separated(
-      itemCount: nodes.length,
+      itemCount: nodes.length + 1,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, i) {
-        final entry = nodes[i];
+        if (i == 0) return header;
+        final entry = nodes[i - 1];
         final live = stats?[entry.pubkey];
         return NodeCard(
           key: ValueKey(entry.pubkey),

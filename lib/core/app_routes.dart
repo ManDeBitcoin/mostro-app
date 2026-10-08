@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -96,14 +97,26 @@ abstract final class AppRoute {
 /// first navigation decision is made.
 ProviderContainer? routerContainer;
 
-/// Application router.
-///
-/// Redirect logic: if `firstRunComplete == false` every route but the first
-/// run's own two (`/walkthrough`, then `/choose-node`) is redirected to
-/// `/walkthrough`. Once the user picks a node or skips the choice the flag is
-/// persisted and the redirect no longer fires.
 const _firstRunRoutes = {AppRoute.walkthrough, AppRoute.chooseNode};
 
+/// Where the first run sends [location], or `null` to stay. Until the first
+/// run is complete every route but its own two (`/walkthrough`, then
+/// `/choose-node`) leads to `/walkthrough`. Afterwards `/choose-node` leads
+/// home: node switches then go through Settings, which warns about a trade
+/// left behind.
+@visibleForTesting
+String? firstRunRedirect({required bool done, required String location}) {
+  if (!done) {
+    return _firstRunRoutes.contains(location) ? null : AppRoute.walkthrough;
+  }
+  return location == AppRoute.chooseNode ? AppRoute.home : null;
+}
+
+/// Application router.
+///
+/// Redirect logic: [firstRunRedirect], once `firstRunComplete` is known.
+/// Once the user picks a node or skips the choice the flag is persisted and
+/// the first run's redirect no longer fires.
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoute.home,
   redirect: (context, state) {
@@ -113,13 +126,9 @@ final GoRouter appRouter = GoRouter(
     final firstRunAsync = container.read(firstRunProvider);
 
     return firstRunAsync.when(
-      data: (done) {
-        if (!done && !_firstRunRoutes.contains(state.matchedLocation)) {
-          return AppRoute.walkthrough;
-        }
-        // Already in the first run, or first run completed — no redirect.
-        return null;
-      },
+      data:
+          (done) =>
+              firstRunRedirect(done: done, location: state.matchedLocation),
       // While loading or on error: fail-safe, no redirect (go to home).
       loading: () => null,
       error: (_, __) => null,
