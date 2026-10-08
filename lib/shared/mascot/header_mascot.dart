@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
 import 'package:mostro/shared/mascot/mostro_mascot.dart';
 import 'package:mostro/shared/mascot/mostro_mood.dart';
+import 'package:mostro/shared/utils/platform_int64.dart';
 import 'package:mostro/src/rust/api/types.dart' show OrderStatus, TradeUpdate;
 
 /// The Mostro in every tab's app bar: tap it and it reacts, and it picks up
@@ -83,7 +84,7 @@ class _HeaderMascotState extends ConsumerState<HeaderMascot> {
     if (update == null || !_completed.contains(update.status)) return;
     // A restore replays trades that ended long ago; only news is a party.
     final occurredAt = DateTime.fromMillisecondsSinceEpoch(
-      update.occurredAt * 1000,
+      platformInt64ToInt(update.occurredAt) * 1000,
     );
     if (!isFreshEvent(occurredAt: occurredAt, now: clock.now())) return;
     _party?.cancel();
