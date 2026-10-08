@@ -7911,17 +7911,26 @@ fn restored_chat_relevant(trade: &crate::api::types::TradeInfo, peer: &str) -> b
 async fn reconcile_history_with(
     snapshot: &crate::mostro::restore_history::RestoreSnapshot,
 ) -> std::collections::HashSet<String> {
-    let mut dropped = std::collections::HashSet::new();
     let Some(db) = crate::db::app_db::db() else {
-        return dropped;
+        return Default::default();
     };
-    let trades = match db.list_trades().await {
-        Ok(trades) => trades,
+    match db.list_trades().await {
+        Ok(trades) => drop_history_rows(snapshot, trades).await,
         Err(e) => {
             log::warn!("[orders] history pass: list_trades failed: {e}");
-            return dropped;
+            Default::default()
         }
-    };
+    }
+}
+
+/// The wipes of [`reconcile_history_with`], over the rows it is handed: a
+/// test hands it only its own, so the pass cannot reach the rows of the
+/// tests running beside it in the shared store.
+async fn drop_history_rows(
+    snapshot: &crate::mostro::restore_history::RestoreSnapshot,
+    trades: Vec<crate::api::types::TradeInfo>,
+) -> std::collections::HashSet<String> {
+    let mut dropped = std::collections::HashSet::new();
     for trade in trades {
         let oid = trade.order.id.clone();
         if !snapshot.is_history(&oid, trade.trade_key_index) {
