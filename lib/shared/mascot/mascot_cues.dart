@@ -25,8 +25,8 @@ const Set<TradeUpdateReason> _notASteps = {
   // it with that status.
   TradeUpdateReason.cooperativeCancelRequestedByMe,
   TradeUpdateReason.cooperativeCancelRequestedByPeer,
-  // A restore, the startup sweep or a re-read, dated now: old news that only
-  // the reason gives away.
+  // A restore or a re-read, dated now: old news that only the reason gives
+  // away.
   TradeUpdateReason.replayed,
 };
 
