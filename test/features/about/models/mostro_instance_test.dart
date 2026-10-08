@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mostro/features/about/models/mostro_instance.dart';
 
@@ -319,29 +322,25 @@ void main() {
   });
 
   group('MostroInstance — accepted fiat codes', () {
-    test(
-      'reads the codes as Rust does: trimmed, upper-cased, deduplicated',
-      () {
-        final instance = MostroInstance.fromTags(const [
-          ['d', 'npub_test'],
-          ['fiat_currencies_accepted', ' ars, EUR,,ars ,usd'],
+    // The cases are shared with Rust's `parse_accepted_currencies`
+    // (`rust/src/api/node_stats.rs`), so About and the create-order picker
+    // read a node's list alike.
+    test('reads the codes as Rust does', () {
+      final cases =
+          jsonDecode(
+                File(
+                  'test/fixtures/accepted_fiat_codes.json',
+                ).readAsStringSync(),
+              )
+              as List<dynamic>;
+      expect(cases, isNotEmpty);
+      for (final c in cases.cast<Map<String, dynamic>>()) {
+        final raw = c['raw'] as String?;
+        final instance = MostroInstance.fromTags([
+          const ['d', 'npub_test'],
+          if (raw != null) ['fiat_currencies_accepted', raw],
         ]);
-
-        expect(instance.acceptedFiatCodes, ['ARS', 'EUR', 'USD']);
-      },
-    );
-
-    test('a node without the tag, or with it blank, sets no limit', () {
-      for (final tags in const [
-        [
-          ['d', 'npub_test'],
-        ],
-        [
-          ['d', 'npub_test'],
-          ['fiat_currencies_accepted', ' '],
-        ],
-      ]) {
-        expect(MostroInstance.fromTags(tags).acceptedFiatCodes, isEmpty);
+        expect(instance.acceptedFiatCodes, c['codes'], reason: '$raw');
       }
     });
   });
