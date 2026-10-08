@@ -635,6 +635,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Each node is run by an independent third party. Mostro is not responsible for their conduct or for your trades.';
 
   @override
+  String get nodeChoiceSubtitle =>
+      'Select the Mostro node you want to trade on';
+
+  @override
+  String get nodeOperatorDisclaimer =>
+      'The Mostro development team is not responsible for how node operators use the platform. Each operator controls their own Mostro node and is solely responsible for their actions. By using Mostro, you accept full responsibility for your trades and acknowledge that the development team has no control over individual node operators.';
+
+  @override
+  String get nodeChoiceConfirm => 'Use this node';
+
+  @override
   String get nodeVerifyKeyWarning =>
       'Verify the key with the operator. A fake node can see your orders.';
 

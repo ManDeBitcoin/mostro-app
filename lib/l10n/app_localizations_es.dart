@@ -639,6 +639,17 @@ class AppLocalizationsEs extends AppLocalizations {
       'Cada nodo lo opera un tercero independiente. Mostro no responde por su conducta ni por tus operaciones.';
 
   @override
+  String get nodeChoiceSubtitle =>
+      'Selecciona el nodo Mostro en el que quieres operar';
+
+  @override
+  String get nodeOperatorDisclaimer =>
+      'El equipo de desarrollo de Mostro no se hace responsable del uso que los operadores de nodos hagan de la plataforma. Cada operador controla su propio nodo Mostro y es el único responsable de sus acciones. Al usar Mostro, aceptas la plena responsabilidad de tus operaciones y reconoces que el equipo de desarrollo no tiene control sobre los operadores de nodos individuales.';
+
+  @override
+  String get nodeChoiceConfirm => 'Usar este nodo';
+
+  @override
   String get nodeVerifyKeyWarning =>
       'Verifica la clave con el operador. Un nodo falso puede ver tus órdenes.';
 

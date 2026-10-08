@@ -27,12 +27,14 @@ import 'package:mostro/features/settings/screens/relays_screen.dart';
 import 'package:mostro/features/trades/screens/trade_detail_screen.dart';
 import 'package:mostro/features/trades/screens/trades_screen.dart';
 import 'package:mostro/features/walkthrough/providers/first_run_provider.dart';
+import 'package:mostro/features/walkthrough/screens/node_choice_screen.dart';
 import 'package:mostro/features/walkthrough/screens/walkthrough_screen.dart';
 
 // ── Route name constants ───────────────────────────────────────────────────────
 
 abstract final class AppRoute {
   static const walkthrough = '/walkthrough';
+  static const chooseNode = '/choose-node';
   static const home = '/';
   static const orderBook = '/order_book';
   static const addOrder = '/add_order';
@@ -96,9 +98,12 @@ ProviderContainer? routerContainer;
 
 /// Application router.
 ///
-/// Redirect logic: if `firstRunComplete == false` every route is redirected to
-/// `/walkthrough`. After the user taps Done or Skip the flag is persisted and
-/// the redirect no longer fires.
+/// Redirect logic: if `firstRunComplete == false` every route but the first
+/// run's own two (`/walkthrough`, then `/choose-node`) is redirected to
+/// `/walkthrough`. Once the user picks a node or skips the choice the flag is
+/// persisted and the redirect no longer fires.
+const _firstRunRoutes = {AppRoute.walkthrough, AppRoute.chooseNode};
+
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoute.home,
   redirect: (context, state) {
@@ -109,10 +114,10 @@ final GoRouter appRouter = GoRouter(
 
     return firstRunAsync.when(
       data: (done) {
-        if (!done && state.matchedLocation != AppRoute.walkthrough) {
+        if (!done && !_firstRunRoutes.contains(state.matchedLocation)) {
           return AppRoute.walkthrough;
         }
-        // Already on walkthrough or first-run completed — no redirect.
+        // Already in the first run, or first run completed — no redirect.
         return null;
       },
       // While loading or on error: fail-safe, no redirect (go to home).
@@ -124,6 +129,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoute.walkthrough,
       builder: (_, __) => const WalkthroughScreen(),
+    ),
+    GoRoute(
+      path: AppRoute.chooseNode,
+      builder: (_, __) => const NodeChoiceScreen(),
     ),
     GoRoute(path: AppRoute.home, builder: (_, __) => const HomeScreen()),
     GoRoute(path: AppRoute.orderBook, builder: (_, __) => const TradesScreen()),
@@ -261,9 +270,9 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoute.lockEscrow,
-      builder: (context, state) => LockEscrowScreen(
-        orderId: state.pathParameters['orderId']!,
-      ),
+      builder:
+          (context, state) =>
+              LockEscrowScreen(orderId: state.pathParameters['orderId']!),
     ),
   ],
 );

@@ -641,6 +641,17 @@ class AppLocalizationsDe extends AppLocalizations {
       'Jeder Knoten wird von einem unabhängigen Dritten betrieben. Mostro haftet weder für dessen Verhalten noch für deine Geschäfte.';
 
   @override
+  String get nodeChoiceSubtitle =>
+      'Wähle den Mostro-Node, auf dem du handeln möchtest';
+
+  @override
+  String get nodeOperatorDisclaimer =>
+      'Das Mostro-Entwicklungsteam ist nicht verantwortlich für die Nutzung der Plattform durch Node-Betreiber. Jeder Betreiber kontrolliert seinen eigenen Mostro-Node und ist allein verantwortlich für seine Handlungen. Mit der Nutzung von Mostro akzeptieren Sie die volle Verantwortung für Ihre Transaktionen und erkennen an, dass das Entwicklungsteam keine Kontrolle über einzelne Node-Betreiber hat.';
+
+  @override
+  String get nodeChoiceConfirm => 'Diesen Node verwenden';
+
+  @override
   String get nodeVerifyKeyWarning =>
       'Prüfe den Schlüssel beim Betreiber. Ein gefälschter Knoten kann deine Aufträge sehen.';
 

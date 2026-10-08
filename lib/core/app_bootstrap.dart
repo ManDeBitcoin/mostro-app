@@ -244,6 +244,7 @@ Future<void> bootstrapAndRun({List<String> seedRelays = const []}) async {
       ),
       nwcProvider.overrideWith((ref) => NwcNotifier(prefs: prefs)),
       mostroPubkeyProvider.overrideWith((ref) => activeMostroPubkey),
+      nodeInfoWarmUpProvider.overrideWith((ref) => nodeInfoWarmed),
     ],
   );
 

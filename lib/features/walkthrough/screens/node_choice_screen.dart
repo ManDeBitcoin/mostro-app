@@ -1,0 +1,311 @@
+import 'package:clock/clock.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import 'package:mostro/core/app_routes.dart';
+import 'package:mostro/core/app_theme.dart';
+import 'package:mostro/core/automation/automation_id.dart';
+import 'package:mostro/core/automation/automation_ids.dart';
+import 'package:mostro/core/mostro_defaults.dart';
+import 'package:mostro/core/node_selector_palette.dart';
+import 'package:mostro/features/order/providers/exchange_rate_provider.dart';
+import 'package:mostro/features/order/widgets/order_detail_cards.dart';
+import 'package:mostro/features/settings/models/node_selector_rules.dart';
+import 'package:mostro/features/settings/providers/mostro_nodes_provider.dart';
+import 'package:mostro/features/settings/providers/node_stats_provider.dart';
+import 'package:mostro/features/settings/providers/settings_provider.dart';
+import 'package:mostro/features/settings/widgets/node_card.dart';
+import 'package:mostro/features/walkthrough/providers/first_run_provider.dart';
+import 'package:mostro/features/walkthrough/providers/node_prefetch_provider.dart';
+import 'package:mostro/l10n/app_localizations.dart';
+import 'package:mostro/shared/utils/fiat_currencies.dart';
+import 'package:mostro/shared/widgets/redesign_app_bar.dart';
+import 'package:mostro/src/rust/api/node_stats.dart' show MostroNodeStats;
+
+/// The first run's last step, after the walkthrough: which Mostro node to
+/// trade on (v1's community selector).
+///
+/// Every node of the registry as a [NodeCard], the default node first, above
+/// the operator disclaimer. Tapping a card picks it and "Use this node" makes
+/// it the active node; Skip keeps the default node. Either one completes the
+/// first run, arms the backup reminder and goes home.
+///
+/// The figures were downloaded during the walkthrough
+/// ([firstRunNodePrefetchProvider]); until they land a card shows the
+/// node's cached settings and skeletons, as in the Settings selector.
+class NodeChoiceScreen extends ConsumerStatefulWidget {
+  const NodeChoiceScreen({super.key});
+
+  @override
+  ConsumerState<NodeChoiceScreen> createState() => _NodeChoiceScreenState();
+}
+
+class _NodeChoiceScreenState extends ConsumerState<NodeChoiceScreen> {
+  /// The card the user tapped; `null` until they tap one.
+  String? _picked;
+
+  /// Set while the choice is being applied: one tap, one switch.
+  bool _busy = false;
+
+  Future<void> _complete(String pubkey) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final l10n = AppLocalizations.of(context);
+    try {
+      if (ref.read(mostroPubkeyProvider) != pubkey) {
+        await ref.read(mostroNodesProvider.notifier).selectNode(pubkey);
+      }
+    } catch (e) {
+      debugPrint('[NodeChoice] selectNode failed: $e');
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _snack(l10n.errorSwitchingNode);
+      return;
+    }
+    final reminder = ref.read(backupReminderProvider.notifier);
+    try {
+      await ref.read(firstRunProvider.notifier).markFirstRunComplete();
+    } catch (_) {
+      // A failed write must not leave both actions dead: let a retry in.
+      if (mounted) setState(() => _busy = false);
+      rethrow;
+    }
+    reminder.showBackupReminder();
+    if (mounted) context.go(AppRoute.home);
+  }
+
+  void _onBlocked(NodeBlocker blocker) {
+    final l10n = AppLocalizations.of(context);
+    _snack(switch (blocker) {
+      NodeBlocker.unreachable => l10n.nodeNotSelectableOffline,
+    });
+  }
+
+  /// The selector's snackbar: card surface, radius 12, two seconds.
+  void _snack(String text) {
+    final book = OrderBookPalette.of(context);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(text, style: TextStyle(color: book.textStrong)),
+          backgroundColor: book.surface,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.watch(firstRunNodePrefetchProvider);
+    final book = OrderBookPalette.of(context);
+    final l10n = AppLocalizations.of(context);
+    final picked = _picked;
+
+    return Scaffold(
+      backgroundColor: book.bg,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: redesignSidePadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 18),
+              Semantics(
+                header: true,
+                child: Text(
+                  l10n.selectMostroNode,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    height: 1.15,
+                    color: book.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                l10n.nodeChoiceSubtitle,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: book.textBody,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Expanded(
+                child: _NodeList(
+                  picked: picked,
+                  onPick: (pubkey) {
+                    HapticFeedback.selectionClick();
+                    setState(() => _picked = pubkey);
+                  },
+                  onBlocked: _onBlocked,
+                  onCopyPubkey: () => _snack(l10n.nodePubkeyCopied),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _DisclaimerNote(text: l10n.nodeOperatorDisclaimer),
+              const SizedBox(height: 14),
+              OrderPrimaryButton(
+                label: l10n.nodeChoiceConfirm,
+                onPressed:
+                    picked == null || _busy ? null : () => _complete(picked),
+              ).withAutomationId(AutomationIds.communityDone),
+              _SkipLink(
+                label: l10n.skip,
+                onPressed: _busy ? null : () => _complete(defaultMostroPubkey),
+              ).withAutomationId(AutomationIds.communitySkip),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The registry as node cards, the default node first and the rest in the
+/// selector's order.
+class _NodeList extends ConsumerWidget {
+  const _NodeList({
+    required this.picked,
+    required this.onPick,
+    required this.onBlocked,
+    required this.onCopyPubkey,
+  });
+
+  final String? picked;
+  final ValueChanged<String> onPick;
+  final ValueChanged<NodeBlocker> onBlocked;
+  final VoidCallback onCopyPubkey;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statsAsync = ref.watch(nodeStatsProvider);
+    final myFiat = ref.watch(
+      settingsProvider.select((s) => s.defaultFiatCode?.toUpperCase()),
+    );
+    final flags = ref.watch(currencyFlagsProvider);
+    final btcPrice =
+        myFiat == null
+            ? null
+            : ref.watch(exchangeRateProvider(myFiat)).valueOrNull;
+    final now = clock.now();
+
+    // As in the Settings selector: live figures win as soon as they exist,
+    // the cached settings only fill the wait.
+    final stats = statsAsync.valueOrNull;
+    final cachedStats =
+        stats != null
+            ? const <String, MostroNodeStats>{}
+            : ref.watch(cachedNodeStatsProvider).valueOrNull ?? const {};
+    final nodes = withNodeFirst(
+      sortNodes(
+        ref.watch(mostroNodesProvider).valueOrNull ?? const [],
+        stats ?? const {},
+        myFiat,
+        now,
+      ),
+      defaultMostroPubkey,
+    );
+
+    return ListView.separated(
+      itemCount: nodes.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, i) {
+        final entry = nodes[i];
+        final live = stats?[entry.pubkey];
+        return NodeCard(
+          key: ValueKey(entry.pubkey),
+          entry: entry,
+          stats: live ?? cachedStats[entry.pubkey],
+          statsCached: live == null,
+          statsLoading: statsAsync.isLoading,
+          myFiat: myFiat,
+          flags: flags,
+          btcPrice: btcPrice,
+          selected: entry.pubkey == picked,
+          now: now,
+          onSelect: () => onPick(entry.pubkey),
+          onBlocked: onBlocked,
+          onCopyPubkey: onCopyPubkey,
+        ).withAutomationId(AutomationIds.communityCard(entry.pubkey));
+      },
+    );
+  }
+}
+
+/// The operator disclaimer. A warning, so amber (DS-COL-9), in the warning
+/// box of the add-own-node dialog; the icon is decoration, the text says it.
+class _DisclaimerNote extends StatelessWidget {
+  const _DisclaimerNote({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = NodeSelectorPalette.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: pal.warnBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: pal.warnBorder),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(
+              Icons.warning_amber_rounded,
+              size: 14,
+              color: pal.dotWarn,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 12, height: 1.45, color: pal.warnInk),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Skip, as a full-width text link with a 48 dp target (DS-CMP-6, DS-CMP-20),
+/// as on the walkthrough.
+class _SkipLink extends StatelessWidget {
+  const _SkipLink({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final book = OrderBookPalette.of(context);
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: book.textSecondary,
+        minimumSize: const Size.fromHeight(48),
+        // A button's textStyle replaces the theme's: name the family.
+        textStyle: const TextStyle(
+          fontFamily: AppFonts.ui,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      child: Text(label),
+    );
+  }
+}
