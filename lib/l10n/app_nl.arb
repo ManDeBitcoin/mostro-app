@@ -1313,5 +1313,14 @@
   "reactionSendFailed": "De reactie kon niet worden verstuurd. Probeer het opnieuw.",
   "cashuAnyMint": "Elke mint",
   "settingsMintLabel": "Mint",
-  "settingsMintCopied": "Mint-URL gekopieerd"
+  "settingsMintCopied": "Mint-URL gekopieerd",
+  "pwaInstallTitle": "Mostro installeren",
+  "pwaInstallBody": "Open hem vanaf je beginscherm, schermvullend, zoals elke andere app.",
+  "pwaInstallAction": "Installeren",
+  "pwaInstallNotNow": "Niet nu",
+  "pwaInstallSettingTitle": "App installeren",
+  "pwaInstallStepsTitle": "Zet Mostro op je beginscherm",
+  "pwaInstallStepShare": "Tik op de deelknop in de balk van je browser.",
+  "pwaInstallStepAdd": "Kies ‘Zet op beginscherm’.",
+  "pwaInstallStepsDone": "Begrepen"
 }

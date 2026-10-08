@@ -1313,5 +1313,14 @@
   "messageMenuHint": "Nachrichtenmenü öffnen",
   "cashuAnyMint": "Beliebige Mint",
   "settingsMintLabel": "Mint",
-  "settingsMintCopied": "Mint-URL kopiert"
+  "settingsMintCopied": "Mint-URL kopiert",
+  "pwaInstallTitle": "Mostro installieren",
+  "pwaInstallBody": "Öffne sie vom Home-Bildschirm aus, im Vollbild, wie jede andere App.",
+  "pwaInstallAction": "Installieren",
+  "pwaInstallNotNow": "Nicht jetzt",
+  "pwaInstallSettingTitle": "App installieren",
+  "pwaInstallStepsTitle": "Mostro zum Home-Bildschirm hinzufügen",
+  "pwaInstallStepShare": "Tippe in der Leiste deines Browsers auf „Teilen“.",
+  "pwaInstallStepAdd": "Wähle „Zum Home-Bildschirm“.",
+  "pwaInstallStepsDone": "Verstanden"
 }

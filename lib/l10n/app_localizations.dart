@@ -7197,6 +7197,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mint URL copied'**
   String get settingsMintCopied;
+
+  /// Title of the card on the order book (web, mobile) that offers to install the app to the home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Install Mostro'**
+  String get pwaInstallTitle;
+
+  /// Body of the install card: what installing gives the user
+  ///
+  /// In en, this message translates to:
+  /// **'Open it from your home screen, full screen, like any other app.'**
+  String get pwaInstallBody;
+
+  /// Install card action: installs the app (Android) or shows how to (iOS)
+  ///
+  /// In en, this message translates to:
+  /// **'Install'**
+  String get pwaInstallAction;
+
+  /// Install card way out: hides the card for good on this device
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get pwaInstallNotNow;
+
+  /// Settings row (web only) that installs the app, for whoever dismissed the card
+  ///
+  /// In en, this message translates to:
+  /// **'Install app'**
+  String get pwaInstallSettingTitle;
+
+  /// Title of the sheet that explains how to add the app to the iOS home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Add Mostro to your home screen'**
+  String get pwaInstallStepsTitle;
+
+  /// Step 1 on iOS: the Share button of Safari or of the browser
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the Share button in your browser\'s toolbar.'**
+  String get pwaInstallStepShare;
+
+  /// Step 2 on iOS: the Share menu entry, named as iOS names it in this language
+  ///
+  /// In en, this message translates to:
+  /// **'Choose “Add to Home Screen”.'**
+  String get pwaInstallStepAdd;
+
+  /// Closes the iOS install steps sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get pwaInstallStepsDone;
 }
 
 class _AppLocalizationsDelegate

@@ -5,11 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mostro/core/app_theme.dart';
+import 'package:mostro/features/install/providers/pwa_install_provider.dart';
 import 'package:mostro/features/settings/providers/escrow_mode_provider.dart';
 import 'package:mostro/features/settings/screens/settings_screen.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/src/rust/api/types.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../support/fake_pwa_install_bridge.dart';
 import '../../../support/provider_harness.dart';
 
 const _mintA = 'https://mint.a.com';
@@ -36,6 +39,7 @@ Future<void> _pump(
   WidgetTester tester, {
   required String mode,
   List<String> mints = const [],
+  FakePwaInstallBridge? page,
 }) async {
   // The payment rows sit past the default 800px test viewport in a lazy
   // ListView. A tall surface makes both "present" and "absent" assertions
@@ -50,6 +54,10 @@ Future<void> _pump(
       // The stream every escrow gate derives from — overridden so nothing on
       // this screen reaches Rust.
       escrowModeProvider.overrideWith((ref) => Stream.value(info)),
+      if (page != null) ...[
+        pwaInstallBridgeProvider.overrideWithValue(page),
+        pwaInstallPlatformProvider.overrideWithValue(TargetPlatform.android),
+      ],
     ],
   );
 
@@ -166,6 +174,39 @@ void main() {
 
       expect(copied, _mintB);
       expect(find.text('Mint URL copied'), findsOneWidget);
+    });
+  });
+
+  // #778: whoever answered "Not now" on the order book can still install.
+  group('SettingsScreen — Install app', () {
+    testWidgets('is offered while the browser can install the app', (
+      tester,
+    ) async {
+      // Arrange — answered the card already: the row does not care.
+      SharedPreferences.setMockInitialValues({kPwaInstallAnsweredKey: true});
+      final page = FakePwaInstallBridge(canPromptNatively: true);
+      await _pump(tester, mode: 'lightning', page: page);
+      await tester.pumpAndSettle();
+
+      // Act
+      await tester.tap(find.text('Install app'));
+      await tester.pumpAndSettle();
+
+      // Assert — the browser's dialog was asked for, and the row is gone.
+      expect(page.prompts, 1);
+      expect(find.text('Install app'), findsNothing);
+    });
+
+    testWidgets('is absent off web and in the installed app', (tester) async {
+      // Arrange
+      SharedPreferences.setMockInitialValues({});
+
+      // Act
+      await _pump(tester, mode: 'lightning');
+      await tester.pumpAndSettle();
+
+      // Assert
+      expect(find.text('Install app'), findsNothing);
     });
   });
 }

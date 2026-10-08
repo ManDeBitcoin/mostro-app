@@ -4332,4 +4332,33 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsMintCopied => 'URL del mint copiada';
+
+  @override
+  String get pwaInstallTitle => 'Instalar Mostro';
+
+  @override
+  String get pwaInstallBody =>
+      'Ábrela desde tu pantalla de inicio, a pantalla completa, como cualquier otra app.';
+
+  @override
+  String get pwaInstallAction => 'Instalar';
+
+  @override
+  String get pwaInstallNotNow => 'Ahora no';
+
+  @override
+  String get pwaInstallSettingTitle => 'Instalar app';
+
+  @override
+  String get pwaInstallStepsTitle => 'Agrega Mostro a tu pantalla de inicio';
+
+  @override
+  String get pwaInstallStepShare =>
+      'Toca el botón Compartir en la barra de tu navegador.';
+
+  @override
+  String get pwaInstallStepAdd => 'Elige «Agregar a pantalla de inicio».';
+
+  @override
+  String get pwaInstallStepsDone => 'Entendido';
 }

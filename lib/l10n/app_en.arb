@@ -4495,5 +4495,41 @@
   "settingsMintCopied": "Mint URL copied",
   "@settingsMintCopied": {
     "description": "Snackbar after tapping a mint row in Settings, which copies the mint's full URL"
+  },
+  "pwaInstallTitle": "Install Mostro",
+  "@pwaInstallTitle": {
+    "description": "Title of the card on the order book (web, mobile) that offers to install the app to the home screen"
+  },
+  "pwaInstallBody": "Open it from your home screen, full screen, like any other app.",
+  "@pwaInstallBody": {
+    "description": "Body of the install card: what installing gives the user"
+  },
+  "pwaInstallAction": "Install",
+  "@pwaInstallAction": {
+    "description": "Install card action: installs the app (Android) or shows how to (iOS)"
+  },
+  "pwaInstallNotNow": "Not now",
+  "@pwaInstallNotNow": {
+    "description": "Install card way out: hides the card for good on this device"
+  },
+  "pwaInstallSettingTitle": "Install app",
+  "@pwaInstallSettingTitle": {
+    "description": "Settings row (web only) that installs the app, for whoever dismissed the card"
+  },
+  "pwaInstallStepsTitle": "Add Mostro to your home screen",
+  "@pwaInstallStepsTitle": {
+    "description": "Title of the sheet that explains how to add the app to the iOS home screen"
+  },
+  "pwaInstallStepShare": "Tap the Share button in your browser's toolbar.",
+  "@pwaInstallStepShare": {
+    "description": "Step 1 on iOS: the Share button of Safari or of the browser"
+  },
+  "pwaInstallStepAdd": "Choose “Add to Home Screen”.",
+  "@pwaInstallStepAdd": {
+    "description": "Step 2 on iOS: the Share menu entry, named as iOS names it in this language"
+  },
+  "pwaInstallStepsDone": "Got it",
+  "@pwaInstallStepsDone": {
+    "description": "Closes the iOS install steps sheet"
   }
 }

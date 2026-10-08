@@ -1313,5 +1313,14 @@
   "messageMenuHint": "Ouvrir le menu du message",
   "cashuAnyMint": "N'importe quel mint",
   "settingsMintLabel": "Mint",
-  "settingsMintCopied": "URL du mint copiée"
+  "settingsMintCopied": "URL du mint copiée",
+  "pwaInstallTitle": "Installer Mostro",
+  "pwaInstallBody": "Ouvrez-la depuis votre écran d’accueil, en plein écran, comme n’importe quelle autre app.",
+  "pwaInstallAction": "Installer",
+  "pwaInstallNotNow": "Plus tard",
+  "pwaInstallSettingTitle": "Installer l’app",
+  "pwaInstallStepsTitle": "Ajoutez Mostro à votre écran d’accueil",
+  "pwaInstallStepShare": "Appuyez sur le bouton Partager dans la barre de votre navigateur.",
+  "pwaInstallStepAdd": "Choisissez « Sur l’écran d’accueil ».",
+  "pwaInstallStepsDone": "Compris"
 }

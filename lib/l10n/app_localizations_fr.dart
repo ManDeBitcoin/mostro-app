@@ -4364,4 +4364,33 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get settingsMintCopied => 'URL du mint copiée';
+
+  @override
+  String get pwaInstallTitle => 'Installer Mostro';
+
+  @override
+  String get pwaInstallBody =>
+      'Ouvrez-la depuis votre écran d’accueil, en plein écran, comme n’importe quelle autre app.';
+
+  @override
+  String get pwaInstallAction => 'Installer';
+
+  @override
+  String get pwaInstallNotNow => 'Plus tard';
+
+  @override
+  String get pwaInstallSettingTitle => 'Installer l’app';
+
+  @override
+  String get pwaInstallStepsTitle => 'Ajoutez Mostro à votre écran d’accueil';
+
+  @override
+  String get pwaInstallStepShare =>
+      'Appuyez sur le bouton Partager dans la barre de votre navigateur.';
+
+  @override
+  String get pwaInstallStepAdd => 'Choisissez « Sur l’écran d’accueil ».';
+
+  @override
+  String get pwaInstallStepsDone => 'Compris';
 }

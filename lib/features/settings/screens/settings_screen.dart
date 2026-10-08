@@ -9,6 +9,8 @@ import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/core/automation/automation_id.dart';
 import 'package:mostro/core/automation/automation_ids.dart';
 import 'package:mostro/core/settings_palette.dart';
+import 'package:mostro/features/install/providers/pwa_install_provider.dart';
+import 'package:mostro/features/install/widgets/pwa_install_action.dart';
 import 'package:mostro/features/about/screens/about_screen.dart'
     show appVersionProvider;
 import 'package:mostro/features/settings/models/settings_rows.dart';
@@ -85,6 +87,14 @@ class SettingsScreen extends ConsumerWidget {
                 onTap: () => showCurrencySelector(context),
               ),
               _notificationsRow(context, ref, l10n),
+              // Web only, while the browser can install the app: for whoever
+              // answered "Not now" on the order book's card (#778).
+              if (ref.watch(pwaInstallProvider.select((s) => s.canInstall)))
+                SettingsRow(
+                  icon: Icons.install_mobile_outlined,
+                  label: l10n.pwaInstallSettingTitle,
+                  onTap: () => startPwaInstall(context, ref),
+                ),
             ],
           ),
           const SizedBox(height: settingsGroupGap),

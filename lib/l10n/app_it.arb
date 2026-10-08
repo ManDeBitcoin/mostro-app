@@ -1313,5 +1313,14 @@
   "messageMenuHint": "Apri il menu del messaggio",
   "cashuAnyMint": "Qualsiasi mint",
   "settingsMintLabel": "Mint",
-  "settingsMintCopied": "URL del mint copiato"
+  "settingsMintCopied": "URL del mint copiato",
+  "pwaInstallTitle": "Installa Mostro",
+  "pwaInstallBody": "Aprila dalla schermata Home, a schermo intero, come qualsiasi altra app.",
+  "pwaInstallAction": "Installa",
+  "pwaInstallNotNow": "Non ora",
+  "pwaInstallSettingTitle": "Installa app",
+  "pwaInstallStepsTitle": "Aggiungi Mostro alla schermata Home",
+  "pwaInstallStepShare": "Tocca il pulsante Condividi nella barra del browser.",
+  "pwaInstallStepAdd": "Scegli «Aggiungi a schermata Home».",
+  "pwaInstallStepsDone": "Ho capito"
 }

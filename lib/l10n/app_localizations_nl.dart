@@ -4337,4 +4337,33 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get settingsMintCopied => 'Mint-URL gekopieerd';
+
+  @override
+  String get pwaInstallTitle => 'Mostro installeren';
+
+  @override
+  String get pwaInstallBody =>
+      'Open hem vanaf je beginscherm, schermvullend, zoals elke andere app.';
+
+  @override
+  String get pwaInstallAction => 'Installeren';
+
+  @override
+  String get pwaInstallNotNow => 'Niet nu';
+
+  @override
+  String get pwaInstallSettingTitle => 'App installeren';
+
+  @override
+  String get pwaInstallStepsTitle => 'Zet Mostro op je beginscherm';
+
+  @override
+  String get pwaInstallStepShare =>
+      'Tik op de deelknop in de balk van je browser.';
+
+  @override
+  String get pwaInstallStepAdd => 'Kies ‘Zet op beginscherm’.';
+
+  @override
+  String get pwaInstallStepsDone => 'Begrepen';
 }

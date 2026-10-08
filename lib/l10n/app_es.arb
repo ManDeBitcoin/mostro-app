@@ -1313,5 +1313,14 @@
   "reactionSendFailed": "No se pudo enviar la reacción. Inténtalo de nuevo.",
   "cashuAnyMint": "Cualquier mint",
   "settingsMintLabel": "Mint",
-  "settingsMintCopied": "URL del mint copiada"
+  "settingsMintCopied": "URL del mint copiada",
+  "pwaInstallTitle": "Instalar Mostro",
+  "pwaInstallBody": "Ábrela desde tu pantalla de inicio, a pantalla completa, como cualquier otra app.",
+  "pwaInstallAction": "Instalar",
+  "pwaInstallNotNow": "Ahora no",
+  "pwaInstallSettingTitle": "Instalar app",
+  "pwaInstallStepsTitle": "Agrega Mostro a tu pantalla de inicio",
+  "pwaInstallStepShare": "Toca el botón Compartir en la barra de tu navegador.",
+  "pwaInstallStepAdd": "Elige «Agregar a pantalla de inicio».",
+  "pwaInstallStepsDone": "Entendido"
 }
