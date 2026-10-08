@@ -213,7 +213,7 @@ class _IdentityRow extends StatelessWidget {
                   if (entry.isTrusted)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
+                        horizontal: 8,
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
@@ -226,7 +226,7 @@ class _IdentityRow extends StatelessWidget {
                       child: Text(
                         l10n.trustedBadgeLabel.toUpperCase(),
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.36,
                           color: pal.trustedInk,
