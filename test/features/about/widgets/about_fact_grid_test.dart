@@ -188,4 +188,16 @@ void main() {
       expect(_broken(tester, _loading), isEmpty, reason: '$width dp');
     }
   });
+
+  testWidgets('a screen reader reads each cell whole', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await _pump(tester, screenWidth: 360, facts: _wideEnglish);
+
+    expect(
+      tester.getSemantics(find.text('Max order')).label,
+      'Max order\n10,000,000\nsats',
+    );
+    expect(tester.getSemantics(find.text('Fee')).label, 'Fee\n0.6%');
+    semantics.dispose();
+  });
 }

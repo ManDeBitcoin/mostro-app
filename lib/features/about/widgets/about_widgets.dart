@@ -307,40 +307,44 @@ class _AboutFactCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final book = OrderBookPalette.of(context);
     final unit = fact.unit;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: horizontalPadding,
-        vertical: 8,
-      ),
-      decoration: BoxDecoration(
-        color: AboutPalette.of(context).cell,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            fact.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: labelStyle(context),
-          ),
-          const SizedBox(height: 4),
-          // The unit sits beside the value when both fit, on the line below
-          // otherwise.
-          Wrap(
-            spacing: 4,
-            crossAxisAlignment: WrapCrossAlignment.end,
-            children: [
-              Text(fact.value, style: valueStyle(context)),
-              if (unit != null)
-                Text(
-                  unit,
-                  style: TextStyle(fontSize: 11, color: book.textSecondary),
-                ),
-            ],
-          ),
-        ],
+    // One node per cell, so a screen reader reads its label, value and unit
+    // together rather than the grid row by row (DS-A11Y-3).
+    return MergeSemantics(
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: horizontalPadding,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          color: AboutPalette.of(context).cell,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              fact.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: labelStyle(context),
+            ),
+            const SizedBox(height: 4),
+            // The unit sits beside the value when both fit, on the line below
+            // otherwise.
+            Wrap(
+              spacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.end,
+              children: [
+                Text(fact.value, style: valueStyle(context)),
+                if (unit != null)
+                  Text(
+                    unit,
+                    style: TextStyle(fontSize: 11, color: book.textSecondary),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
