@@ -79,8 +79,13 @@ void main() {
   ) async {
     // A replay — the startup one, or a restore's — re-emits weeks-old
     // requests; opening their screens bounced the user through a trade
-    // that ended long ago.
-    await pumpListener(tester, resolveRole: (_) async => TradeRole.seller);
+    // that ended long ago. Each request goes to the role that would act on
+    // it, so only the expiry can keep it from navigating.
+    await pumpListener(
+      tester,
+      resolveRole: (orderId) async =>
+          orderId == 'old-buyer' ? TradeRole.buyer : TradeRole.seller,
+    );
     final stale = _now() - const Duration(minutes: 16).inSeconds;
 
     updates.add(
