@@ -459,6 +459,22 @@ mod tests {
         assert!(!get_privacy_mode());
     }
 
+    /// #774: on native, FRB runs a non-async bridge function on its thread
+    /// pool, where no Tokio runtime exists. Spawning there panicked before
+    /// the flag was stored, so privacy mode could never be turned on and
+    /// every trade was sealed with the identity key.
+    #[test]
+    fn privacy_mode_is_set_outside_a_tokio_runtime() {
+        let _guard = privacy_lock().lock().unwrap();
+        let set = std::thread::spawn(|| {
+            set_privacy_mode(true);
+            get_privacy_mode()
+        })
+        .join();
+        set_privacy_mode(false);
+        assert_eq!(set.ok(), Some(true), "the flag is set, without a panic");
+    }
+
     #[tokio::test]
     async fn handle_rating_received_stores_peer_rating() {
         let _guard = privacy_lock().lock().unwrap();
