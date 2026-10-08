@@ -102,6 +102,43 @@ void main() {
       });
     });
 
+    testWidgets('a tap reaches the mascot under the menu and bell row', (
+      tester,
+    ) async {
+      await withClock(Clock.fixed(_plainDay), () async {
+        await _pump(tester);
+        bool moving() =>
+            find
+                .descendant(
+                  of: find.byType(MostroMascot),
+                  matching: find.byType(Transform),
+                )
+                .evaluate()
+                .isNotEmpty;
+        expect(moving(), isFalse);
+
+        await tester.tap(find.byType(MostroMascot));
+        await tester.pump(const Duration(milliseconds: 200));
+
+        expect(moving(), isTrue);
+      });
+    });
+
+    testWidgets('the backup dot is the order book red in every tab', (
+      tester,
+    ) async {
+      await withClock(Clock.fixed(_plainDay), () async {
+        await _pump(tester);
+
+        expect(
+          tester
+              .widget<NotificationBell>(find.byType(NotificationBell))
+              .dotColor,
+          OrderBookPalette.dark.notif,
+        );
+      });
+    });
+
     testWidgets('the mascot shuffles while the tab waits too long', (
       tester,
     ) async {

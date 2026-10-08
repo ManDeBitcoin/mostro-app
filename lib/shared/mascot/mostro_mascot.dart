@@ -35,8 +35,9 @@ class MostroMascot extends StatefulWidget {
   /// The ambient mood. A tap reaction overrides it while it plays.
   final MostroMood mood;
 
-  /// Whether tapping earns a reaction. Only the one in the order book's app
-  /// bar does, which is where v1 put its easter egg.
+  /// Whether tapping earns a reaction. Only the one in the tabs' app bar
+  /// ([HeaderMascot]) does: v1 put its easter egg in the order book's logo,
+  /// and since #770 every tab shows that same header.
   final bool interactive;
 
   final double opacity;
