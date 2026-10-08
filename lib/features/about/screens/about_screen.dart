@@ -96,7 +96,6 @@ class AboutScreen extends ConsumerWidget {
       body: SafeArea(
         top: false,
         child: AboutFillViewport(
-          footer: _TechnicalDataCard(nodeAsync: nodeAsync),
           children: [
             _BrandCard(appVersion: appVersion),
             AboutGroupHeader(l10n.aboutAppSection),
@@ -119,6 +118,10 @@ class AboutScreen extends ConsumerWidget {
                 ],
               ),
             ),
+            // The node before the documentation, so the way into its
+            // technical data never sits below the fold.
+            AboutGroupHeader(l10n.aboutConnectedNodeTitle),
+            _ConnectedNodeCard(nodeAsync: nodeAsync),
             AboutGroupHeader(l10n.aboutDocumentationTitle),
             AboutCard(
               child: AboutRowList(
@@ -144,8 +147,6 @@ class AboutScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            AboutGroupHeader(l10n.aboutConnectedNodeTitle),
-            _ConnectedNodeCard(nodeAsync: nodeAsync),
           ],
         ),
       ),
@@ -337,7 +338,7 @@ class _ConnectedNodeCard extends ConsumerWidget {
         figure == missingFigure ? null : l10n.satsUnitLabel;
     final summary = NodeSummary.of(node, l10n);
     return AboutCard(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -424,6 +425,17 @@ class _ConnectedNodeCard extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: 14),
+          // The card's last row, under a hairline like a row list's.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 1),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: pal.rowDivider)),
+              ),
+              child: _TechnicalDataRow(nodeAsync: nodeAsync),
+            ),
+          ),
         ],
       ),
     );
@@ -431,8 +443,8 @@ class _ConnectedNodeCard extends ConsumerWidget {
 }
 
 /// Leads to 12b once the node answered; retries the fetch when it did not.
-class _TechnicalDataCard extends ConsumerWidget {
-  const _TechnicalDataCard({required this.nodeAsync});
+class _TechnicalDataRow extends ConsumerWidget {
+  const _TechnicalDataRow({required this.nodeAsync});
 
   final AsyncValue<MostroInstance?> nodeAsync;
 
@@ -448,19 +460,17 @@ class _TechnicalDataCard extends ConsumerWidget {
             ? l10n.aboutNodeRetry
             : missingFigure;
 
-    return AboutCard(
-      child: AboutNavRow(
-        icon: Icons.dns_outlined,
-        label: l10n.aboutNodeTechnicalDataRow,
-        value: value,
-        trailing: AboutRowTrailing.chevron,
-        onTap:
-            node != null
-                ? () => context.push(AppRoute.aboutTechnical)
-                : unavailable
-                ? () => ref.invalidate(mostroNodeProvider)
-                : null,
-      ),
+    return AboutNavRow(
+      icon: Icons.dns_outlined,
+      label: l10n.aboutNodeTechnicalDataRow,
+      value: value,
+      trailing: AboutRowTrailing.chevron,
+      onTap:
+          node != null
+              ? () => context.push(AppRoute.aboutTechnical)
+              : unavailable
+              ? () => ref.invalidate(mostroNodeProvider)
+              : null,
     );
   }
 }
