@@ -87,7 +87,12 @@ class EventCards {
       NotificationModel.tradeStatus(
         orderId: update.orderId,
         status: update.status.name,
-        reason: update.reason?.name,
+        // A re-stated status is the card of the step it repeats, whose id
+        // carries no reason (#770).
+        reason:
+            update.reason == TradeUpdateReason.replayed
+                ? null
+                : update.reason?.name,
         at: at,
       ),
     );

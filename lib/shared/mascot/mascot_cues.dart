@@ -19,6 +19,17 @@ class MascotCue {
   final DateTime at;
 }
 
+/// Updates whose status is not a step.
+const Set<TradeUpdateReason> _notASteps = {
+  // A cooperative cancel request leaves the status as it was, and Rust emits
+  // it with that status.
+  TradeUpdateReason.cooperativeCancelRequestedByMe,
+  TradeUpdateReason.cooperativeCancelRequestedByPeer,
+  // A restore, the startup sweep or a re-read, dated now: old news that only
+  // the reason gives away.
+  TradeUpdateReason.replayed,
+};
+
 /// The mood a trade step earns, or null when the step is not one Mostro
 /// reacts to.
 ///
@@ -26,12 +37,7 @@ class MascotCue {
 /// from the order book: its Kind 38383 `s` tag is not a trade's status
 /// (#203).
 MostroMood? moodForTradeUpdate(TradeUpdate update) {
-  // A cooperative cancel request leaves the status as it was, and Rust
-  // emits it with that status: it is not a step.
-  if (update.reason == TradeUpdateReason.cooperativeCancelRequestedByMe ||
-      update.reason == TradeUpdateReason.cooperativeCancelRequestedByPeer) {
-    return null;
-  }
+  if (_notASteps.contains(update.reason)) return null;
   return switch (update.status) {
     OrderStatus.active => MostroMood.escrowLocked,
     OrderStatus.fiatSent => MostroMood.fiatSent,

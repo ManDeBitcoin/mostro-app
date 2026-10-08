@@ -2271,6 +2271,13 @@ enum TradeUpdateReason {
   /// The counterparty asked to cancel; this side decides whether to
   /// cancel too. Emitted on `cooperative-cancel-initiated-by-peer`.
   cooperativeCancelRequestedByPeer,
+
+  /// Not a step this client just learned of: a status Rust re-states so
+  /// the screens read the trade again. A restore filing an old trade, the
+  /// startup sweep closing one that never started, a re-read after the
+  /// peer's reputation arrived. Dated by the local clock, so its
+  /// `occurred_at` cannot tell it from news; this does (#770).
+  replayed,
 }
 
 enum WalletStatus { connected, disconnected, connecting, error }
