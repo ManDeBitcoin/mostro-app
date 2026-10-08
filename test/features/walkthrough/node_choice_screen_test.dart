@@ -75,6 +75,14 @@ class _FakeNodesNotifier extends MostroNodesNotifier {
   }
 }
 
+/// A first-run flag whose write fails, as a full disk would.
+class _FailingFirstRun extends FirstRunNotifier {
+  _FailingFirstRun() : super(initialValue: false);
+
+  @override
+  Future<void> markFirstRunComplete() async => throw Exception('disk full');
+}
+
 class _Harness {
   _Harness(this.container, this.nodes);
 
@@ -86,6 +94,7 @@ Future<_Harness> _pump(
   WidgetTester tester, {
   String activePubkey = defaultMostroPubkey,
   bool failSelect = false,
+  bool failSave = false,
   Size size = const Size(1200, 3000),
   Locale locale = const Locale('en'),
   Brightness brightness = Brightness.dark,
@@ -108,7 +117,10 @@ Future<_Harness> _pump(
   final container = ProviderContainer(
     overrides: [
       firstRunProvider.overrideWith(
-        (ref) => FirstRunNotifier(initialValue: false),
+        (ref) =>
+            failSave
+                ? _FailingFirstRun()
+                : FirstRunNotifier(initialValue: false),
       ),
       firstRunNodePrefetchProvider.overrideWith((ref) {}),
       mostroPubkeyProvider.overrideWith((ref) => activePubkey),
@@ -274,6 +286,25 @@ void main() {
     expect(h.container.read(firstRunProvider), const AsyncData<bool>(false));
     // Both actions are live again for a retry.
     expect(_confirmEnabled(tester), isTrue);
+  });
+
+  testWidgets('a failed save says so and lets the user retry', (tester) async {
+    final h = await _pump(tester, failSave: true);
+
+    await tester.tap(find.text(_en().skip));
+    await tester.pumpAndSettle();
+
+    expect(find.text(_en().nodeChoiceSaveFailed), findsOneWidget);
+    expect(find.text(_home), findsNothing);
+    expect(h.container.read(firstRunProvider), const AsyncData<bool>(false));
+    expect(tester.takeException(), isNull);
+    final skip = tester.widget<TextButton>(
+      find.ancestor(
+        of: find.text(_en().skip),
+        matching: find.byType(TextButton),
+      ),
+    );
+    expect(skip.onPressed, isNotNull);
   });
 
   // DS-SPC-5 / DS-A11Y-4: the longest locale, the narrowest screen, the

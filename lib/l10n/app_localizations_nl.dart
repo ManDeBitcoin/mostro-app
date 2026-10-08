@@ -650,6 +650,10 @@ class AppLocalizationsNl extends AppLocalizations {
   String get nodeChoiceConfirm => 'Deze node gebruiken';
 
   @override
+  String get nodeChoiceSaveFailed =>
+      'Je keuze kon niet worden opgeslagen. Probeer het opnieuw.';
+
+  @override
   String get nodeVerifyKeyWarning =>
       'Controleer de sleutel bij de beheerder. Een valse node kan je orders zien.';
 

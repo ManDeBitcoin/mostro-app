@@ -183,6 +183,7 @@
   "nodeChoiceSubtitle": "Kies de Mostro-node waarop je wilt handelen",
   "nodeOperatorDisclaimer": "Het ontwikkelteam van Mostro is niet verantwoordelijk voor wat node-beheerders met het platform doen. Elke beheerder bestuurt een eigen Mostro-node en is als enige verantwoordelijk voor wat daar gebeurt. Door Mostro te gebruiken neem je de volledige verantwoordelijkheid voor je eigen trades, en erken je dat het ontwikkelteam geen zeggenschap heeft over afzonderlijke node-beheerders.",
   "nodeChoiceConfirm": "Deze node gebruiken",
+  "nodeChoiceSaveFailed": "Je keuze kon niet worden opgeslagen. Probeer het opnieuw.",
   "nodeVerifyKeyWarning": "Controleer de sleutel bij de beheerder. Een valse node kan je orders zien.",
   "nodeInvalidPubkeyShort": "Dit is geen geldige publieke sleutel.",
   "nodeNameFieldHint": "Lokale Mostro",

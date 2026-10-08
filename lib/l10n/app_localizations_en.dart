@@ -646,6 +646,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nodeChoiceConfirm => 'Use this node';
 
   @override
+  String get nodeChoiceSaveFailed => 'Couldn\'t save your choice. Try again.';
+
+  @override
   String get nodeVerifyKeyWarning =>
       'Verify the key with the operator. A fake node can see your orders.';
 

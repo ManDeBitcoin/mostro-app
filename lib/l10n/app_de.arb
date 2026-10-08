@@ -183,6 +183,7 @@
   "nodeChoiceSubtitle": "Wähle den Mostro-Node, auf dem du handeln möchtest",
   "nodeOperatorDisclaimer": "Das Mostro-Entwicklungsteam ist nicht verantwortlich für die Nutzung der Plattform durch Node-Betreiber. Jeder Betreiber kontrolliert seinen eigenen Mostro-Node und ist allein verantwortlich für seine Handlungen. Mit der Nutzung von Mostro akzeptieren Sie die volle Verantwortung für Ihre Transaktionen und erkennen an, dass das Entwicklungsteam keine Kontrolle über einzelne Node-Betreiber hat.",
   "nodeChoiceConfirm": "Diesen Node verwenden",
+  "nodeChoiceSaveFailed": "Deine Auswahl konnte nicht gespeichert werden. Versuche es erneut.",
   "nodeVerifyKeyWarning": "Prüfe den Schlüssel beim Betreiber. Ein gefälschter Knoten kann deine Aufträge sehen.",
   "nodeInvalidPubkeyShort": "Das ist kein gültiger öffentlicher Schlüssel.",
   "nodeNameFieldHint": "Lokaler Mostro",

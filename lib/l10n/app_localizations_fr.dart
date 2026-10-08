@@ -651,6 +651,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get nodeChoiceConfirm => 'Utiliser ce nœud';
 
   @override
+  String get nodeChoiceSaveFailed =>
+      'Impossible d\'enregistrer votre choix. Réessayez.';
+
+  @override
   String get nodeVerifyKeyWarning =>
       'Vérifiez la clé auprès de l\'opérateur. Un faux nœud peut voir vos ordres.';
 

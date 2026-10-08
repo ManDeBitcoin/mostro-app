@@ -1198,6 +1198,12 @@ abstract class AppLocalizations {
   /// **'Use this node'**
   String get nodeChoiceConfirm;
 
+  /// First-run node choice: snackbar when the choice could not be saved on the device; both actions stay available
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save your choice. Try again.'**
+  String get nodeChoiceSaveFailed;
+
   /// Warning box in the add-own-node dialog
   ///
   /// In en, this message translates to:

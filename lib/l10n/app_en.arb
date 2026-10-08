@@ -829,6 +829,10 @@
   "@nodeChoiceConfirm": {
     "description": "First-run node choice: primary button, enabled once a node card is picked"
   },
+  "nodeChoiceSaveFailed": "Couldn't save your choice. Try again.",
+  "@nodeChoiceSaveFailed": {
+    "description": "First-run node choice: snackbar when the choice could not be saved on the device; both actions stay available"
+  },
   "nodeVerifyKeyWarning": "Verify the key with the operator. A fake node can see your orders.",
   "@nodeVerifyKeyWarning": {
     "description": "Warning box in the add-own-node dialog"

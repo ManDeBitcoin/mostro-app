@@ -652,6 +652,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get nodeChoiceConfirm => 'Diesen Node verwenden';
 
   @override
+  String get nodeChoiceSaveFailed =>
+      'Deine Auswahl konnte nicht gespeichert werden. Versuche es erneut.';
+
+  @override
   String get nodeVerifyKeyWarning =>
       'Prüfe den Schlüssel beim Betreiber. Ein gefälschter Knoten kann deine Aufträge sehen.';
 

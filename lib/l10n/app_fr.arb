@@ -183,6 +183,7 @@
   "nodeChoiceSubtitle": "Sélectionnez le nœud Mostro sur lequel vous voulez échanger",
   "nodeOperatorDisclaimer": "L'équipe de développement de Mostro n'est pas responsable de l'utilisation que font les opérateurs de nœuds de la plateforme. Chaque opérateur contrôle son propre nœud Mostro et est seul responsable de ses actions. En utilisant Mostro, vous acceptez l'entière responsabilité de vos transactions et reconnaissez que l'équipe de développement n'a aucun contrôle sur les opérateurs de nœuds individuels.",
   "nodeChoiceConfirm": "Utiliser ce nœud",
+  "nodeChoiceSaveFailed": "Impossible d'enregistrer votre choix. Réessayez.",
   "nodeVerifyKeyWarning": "Vérifiez la clé auprès de l'opérateur. Un faux nœud peut voir vos ordres.",
   "nodeInvalidPubkeyShort": "Ce n'est pas une clé publique valide.",
   "nodeNameFieldHint": "Mostro local",

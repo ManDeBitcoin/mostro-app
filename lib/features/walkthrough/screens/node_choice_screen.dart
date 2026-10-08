@@ -70,10 +70,14 @@ class _NodeChoiceScreenState extends ConsumerState<NodeChoiceScreen> {
       // comes back to arm it again.
       await ref.read(backupReminderProvider.notifier).showBackupReminder();
       await ref.read(firstRunProvider.notifier).markFirstRunComplete();
-    } catch (_) {
-      // A failed write must not leave both actions dead: let a retry in.
-      if (mounted) setState(() => _busy = false);
-      rethrow;
+    } catch (e) {
+      // A failed write must not leave both actions dead: say so, let a
+      // retry in.
+      debugPrint('[NodeChoice] saving the first run failed: $e');
+      if (!mounted) return;
+      setState(() => _busy = false);
+      _snack(l10n.nodeChoiceSaveFailed);
+      return;
     }
     if (mounted) context.go(AppRoute.home);
   }
