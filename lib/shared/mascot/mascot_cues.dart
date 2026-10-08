@@ -88,12 +88,13 @@ class MascotCueNotifier extends Notifier<MascotCue?> {
       final update = next.valueOrNull;
       if (update != null) _onTradeUpdate(update);
     });
-    ref.listen<bool>(backupCompletedProvider, (wasDone, done) {
-      // Loading the stored flag at startup moves it too; only a backup
-      // completed once the flag is known is news.
-      final loaded = ref.read(backupCompletedProvider.notifier).isLoaded;
-      if (wasDone == false && done && loaded) cue(MostroMood.backedUp);
-    });
+    // Not the backed-up flag: a seed import sets it too, and so does
+    // loading it at startup. Only a verification is news.
+    final verified = ref
+        .watch(backupReminderProvider.notifier)
+        .verifications
+        .listen((_) => cue(MostroMood.backedUp));
+    ref.onDispose(verified.cancel);
     final now = clock.now();
     return isMorning(now) ? MascotCue(MostroMood.greeting, now) : null;
   }
@@ -111,18 +112,21 @@ class MascotCueNotifier extends Notifier<MascotCue?> {
     }
     var mood = moodForTradeUpdate(update);
     if (mood == MostroMood.celebrating) {
-      mood = moodForCompletion(_completedOnTheDayOf(orderId, at));
-    } else if (update.status == OrderStatus.cooperativelyCanceled &&
+      // A completion told twice (the buyer's message, then the book's
+      // revision) was celebrated once already.
+      if (_completed.containsKey(orderId)) return;
+      _completed[orderId] = at;
+      mood = moodForCompletion(_completedOnTheDayOf(at));
+    } else if (mood == MostroMood.canceled &&
+        update.status == OrderStatus.cooperativelyCanceled &&
         _cancelAsked.remove(orderId)) {
       mood = MostroMood.agreed;
     }
     if (mood != null) cue(mood, at: at);
   }
 
-  /// Records that [orderId] completed [at], and counts the trades completed
-  /// on that local day, it included.
-  int _completedOnTheDayOf(String orderId, DateTime at) {
-    _completed.putIfAbsent(orderId, () => at);
+  /// The trades completed on the local day of [at].
+  int _completedOnTheDayOf(DateTime at) {
     bool sameDay(DateTime d) =>
         d.year == at.year && d.month == at.month && d.day == at.day;
     return _completed.values.where(sameDay).length;

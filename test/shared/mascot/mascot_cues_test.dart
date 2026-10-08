@@ -136,17 +136,17 @@ void main() {
   group('MascotCueNotifier', () {
     late StreamController<TradeUpdate> updates;
     late ProviderContainer container;
-    late BackupCompletedNotifier backup;
+    late BackupReminderNotifier reminder;
 
     setUp(() {
       updates = StreamController<TradeUpdate>();
       addTearDown(updates.close);
       SharedPreferences.setMockInitialValues({});
-      backup = BackupCompletedNotifier(initialValue: false);
+      reminder = BackupReminderNotifier(initialValue: true);
       container = createContainer(
         overrides: [
           tradeUpdatesProvider.overrideWith((ref) => updates.stream),
-          backupCompletedProvider.overrideWith((ref) => backup),
+          backupReminderProvider.overrideWith((ref) => reminder),
         ],
       );
       // Built at noon, so no morning greeting is waiting in any test.
@@ -249,9 +249,9 @@ void main() {
 
         await deliver(_update(OrderStatus.success, orderId: 'a'));
         expect(cues().take(), MostroMood.celebrating);
-        // The same trade told twice is one trade.
+        // The same trade told twice is one trade, and one party.
         await deliver(_update(OrderStatus.success, orderId: 'a'));
-        expect(cues().take(), MostroMood.celebrating);
+        expect(cues().take(), isNull);
         await deliver(_update(OrderStatus.settledByAdmin, orderId: 'b'));
         expect(cues().take(), MostroMood.celebrating);
         await deliver(_update(OrderStatus.success, orderId: 'c'));
@@ -315,9 +315,42 @@ void main() {
       await withClock(Clock.fixed(_now), () async {
         container.listen(mascotCueProvider, (_, _) {});
 
-        await backup.markCompleted();
+        await reminder.confirmBackupComplete();
+        await Future<void>.delayed(Duration.zero);
 
         expect(cues().take(), MostroMood.backedUp);
+      });
+    });
+
+    test('a seed import is backed up, but nothing was verified', () async {
+      await withClock(Clock.fixed(_now), () async {
+        container.listen(mascotCueProvider, (_, _) {});
+
+        await reminder.markAlreadyBackedUp();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(cues().take(), isNull);
+      });
+    });
+
+    test('a replayed cooperative cancel is not the peer agreeing', () async {
+      await withClock(Clock.fixed(_now), () async {
+        container.listen(mascotCueProvider, (_, _) {});
+
+        await deliver(
+          _update(
+            OrderStatus.active,
+            reason: TradeUpdateReason.cooperativeCancelRequestedByMe,
+          ),
+        );
+        await deliver(
+          _update(
+            OrderStatus.cooperativelyCanceled,
+            reason: TradeUpdateReason.replayed,
+          ),
+        );
+
+        expect(cues().take(), isNull);
       });
     });
 
@@ -344,8 +377,8 @@ void main() {
       final container = createContainer(
         overrides: [
           tradeUpdatesProvider.overrideWith((ref) => const Stream.empty()),
-          backupCompletedProvider.overrideWith(
-            (ref) => BackupCompletedNotifier(initialValue: true),
+          backupReminderProvider.overrideWith(
+            (ref) => BackupReminderNotifier(initialValue: false),
           ),
         ],
       );
