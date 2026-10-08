@@ -46,10 +46,11 @@ Future<void> _pump(
   required double width,
   required String locale,
   required MostroInstance? node,
+  FakeViewPadding padding = const FakeViewPadding(top: 24, bottom: 48),
 }) async {
   tester.view.physicalSize = Size(width, 800);
   tester.view.devicePixelRatio = 1.0;
-  tester.view.padding = const FakeViewPadding(top: 24, bottom: 48);
+  tester.view.padding = padding;
   addTearDown(tester.view.reset);
   final container = createContainer(
     overrides: [
@@ -110,4 +111,24 @@ void main() {
       }
     }
   }
+
+  testWidgets('the grid measures the width it is laid out in', (tester) async {
+    // Side insets too, so the SafeArea narrows the column.
+    await _pump(
+      tester,
+      width: 400,
+      locale: 'en',
+      node: _node,
+      padding: const FakeViewPadding(top: 24, bottom: 48, left: 48, right: 48),
+    );
+    final grid = find.byType(AboutFactGrid);
+    final measured =
+        tester
+            .element(grid)
+            .getInheritedWidgetOfExactType<AboutContentWidth>()!
+            .width -
+        2 * tester.widget<AboutFactGrid>(grid).inset;
+
+    expect(tester.getSize(grid).width, measured);
+  });
 }

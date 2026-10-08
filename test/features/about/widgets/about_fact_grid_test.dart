@@ -70,8 +70,13 @@ Future<void> _pump(
                 AboutCard(
                   padding: EdgeInsets.zero,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: AboutFactGrid(facts: facts, inset: 1 + 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: aboutCardInset,
+                    ),
+                    child: AboutFactGrid(
+                      facts: facts,
+                      inset: aboutCardBorder + aboutCardInset,
+                    ),
                   ),
                 ),
               ],

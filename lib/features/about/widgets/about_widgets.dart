@@ -17,6 +17,12 @@ const double aboutSidePadding = 18;
 const double aboutBlockGap = 10;
 const double aboutCardRadius = 18;
 
+/// An About card's border, which also insets what the card holds.
+const double aboutCardBorder = 1;
+
+/// How far an About card's content sits from its border, on each side.
+const double aboutCardInset = 14;
+
 /// Minimum hit target of a copy icon, however small the icon draws.
 const double aboutMinTapTarget = 44;
 
@@ -132,7 +138,10 @@ class AboutCard extends StatelessWidget {
   const AboutCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 1),
+    this.padding = const EdgeInsets.symmetric(
+      horizontal: aboutCardInset,
+      vertical: 1,
+    ),
   });
 
   final Widget child;
@@ -146,7 +155,7 @@ class AboutCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: book.surface,
         borderRadius: BorderRadius.circular(aboutCardRadius),
-        border: Border.all(color: book.border),
+        border: Border.all(color: book.border, width: aboutCardBorder),
       ),
       child: child,
     );

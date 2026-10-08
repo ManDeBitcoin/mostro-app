@@ -345,7 +345,7 @@ class _ConnectedNodeCard extends ConsumerWidget {
           // The copy icon keeps a 44 dp target, which sets this row's height
           // and supplies its right-hand inset.
           Padding(
-            padding: const EdgeInsets.only(left: 14),
+            padding: const EdgeInsets.only(left: aboutCardInset),
             child: SizedBox(
               height: aboutMinTapTarget,
               child: Row(
@@ -399,10 +399,10 @@ class _ConnectedNodeCard extends ConsumerWidget {
           // The limits, then what a trader weighs before choosing this
           // node; the whole policy stays in the technical data.
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: const EdgeInsets.symmetric(horizontal: aboutCardInset),
             child: AboutFactGrid(
-              // The card's 1 dp border and this inset, on each side.
-              inset: 1 + 14,
+              // The card's border and this inset, on each side.
+              inset: aboutCardBorder + aboutCardInset,
               facts: [
                 AboutFact(
                   l10n.aboutMinOrderCell,
@@ -426,9 +426,13 @@ class _ConnectedNodeCard extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 14),
-          // The card's last row, under a hairline like a row list's.
+          // The card's last row, under a hairline like a row list's. The
+          // padding is AboutCard's own, which the row had as a card of its own.
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 1),
+            padding: const EdgeInsets.symmetric(
+              horizontal: aboutCardInset,
+              vertical: 1,
+            ),
             child: DecoratedBox(
               decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: pal.rowDivider)),
