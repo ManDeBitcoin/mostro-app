@@ -327,6 +327,17 @@ class MostroInstance {
     );
   }
 
+  /// [fiatCurrenciesAccepted] as a list of codes, trimmed, upper-cased and
+  /// without blanks or repeats, as Rust's `parse_accepted_currencies` reads
+  /// it for the create-order picker. Empty when the node sets no limit.
+  List<String> get acceptedFiatCodes =>
+      (fiatCurrenciesAccepted ?? '')
+          .split(',')
+          .map((code) => code.trim().toUpperCase())
+          .where((code) => code.isNotEmpty)
+          .toSet()
+          .toList();
+
   /// Fee formatted as a percentage string, e.g. "0.6%".
   String? get feePercent => _asPercent(fee);
 

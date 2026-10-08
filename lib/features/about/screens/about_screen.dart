@@ -16,8 +16,6 @@ import 'package:mostro/features/order/widgets/order_detail_cards.dart'
     show orderDetailAppBar;
 import 'package:mostro/features/settings/providers/mostro_nodes_provider.dart'
     show truncatePubkey;
-import 'package:mostro/features/settings/providers/node_stats_provider.dart'
-    show activeNodeCurrenciesProvider;
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
 
@@ -337,13 +335,7 @@ class _ConnectedNodeCard extends ConsumerWidget {
     // The unit sits with each amount; a missing figure gets none.
     String? sats(String figure) =>
         figure == missingFigure ? null : l10n.satsUnitLabel;
-    // The list Rust parsed from the node's info, as the create-order picker
-    // reads it; unknown while it loads.
-    final summary = NodeSummary.of(
-      node,
-      ref.watch(activeNodeCurrenciesProvider).valueOrNull,
-      l10n,
-    );
+    final summary = NodeSummary.of(node, l10n);
     return AboutCard(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(

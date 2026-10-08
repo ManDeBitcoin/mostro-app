@@ -12,7 +12,6 @@ import 'package:mostro/features/about/providers/mostro_node_provider.dart';
 import 'package:mostro/features/about/screens/about_screen.dart';
 import 'package:mostro/features/about/screens/node_technical_data_screen.dart';
 import 'package:mostro/features/about/widgets/about_widgets.dart';
-import 'package:mostro/features/settings/providers/node_stats_provider.dart';
 import 'package:mostro/features/settings/widgets/mostro_node_selector.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 
@@ -63,14 +62,12 @@ Widget _app(ProviderContainer container, Widget home) =>
       ),
     );
 
-/// Pumps [home] with the node fetch, node name, accepted [currencies] and app
-/// version overridden, so no Rust bridge call is made. The surface is tall
+/// Pumps [home] with the node fetch, node name and app version overridden, so no Rust bridge call is made. The surface is tall
 /// enough to keep every row of 12b built without scrolling.
 Future<ProviderContainer> _pump(
   WidgetTester tester,
   Widget home, {
   required List<Override> overrides,
-  List<String> currencies = const [],
 }) async {
   tester.view.physicalSize = const Size(1200, 4000);
   tester.view.devicePixelRatio = 1.0;
@@ -81,7 +78,6 @@ Future<ProviderContainer> _pump(
     overrides: [
       appVersionProvider.overrideWith((ref) async => '2.0.0'),
       activeNodeNameProvider.overrideWith((ref) => 'Mostro'),
-      activeNodeCurrenciesProvider.overrideWith((ref) async => currencies),
       ...overrides,
     ],
   );
@@ -171,11 +167,14 @@ void main() {
       await _pump(
         tester,
         const AboutScreen(),
-        currencies: const ['ARS', 'EUR', 'USD'],
         overrides: [
           mostroNodeProvider.overrideWith(
             (ref) async => MostroInstance.fromTags(
-              _tags({..._enabledBondTags, 'expiration_hours': '24'}),
+              _tags({
+                ..._enabledBondTags,
+                'expiration_hours': '24',
+                'fiat_currencies_accepted': 'ARS,EUR,USD',
+              }),
             ),
           ),
         ],
@@ -191,6 +190,34 @@ void main() {
       for (final label in _parameterLabels) {
         expect(find.text(label), findsNothing, reason: label);
       }
+    });
+
+    testWidgets('the currencies follow the node info as it is fetched again', (
+      tester,
+    ) async {
+      var accepted = 'ARS';
+      final container = await _pump(
+        tester,
+        const AboutScreen(),
+        overrides: [
+          mostroNodeProvider.overrideWith(
+            (ref) async => MostroInstance.fromTags(
+              _tags({'fiat_currencies_accepted': accepted}),
+            ),
+          ),
+        ],
+      );
+      expect(find.text('ARS'), findsOneWidget);
+
+      accepted = 'ARS,VES';
+      // A retry, or About's own fetch landing: one frame to rerun the
+      // fetch, one to resolve it, one to build the card from it.
+      container.invalidate(mostroNodeProvider);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('ARS, VES'), findsOneWidget);
     });
 
     testWidgets('a node with no deposit, or every currency, says so', (

@@ -318,6 +318,34 @@ void main() {
     });
   });
 
+  group('MostroInstance — accepted fiat codes', () {
+    test(
+      'reads the codes as Rust does: trimmed, upper-cased, deduplicated',
+      () {
+        final instance = MostroInstance.fromTags(const [
+          ['d', 'npub_test'],
+          ['fiat_currencies_accepted', ' ars, EUR,,ars ,usd'],
+        ]);
+
+        expect(instance.acceptedFiatCodes, ['ARS', 'EUR', 'USD']);
+      },
+    );
+
+    test('a node without the tag, or with it blank, sets no limit', () {
+      for (final tags in const [
+        [
+          ['d', 'npub_test'],
+        ],
+        [
+          ['d', 'npub_test'],
+          ['fiat_currencies_accepted', ' '],
+        ],
+      ]) {
+        expect(MostroInstance.fromTags(tags).acceptedFiatCodes, isEmpty);
+      }
+    });
+  });
+
   group('MostroInstance — percentage formatting', () {
     test('bond fractions render as percentages', () {
       final instance = MostroInstance.fromTags(_tagsWith(_enabledBondTags));
@@ -397,12 +425,14 @@ void main() {
     });
 
     test('a cashu node exposes its parameters', () {
-      final instance = MostroInstance.fromTags(_tagsWith({
-        'escrow_mode': '  Cashu ',
-        'cashu_mint_url': 'https://mint.example.com',
-        'cashu_escrow_locktime_days': '15',
-        'cashu_settlement_margin_days': '3',
-      }));
+      final instance = MostroInstance.fromTags(
+        _tagsWith({
+          'escrow_mode': '  Cashu ',
+          'cashu_mint_url': 'https://mint.example.com',
+          'cashu_escrow_locktime_days': '15',
+          'cashu_settlement_margin_days': '3',
+        }),
+      );
 
       expect(instance.escrowMode, EscrowMode.cashu);
       expect(instance.cashuMintUrls, ['https://mint.example.com']);
@@ -412,11 +442,13 @@ void main() {
 
     test('cashu parameters are gated on the mode', () {
       // Arrange — a Lightning node carrying a stale mint tag.
-      final instance = MostroInstance.fromTags(_tagsWith({
-        'escrow_mode': 'lightning',
-        'cashu_mint_url': 'https://mint.example.com',
-        'cashu_escrow_locktime_days': '15',
-      }));
+      final instance = MostroInstance.fromTags(
+        _tagsWith({
+          'escrow_mode': 'lightning',
+          'cashu_mint_url': 'https://mint.example.com',
+          'cashu_escrow_locktime_days': '15',
+        }),
+      );
 
       // Assert — a stale tag is not live data.
       expect(instance.cashuMintUrls, isEmpty);
@@ -453,10 +485,9 @@ void main() {
     });
 
     test('a cashu node with a blank mint lists none', () {
-      final instance = MostroInstance.fromTags(_tagsWith({
-        'escrow_mode': 'cashu',
-        'cashu_mint_url': '   ',
-      }));
+      final instance = MostroInstance.fromTags(
+        _tagsWith({'escrow_mode': 'cashu', 'cashu_mint_url': '   '}),
+      );
 
       expect(instance.escrowMode, EscrowMode.cashu);
       expect(instance.cashuMintUrls, isEmpty);
@@ -493,12 +524,14 @@ void main() {
     });
 
     test('malformed day counts are dropped without costing the mint', () {
-      final instance = MostroInstance.fromTags(_tagsWith({
-        'escrow_mode': 'cashu',
-        'cashu_mint_url': 'https://mint.example.com',
-        'cashu_escrow_locktime_days': 'fifteen',
-        'cashu_settlement_margin_days': '-1',
-      }));
+      final instance = MostroInstance.fromTags(
+        _tagsWith({
+          'escrow_mode': 'cashu',
+          'cashu_mint_url': 'https://mint.example.com',
+          'cashu_escrow_locktime_days': 'fifteen',
+          'cashu_settlement_margin_days': '-1',
+        }),
+      );
 
       expect(instance.cashuEscrowLocktimeDays, isNull);
       expect(instance.cashuSettlementMarginDays, isNull);

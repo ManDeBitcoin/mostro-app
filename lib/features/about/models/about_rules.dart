@@ -131,15 +131,11 @@ class NodeSummary {
     required this.orderLifetime,
   });
 
-  /// [currencies] is the node's accepted list as Rust parsed it: empty when
-  /// the node sets no limit, null while it has not been read. A cell holds
-  /// up to three codes; a longer list shows its first two and how many more
-  /// (`ARS, EUR +5`), whole in the technical data.
-  factory NodeSummary.of(
-    MostroInstance? node,
-    List<String>? currencies,
-    AppLocalizations l10n,
-  ) {
+  /// The currencies are the node's accepted list
+  /// ([MostroInstance.acceptedFiatCodes]), `All` when it sets no limit. A
+  /// cell holds up to three codes; a longer list shows its first two and how
+  /// many more (`ARS, EUR +5`), whole in the technical data.
+  factory NodeSummary.of(MostroInstance? node, AppLocalizations l10n) {
     if (node == null) {
       return const NodeSummary(
         deposit: missingFigure,
@@ -148,6 +144,7 @@ class NodeSummary {
       );
     }
     final hours = node.expirationHours;
+    final currencies = node.acceptedFiatCodes;
     return NodeSummary(
       // A node that predates deposits asks for none either.
       deposit: switch (node.bondPolicy) {
@@ -157,7 +154,6 @@ class NodeSummary {
         BondPolicy.unsupported => l10n.aboutNodeDepositNone,
       },
       currencies: switch (currencies) {
-        null => missingFigure,
         [] => l10n.aboutFiatCurrenciesAll,
         _ when currencies.length <= 3 => currencies.join(', '),
         _ => '${currencies.take(2).join(', ')} +${currencies.length - 2}',
@@ -215,7 +211,7 @@ int nodeFieldCount(List<TechSection> nodeSections) =>
     nodeSections.fold(0, (sum, s) => sum + s.rows.length);
 
 List<TechRow> _mostroRows(MostroInstance node, AppLocalizations l10n) {
-  final fiat = node.fiatCurrenciesAccepted?.trim() ?? '';
+  final fiat = node.acceptedFiatCodes;
   return [
     TechRow(l10n.aboutPublicKeyLabel, node.pubKey, TechValueStyle.key),
     if (node.mostroVersion != null)
@@ -245,7 +241,7 @@ List<TechRow> _mostroRows(MostroInstance node, AppLocalizations l10n) {
       ),
     TechRow(
       l10n.aboutFiatCurrenciesLabel,
-      fiat.isEmpty ? l10n.aboutFiatCurrenciesAll : fiat,
+      fiat.isEmpty ? l10n.aboutFiatCurrenciesAll : fiat.join(', '),
       TechValueStyle.text,
     ),
     if (node.expirationSeconds != null)

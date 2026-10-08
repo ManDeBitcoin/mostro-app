@@ -93,15 +93,14 @@ void main() {
     );
 
     test('a node that asks for a deposit reads its share, in the locale', () {
-      expect(NodeSummary.of(node, const [], _en).deposit, '1.5%');
-      expect(NodeSummary.of(node, const [], _es).deposit, '1,5 %');
+      expect(NodeSummary.of(node, _en).deposit, '1.5%');
+      expect(NodeSummary.of(node, _es).deposit, '1,5 %');
     });
 
     test('a node with no deposit, or one that predates them, reads no', () {
       for (final policy in [BondPolicy.disabled, BondPolicy.unsupported]) {
         final summary = NodeSummary.of(
           MostroInstance(pubKey: 'node', bondPolicy: policy),
-          const [],
           _en,
         );
         expect(summary.deposit, _en.aboutNodeDepositNone, reason: '$policy');
@@ -109,47 +108,33 @@ void main() {
     });
 
     test('lists the accepted currencies, or all when the node sets none', () {
-      expect(
-        NodeSummary.of(node, const ['ARS', 'EUR', 'USD'], _en).currencies,
-        'ARS, EUR, USD',
-      );
-      expect(
-        NodeSummary.of(node, const [
-          'ARS',
-          'BRL',
-          'CUP',
-          'EUR',
-          'USD',
-          'VES',
-        ], _en).currencies,
-        'ARS, BRL +4',
-      );
-      expect(
-        NodeSummary.of(node, const [], _en).currencies,
-        _en.aboutFiatCurrenciesAll,
-      );
+      String currencies(String? accepted) =>
+          NodeSummary.of(
+            MostroInstance(pubKey: 'node', fiatCurrenciesAccepted: accepted),
+            _en,
+          ).currencies;
+
+      expect(currencies('ARS,EUR,USD'), 'ARS, EUR, USD');
+      expect(currencies('ARS,BRL,CUP,EUR,USD,VES'), 'ARS, BRL +4');
+      expect(currencies(null), _en.aboutFiatCurrenciesAll);
+      expect(currencies(''), _en.aboutFiatCurrenciesAll);
     });
 
     test('says how long an order stays published', () {
-      expect(NodeSummary.of(node, const [], _en).orderLifetime, '24 h');
+      expect(NodeSummary.of(node, _en).orderLifetime, '24 h');
     });
 
     test('reads a dash for what the node did not send', () {
       final summary = NodeSummary.of(
         const MostroInstance(pubKey: 'node', bondPolicy: BondPolicy.enabled),
-        const [],
         _en,
       );
       expect(summary.deposit, missingFigure);
       expect(summary.orderLifetime, missingFigure);
     });
 
-    test('reads a dash for the currencies while their list loads', () {
-      expect(NodeSummary.of(node, null, _en).currencies, missingFigure);
-    });
-
     test('reads a dash for every fact while the node is missing', () {
-      final summary = NodeSummary.of(null, const ['ARS'], _en);
+      final summary = NodeSummary.of(null, _en);
       expect([
         summary.deposit,
         summary.currencies,

@@ -22,6 +22,7 @@ final _node = MostroInstance.fromTags(const [
   ['max_order_amount', '300000'],
   ['fee', '0'],
   ['expiration_hours', '23'],
+  ['fiat_currencies_accepted', 'ARS,BOB,USD'],
   ['max_orders_per_response', '10'],
   ['lnd_node_alias', 'Bitcoin Bolivia'],
   [
