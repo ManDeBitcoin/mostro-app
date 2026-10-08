@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mostro/features/order/providers/trade_state_provider.dart';
 import 'package:mostro/src/rust/api/reputation.dart' as reputation_api;
 import 'package:mostro/src/rust/api/types.dart';
 
@@ -15,8 +16,19 @@ final ratingReaderProvider = Provider<Future<RatingInfo?> Function(String)>(
 /// `rated_at` marker on the trade row (issue #339): on a restart the in-memory
 /// store rehydrates from it, so a trade the user already rated still resolves as
 /// rated and the rate prompt does not come back.
+///
+/// Read again whenever the trade is touched (or a resync asks every trade to
+/// be): a `rate-received` that a replay brings after the screen already read
+/// the trade writes that marker and touches the row, and the step must close
+/// under the open screen, not on the next visit.
 final tradeRatingProvider = FutureProvider.autoDispose
     .family<RatingInfo?, String>((ref, tradeId) async {
+  ref.listen<AsyncValue<TradeTouch>>(tradeTouchProvider, (_, next) {
+    final touched = next.valueOrNull?.orderId;
+    if (next.hasValue && (touched == null || touched == tradeId)) {
+      ref.invalidateSelf();
+    }
+  });
   return ref.watch(ratingReaderProvider)(tradeId);
 });
 
