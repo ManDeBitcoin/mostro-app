@@ -37,40 +37,68 @@ class AboutFillViewport extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder:
-          (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
-              aboutSidePadding,
-              0,
-              aboutSidePadding,
-              aboutSidePadding,
-            ),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: math.max(
-                  0,
-                  constraints.maxHeight - aboutSidePadding,
-                ),
+          (context, constraints) => AboutContentWidth(
+            width: constraints.maxWidth - 2 * aboutSidePadding,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                aboutSidePadding,
+                0,
+                aboutSidePadding,
+                aboutSidePadding,
               ),
-              child: IntrinsicHeight(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var i = 0; i < children.length; i++) ...[
-                      if (i > 0) const SizedBox(height: aboutBlockGap),
-                      children[i],
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: math.max(
+                    0,
+                    constraints.maxHeight - aboutSidePadding,
+                  ),
+                ),
+                child: IntrinsicHeight(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var i = 0; i < children.length; i++) ...[
+                        if (i > 0) const SizedBox(height: aboutBlockGap),
+                        children[i],
+                      ],
+                      if (footer != null) ...[
+                        const Spacer(),
+                        const SizedBox(height: aboutBlockGap),
+                        footer!,
+                      ],
                     ],
-                    if (footer != null) ...[
-                      const Spacer(),
-                      const SizedBox(height: aboutBlockGap),
-                      footer!,
-                    ],
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
     );
   }
+}
+
+/// The width of [AboutFillViewport]'s column: the space the screen's
+/// SafeArea leaves, less the side padding. Published for the layouts that
+/// size themselves by measuring text, which cannot use a `LayoutBuilder`
+/// under the column's intrinsic height.
+class AboutContentWidth extends InheritedWidget {
+  const AboutContentWidth({
+    super.key,
+    required this.width,
+    required super.child,
+  });
+
+  final double width;
+
+  static double of(BuildContext context) {
+    final scope =
+        context.dependOnInheritedWidgetOfExactType<AboutContentWidth>();
+    assert(scope != null, 'No AboutFillViewport above this widget');
+    return scope!.width;
+  }
+
+  @override
+  bool updateShouldNotify(AboutContentWidth oldWidget) =>
+      width != oldWidget.width;
 }
 
 /// `APPLICATION`, `MOSTRO`… above a card.
@@ -163,37 +191,43 @@ class AboutFact {
 }
 
 /// [facts] in rows of cells of one height: three to a row, or two, or one
-/// per line, whichever is the most that lets every value keep its size with
-/// no word split. A value may break between words (`ARS, EUR,` / `USD`), never
-/// inside one (`10.000.000`), and is never shrunk to fit.
+/// per line, whichever is the most that lets every label read whole and every
+/// value keep its size with no word split. A value may break between words
+/// (`ARS, EUR,` / `USD`), never inside one (`10.000.000`), and is never
+/// shrunk to fit.
 ///
-/// [width] is the width the grid is laid out in. It is given rather than
-/// measured because [AboutFillViewport] sizes its column by intrinsic height,
-/// which a `LayoutBuilder` cannot answer.
+/// The grid is as wide as [AboutContentWidth] less [inset] on each side: the
+/// borders and paddings between the page's column and the grid.
 class AboutFactGrid extends StatelessWidget {
-  const AboutFactGrid({super.key, required this.facts, required this.width});
+  const AboutFactGrid({super.key, required this.facts, this.inset = 0});
 
   final List<AboutFact> facts;
-  final double width;
+  final double inset;
 
   static const _gap = 8.0;
 
-  /// The most cells to a row, at most three, whose width holds the widest
-  /// word of every value.
-  int _perRow(BuildContext context) {
+  /// The most cells to a row, at most three, whose width holds every label
+  /// and the widest word of every value, as the cells draw them.
+  int _perRow(BuildContext context, double width) {
     final painter = TextPainter(
       textScaler: MediaQuery.textScalerOf(context),
       textDirection: Directionality.of(context),
       maxLines: 1,
     );
     var widest = 0.0;
-    final style = _AboutFactCell.valueStyle(context);
+    void measure(String text, TextStyle style) {
+      painter
+        ..text = TextSpan(text: text, style: style)
+        ..layout();
+      widest = math.max(widest, painter.width);
+    }
+
+    final labelStyle = _AboutFactCell.labelStyle(context);
+    final valueStyle = _AboutFactCell.valueStyle(context);
     for (final fact in facts) {
+      measure(fact.label, labelStyle);
       for (final word in fact.value.split(' ')) {
-        painter
-          ..text = TextSpan(text: word, style: style)
-          ..layout();
-        widest = math.max(widest, painter.width);
+        measure(word, valueStyle);
       }
     }
     painter.dispose();
@@ -208,7 +242,7 @@ class AboutFactGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final perRow = _perRow(context);
+    final perRow = _perRow(context, AboutContentWidth.of(context) - 2 * inset);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -244,11 +278,29 @@ class _AboutFactCell extends StatelessWidget {
 
   static const horizontalPadding = 10.0;
 
-  static TextStyle valueStyle(BuildContext context) => TextStyle(
-    fontFamily: AppFonts.figures,
-    fontSize: 13,
-    fontWeight: FontWeight.w600,
-    color: OrderBookPalette.of(context).textStrong,
+  /// [style] as a [Text] here resolves it: over the inherited
+  /// [DefaultTextStyle], in bold when the platform asks for bold text. The
+  /// grid measures with the same style the cell draws.
+  static TextStyle _resolved(BuildContext context, TextStyle style) {
+    final resolved = DefaultTextStyle.of(context).style.merge(style);
+    return MediaQuery.boldTextOf(context)
+        ? resolved.merge(const TextStyle(fontWeight: FontWeight.bold))
+        : resolved;
+  }
+
+  static TextStyle labelStyle(BuildContext context) => _resolved(
+    context,
+    TextStyle(fontSize: 10, color: OrderBookPalette.of(context).textSecondary),
+  );
+
+  static TextStyle valueStyle(BuildContext context) => _resolved(
+    context,
+    TextStyle(
+      fontFamily: AppFonts.figures,
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
+      color: OrderBookPalette.of(context).textStrong,
+    ),
   );
 
   @override
@@ -271,7 +323,7 @@ class _AboutFactCell extends StatelessWidget {
             fact.label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 10, color: book.textSecondary),
+            style: labelStyle(context),
           ),
           const SizedBox(height: 4),
           // The unit sits beside the value when both fit, on the line below

@@ -400,11 +400,8 @@ class _ConnectedNodeCard extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: AboutFactGrid(
-              // The screen less its side padding, the card's 1 dp border and
-              // this inset, on each side.
-              width:
-                  MediaQuery.sizeOf(context).width -
-                  2 * (aboutSidePadding + 1 + 14),
+              // The card's 1 dp border and this inset, on each side.
+              inset: 1 + 14,
               facts: [
                 AboutFact(
                   l10n.aboutMinOrderCell,
