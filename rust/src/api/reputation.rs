@@ -299,15 +299,10 @@ pub fn get_privacy_mode() -> bool {
 /// When enabled, no reputation data is sent or received in future trades and
 /// session recovery becomes unavailable.
 ///
-/// **Errors**: `NoIdentity` (identity check deferred to Phase 14+ bridge).
+/// Non-async on purpose, and it must stay free of anything that needs a
+/// runtime: on native, FRB runs it on its thread pool, where no Tokio runtime
+/// exists, and a spawn there panicked before the flag was stored (#774).
 pub fn set_privacy_mode(enabled: bool) {
-    // Best-effort identity check: log a warning if no identity is configured but
-    // proceed anyway so the UI setting is never silently stuck.
-    crate::rt::spawn(async move {
-        if crate::api::identity::get_active_keys().await.is_err() {
-            log::warn!("[reputation] set_privacy_mode({enabled}): no identity configured");
-        }
-    });
     rating_store()
         .privacy_mode
         .store(enabled, Ordering::SeqCst);
@@ -490,6 +485,22 @@ mod tests {
         assert!(get_privacy_mode());
         set_privacy_mode(false);
         assert!(!get_privacy_mode());
+    }
+
+    /// #774: on native, FRB runs a non-async bridge function on its thread
+    /// pool, where no Tokio runtime exists. Spawning there panicked before
+    /// the flag was stored, so privacy mode could never be turned on and
+    /// every trade was sealed with the identity key.
+    #[test]
+    fn privacy_mode_is_set_outside_a_tokio_runtime() {
+        let _guard = privacy_lock().lock().unwrap();
+        let set = std::thread::spawn(|| {
+            set_privacy_mode(true);
+            get_privacy_mode()
+        })
+        .join();
+        set_privacy_mode(false);
+        assert_eq!(set.ok(), Some(true), "the flag is set, without a panic");
     }
 
     #[tokio::test]
