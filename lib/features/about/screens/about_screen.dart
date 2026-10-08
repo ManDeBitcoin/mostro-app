@@ -403,119 +403,33 @@ class _ConnectedNodeCard extends ConsumerWidget {
               ),
             ),
           ),
+          // The limits, then what a trader weighs before choosing this
+          // node; the whole policy stays in the technical data.
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
-            // One height for the row when a unit drops to a second line.
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: _LimitCell(
-                      l10n.aboutMinOrderCell,
-                      limits.min,
-                      unit: sats(limits.min),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _LimitCell(
-                      l10n.aboutMaxOrderCell,
-                      limits.max,
-                      unit: sats(limits.max),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(child: _LimitCell(l10n.aboutFeeCell, limits.fee)),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          // What a trader weighs before choosing this node, in the cells the
-          // limits use; the whole policy stays in the technical data.
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _LimitCell(l10n.aboutDepositCell, summary.deposit),
+            child: AboutFactGrid(
+              // The screen less its side padding, the card's 1 dp border and
+              // this inset, on each side.
+              width:
+                  MediaQuery.sizeOf(context).width -
+                  2 * (aboutSidePadding + 1 + 14),
+              facts: [
+                AboutFact(
+                  l10n.aboutMinOrderCell,
+                  limits.min,
+                  unit: sats(limits.min),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _LimitCell(
-                    l10n.aboutCurrenciesCell,
-                    summary.currencies,
-                  ),
+                AboutFact(
+                  l10n.aboutMaxOrderCell,
+                  limits.max,
+                  unit: sats(limits.max),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _LimitCell(
-                    l10n.aboutOrderExpiryCell,
-                    summary.orderLifetime,
-                  ),
-                ),
+                AboutFact(l10n.aboutFeeCell, limits.fee),
+                AboutFact(l10n.aboutDepositCell, summary.deposit),
+                AboutFact(l10n.aboutCurrenciesCell, summary.currencies),
+                AboutFact(l10n.aboutOrderExpiryCell, summary.orderLifetime),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LimitCell extends StatelessWidget {
-  const _LimitCell(this.label, this.value, {this.unit});
-
-  final String label;
-  final String value;
-
-  /// Beside the value when both fit, on the line below otherwise: the cell
-  /// grows a line rather than shrinking the figure to make room.
-  final String? unit;
-
-  @override
-  Widget build(BuildContext context) {
-    final book = OrderBookPalette.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: AboutPalette.of(context).cell,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 10, color: book.textSecondary),
-          ),
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: 4,
-            crossAxisAlignment: WrapCrossAlignment.end,
-            children: [
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  value,
-                  style: TextStyle(
-                    fontFamily: AppFonts.figures,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: book.textStrong,
-                  ),
-                ),
-              ),
-              if (unit != null)
-                Text(
-                  unit!,
-                  style: TextStyle(fontSize: 11, color: book.textSecondary),
-                ),
-            ],
           ),
         ],
       ),

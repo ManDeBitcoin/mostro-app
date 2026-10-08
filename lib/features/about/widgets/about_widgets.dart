@@ -149,6 +149,151 @@ class AboutRowList extends StatelessWidget {
   }
 }
 
+// ── Facts ─────────────────────────────────────────────────────────────────────
+
+/// One figure of a node card: a short [label] over its [value], with an
+/// optional [unit] beside the value (`sats`).
+@immutable
+class AboutFact {
+  const AboutFact(this.label, this.value, {this.unit});
+
+  final String label;
+  final String value;
+  final String? unit;
+}
+
+/// [facts] in rows of cells of one height: three to a row, or two, or one
+/// per line, whichever is the most that lets every value keep its size with
+/// no word split. A value may break between words (`ARS, EUR,` / `USD`), never
+/// inside one (`10.000.000`), and is never shrunk to fit.
+///
+/// [width] is the width the grid is laid out in. It is given rather than
+/// measured because [AboutFillViewport] sizes its column by intrinsic height,
+/// which a `LayoutBuilder` cannot answer.
+class AboutFactGrid extends StatelessWidget {
+  const AboutFactGrid({super.key, required this.facts, required this.width});
+
+  final List<AboutFact> facts;
+  final double width;
+
+  static const _gap = 8.0;
+
+  /// The most cells to a row, at most three, whose width holds the widest
+  /// word of every value.
+  int _perRow(BuildContext context) {
+    final painter = TextPainter(
+      textScaler: MediaQuery.textScalerOf(context),
+      textDirection: Directionality.of(context),
+      maxLines: 1,
+    );
+    var widest = 0.0;
+    final style = _AboutFactCell.valueStyle(context);
+    for (final fact in facts) {
+      for (final word in fact.value.split(' ')) {
+        painter
+          ..text = TextSpan(text: word, style: style)
+          ..layout();
+        widest = math.max(widest, painter.width);
+      }
+    }
+    painter.dispose();
+    for (var perRow = 3; perRow > 1; perRow--) {
+      final cell =
+          (width - _gap * (perRow - 1)) / perRow -
+          _AboutFactCell.horizontalPadding * 2;
+      if (widest <= cell) return perRow;
+    }
+    return 1;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final perRow = _perRow(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var start = 0; start < facts.length; start += perRow) ...[
+          if (start > 0) const SizedBox(height: _gap),
+          // One height for the row when a value or unit takes a second line.
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = start; i < start + perRow; i++) ...[
+                  if (i > start) const SizedBox(width: _gap),
+                  Expanded(
+                    child:
+                        i < facts.length
+                            ? _AboutFactCell(facts[i])
+                            : const SizedBox.shrink(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _AboutFactCell extends StatelessWidget {
+  const _AboutFactCell(this.fact);
+
+  final AboutFact fact;
+
+  static const horizontalPadding = 10.0;
+
+  static TextStyle valueStyle(BuildContext context) => TextStyle(
+    fontFamily: AppFonts.figures,
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+    color: OrderBookPalette.of(context).textStrong,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final book = OrderBookPalette.of(context);
+    final unit = fact.unit;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: 8,
+      ),
+      decoration: BoxDecoration(
+        color: AboutPalette.of(context).cell,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            fact.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 10, color: book.textSecondary),
+          ),
+          const SizedBox(height: 4),
+          // The unit sits beside the value when both fit, on the line below
+          // otherwise.
+          Wrap(
+            spacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.end,
+            children: [
+              Text(fact.value, style: valueStyle(context)),
+              if (unit != null)
+                Text(
+                  unit,
+                  style: TextStyle(fontSize: 11, color: book.textSecondary),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Rows ──────────────────────────────────────────────────────────────────────
 
 enum AboutRowTrailing {

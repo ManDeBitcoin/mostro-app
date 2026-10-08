@@ -9,6 +9,7 @@ import 'package:mostro/features/about/screens/about_screen.dart';
 import 'package:mostro/features/about/screens/node_technical_data_screen.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 
+import '../../../support/load_app_fonts.dart';
 import '../../../support/provider_harness.dart';
 
 /// Goldens of the About redesign (`design_handoff_acerca_de`): 12a · About and
@@ -60,6 +61,9 @@ Widget _app(Brightness brightness, Widget home) {
 }
 
 void main() {
+  // 12a picks how many cells fit a row by measuring its figures.
+  setUpAll(loadAppFonts);
+
   for (final (name, brightness) in [
     ('dark', Brightness.dark),
     ('light', Brightness.light),
