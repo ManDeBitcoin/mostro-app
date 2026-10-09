@@ -26,8 +26,8 @@ const Set<TradeUpdateReason> _notASteps = {
   // it with that status. The counterparty's is news all the same, by its
   // reason ([MostroMood.cancelAsked]).
   TradeUpdateReason.cooperativeCancelRequestedByMe,
-  // A restore, the startup sweep or a re-read, dated now: old news that only
-  // the reason gives away.
+  // A restore or a re-read, dated now: old news that only the reason gives
+  // away.
   TradeUpdateReason.replayed,
 };
 

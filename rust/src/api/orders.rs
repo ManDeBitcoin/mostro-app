@@ -8243,11 +8243,9 @@ async fn run_stale_sweep_once() {
             .await
             {
                 Ok(()) => {
-                    emit_trade_update_with(
-                        &oid,
-                        crate::api::types::OrderStatus::Canceled,
-                        Some(crate::api::types::TradeUpdateReason::Replayed),
-                    );
+                    // The daemon's `Canceled`, learned late: news, not a
+                    // re-statement (#781 review).
+                    emit_trade_update(&oid, crate::api::types::OrderStatus::Canceled);
                     log::info!("[orders] sweep: wiped stale waiting trade order={oid}");
                     wiped += 1;
                 }

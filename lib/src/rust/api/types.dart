@@ -2273,10 +2273,11 @@ enum TradeUpdateReason {
   cooperativeCancelRequestedByPeer,
 
   /// Not a step this client just learned of: a status Rust re-states so
-  /// the screens read the trade again. A restore filing an old trade, the
-  /// startup sweep closing one that never started, a re-read after the
-  /// peer's reputation arrived. Dated by the local clock, so its
-  /// `occurred_at` cannot tell it from news; this does (#770).
+  /// the screens read the trade again: a restore filing an old trade, a
+  /// re-read after the peer's reputation arrived. A restore's is dated by
+  /// the local clock, so its `occurred_at` cannot tell it from news; this
+  /// does (#770). Not the startup sweep's cancel: that is the daemon's
+  /// `Canceled` learned late, news like the message it stands in for.
   replayed,
 }
 
