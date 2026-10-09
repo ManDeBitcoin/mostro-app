@@ -9,7 +9,6 @@ import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/core/automation/automation_id.dart';
 import 'package:mostro/core/automation/automation_ids.dart';
 import 'package:mostro/core/mostro_defaults.dart';
-import 'package:mostro/core/node_selector_palette.dart';
 import 'package:mostro/features/order/providers/exchange_rate_provider.dart';
 import 'package:mostro/features/order/widgets/order_detail_cards.dart';
 import 'package:mostro/features/settings/models/node_selector_rules.dart';
@@ -17,6 +16,7 @@ import 'package:mostro/features/settings/providers/mostro_nodes_provider.dart';
 import 'package:mostro/features/settings/providers/node_stats_provider.dart';
 import 'package:mostro/features/settings/providers/settings_provider.dart';
 import 'package:mostro/features/settings/widgets/node_card.dart';
+import 'package:mostro/features/settings/widgets/node_operator_disclaimer.dart';
 import 'package:mostro/features/walkthrough/providers/first_run_provider.dart';
 import 'package:mostro/features/walkthrough/providers/node_prefetch_provider.dart';
 import 'package:mostro/l10n/app_localizations.dart';
@@ -183,7 +183,7 @@ class _Header extends StatelessWidget {
           style: TextStyle(fontSize: 14, height: 1.5, color: book.textBody),
         ),
         const SizedBox(height: 14),
-        _DisclaimerNote(text: l10n.nodeOperatorDisclaimer),
+        const NodeOperatorDisclaimer(),
       ],
     );
   }
@@ -259,47 +259,6 @@ class _NodeList extends ConsumerWidget {
           onCopyPubkey: onCopyPubkey,
         ).withAutomationId(AutomationIds.communityCard(entry.pubkey));
       },
-    );
-  }
-}
-
-/// The operator disclaimer. A warning, so amber (DS-COL-9), in the warning
-/// box of the add-own-node dialog; the icon is decoration, the text says it.
-class _DisclaimerNote extends StatelessWidget {
-  const _DisclaimerNote({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final pal = NodeSelectorPalette.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: pal.warnBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: pal.warnBorder),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 1),
-            child: Icon(
-              Icons.warning_amber_rounded,
-              size: 14,
-              color: pal.dotWarn,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(fontSize: 12, height: 1.45, color: pal.warnInk),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

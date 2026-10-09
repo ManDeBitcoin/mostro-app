@@ -813,10 +813,6 @@
   "@nodeStatusUnreachableNoSignal": {
     "description": "Availability line of a node card that never answered"
   },
-  "nodeDisclaimerShort": "Each node is run by an independent third party. Mostro is not responsible for their conduct or for your trades.",
-  "@nodeDisclaimerShort": {
-    "description": "Two-line operator disclaimer at the foot of the node selector"
-  },
   "nodeChoiceSubtitle": "Select the Mostro node you want to trade on",
   "@nodeChoiceSubtitle": {
     "description": "First-run node choice, under the title: what the screen asks (v1 mostroNodeDescription)"

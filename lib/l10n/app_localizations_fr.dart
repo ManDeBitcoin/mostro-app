@@ -636,10 +636,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get nodeStatusUnreachableNoSignal => 'Ne répond pas';
 
   @override
-  String get nodeDisclaimerShort =>
-      'Chaque nœud est exploité par un tiers indépendant. Mostro ne répond ni de sa conduite ni de vos opérations.';
-
-  @override
   String get nodeChoiceSubtitle =>
       'Sélectionnez le nœud Mostro sur lequel vous voulez échanger';
 

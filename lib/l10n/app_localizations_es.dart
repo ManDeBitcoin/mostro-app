@@ -635,10 +635,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get nodeStatusUnreachableNoSignal => 'No responde';
 
   @override
-  String get nodeDisclaimerShort =>
-      'Cada nodo lo opera un tercero independiente. Mostro no responde por su conducta ni por tus operaciones.';
-
-  @override
   String get nodeChoiceSubtitle =>
       'Selecciona el nodo Mostro en el que quieres operar';
 
