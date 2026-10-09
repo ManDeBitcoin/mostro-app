@@ -13,13 +13,17 @@ import 'package:mostro/core/automation/automation_ids.dart';
 import 'package:mostro/core/backup_palette.dart';
 import 'package:mostro/core/services/identity_scoped_state.dart';
 import 'package:mostro/core/services/identity_service.dart';
+import 'package:mostro/features/about/providers/mostro_node_provider.dart';
 import 'package:mostro/features/account/providers/backup_reminder_provider.dart';
+import 'package:mostro/features/account/providers/my_reputation_provider.dart';
 import 'package:mostro/features/account/providers/privacy_mode_provider.dart';
 import 'package:mostro/features/account/restore/restore_run.dart';
 import 'package:mostro/features/account/restore/restore_sheet.dart';
+import 'package:mostro/features/account/widgets/account_card.dart';
 import 'package:mostro/features/account/widgets/backup_trigger_sheet.dart';
 import 'package:mostro/features/account/widgets/backup_widgets.dart';
 import 'package:mostro/features/account/widgets/funds_at_risk_dialog.dart';
+import 'package:mostro/features/account/widgets/my_reputation_card.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
 import 'package:mostro/shared/widgets/redesign_app_bar.dart';
@@ -92,6 +96,13 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   void initState() {
     super.initState();
     unawaited(_loadPublicKey());
+    // A rating may have landed since the last answer: ask the node again
+    // (user_info.md, Freshness). Full privacy mode has nothing to ask for.
+    // After the first frame: the refresh changes provider state at once.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || ref.read(privacyModeProvider)) return;
+      unawaited(ref.read(myReputationProvider.notifier).refresh());
+    });
   }
 
   Future<void> _loadPublicKey() async {
@@ -210,6 +221,11 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   )
                 else
                   _BackupBanner(onTap: () => showBackupTriggerSheet(context)),
+                MyReputationCard(
+                  privacyMode: privacyMode,
+                  state: ref.watch(myReputationProvider),
+                  nodeName: ref.watch(activeNodeNameProvider),
+                ),
                 _PrivacyCard(
                   privacyMode: privacyMode,
                   onSelect:
@@ -688,11 +704,11 @@ class _SecretWordsCard extends StatelessWidget {
     final pal = BackupPalette.of(context);
     final l10n = AppLocalizations.of(context);
 
-    return _Card(
+    return AccountCard(
       padding: const EdgeInsets.all(14),
       gap: 9,
       children: [
-        _CardHeader(
+        AccountCardHeader(
           icon: Icons.key_rounded,
           title: l10n.secretWordsTitle,
           trailing: const _BackedUpChip(),
@@ -854,11 +870,11 @@ class _PrivacyCard extends StatelessWidget {
     final book = OrderBookPalette.of(context);
     final l10n = AppLocalizations.of(context);
 
-    return _Card(
+    return AccountCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
       gap: 12,
       children: [
-        _CardHeader(
+        AccountCardHeader(
           icon: Icons.shield_outlined,
           title: l10n.privacyCardTitle,
           trailing: IconButton(
@@ -1043,71 +1059,6 @@ class _AccountActions extends StatelessWidget {
 }
 
 // ── Shared card pieces ────────────────────────────────────────────────────────
-
-class _Card extends StatelessWidget {
-  const _Card({
-    required this.padding,
-    required this.gap,
-    required this.children,
-  });
-
-  final EdgeInsets padding;
-  final double gap;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: OrderBookPalette.of(context).surface,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) SizedBox(height: gap),
-            children[i],
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _CardHeader extends StatelessWidget {
-  const _CardHeader({
-    required this.icon,
-    required this.title,
-    required this.trailing,
-  });
-
-  final IconData icon;
-  final String title;
-  final Widget trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 17, color: BackupPalette.of(context).accent),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            title,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: OrderBookPalette.of(context).textStrong,
-            ),
-          ),
-        ),
-        trailing,
-      ],
-    );
-  }
-}
 
 // ── Import mnemonic dialog ─────────────────────────────────────────────────────
 
