@@ -9630,8 +9630,10 @@ fn completes_trade(local: Option<&OrderStatus>, new: &OrderStatus) -> bool {
 /// running ahead must not stretch the chat's grace window. Called before that
 /// `success` is written to the row or the book, so a `success` row without a
 /// time is always one whose completion time is unknown — its chat is closed.
-/// The first time recorded wins.
+/// The first time recorded wins. A completed trade may bring a rating, so
+/// the user's own reputation is asked for again (issue #755).
 async fn record_completion(db: &impl Storage, order_id: &str, at: i64) {
+    crate::api::my_reputation::spawn_refresh("trade success");
     let at = at.min(crate::rt::unix_now());
     if let Err(e) = db.mark_trade_completed(order_id, at).await {
         crate::api::logging::blog_warn(
@@ -10155,13 +10157,13 @@ async fn last_trade_index(sender_keys: &nostr_sdk::prelude::Keys) -> Result<Opti
 /// A correlation nonce the daemon echoes in its reply. Random, not
 /// time-derived, so a replayed reply from an earlier request cannot match;
 /// never 0, which is indistinguishable from "unset".
-fn fresh_request_id() -> u64 {
+pub(crate) fn fresh_request_id() -> u64 {
     use rand::RngCore;
     rand::rngs::OsRng.next_u64().max(1)
 }
 
 /// How the daemon answered a self-contained request (see [`ask_daemon`]).
-enum DaemonAnswer {
+pub(crate) enum DaemonAnswer {
     /// The reply `is_reply` recognised, echoing the request's nonce, and the
     /// node's timestamp on it.
     Reply(Box<mostro_core::message::MessageKind>, i64),
@@ -10176,7 +10178,7 @@ enum DaemonAnswer {
 /// `wait_for_dm`), not a `pending_requests` record. The reply is a kind 14
 /// authored by the node and addressed to `sender_keys`; the subscription is
 /// live before the publish so the reply cannot be missed.
-async fn ask_daemon(
+pub(crate) async fn ask_daemon(
     sender_keys: &nostr_sdk::prelude::Keys,
     mostro_pubkey: &nostr_sdk::prelude::PublicKey,
     request_id: u64,
@@ -10494,6 +10496,20 @@ pub async fn restore_session() -> Result<mostro_core::message::RestoreSessionInf
 
 #[cfg(test)]
 mod tests {
+    /// Every trade that reaches `success` passes through
+    /// `record_completion`, and a rating may follow, so the user's own
+    /// reputation is asked for again there (issue #755).
+    #[test]
+    fn a_completed_trade_refreshes_the_users_reputation() {
+        use crate::source_guard::{item_body, production_code};
+        let body = item_body(
+            &production_code(include_str!("orders.rs")),
+            "async fn record_completion(db: &impl Storage, order_id: &str, at: i64)",
+        )
+        .unwrap();
+        assert!(body.contains("crate::api::my_reputation::spawn_refresh(\"tradesuccess\");"));
+    }
+
     #[tokio::test]
     async fn replayed_peer_reputation_preserves_its_daemon_timestamp() {
         use mostro_core::message::{Action, Payload, Peer};
