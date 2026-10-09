@@ -813,9 +813,21 @@
   "@nodeStatusUnreachableNoSignal": {
     "description": "Availability line of a node card that never answered"
   },
-  "nodeDisclaimerShort": "Each node is run by an independent third party. Mostro is not responsible for their conduct or for your trades.",
-  "@nodeDisclaimerShort": {
-    "description": "Two-line operator disclaimer at the foot of the node selector"
+  "nodeChoiceSubtitle": "Select the Mostro node you want to trade on",
+  "@nodeChoiceSubtitle": {
+    "description": "First-run node choice, under the title: what the screen asks (v1 mostroNodeDescription)"
+  },
+  "nodeOperatorDisclaimer": "The Mostro development team is not responsible for how node operators use the platform. Each operator controls their own Mostro node and is solely responsible for their actions. By using Mostro, you accept full responsibility for your trades and acknowledge that the development team has no control over individual node operators.",
+  "@nodeOperatorDisclaimer": {
+    "description": "First-run node choice: the full operator disclaimer of v1 (communityDisclaimerBody), in a warning note"
+  },
+  "nodeChoiceConfirm": "Use this node",
+  "@nodeChoiceConfirm": {
+    "description": "First-run node choice: primary button, enabled once a node card is picked"
+  },
+  "nodeChoiceSaveFailed": "Couldn't save your choice. Try again.",
+  "@nodeChoiceSaveFailed": {
+    "description": "First-run node choice: snackbar when the choice could not be saved on the device; both actions stay available"
   },
   "nodeVerifyKeyWarning": "Verify the key with the operator. A fake node can see your orders.",
   "@nodeVerifyKeyWarning": {

@@ -635,8 +635,19 @@ class AppLocalizationsNl extends AppLocalizations {
   String get nodeStatusUnreachableNoSignal => 'Reageert niet';
 
   @override
-  String get nodeDisclaimerShort =>
-      'Elke node wordt beheerd door een zelfstandige derde partij. Mostro is niet verantwoordelijk voor hun handelen of voor jouw trades.';
+  String get nodeChoiceSubtitle =>
+      'Kies de Mostro-node waarop je wilt handelen';
+
+  @override
+  String get nodeOperatorDisclaimer =>
+      'Het ontwikkelteam van Mostro is niet verantwoordelijk voor wat node-beheerders met het platform doen. Elke beheerder bestuurt een eigen Mostro-node en is als enige verantwoordelijk voor wat daar gebeurt. Door Mostro te gebruiken neem je de volledige verantwoordelijkheid voor je eigen trades, en erken je dat het ontwikkelteam geen zeggenschap heeft over afzonderlijke node-beheerders.';
+
+  @override
+  String get nodeChoiceConfirm => 'Deze node gebruiken';
+
+  @override
+  String get nodeChoiceSaveFailed =>
+      'Je keuze kon niet worden opgeslagen. Probeer het opnieuw.';
 
   @override
   String get nodeVerifyKeyWarning =>

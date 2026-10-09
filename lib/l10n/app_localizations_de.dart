@@ -637,8 +637,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get nodeStatusUnreachableNoSignal => 'Antwortet nicht';
 
   @override
-  String get nodeDisclaimerShort =>
-      'Jeder Knoten wird von einem unabhängigen Dritten betrieben. Mostro haftet weder für dessen Verhalten noch für deine Geschäfte.';
+  String get nodeChoiceSubtitle =>
+      'Wähle den Mostro-Node, auf dem du handeln möchtest';
+
+  @override
+  String get nodeOperatorDisclaimer =>
+      'Das Mostro-Entwicklungsteam ist nicht verantwortlich für die Nutzung der Plattform durch Node-Betreiber. Jeder Betreiber kontrolliert seinen eigenen Mostro-Node und ist allein verantwortlich für seine Handlungen. Mit der Nutzung von Mostro akzeptierst du die volle Verantwortung für deine Transaktionen und erkennst an, dass das Entwicklungsteam keine Kontrolle über einzelne Node-Betreiber hat.';
+
+  @override
+  String get nodeChoiceConfirm => 'Diesen Node verwenden';
+
+  @override
+  String get nodeChoiceSaveFailed =>
+      'Deine Auswahl konnte nicht gespeichert werden. Versuche es erneut.';
 
   @override
   String get nodeVerifyKeyWarning =>

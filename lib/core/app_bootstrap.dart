@@ -326,6 +326,7 @@ Future<void> _startup(
         ),
         nwcProvider.overrideWith((ref) => NwcNotifier(prefs: prefs)),
         mostroPubkeyProvider.overrideWith((ref) => activeMostroPubkey),
+        nodeInfoWarmUpProvider.overrideWith((ref) => nodeInfoWarmed),
       ],
     );
 

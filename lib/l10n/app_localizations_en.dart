@@ -631,8 +631,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nodeStatusUnreachableNoSignal => 'Not responding';
 
   @override
-  String get nodeDisclaimerShort =>
-      'Each node is run by an independent third party. Mostro is not responsible for their conduct or for your trades.';
+  String get nodeChoiceSubtitle =>
+      'Select the Mostro node you want to trade on';
+
+  @override
+  String get nodeOperatorDisclaimer =>
+      'The Mostro development team is not responsible for how node operators use the platform. Each operator controls their own Mostro node and is solely responsible for their actions. By using Mostro, you accept full responsibility for your trades and acknowledge that the development team has no control over individual node operators.';
+
+  @override
+  String get nodeChoiceConfirm => 'Use this node';
+
+  @override
+  String get nodeChoiceSaveFailed => 'Couldn\'t save your choice. Try again.';
 
   @override
   String get nodeVerifyKeyWarning =>

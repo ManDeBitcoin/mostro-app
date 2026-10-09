@@ -636,8 +636,19 @@ class AppLocalizationsFr extends AppLocalizations {
   String get nodeStatusUnreachableNoSignal => 'Ne répond pas';
 
   @override
-  String get nodeDisclaimerShort =>
-      'Chaque nœud est exploité par un tiers indépendant. Mostro ne répond ni de sa conduite ni de vos opérations.';
+  String get nodeChoiceSubtitle =>
+      'Sélectionnez le nœud Mostro sur lequel vous voulez échanger';
+
+  @override
+  String get nodeOperatorDisclaimer =>
+      'L\'équipe de développement de Mostro n\'est pas responsable de l\'utilisation que font les opérateurs de nœuds de la plateforme. Chaque opérateur contrôle son propre nœud Mostro et est seul responsable de ses actions. En utilisant Mostro, vous acceptez l\'entière responsabilité de vos transactions et reconnaissez que l\'équipe de développement n\'a aucun contrôle sur les opérateurs de nœuds individuels.';
+
+  @override
+  String get nodeChoiceConfirm => 'Utiliser ce nœud';
+
+  @override
+  String get nodeChoiceSaveFailed =>
+      'Impossible d\'enregistrer votre choix. Réessayez.';
 
   @override
   String get nodeVerifyKeyWarning =>

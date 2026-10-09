@@ -1174,11 +1174,29 @@ abstract class AppLocalizations {
   /// **'Not responding'**
   String get nodeStatusUnreachableNoSignal;
 
-  /// Two-line operator disclaimer at the foot of the node selector
+  /// First-run node choice, under the title: what the screen asks (v1 mostroNodeDescription)
   ///
   /// In en, this message translates to:
-  /// **'Each node is run by an independent third party. Mostro is not responsible for their conduct or for your trades.'**
-  String get nodeDisclaimerShort;
+  /// **'Select the Mostro node you want to trade on'**
+  String get nodeChoiceSubtitle;
+
+  /// First-run node choice: the full operator disclaimer of v1 (communityDisclaimerBody), in a warning note
+  ///
+  /// In en, this message translates to:
+  /// **'The Mostro development team is not responsible for how node operators use the platform. Each operator controls their own Mostro node and is solely responsible for their actions. By using Mostro, you accept full responsibility for your trades and acknowledge that the development team has no control over individual node operators.'**
+  String get nodeOperatorDisclaimer;
+
+  /// First-run node choice: primary button, enabled once a node card is picked
+  ///
+  /// In en, this message translates to:
+  /// **'Use this node'**
+  String get nodeChoiceConfirm;
+
+  /// First-run node choice: snackbar when the choice could not be saved on the device; both actions stay available
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save your choice. Try again.'**
+  String get nodeChoiceSaveFailed;
 
   /// Warning box in the add-own-node dialog
   ///

@@ -634,8 +634,19 @@ class AppLocalizationsIt extends AppLocalizations {
   String get nodeStatusUnreachableNoSignal => 'Non risponde';
 
   @override
-  String get nodeDisclaimerShort =>
-      'Ogni nodo è gestito da un terzo indipendente. Mostro non risponde della sua condotta né delle tue operazioni.';
+  String get nodeChoiceSubtitle =>
+      'Seleziona il nodo Mostro su cui vuoi operare';
+
+  @override
+  String get nodeOperatorDisclaimer =>
+      'Il team di sviluppo di Mostro non è responsabile di come gli operatori dei nodi utilizzano la piattaforma. Ogni operatore controlla il proprio nodo Mostro ed è l\'unico responsabile delle proprie azioni. Utilizzando Mostro, accetti la piena responsabilità per le tue operazioni e riconosci che il team di sviluppo non ha alcun controllo sui singoli operatori dei nodi.';
+
+  @override
+  String get nodeChoiceConfirm => 'Usa questo nodo';
+
+  @override
+  String get nodeChoiceSaveFailed =>
+      'Impossibile salvare la tua scelta. Riprova.';
 
   @override
   String get nodeVerifyKeyWarning =>
