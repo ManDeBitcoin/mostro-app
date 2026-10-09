@@ -70,6 +70,15 @@ void main() {
       expect(formatPercent(1e308, _en), isNull);
       expect(formatPercent(null, _en), isNull);
     });
+
+    test('a figure and its unit never split, in every locale', () {
+      for (final locale in AppLocalizations.supportedLocales) {
+        final l10n = lookupAppLocalizations(locale);
+        for (final text in [l10n.aboutFeeValue('1'), l10n.aboutHoursShort(1)]) {
+          expect(text, isNot(contains(' ')), reason: '$locale: "$text"');
+        }
+      }
+    });
   });
 
   group('NodeLimits', () {
