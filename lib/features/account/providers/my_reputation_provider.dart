@@ -31,15 +31,19 @@ class MyReputationCore {
 
   /// The Rust core: the cache is per identity and node, the refresh sends
   /// `user-info`, and every stored answer comes back on [changes].
-  factory MyReputationCore.bridge() => MyReputationCore(
+  factory MyReputationCore.bridge() => const MyReputationCore(
     readCache: my_reputation_api.cachedMyReputation,
     refresh: my_reputation_api.refreshMyReputation,
-    changes: _bridgeChanges(),
+    changes: _bridgeChanges,
   );
 
   final Future<MyReputation?> Function() readCache;
   final Future<MyReputation?> Function() refresh;
-  final Stream<MyReputation> changes;
+
+  /// Opens a new stream of stored answers. Each notifier opens its own: an
+  /// identity swap rebuilds the notifier, and the bridge's stream takes a
+  /// single listener.
+  final Stream<MyReputation> Function() changes;
 
   static Stream<MyReputation> _bridgeChanges() async* {
     final stream = await my_reputation_api.onMyReputationChanged();
@@ -79,12 +83,12 @@ class MyReputationNotifier extends StateNotifier<MyReputationState> {
   MyReputationNotifier({
     required Future<MyReputation?> Function() readCache,
     required Future<MyReputation?> Function() refresh,
-    required Stream<MyReputation> changes,
+    required Stream<MyReputation> Function() changes,
   }) : _readCache = readCache,
        _refresh = refresh,
        super(const MyReputationState()) {
     // Any stored answer, for any node: re-read the active node's.
-    _changes = changes.listen(
+    _changes = changes().listen(
       (_) => unawaited(reload()),
       onError: (Object e) => debugPrint('[my_reputation] changes: $e'),
     );

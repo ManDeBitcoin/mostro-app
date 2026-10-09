@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mostro/features/about/providers/mostro_node_provider.dart';
@@ -31,7 +33,8 @@ List<Override> myReputationOverrides({
         onRefresh?.call();
         return null;
       },
-      changes: const Stream.empty(),
+      // Single-subscription, like the bridge's: a second listen throws.
+      changes: () => StreamController<MyReputation>().stream,
     ),
   ),
   activeNodeNameProvider.overrideWith((ref) => nodeName),

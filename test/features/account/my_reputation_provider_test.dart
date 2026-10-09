@@ -25,7 +25,21 @@ class _FakeCore {
   String activeNode = 'node-a';
   int refreshes = 0;
   Completer<MyReputation?>? pending;
-  final changes = StreamController<MyReputation>();
+  final _feeds = <StreamController<MyReputation>>[];
+
+  /// A new single-subscription feed per call, like the bridge's.
+  Stream<MyReputation> openChanges() {
+    final feed = StreamController<MyReputation>();
+    _feeds.add(feed);
+    return feed.stream;
+  }
+
+  /// Rust stored [answer]: every open feed hears it.
+  void stored(MyReputation answer) {
+    for (final feed in _feeds) {
+      feed.add(answer);
+    }
+  }
 
   /// Holds cache reads back while set, like a slow store.
   Completer<void>? readGate;
@@ -46,7 +60,7 @@ class _FakeCore {
   MyReputationNotifier notifier() => MyReputationNotifier(
     readCache: readCache,
     refresh: refresh,
-    changes: changes.stream,
+    changes: openChanges,
   );
 }
 
@@ -95,7 +109,7 @@ void main() {
     final notifier = MyReputationNotifier(
       readCache: () async => _rep('node-a'),
       refresh: () async => throw StateError('relay down'),
-      changes: const Stream.empty(),
+      changes: Stream.empty,
     );
     await pumpEventQueue();
 
@@ -111,7 +125,7 @@ void main() {
     await pumpEventQueue();
 
     core.cache['node-a'] = _rep('node-a', reviews: 9);
-    core.changes.add(core.cache['node-a']!);
+    core.stored(core.cache['node-a']!);
     await pumpEventQueue();
 
     expect(notifier.state.reputation?.reviews, 9);
@@ -123,7 +137,7 @@ void main() {
     await pumpEventQueue();
 
     core.cache['node-b'] = _rep('node-b', reviews: 9);
-    core.changes.add(core.cache['node-b']!);
+    core.stored(core.cache['node-b']!);
     await pumpEventQueue();
 
     expect(notifier.state.reputation, _rep('node-a'));
@@ -151,7 +165,7 @@ void main() {
             MyReputationCore(
               readCache: core.readCache,
               refresh: core.refresh,
-              changes: core.changes.stream,
+              changes: core.openChanges,
             ),
           ),
         ],
@@ -203,6 +217,20 @@ void main() {
         container.read(myReputationProvider).reputation,
         _rep('node-b'),
       );
+    });
+
+    test('an identity swap rebuilds it without breaking it', () async {
+      // Arrange: an identity swap invalidates the provider (#755).
+      container.read(myReputationProvider);
+      await pumpEventQueue();
+
+      // Act
+      container.invalidate(myReputationProvider);
+
+      // Assert
+      expect(() => container.read(myReputationProvider), returnsNormally);
+      await pumpEventQueue();
+      expect(container.read(myReputationProvider).reputation, _rep('node-a'));
     });
 
     test('leaving full privacy asks the node', () async {
