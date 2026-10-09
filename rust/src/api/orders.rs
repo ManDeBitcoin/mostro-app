@@ -9630,10 +9630,8 @@ fn completes_trade(local: Option<&OrderStatus>, new: &OrderStatus) -> bool {
 /// running ahead must not stretch the chat's grace window. Called before that
 /// `success` is written to the row or the book, so a `success` row without a
 /// time is always one whose completion time is unknown — its chat is closed.
-/// The first time recorded wins. A completed trade may bring a rating, so
-/// the user's own reputation is asked for again (issue #755).
+/// The first time recorded wins.
 async fn record_completion(db: &impl Storage, order_id: &str, at: i64) {
-    crate::api::my_reputation::spawn_refresh("trade success");
     let at = at.min(crate::rt::unix_now());
     if let Err(e) = db.mark_trade_completed(order_id, at).await {
         crate::api::logging::blog_warn(
@@ -10496,18 +10494,18 @@ pub async fn restore_session() -> Result<mostro_core::message::RestoreSessionInf
 
 #[cfg(test)]
 mod tests {
-    /// Every trade that reaches `success` passes through
-    /// `record_completion`, and a rating may follow, so the user's own
-    /// reputation is asked for again there (issue #755).
+    /// A trade reaching `success` does not ask for the user's own
+    /// reputation: the counterpart has not rated them yet. The rating the
+    /// user sends does (issue #755).
     #[test]
-    fn a_completed_trade_refreshes_the_users_reputation() {
+    fn a_completed_trade_does_not_ask_for_the_users_reputation() {
         use crate::source_guard::{item_body, production_code};
         let body = item_body(
             &production_code(include_str!("orders.rs")),
             "async fn record_completion(db: &impl Storage, order_id: &str, at: i64)",
         )
         .unwrap();
-        assert!(body.contains("crate::api::my_reputation::spawn_refresh(\"tradesuccess\");"));
+        assert!(!body.contains("my_reputation"));
     }
 
     #[tokio::test]

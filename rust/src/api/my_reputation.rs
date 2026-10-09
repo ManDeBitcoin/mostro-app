@@ -9,8 +9,8 @@
 /// with the identity that asked, so the Account screen shows it at once and a
 /// reply that lands after an identity swap is never shown to the new user.
 /// [`refresh_my_reputation`] asks the active node again; it runs at startup,
-/// when the Account screen opens, when the user picks another node, and when
-/// one of their trades reaches `success`. Every stored answer is broadcast to
+/// when the Account screen opens, when the user picks another node, and once
+/// they rate a counterpart. Every stored answer is broadcast to
 /// [`MyReputationStream`].
 ///
 /// Full privacy mode has no reputation by design: nothing is sent, and the
@@ -274,8 +274,8 @@ pub async fn refresh_my_reputation() -> Result<Option<MyReputation>> {
     if crate::api::reputation::get_privacy_mode() {
         return Ok(None);
     }
-    // A trigger that lands during another request (a node switch, a trade
-    // reaching success) still asks, once that request is done.
+    // A trigger that lands during another request (a node switch, a rating
+    // sent) still asks, once that request is done.
     let _guard = store().refresh.lock().await;
     let generation = store().generation();
     let node = crate::config::active_mostro_pubkey();
@@ -288,6 +288,11 @@ pub async fn refresh_my_reputation() -> Result<Option<MyReputation>> {
         .connect()
         .and_wait(crate::rt::time::Duration::from_secs(CONNECT_WAIT_SECS))
         .await;
+    // Full privacy may have been turned on while this waited for the lock or
+    // the relays: the identity proof must not go out then.
+    if crate::api::reputation::get_privacy_mode() {
+        return Ok(None);
+    }
 
     let request_id = crate::api::orders::fresh_request_id();
     let event_json =
@@ -567,5 +572,25 @@ mod tests {
             db.get_setting(settings_keys::MY_REPUTATION).await.unwrap(),
             None
         );
+    }
+
+    /// Full privacy turned on while a refresh waited for another one, or for
+    /// the relays, still stops it: the mode is read again right before the
+    /// request is sent, never only on entry.
+    #[test]
+    fn the_privacy_mode_is_read_again_right_before_sending() {
+        use crate::source_guard::{item_body, production_code};
+        let body = item_body(
+            &production_code(include_str!("my_reputation.rs")),
+            "pub async fn refresh_my_reputation() -> Result<Option<MyReputation>>",
+        )
+        .unwrap();
+        let connected = body.find(".and_wait(").expect("waits for the relays");
+        let checked = body[connected..]
+            .find("ifcrate::api::reputation::get_privacy_mode(){returnOk(None);}")
+            .map(|at| connected + at)
+            .expect("reads the mode again");
+        let asked = body.find("crate::api::orders::ask_daemon(").expect("asks");
+        assert!(checked < asked);
     }
 }
