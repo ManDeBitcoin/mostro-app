@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/core/automation/automation_id.dart';
 import 'package:mostro/core/automation/automation_ids.dart';
 import 'package:mostro/core/node_selector_palette.dart';
-import 'package:mostro/core/order_book_palette.dart';
 import 'package:mostro/features/order/providers/exchange_rate_provider.dart';
 import 'package:mostro/features/settings/models/node_display.dart';
 import 'package:mostro/features/settings/models/node_selector_rules.dart';
@@ -245,7 +245,9 @@ class _MostroNodeSelectorState extends ConsumerState<MostroNodeSelector> {
       constraints: BoxConstraints(maxHeight: maxHeight),
       decoration: BoxDecoration(
         color: book.bg,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppRadius.modal),
+        ),
         border: Border(
           top: BorderSide(color: book.textPrimary.withValues(alpha: 0.08)),
         ),
