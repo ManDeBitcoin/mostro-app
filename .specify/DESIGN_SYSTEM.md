@@ -382,6 +382,14 @@ color: Colors.black,
 Without a reason the comment silences nothing. The reviewer judges the reason; it is not a way
 around a rule the change could keep.
 
+**Standing exception: the startup failure screen.** `lib/core/startup_failure.dart` is shown
+when startup fails before the app can run, and localization, the app theme and the area
+palettes can be the very thing that failed (#389). So it hard-codes its English and its colors:
+DS-L10N-1 and DS-COL-2 do not apply to it. Its four colors are named constants on
+`StartupFailureApp`, and `test/core/startup_failure_contrast_test.dart` asserts each text color
+at 4.5:1 on its background (DS-COL-6 still applies: a test needs nothing at runtime). It still
+follows every other rule that needs nothing at runtime, such as DS-TYP-1 and DS-A11Y-4.
+
 ---
 
 ## 14. Known gaps (code that predates this guide)
