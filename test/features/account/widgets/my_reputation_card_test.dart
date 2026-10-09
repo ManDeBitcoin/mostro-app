@@ -81,6 +81,16 @@ void main() {
     expect(find.textContaining('desde nov 2023'), findsOneWidget);
   });
 
+  testWidgets('formats the rating for the locale', (tester) async {
+    await _pump(
+      tester,
+      state: MyReputationState(reputation: _rep()),
+      locale: const Locale('es'),
+    );
+
+    expect(find.text('4,8'), findsOneWidget);
+  });
+
   testWidgets('falls back to the day count when the node sends no since', (
     tester,
   ) async {

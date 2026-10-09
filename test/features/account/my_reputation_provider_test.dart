@@ -27,7 +27,14 @@ class _FakeCore {
   Completer<MyReputation?>? pending;
   final changes = StreamController<MyReputation>();
 
-  Future<MyReputation?> readCache() async => cache[activeNode];
+  /// Holds cache reads back while set, like a slow store.
+  Completer<void>? readGate;
+
+  Future<MyReputation?> readCache() async {
+    final node = activeNode;
+    await readGate?.future;
+    return cache[node];
+  }
 
   Future<MyReputation?> refresh() async {
     refreshes++;
@@ -160,6 +167,24 @@ void main() {
       container.read(mostroPubkeyProvider.notifier).state = 'node-b';
       await pumpEventQueue();
 
+      expect(container.read(myReputationProvider).reputation, _rep('node-b'));
+    });
+
+    test('a node switch never shows the previous node\'s answer', () async {
+      // Arrange
+      container.read(myReputationProvider);
+      await pumpEventQueue();
+      final gate = core.readGate = Completer<void>();
+
+      // Act
+      core.activeNode = 'node-b';
+      container.read(mostroPubkeyProvider.notifier).state = 'node-b';
+      await pumpEventQueue();
+
+      // Assert
+      expect(container.read(myReputationProvider).reputation, isNull);
+      gate.complete();
+      await pumpEventQueue();
       expect(container.read(myReputationProvider).reputation, _rep('node-b'));
     });
 

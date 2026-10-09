@@ -55,8 +55,8 @@ final myReputationCoreProvider = Provider<MyReputationCore>(
 
 /// The user's own reputation on the active node.
 ///
-/// Rust asks the node at startup, on a node switch and when a trade reaches
-/// `success`; this follows the answers it stores and asks again when the
+/// Rust asks the node at startup, on a node switch and once the user rates a
+/// counterpart; this follows the answers it stores and asks again when the
 /// Account screen opens or the user leaves full privacy mode.
 final myReputationProvider =
     StateNotifierProvider<MyReputationNotifier, MyReputationState>((ref) {
@@ -68,7 +68,7 @@ final myReputationProvider =
       );
       // The cache is per node: show the new node's answer, if any, while
       // Rust asks it.
-      ref.listen(mostroPubkeyProvider, (_, __) => notifier.reload());
+      ref.listen(mostroPubkeyProvider, (_, __) => notifier.switchNode());
       ref.listen(privacyModeProvider, (previous, next) {
         if (previous == true && !next) unawaited(notifier.refresh());
       });
@@ -110,6 +110,13 @@ class MyReputationNotifier extends StateNotifier<MyReputationState> {
     } catch (e) {
       debugPrint('[my_reputation] cache read failed: $e');
     }
+  }
+
+  /// The active node changed: drop the previous node's answer at once, so it
+  /// never sits beside the new node's name, then show the new one's cache.
+  Future<void> switchNode() {
+    state = MyReputationState(loading: state.loading);
+    return reload();
   }
 
   /// Ask the active node, then show what the cache holds for it. The answer

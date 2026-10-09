@@ -49,7 +49,7 @@ class MyReputationCard extends StatelessWidget {
 
     final node = nodeName;
     return AccountCard(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+      padding: const EdgeInsets.all(14),
       gap: 12,
       children: [
         AccountCardHeader(
@@ -90,7 +90,10 @@ class _Figures extends StatelessWidget {
         Icon(Icons.star_rounded, size: 20, color: book.yellow),
         const SizedBox(width: 6),
         Text(
-          reputation.rating.toStringAsFixed(1),
+          NumberFormat.decimalPatternDigits(
+            locale: locale,
+            decimalDigits: 1,
+          ).format(reputation.rating),
           style: TextStyle(
             fontFamily: AppFonts.figures,
             fontSize: 22,
