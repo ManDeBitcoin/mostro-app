@@ -208,7 +208,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
           fit: StackFit.expand,
           children: [
             BackupFillViewport(
-              gap: 11,
+              gap: 12,
               blocks: [
                 if (backedUp)
                   _SecretWordsCard(
@@ -621,7 +621,7 @@ class _BackupBanner extends StatelessWidget {
     final pal = BackupPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(18),
       side: BorderSide(color: pal.amberBorder),
     );
 
@@ -634,7 +634,7 @@ class _BackupBanner extends StatelessWidget {
           onTap: onTap,
           customBorder: shape,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             child: Row(
               children: [
                 Icon(Icons.shield_outlined, size: 20, color: pal.amber),
@@ -706,7 +706,7 @@ class _SecretWordsCard extends StatelessWidget {
 
     return AccountCard(
       padding: const EdgeInsets.all(14),
-      gap: 9,
+      gap: 8,
       children: [
         AccountCardHeader(
           icon: Icons.key_rounded,
@@ -718,14 +718,14 @@ class _SecretWordsCard extends StatelessWidget {
           Material(
             color: pal.revealFill,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(12),
               side: BorderSide(color: pal.revealBorder),
             ),
             child: InkWell(
               onTap: loading ? null : onReveal,
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(12),
               child: Padding(
-                padding: const EdgeInsets.all(11),
+                padding: const EdgeInsets.all(12),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -741,10 +741,10 @@ class _SecretWordsCard extends StatelessWidget {
                     else
                       Icon(
                         Icons.visibility_outlined,
-                        size: 15,
+                        size: 16,
                         color: book.limeText,
                       ),
-                    const SizedBox(width: 7),
+                    const SizedBox(width: 8),
                     Text(
                       l10n.showWordsButton,
                       style: TextStyle(
@@ -788,7 +788,7 @@ class _BackedUpChip extends StatelessWidget {
     final book = OrderBookPalette.of(context);
     final pal = BackupPalette.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: pal.chipFill,
         borderRadius: BorderRadius.circular(999),
@@ -796,7 +796,7 @@ class _BackedUpChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.check_rounded, size: 11, color: pal.accent),
+          Icon(Icons.check_rounded, size: 12, color: pal.accent),
           const SizedBox(width: 4),
           Text(
             AppLocalizations.of(context).backedUpBadgeLabel,
@@ -871,7 +871,7 @@ class _PrivacyCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
 
     return AccountCard(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       gap: 12,
       children: [
         AccountCardHeader(
@@ -881,7 +881,7 @@ class _PrivacyCard extends StatelessWidget {
             onPressed: onInfo,
             icon: Icon(
               Icons.info_outline_rounded,
-              size: 15,
+              size: 16,
               color: book.textTertiary,
             ),
             tooltip: l10n.moreInformationTooltip,
@@ -1026,20 +1026,20 @@ class _AccountActions extends StatelessWidget {
           leading: Icons.person_add_alt_1_outlined,
           onPressed: onGenerate,
         ).withAutomationId(AutomationIds.keysGenerate),
-        const SizedBox(height: 9),
+        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: onImport,
-                icon: const Icon(Icons.download_rounded, size: 15),
+                icon: const Icon(Icons.download_rounded, size: 16),
                 label: Text(l10n.importMostroUserButton),
                 style: outline.copyWith(
-                  padding: const WidgetStatePropertyAll(EdgeInsets.all(13)),
+                  padding: const WidgetStatePropertyAll(EdgeInsets.all(12)),
                 ),
               ).withAutomationId(AutomationIds.keysImport),
             ),
-            const SizedBox(width: 9),
+            const SizedBox(width: 8),
             OutlinedButton(
               onPressed: onRefresh,
               style: outline.copyWith(
@@ -1106,6 +1106,14 @@ class _ImportMnemonicDialogState extends State<_ImportMnemonicDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final book = OrderBookPalette.of(context);
+    final pal = BackupPalette.of(context);
+    // A pasted, multi-line value: a boxed field (DS-CMP-11).
+    OutlineInputBorder box(Color color, [double width = 1]) =>
+        OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: color, width: width),
+        );
     return MostroDialog(
       title: l10n.importMnemonicDialogTitle,
       content: TextField(
@@ -1114,9 +1122,20 @@ class _ImportMnemonicDialogState extends State<_ImportMnemonicDialog> {
         autocorrect: false,
         enableSuggestions: false,
         enableIMEPersonalizedLearning: false,
+        cursorColor: book.lime,
+        style: TextStyle(fontSize: 14, color: book.textStrong),
         decoration: InputDecoration(
           hintText: l10n.importMnemonicHintText,
+          hintStyle: TextStyle(fontSize: 14, color: book.textTertiary),
           errorText: _error,
+          errorStyle: TextStyle(fontSize: 12, color: pal.wrong),
+          filled: true,
+          fillColor: book.inset,
+          contentPadding: const EdgeInsets.all(12),
+          enabledBorder: box(book.border),
+          focusedBorder: box(book.lime, 1.5),
+          errorBorder: box(pal.wrong),
+          focusedErrorBorder: box(pal.wrong, 1.5),
         ),
         onChanged: (_) {
           if (_error != null) setState(() => _error = null);

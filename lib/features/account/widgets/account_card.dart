@@ -23,7 +23,7 @@ class AccountCard extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         color: OrderBookPalette.of(context).surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -55,7 +55,7 @@ class AccountCardHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 17, color: BackupPalette.of(context).accent),
+        Icon(icon, size: 18, color: BackupPalette.of(context).accent),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
