@@ -5087,7 +5087,11 @@ async fn persist_restored_bond_rows(info: &mostro_core::message::RestoreSessionI
                 crate::api::logging::short_id(&order_id),
             ),
         );
-        emit_trade_update(&order_id, status);
+        emit_trade_update_with(
+            &order_id,
+            status,
+            Some(crate::api::types::TradeUpdateReason::Replayed),
+        );
     }
 }
 
@@ -5305,7 +5309,11 @@ async fn persist_restored_trade_row(
             crate::api::logging::short_id(&order_id),
         ),
     );
-    emit_trade_update(&order_id, row.order.status);
+    emit_trade_update_with(
+        &order_id,
+        row.order.status,
+        Some(crate::api::types::TradeUpdateReason::Replayed),
+    );
     true
 }
 
@@ -5354,7 +5362,11 @@ async fn apply_restored_status(
             existing.order.status,
         ),
     );
-    emit_trade_update(order_id, status);
+    emit_trade_update_with(
+        order_id,
+        status,
+        Some(crate::api::types::TradeUpdateReason::Replayed),
+    );
     true
 }
 
@@ -8231,6 +8243,8 @@ async fn run_stale_sweep_once() {
             .await
             {
                 Ok(()) => {
+                    // The daemon's `Canceled`, learned late: news, not a
+                    // re-statement (#781 review).
                     emit_trade_update(&oid, crate::api::types::OrderStatus::Canceled);
                     log::info!("[orders] sweep: wiped stale waiting trade order={oid}");
                     wiped += 1;
@@ -9346,7 +9360,13 @@ async fn persist_peer_reputation(
         }
     }
     if let Some(info) = order_book().get_order(order_id).await {
-        emit_trade_update_at(order_id, info.status, None, occurred_at);
+        // A re-read, not a step: the status is the book's (#770).
+        emit_trade_update_at(
+            order_id,
+            info.status,
+            Some(crate::api::types::TradeUpdateReason::Replayed),
+            occurred_at,
+        );
     }
 }
 
@@ -10517,6 +10537,12 @@ mod tests {
         assert_eq!(
             event.occurred_at, 1000,
             "replayed reputation must not appear new"
+        );
+        // The status it carries is the book's, re-stated for a re-read: not
+        // a step anything may announce (#770).
+        assert_eq!(
+            event.reason,
+            Some(crate::api::types::TradeUpdateReason::Replayed)
         );
     }
 
@@ -12269,6 +12295,52 @@ mod tests {
         assert!(!persist_restored_trade_row(db, &stale, &own, 11, 2500).await);
         let row = db.get_trade_by_order_id(&order_id).await.unwrap().unwrap();
         assert_eq!(row.order.status, OrderStatus::FiatSent);
+    }
+
+    #[tokio::test]
+    async fn a_restore_announces_its_rows_as_replayed_not_as_steps() {
+        use mostro_core::order::{Kind, Status};
+        let db = bond_test_db().await;
+        let own = nostr_sdk::prelude::Keys::generate().public_key().to_hex();
+        let peer = nostr_sdk::prelude::Keys::generate().public_key().to_hex();
+        let order = own_order(Kind::Sell, Status::Active, Some(&peer), Some(&own));
+        let order_id = order.id.unwrap().to_string();
+        // Subscribes when called, so it sees only what follows the call.
+        let next_update = || {
+            let mut rx = trade_updates_tx().subscribe();
+            let order_id = order_id.clone();
+            async move {
+                tokio::time::timeout(std::time::Duration::from_secs(5), async {
+                    loop {
+                        if let Ok(update) = rx.recv().await {
+                            if update.order_id == order_id {
+                                break update;
+                            }
+                        }
+                    }
+                })
+                .await
+                .expect("restore update")
+            }
+        };
+
+        // A new row, and a later restore moving its status on: both are a
+        // trade filed from history, dated now, which only the reason marks
+        // as old news (#770).
+        let first = next_update();
+        assert!(persist_restored_trade_row(db, &order, &own, 11, 2000).await);
+        assert_eq!(
+            first.await.reason,
+            Some(crate::api::types::TradeUpdateReason::Replayed)
+        );
+        let mut later = own_order(Kind::Sell, Status::FiatSent, Some(&peer), Some(&own));
+        later.id = order.id;
+        let moved = next_update();
+        assert!(persist_restored_trade_row(db, &later, &own, 11, 3000).await);
+        assert_eq!(
+            moved.await.reason,
+            Some(crate::api::types::TradeUpdateReason::Replayed)
+        );
     }
 
     #[test]

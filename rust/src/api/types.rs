@@ -667,6 +667,13 @@ pub enum TradeUpdateReason {
     /// The counterparty asked to cancel; this side decides whether to
     /// cancel too. Emitted on `cooperative-cancel-initiated-by-peer`.
     CooperativeCancelRequestedByPeer,
+    /// Not a step this client just learned of: a status Rust re-states so
+    /// the screens read the trade again: a restore filing an old trade, a
+    /// re-read after the peer's reputation arrived. A restore's is dated by
+    /// the local clock, so its `occurred_at` cannot tell it from news; this
+    /// does (#770). Not the startup sweep's cancel: that is the daemon's
+    /// `Canceled` learned late, news like the message it stands in for.
+    Replayed,
 }
 
 /// An image or file sent in a chat (#589), as read from v1's JSON message.

@@ -12,6 +12,7 @@ import 'package:mostro/features/notifications/providers/notifications_provider.d
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
 import 'package:mostro/features/trades/providers/release_pending_provider.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart';
+import 'package:mostro/shared/mascot/mascot_cues.dart';
 import 'package:mostro/shared/providers/session_provider.dart';
 
 /// Empties the UI-layer state that belongs to one identity, after that
@@ -54,6 +55,8 @@ Future<void> resetIdentityScopedState(ProviderContainer container) async {
   // change, so the previous user's mint and balance would stay on screen.
   // Re-subscribing asks Rust again, which now reports it disconnected.
   container.invalidate(cashuWalletProvider);
+  // A trade step of the previous user still waiting for the mascot.
+  container.invalidate(mascotCueProvider);
   // Persisted (sembast), so it needs a real wipe, not just an invalidation.
   final notices = container.read(notificationsProvider).length;
   await container.read(notificationsProvider.notifier).wipeForIdentityChange();
