@@ -642,7 +642,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get nodeOperatorDisclaimer =>
-      'Das Mostro-Entwicklungsteam ist nicht verantwortlich für die Nutzung der Plattform durch Node-Betreiber. Jeder Betreiber kontrolliert seinen eigenen Mostro-Node und ist allein verantwortlich für seine Handlungen. Mit der Nutzung von Mostro akzeptieren Sie die volle Verantwortung für Ihre Transaktionen und erkennen an, dass das Entwicklungsteam keine Kontrolle über einzelne Node-Betreiber hat.';
+      'Das Mostro-Entwicklungsteam ist nicht verantwortlich für die Nutzung der Plattform durch Node-Betreiber. Jeder Betreiber kontrolliert seinen eigenen Mostro-Node und ist allein verantwortlich für seine Handlungen. Mit der Nutzung von Mostro akzeptierst du die volle Verantwortung für deine Transaktionen und erkennst an, dass das Entwicklungsteam keine Kontrolle über einzelne Node-Betreiber hat.';
 
   @override
   String get nodeChoiceConfirm => 'Diesen Node verwenden';
