@@ -57,6 +57,17 @@ Iterable<double> _glyphOpacities(WidgetTester tester, String glyph) => tester
     )
     .map((opacity) => opacity.opacity);
 
+/// The asset the mascot is drawn from right now.
+String _artwork(WidgetTester tester) {
+  final image = tester.widget<Image>(
+    find.descendant(
+      of: find.byType(MostroMascot),
+      matching: find.byType(Image),
+    ),
+  );
+  return (image.image as AssetImage).assetName;
+}
+
 Future<void> _tap(WidgetTester tester) async {
   await tester.tap(find.byType(MostroMascot));
   await tester.pump();
@@ -108,6 +119,40 @@ void main() {
         // Three stars go round the head, and are actually drawn.
         expect(find.text('✨'), findsNWidgets(3));
         expect(_glyphOpacities(tester, '✨'), everyElement(greaterThan(0)));
+      });
+    });
+
+    testWidgets('laughs on the 21st tap in a row', (tester) async {
+      await withClock(Clock.fixed(_plainDay), () async {
+        await _pump(
+          tester,
+          const MostroMascot(height: 26, interactive: true),
+        );
+
+        for (var i = 0; i < mostroLaughTaps - 1; i++) {
+          await _tap(tester);
+        }
+        expect(_artwork(tester), isNot(MostroMascot.stickerAsset('laugh')));
+        await _tap(tester);
+
+        expect(_artwork(tester), MostroMascot.stickerAsset('laugh'));
+        await tester.pumpAndSettle();
+      });
+    });
+
+    testWidgets('puts its shades on when held', (tester) async {
+      await withClock(Clock.fixed(_plainDay), () async {
+        await _pump(
+          tester,
+          const MostroMascot(height: 26, interactive: true),
+        );
+
+        await tester.longPress(find.byType(MostroMascot));
+        await tester.pump();
+
+        expect(_artwork(tester), MostroMascot.stickerAsset('cool'));
+        await tester.pumpAndSettle();
+        expect(_artwork(tester), MostroMascot.asset);
       });
     });
 
@@ -189,7 +234,10 @@ void main() {
           const MostroMascot(height: 40, interactive: true),
         );
 
-        expect(find.text('📰'), findsOneWidget);
+        // The day the genesis block was mined, Mostro hodls, in place of the
+        // newspaper badge.
+        expect(find.text('📰'), findsNothing);
+        expect(_artwork(tester), MostroMascot.stickerAsset('hodl'));
 
         await _tap(tester);
         await tester.pump(const Duration(milliseconds: 300));
@@ -482,6 +530,13 @@ void main() {
     testWidgets('every sticker a mood names is bundled', (tester) async {
       for (final mood in MostroMood.values) {
         final sticker = moodSticker(mood);
+        if (sticker == null) continue;
+        final asset = MostroMascot.stickerAsset(sticker);
+        final data = await tester.runAsync(() => rootBundle.load(asset));
+        expect(data!.lengthInBytes, greaterThan(0), reason: asset);
+      }
+      for (final season in MostroSeason.values) {
+        final sticker = seasonSticker(season);
         if (sticker == null) continue;
         final asset = MostroMascot.stickerAsset(sticker);
         final data = await tester.runAsync(() => rootBundle.load(asset));

@@ -297,7 +297,7 @@ DS-CMP-7), and text scaling in §3 (DS-TYP-7). In addition:
 
 | ID | Rule | Check |
 |---|---|---|
-| DS-A11Y-1 | **MUST.** A custom tappable widget (an `InkWell` or `GestureDetector` that is not a Material button) is wrapped in `Semantics(button: true, label: …)`, with `enabled` reflecting its state. | review |
+| DS-A11Y-1 | **MUST.** A custom tappable widget (an `InkWell` or `GestureDetector` that is not a Material button) is wrapped in `Semantics(button: true, label: …)`, with `enabled` reflecting its state. The exception is a gesture on decoration that only plays itself or shows a seasonal greeting (the mascot's tap and long press, `MostroMascot`): it changes nothing in the app and tells nothing the user needs, so it stays under `ExcludeSemantics` with the decoration (DS-A11Y-3), and the gesture detector sets `excludeFromSemantics: true`. A gesture that navigates, changes a setting or shows any other information is not an exception. | review |
 | DS-A11Y-2 | **MUST.** A status that changes while the user watches (a countdown result, a payment received) is announced through `liveRegion` or `SemanticsService`. | review |
 | DS-A11Y-3 | **MUST.** Focus and reading order follow the visual order. Decoration is excluded with `ExcludeSemantics`. | review |
 | DS-A11Y-4 | **MUST.** A new screen, or a changed action bar or modal, has a widget test at 2× text scale and 320 dp wide in German that expects no overflow (`tester.takeException()` is null). Precedents: `order_detail_golden_test.dart`, `trade_detail_screen_test.dart`. | test |

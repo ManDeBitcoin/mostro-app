@@ -513,6 +513,7 @@ class _AddLightningInvoiceScreenState
     try {
       final submit = widget.submitInvoice ?? _bridgeSubmit;
       await submit(widget.orderId, input, sats);
+      if (mounted) ref.read(mascotCueProvider.notifier).invoiceAccepted();
 
       // The status listener may have left already on the same reply.
       if (!mounted || _navigated) return true;

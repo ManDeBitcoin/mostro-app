@@ -159,10 +159,21 @@ void main() {
       );
     });
 
-    test('wraps after the dizzy tap so the streak can be earned again', () {
+    test('keeps counting past the dizzy tap, up to the laugh', () {
       expect(
         nextTapCount(
           count: mostroDizzyTaps,
+          lastTap: now.subtract(const Duration(milliseconds: 100)),
+          now: now,
+        ),
+        mostroDizzyTaps + 1,
+      );
+    });
+
+    test('wraps after the laugh so the streak can be earned again', () {
+      expect(
+        nextTapCount(
+          count: mostroLaughTaps,
           lastTap: now.subtract(const Duration(milliseconds: 100)),
           now: now,
         ),
@@ -177,6 +188,41 @@ void main() {
         expect(moodForTaps(taps), MostroMood.happy, reason: 'tap $taps');
       }
       expect(moodForTaps(mostroDizzyTaps), MostroMood.dizzy);
+    });
+
+    test('gets dizzy again every seven, and laughs on the 21st', () {
+      expect(moodForTaps(mostroDizzyTaps + 1), MostroMood.happy);
+      expect(moodForTaps(2 * mostroDizzyTaps), MostroMood.dizzy);
+      expect(moodForTaps(mostroLaughTaps - 1), MostroMood.happy);
+      expect(moodForTaps(mostroLaughTaps), MostroMood.laughing);
+    });
+  });
+
+  group('moodForCompletion', () {
+    test('celebrates a trade, and is on fire from the third of the day', () {
+      expect(moodForCompletion(1), MostroMood.celebrating);
+      expect(moodForCompletion(2), MostroMood.celebrating);
+      expect(moodForCompletion(mostroFireStreak), MostroMood.onFire);
+      expect(moodForCompletion(mostroFireStreak + 2), MostroMood.onFire);
+    });
+  });
+
+  group('isMorning', () {
+    test('is from five to eleven, local time', () {
+      expect(isMorning(DateTime(2026, 6, 1, 5)), isTrue);
+      expect(isMorning(DateTime(2026, 6, 1, 10, 59)), isTrue);
+      expect(isMorning(DateTime(2026, 6, 1, 4, 59)), isFalse);
+      expect(isMorning(DateTime(2026, 6, 1, 11)), isFalse);
+      expect(isMorning(DateTime(2026, 6, 1, 23)), isFalse);
+    });
+  });
+
+  group('seasonSticker', () {
+    test('the genesis block is a day to hodl; the others keep their badge', () {
+      expect(seasonSticker(MostroSeason.genesis), 'hodl');
+      expect(seasonSticker(MostroSeason.whitepaper), isNull);
+      expect(seasonSticker(MostroSeason.pizzaDay), isNull);
+      expect(seasonSticker(MostroSeason.none), isNull);
     });
   });
 
@@ -227,6 +273,18 @@ void main() {
       expect(moodSticker(MostroMood.loved), 'love');
       expect(moodSticker(MostroMood.thankful), 'thanks');
       expect(moodSticker(MostroMood.refused), 'facepalm');
+    });
+
+    test('the easter eggs wear the rest of the set', () {
+      expect(moodSticker(MostroMood.greeting), 'gm');
+      expect(moodSticker(MostroMood.orderTaken), 'p2p');
+      expect(moodSticker(MostroMood.cancelAsked), 'surprised');
+      expect(moodSticker(MostroMood.invoiceAccepted), 'lightning');
+      expect(moodSticker(MostroMood.backedUp), 'check');
+      expect(moodSticker(MostroMood.laughing), 'laugh');
+      expect(moodSticker(MostroMood.cool), 'cool');
+      expect(moodSticker(MostroMood.onFire), 'fire');
+      expect(moodSticker(MostroMood.agreed), 'thumbsup');
     });
 
     test('every mood but rest has one', () {
