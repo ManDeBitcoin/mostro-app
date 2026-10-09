@@ -2802,11 +2802,25 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String aboutFeeValue(String value) {
-    return '$value %';
+    return '$value %';
   }
 
   @override
-  String get aboutLimitsFootnote => 'Limits in Satoshis pro Auftrag';
+  String get aboutNodeDepositNone => 'Nein';
+
+  @override
+  String aboutNodeDepositFloor(String amount) {
+    return 'mind. $amount Sats';
+  }
+
+  @override
+  String get aboutDepositCell => 'Einlage';
+
+  @override
+  String get aboutCurrenciesCell => 'Währungen';
+
+  @override
+  String get aboutOrderExpiryCell => 'Ablauf';
 
   @override
   String get aboutNodeTechnicalDataRow => 'Technische Knotendaten';
@@ -2836,7 +2850,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String aboutHoursShort(int count) {
-    return '$count h';
+    return '$count h';
   }
 
   @override

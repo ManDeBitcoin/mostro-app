@@ -2792,7 +2792,21 @@ class AppLocalizationsNl extends AppLocalizations {
   }
 
   @override
-  String get aboutLimitsFootnote => 'Grenzen in satoshi per order';
+  String get aboutNodeDepositNone => 'Nee';
+
+  @override
+  String aboutNodeDepositFloor(String amount) {
+    return 'min. $amount sats';
+  }
+
+  @override
+  String get aboutDepositCell => 'Borg';
+
+  @override
+  String get aboutCurrenciesCell => 'Valuta';
+
+  @override
+  String get aboutOrderExpiryCell => 'Verloop';
 
   @override
   String get aboutNodeTechnicalDataRow => 'Technische gegevens van de node';
@@ -2822,7 +2836,7 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String aboutHoursShort(int count) {
-    return '$count u';
+    return '$count u';
   }
 
   @override

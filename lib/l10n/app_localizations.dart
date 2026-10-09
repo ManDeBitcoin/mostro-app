@@ -4708,17 +4708,41 @@ abstract class AppLocalizations {
   /// **'Fee'**
   String get aboutFeeCell;
 
-  /// About screen — node fee figure; value is the locale-formatted percentage number
+  /// About screen — node fee figure; value is the locale-formatted percentage number. Keep the non-breaking space (U+00A0) wherever the locale puts a space before the unit, so a line never splits the figure from it
   ///
   /// In en, this message translates to:
   /// **'{value}%'**
   String aboutFeeValue(String value);
 
-  /// About screen redesign (12a/12b)
+  /// Value of the deposit row on the About screen's connected node card when the node asks for no anti-abuse deposit (disabled, or a node that predates deposits)
   ///
   /// In en, this message translates to:
-  /// **'Limits in satoshis per order'**
-  String get aboutLimitsFootnote;
+  /// **'No'**
+  String get aboutNodeDepositNone;
+
+  /// Under the deposit share on the About screen's connected node card: the least the node locks whatever the order's amount (bond_base_amount_sats). amount is the locale-formatted number of sats
+  ///
+  /// In en, this message translates to:
+  /// **'min. {amount} sats'**
+  String aboutNodeDepositFloor(String amount);
+
+  /// Cell label on the About screen's connected node card: the anti-abuse deposit the node asks for (glossary term)
+  ///
+  /// In en, this message translates to:
+  /// **'Deposit'**
+  String get aboutDepositCell;
+
+  /// Cell label on the About screen's connected node card: the fiat currencies the node accepts
+  ///
+  /// In en, this message translates to:
+  /// **'Currencies'**
+  String get aboutCurrenciesCell;
+
+  /// Cell label on the About screen's connected node card: how long an order stays published before it expires
+  ///
+  /// In en, this message translates to:
+  /// **'Expiration'**
+  String get aboutOrderExpiryCell;
 
   /// About screen redesign (12a/12b)
   ///
@@ -4756,10 +4780,10 @@ abstract class AppLocalizations {
   /// **'Waiting timeout'**
   String get aboutWaitingTimeoutLabel;
 
-  /// About screen — a duration in hours, abbreviated
+  /// About screen — a duration in hours, abbreviated. Keep the non-breaking space (U+00A0) between the number and the unit, so a line never splits them
   ///
   /// In en, this message translates to:
-  /// **'{count} h'**
+  /// **'{count} h'**
   String aboutHoursShort(int count);
 
   /// About screen — a duration in seconds, abbreviated
