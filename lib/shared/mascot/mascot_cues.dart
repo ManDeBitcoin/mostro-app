@@ -103,13 +103,15 @@ class MascotCueNotifier extends Notifier<MascotCue?> {
     final at = DateTime.fromMillisecondsSinceEpoch(
       platformInt64ToInt(update.occurredAt) * 1000,
     );
-    // A restore replays trades that moved long ago (#474): that is not
-    // news, and a pending cue of the present must not give way to it.
-    if (!isFreshEvent(occurredAt: at, now: clock.now())) return;
     final orderId = update.orderId;
+    // Who asked is not a cue: a confirmation that lands late (an offline
+    // spell) still decides how the agreement looks.
     if (update.reason == TradeUpdateReason.cooperativeCancelRequestedByMe) {
       _cancelAsked.add(orderId);
     }
+    // A restore replays trades that moved long ago (#474): that is not
+    // news, and a pending cue of the present must not give way to it.
+    if (!isFreshEvent(occurredAt: at, now: clock.now())) return;
     var mood = moodForTradeUpdate(update);
     if (mood == MostroMood.celebrating) {
       // A completion told twice (the buyer's message, then the book's
