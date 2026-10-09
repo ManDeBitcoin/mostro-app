@@ -291,6 +291,25 @@ void main() {
       });
     });
 
+    test('a request confirmed late still makes the agreement a thumbs-up', () {
+      // The daemon's confirmation landed after an offline spell: too old to
+      // be a cue, still the record of who asked (#782 review).
+      return withClock(Clock.fixed(_now), () async {
+        container.listen(mascotCueProvider, (_, _) {});
+
+        await deliver(
+          _update(
+            OrderStatus.active,
+            reason: TradeUpdateReason.cooperativeCancelRequestedByMe,
+            at: _now.subtract(const Duration(minutes: 10)),
+          ),
+        );
+        await deliver(_update(OrderStatus.cooperativelyCanceled));
+
+        expect(cues().take(), MostroMood.agreed);
+      });
+    });
+
     test('a cancel nobody here asked for is still a cry', () async {
       await withClock(Clock.fixed(_now), () async {
         container.listen(mascotCueProvider, (_, _) {});
