@@ -95,9 +95,17 @@ Archivos de upstream editados en el fork: **ninguno**.
   (<https://mostro.bitmaxis.com/>). Relays según el commit `f690237` (5 oct 2026):
   `wss://relay.mostro.network`, `wss://mostro-p2p.tech`, `wss://relay.shadowbip.com`; verificarlos
   contra la lista kind 10002 del nodo antes de usarlos.
-- **Estado: no aplicado.** `main` usa el nodo por defecto de upstream (`DEFAULT_MOSTRO_PUBKEY` en
-  `rust/src/config.rs`), y upstream no permite hoy otro nodo por defecto sin editar ese archivo.
-  La forma de hacerlo persistente está pendiente de decidir; cuando se decida, se documenta aquí.
+- **Decidido: BitMaxis como nodo predeterminado, no fijo.** Un usuario nuevo empieza en BitMaxis y
+  puede cambiar de nodo como en upstream. Se fija con una opción de compilación (la clave del
+  nodo), no editando código.
+- **Estado: no aplicado.** `main` usa el nodo por defecto de upstream, compilado en dos copias:
+  `DEFAULT_MOSTRO_PUBKEY` en `rust/src/config.rs` y `defaultMostroPubkey` en
+  `lib/core/mostro_defaults.dart`. Upstream no tiene hoy esa opción para builds de producción;
+  `MOSTRO_PUB_KEY` existe, pero solo en el entorno de pruebas Mortsom (`lib/core/test_environment.dart`,
+  con su banner rojo), así que no sirve aquí.
+- **Ruta:** carril upstream. Proponer en un issue la opción de compilación para el nodo
+  predeterminado (como `PUSH_SERVER_URL`); cuando upstream la fusione, el fork la pasa como
+  argumento de build en `Dockerfile.web`, sin desviaciones.
 
 ## El código personalizado anterior
 
@@ -117,9 +125,15 @@ diverge de upstream en 755 archivos.
 ## Sesiones de Claude en la nube
 
 - El clon solo trae `origin`; `upstream` se añade como arriba (lectura pública).
-- La sesión recibe una rama `claude/...`. Sirve para los carriles fork y sync. Para empujar una
-  rama `type/kebab-desc` del carril upstream, se pide autorización a @ManDeBitcoin.
+- La sesión arranca en una rama `claude/<nombre-al-azar>` que asigna el entorno. Las ramas se
+  publican con nombre descriptivo (`type/kebab-desc`; `sync/upstream-AAAAMMDD` para un sync); como la sesión solo puede empujar su
+  rama asignada, Claude pide autorización a @ManDeBitcoin para publicar con el nombre correcto.
 - No se abren PRs, ni se fusiona a `main`, sin que @ManDeBitcoin lo pida.
+- **Los PRs de los carriles fork y sync los abre Claude**, con base `ManDeBitcoin/mostro-app`.
+  Si se abren desde GitHub, ojo: en un fork, el botón "Compare & pull request" propone como base
+  el repositorio de la comunidad (`MostroP2P/app`). Hay que cambiar *base repository* a
+  `ManDeBitcoin/mostro-app` antes de crearlo. Así se abrió por error MostroP2P/app#789 (cerrado
+  sin fusionar), que llevaba esta guía y 63 commits del fork.
 
 ## Workflows de upstream en el fork
 
