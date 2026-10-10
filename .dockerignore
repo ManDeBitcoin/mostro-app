@@ -1,0 +1,14 @@
+# Build context for Dockerfile.web. Everything here is either rebuilt inside
+# the image or never read by it.
+.git
+.dart_tool/
+build/
+web/pkg/
+rust/target/
+rust_builder/target/
+test/web/smoke/node_modules/
+*.log
+.env
+.env.*
+*.jks
+*.keystore

@@ -14,7 +14,14 @@ uses preconfigured defaults.
 **Side effects**: Connects to relays, starts subscriptions for orders
 and messages.
 
-**Errors**: `AlreadyInitialized`, `NoRelays`.
+**Idempotent per process**: a second call in the same process re-attaches
+to the running pool, ignores `relays`, returns `Ok` and runs `resync()` in
+the background. Android can destroy the activity and its Flutter engine
+while the process lives on, so the next launch calls this again against the
+same Rust statics; failing there aborted startup before `runApp` and left
+the app on its splash screen.
+
+**Errors**: `NoRelays`.
 
 ---
 
@@ -159,20 +166,6 @@ MostroNodeInfo {
 > always receive concrete `u32` values. Deserialization/constructor MUST apply these
 > defaults (e.g. `#[serde(default = "default_expiration_hours")]`).
 
-**Whose event it is MUST be checked before it is read.** The source is the
-node's Kind 38385 event, and a relay is not held to the filter of the REQ it
-answers: nostr-sdk 0.45 verifies every incoming event's signature but matches
-it against the subscription only with `verify_subscriptions`, which is off in
-this client. So every reader of that event (`fetch_mostro_instance_tags`, and
-the liveness gate's patient look) keeps only events of kind 38385, signed by
-the node, addressed by the node's key in the `d` tag
-(`mostro::node_liveness::is_info_event_of`) — and does so **before** picking
-the newest copy. Unchecked, any relay in the pool could hand over an event
-from a throwaway key: its tags would be applied as the node's proof-of-work
-difficulty, protocol version and bond policy, and one dated in the future
-saying `maintenance_mode = true` would refuse every new order and take for
-the rest of the session.
-
 ---
 
 ### fetch_exchange_rate(mostro_pubkey_hex: String, fiat_code: String) → f64?
@@ -259,40 +252,3 @@ for (`docs/PUSH_NOTIFICATIONS.md` §7.1).
 Emits when new relays are auto-synced from daemon's kind 10002 events.
 Payload is the list of newly added relay URLs, in announcement order. Lists
 that add nothing new do not emit.
-
----
-
-### Community card (kind 30078, `d = mostro-community-card`)
-
-A convention between the operator's panel (Mostro Community Manager) and this
-client, not part of the Mostro protocol. The panel may publish the community's
-signed card — the JSON v1 object with `name`, `pubkey`, `relays`, `currency`,
-`payment_methods`, `fee_bps`, `bond_percent`, `website`, `contact`,
-`signature` — as the content of an addressable event signed by the node's key.
-
-**Reading it** (`rust/src/mostro/community_card.rs`, no bridge call of its own):
-
-- Looked up when the relay pool comes online, detached and behind the order
-  book subscription, and again whenever the stored profile is read and the
-  next look is due: ten minutes after one that read a card, one minute after
-  one that read none, doubling up to ten.
-- The event MUST be kind 30078, authored by the active node, tagged
-  `d = mostro-community-card`, with a valid signature — checked in the client,
-  since a relay is not held to the REQ's filter. Every relay is heard out
-  before choosing, and the newest copy that holds a valid card wins; an event
-  with a later date and no valid card inside shadows nothing.
-- The card MUST be version 1, carry the node's own `pubkey`, and verify under
-  its own BIP-340 signature (`verify_community_signature`).
-- A card replaces the stored profile only when its event is not older than the
-  one the stored profile came from (`community_card_at`).
-- No card on the relays is the normal case and is not an error; an invalid or
-  older one changes nothing. The event says nothing about liveness.
-- Known limit: the date that orders two cards is the event's, which the
-  card's own signature does not cover. A fresh install answered only by relays
-  that hold an old revision applies that one until a look reads a newer. It is
-  always a card the node signed.
-
-**Using it**: `get_active_community_profile` returns the stored profile only
-when the active node signed it. The client takes `name`, `payment_methods`,
-`currency`, `website` and `contact` from it. It MUST NOT take the fee or the
-bond from the card: those are the info event's (Kind 38385).

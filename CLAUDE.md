@@ -4,7 +4,7 @@ Auto-generated from all feature plans. Last updated: 2026-09-17
 
 ## Active Technologies
 - Rust stable 1.94+ (core); Dart 3.x / Flutter 3.x (UI shell) (004-mostro-p2p-client)
-- nostr-sdk 0.45+, mostro-core 0.16.0, flutter_rust_bridge 2.11.1, Riverpod (state),
+- nostr-sdk 0.45+, mostro-core 0.17.1, flutter_rust_bridge 2.11.1, Riverpod (state),
   go_router (navigation), sqlx (SQLite, native) / indexed_db_futures (IndexedDB, web),
   sembast (Dart UI-layer state), bip32/bip39 (keys), chacha20poly1305 (file encryption)
 - Sembast (Dart, all platforms) for UI-layer state; SQLite via `sqlx` (Rust, native) /
@@ -49,15 +49,13 @@ flutter gen-l10n                            # after editing lib/l10n/*.arb
   (`--base-href` for the sub-path, `--pwa-strategy=none` so Flutter's service worker does not
   take the isolation shim's scope). Every one of these, when wrong, yields a **blank page** —
   `test/web/pages_bundle_test.dart` guards them statically.
-- **This fork's production is `Dockerfile.web` behind `docker/nginx.conf`, and nothing it
-  serves may be reused by a browser without asking.** A web build writes the same file names
-  with other contents every time, the assets included: `assets/fonts/MaterialIcons-Regular.otf`
-  is cut down to the icons that build draws. `/assets/` used to be kept for a day
-  (`max-age=86400`), so after a deploy a browser that had the app open drew the new screens
-  with the old icon font and every icon the deploy added was blank — the price control's minus
-  sign, in October 2026. Every `location` now sends `no-cache` (a 304 when unchanged);
-  `test/web/nginx_cache_test.dart` holds that. An icon new to the app is still worth a second
-  look before it carries meaning on its own: `SimplePriceStepper` draws its two signs itself.
+- **No Rust runs on a web worker.** FRB's default handler would run every non-async API function
+  on a worker pool and every async one on the main thread (`spawn_local`); a `std::sync` lock
+  contended across the two traps the page with "Atomics.wait cannot be called in this context"
+  (#294), and the lock behind every opaque object is one of them. `rust/src/api/bridge_handler.rs`
+  defines `FLUTTER_RUST_BRIDGE_HANDLER`, which on web runs both kinds on the main thread, and
+  `bridge_does_not_use_the_default_handler` fails if codegen ever goes back to the default.
+  Don't hand work to `FLUTTER_RUST_BRIDGE_HANDLER.thread_pool()` either.
 - `cargo check --target wasm32-unknown-unknown` is **not** a substitute for `build-web.sh`: two
   wasm-only requirements fail later than type-checking. `getrandom` (0.2 via bip32/k256, 0.4 via
   nostr's `rand`) needs its JS backend feature enabled in `rust/Cargo.toml`, and nostr 0.45's
@@ -69,9 +67,10 @@ flutter gen-l10n                            # after editing lib/l10n/*.arb
 - Static greps pass on a page that dies at runtime, so that workflow also runs
   **`test/web/smoke/smoke.mjs`**: it serves the release bundle cross-origin isolated under
   `/app/` and asserts in headless Chrome that the page is isolated, the Flutter view mounted,
-  a **Rust bridge call returned**, and nothing errored. The bridge signal comes from
-  `lib/core/web/bridge_probe.dart`, which `main()` sets after its first successful Rust call
-  (no-op off web) — rename that flag on one side only and the check silently never fires.
+  **startup finished** (so the Rust bridge answered), and nothing errored. The bridge signal comes from
+  `lib/core/web/bridge_probe.dart`. Startup sets `mostroBridgeReady` once it has finished, not at the
+  first Rust call, or a later failure goes unseen. The startup guard sets `mostroBridgeError` on failure
+  (no-op off web). Rename either flag on one side only and the check silently never fires.
   The CI run also sets `SMOKE_BOND_STORE=1`: it seeds bond rows (`test/web/smoke/seed/`) into
   IndexedDB, reloads, and compares them with what `lib/core/web/store_probe.dart` read back.
   And `SMOKE_ATTACHMENTS=1`: it serves a Blossom endpoint on a **second origin** and waits for
@@ -85,6 +84,13 @@ flutter gen-l10n                            # after editing lib/l10n/*.arb
   `pages_bundle_test.dart` holds equal to `firebase_options.dart` and `firebase_core_web`; CI
   sets `SMOKE_PUSH_WORKER=1` to assert it activates without costing isolation. Web push stays
   off until the build passes `PUSH_WEB_ENABLED` (docs/PUSH_NOTIFICATIONS.md T4.5).
+- **The bundle is an installable app** (#658): `web/manifest.json` (relative `start_url` and
+  `scope`, so it follows the base path, and deliberately no `id`: an `id` resolves against the
+  origin, so "./" would be "/"; without one it is the resolved `start_url`) plus the icons
+  `flutter_launcher_icons` generates.
+  `SMOKE_INSTALLABLE=1` asks Chrome itself (`Page.getInstallabilityErrors`); that needs the
+  full Chromium build and a persistent profile, because the default headless shell calls
+  every page installable and an incognito profile none.
 
 ## Code Style
 
@@ -98,10 +104,6 @@ over Nostr. It re-architects the v1 app (`MostroP2P/mobile`, pure Flutter/Dart):
 v1's `dart_nostr` was outdated and limited, so v2 moves all protocol/crypto/relay
 logic to **Rust** (the well-maintained `nostr-sdk`) and keeps the **UI in Flutter**,
 bridged by flutter_rust_bridge.
-
-**This fork serves one community: BitMaxis** (<https://mostro.bitmaxis.com/>, `upstream` =
-`MostroP2P/app`). The node is compiled in and the user never chooses one — see "One community,
-one node" under Domain gotchas before touching anything node-related.
 
 ## Working agreement (read first)
 - **Propose before editing.** Default to presenting the approach first — option(s) + why +
@@ -166,6 +168,11 @@ one node" under Domain gotchas before touching anything node-related.
 - **All user-facing strings are Dart-level** (Flutter l10n): `lib/l10n/app_{en,es,fr,de,it,nl}.arb`,
   config `l10n.yaml`, generated `AppLocalizations` via `flutter gen-l10n`, used with
   `AppLocalizations.of(context)`.
+- **One exception, deliberate:** `lib/core/startup_failure.dart` hard-codes its
+  English. It is the surface shown when startup fails before `runApp`, and
+  localization is one of the things that can be what failed — a rescue screen
+  that needs what broke is a second blank page (#389). Do not "fix" it into l10n.
+  The guide records it too (`.specify/DESIGN_SYSTEM.md` §13).
 - **Rust does not translate.** Rust returns data or a stable marker/code (e.g. `NoDaemonResponse`);
   Dart maps it to a localized string. Don't hardcode user-facing prose in Rust.
   (Known debt: some `CantDo` errors still return English prose directly — should become markers.)
@@ -175,6 +182,13 @@ one node" under Domain gotchas before touching anything node-related.
   `specs/004` + `.specify/*` = **prescriptive for v2** (what/how to build). Specs are a
   **living artifact** — update the matching spec/contract as part of any behavior/contract change.
 - For **curated reference docs** (`.specify/v1-reference/`, `.specify/*`): **propose edits first**.
+- **UI changes are judged against `.specify/DESIGN_SYSTEM.md`**, whose rules have IDs (`DS-COL-1`…).
+  New UI code keeps every MUST; its §14 lists the older code that does not, as debt, never as
+  a precedent to copy. A change that needs a different value changes the guide first.
+  The **Design guide** CI job runs its *auto* rules on every class (or top-level function)
+  a change touches under `lib/`, read whole — and on a **screen** (`screens/`) the whole
+  file: one changed line in a legacy screen means migrating all of it
+  (`dart tool/design_check.dart` locally; `--all` lists the whole debt).
 - Update this `CLAUDE.md` when guidelines, tooling, or core tech change.
 
 ## Reference checkouts (when in doubt)
@@ -188,6 +202,12 @@ one node" under Domain gotchas before touching anything node-related.
   `fix(phaseX): review round N`). Not big-bang.
 - Conventional commits (`feat/fix/docs/refactor/chore(scope)`), branches `type/kebab-desc`,
   everything via **PR to `main`** (gh CLI) + CodeRabbit review.
+- **Before opening a PR, read and follow `CONTRIBUTING.md § Contribution quality bar`**
+  (summarised in `AGENTS.md § Before opening a pull request`): accepted issue, every section
+  of `.github/pull_request_template.md`, Manual testing a person actually ran, screenshots for
+  visible changes, and for a fix a `test:` commit that fails on `main`, first after any
+  `refactor:` seam commits. Exemptions (Markdown-only, maintainers, bots, `quality:exempt`) and the
+  `quality:no-red-test` waiver are in that section.
 
 ## Releases (`docs/RELEASING.md`)
 - **A pushed tag `vX.Y.Z` is the release.** `.github/workflows/release.yml` builds two signed
@@ -204,6 +224,10 @@ one node" under Domain gotchas before touching anything node-related.
   `tool/release/downloads.dart`. None of these builds is vendor-signed or notarized.
 - **The macOS app is sandboxed**: without `com.apple.security.network.client` in
   `macos/Runner/*.entitlements` it builds, launches and reaches no relay.
+- **Desktop icons come from `tool/launcher_icon/build_sources.py`**, not `flutter_launcher_icons`
+  (no Linux target, single-size `.ico`). On Wayland, Linux shows the icon of the desktop entry
+  `install.sh` adds, found by the app ID — `linux/packaging/` files are named after
+  `APPLICATION_ID` and must stay so (`test/ci/desktop_icons_test.dart`).
 - **Release notes and `CHANGELOG.md` are generated** by `tool/release_notes.dart`, one entry
   per merged PR grouped by the conventional-commit type of its **title**. Don't hand-edit
   `CHANGELOG.md`; fix the PR title.
@@ -213,69 +237,6 @@ one node" under Domain gotchas before touching anything node-related.
   `android/app/build.gradle.kts` (`test/ci/release_workflow_test.dart`).
 
 ## Domain gotchas (durable)
-- **One community, one node.** `DEFAULT_MOSTRO_PUBKEY` in `rust/src/config.rs` (mirrored in
-  `lib/core/mostro_defaults.dart`) is the BitMaxis node, `TRUSTED_MOSTRO_NODES` holds that one
-  entry and `DEFAULT_RELAYS` is that node's kind 10002 list. No screen selects, adds or scans
-  another node: the Settings row opens About, the Simple Mode badge is not a control.
-  `db::seeds::pin_active_node` runs when the store opens (`app_db::init_db`): an install that
-  predates the pin is moved back onto it and the community profile that described the other
-  node is cleared — before `rehydrate_active_mostro_node` reads the row. It lives outside
-  `rust/src/api/` on purpose, so the pin needed no bridge regen.
-  `set_active_mostro_node` stays for one caller, the Mortsom seed (`MOSTRO_PUB_KEY`) in
-  `app_bootstrap.dart`, so **don't wire a UI to it**. The selector widgets, `api/nodes.rs`
-  add/remove and the apply/clear half of `api/community.rs` are unreachable and awaiting
-  deletion — the parser, the signature check and `get_active_community_profile` are not (next
-  entry). The switch machinery under them (claim nodes,
-  `refresh_subscriptions_for_active_node`) is upstream's and stays, or every merge from
-  `upstream` conflicts.
-- **The community's card is read from the node's relays, never scanned.** The operator's
-  panel signs a card (name, currency, payment methods, website, contact) and can publish it as
-  kind 30078, `d = mostro-community-card`, signed by the node. `mostro::community_card` looks
-  for it when the pool comes online — spawned behind `subscribe_orders()` — hears every relay
-  out (nothing waits on it, and the relay with an old revision is as likely as any to answer
-  first), checks kind, author, `d` and event signature, then the card's own key and BIP-340
-  signature, and stores it as the profile only when it is newer than the one stored
-  (`community_card_at`). No card on the relays is the normal case, not an error; a look that
-  finds none is repeated after a minute, then less and less often. `get_active_community_profile` serves only a profile the
-  active node signed, and each read starts another look once the last is ten minutes old; Dart
-  re-reads every 45 s (`ActiveCommunityNotifier`), which is how a method the operator adds
-  reaches an open app. From the card come name, methods, currency, website and contact — never
-  the fee or the bond, which are Kind 38385's. Of a method it carries the name and nothing
-  else: the panel keeps a category for each (`PaymentMethod.category` in the Manager's
-  `api/src/config.rs`), and its card (`payment_methods: Vec<String>`) leaves it behind.
-- **Simple Mode picks payment methods in one place, any number of them.** A tab shows what is
-  ticked (`PaymentMethodField`) and opens the list over itself (`PaymentMethodPickerSheet`),
-  every method under a heading, with a search box over them (`searchPaymentMethods`: every word
-  typed has to be in the method's name or its heading, case and accents aside). The sheet draws
-  `MostroSheet`'s frame itself for two reasons: the title and the search box stay put while the
-  list scrolls under them, and the sheet has one height whatever the search finds — sized to its
-  content it moved the box being typed in with every letter. While a keyboard is up, or in a
-  window short to begin with, it leaves out its title and clear link; where a keyboard leaves
-  only a strip in sight, its button too — never without a keyboard, when nothing would bring it
-  back. The box and the list are keyed: title and foot go in one frame from either side of them,
-  and unkeyed they were built anew, the box without the focus the keyboard had come for. A tick
-  applies as it is made — there is no draft to confirm or to lose — and is kept as a
-  `paymentMethodKey` in `sellTickedMethodsProvider` / `buyTickedMethodsProvider`. Tab and sheet
-  both read the list from a provider (`payment_method_providers.dart`), because it moves under
-  an open sheet: the card arrives, the operator edits it, the book changes. On **Sell** the list
-  is the card's, exactly (`sellPaymentMethods`, a built-in list until a card exists). Nothing is
-  ticked for the seller — the first method used to be, so an order could name a bank its seller
-  never chose — and nothing publishes until they tick. The order carries every ticked method in
-  one string, comma-joined (`simpleSellOrder`): mostrod splits it into the values of the `pm`
-  tag, which is why a comma in a card's name is read as a space. On **Buy** the list adds the
-  methods only the offers carry, capped (`offerOnlyPaymentMethods`); nothing ticked is every
-  offer, and an offer shows when it takes any ticked method (`isPaidByAny`), so none hides
-  behind a method the list does not know; a ticked one stays listed past the cap while an offer
-  carries it. A ticked method that leaves the list is not replaced by another (`tickedMethods`).
-  It counts again if the list takes it back — until the user changes their ticks: a change is
-  made to the ticks on the list (`listedTicks`), and drops the rest. A tick a search hides is on
-  the list, and stays. The headings are read off each method's **name**
-  (`paymentMethodCategory`: the first rule a name matches, `other` for one no rule is sure of),
-  because the card has nothing else to go by. A handler there starts from the provider's state
-  at the tap, not from the ticks its frame was built with: of two taps in one frame the second
-  otherwise undoes the first. Elsewhere in Simple Mode an order's methods are split by the two
-  helpers that already did it (`paymentMethodsSummary`, `paymentMethodLabel`), never shown as
-  the wire string: the user's own order reads `A,B,C`.
 - **Reputation/ratings come from Kind 38383 event tags, not a DB.** In-memory
   `RATING_STORE`/`DISPUTE_STORE` are correct by design — don't invent "persist to DB" tasks.
   Chat history persists to the `messages` table since #246 — on web to the IndexedDB `messages`
@@ -300,129 +261,6 @@ one node" under Domain gotchas before touching anything node-related.
   before the capabilities are known, so a receive-path reader of them must wait — today only a
   fresh payout claim's deadline, via `bond_policy::get_for_once_settled`, and whoever opens
   subscriptions ahead of a capability fetch holds a `bond_policy::fetch_pending()` guard.
-- **An order is fixed sats or a premium, never both, and its amounts are whole.** The wire
-  carries fiat amounts and the premium as integers, and mostrod answers fixed sats with a
-  premium with `CantDo(InvalidParameters)`. `mostro::actions::validate_new_order` (create) and
-  `take_order_once` (range take) refuse both by marker — `FixedSatsWithPremium`,
-  `FiatAmountNotWhole`, `PremiumNotWhole` — instead of truncating or sending them. A
-  market-price order carries no sats: the daemon fixes them when it is taken. Simple Mode
-  publishes at market price only, a sale (`simpleSellOrder`) or a purchase (`simpleBuyOrder`,
-  from the sheet the Buy tab opens for a buyer no offer suits), with a whole premium between
-  −10 and +10 set by one control (`SimplePriceStepper`). That control reports a step, not a
-  figure — whoever holds the premium applies it to what it is when the tap lands
-  (`steppedPremium`) — and words the number from the side of whoever sets it, in sats
-  (`priceMeaning`): "10 % fewer sats" is what the node does, "the buyer pays 10 % more" is
-  the formula the next entry warns against. A premium is the seller's gain and the buyer's
-  cost, and is coloured so (`priceFigureColor`). The buy order names the community's methods
-  only — the Buy tab's list also holds what offers were written with — from ticks of its own,
-  opened with the tab's (`buyOrderTickedMethodsProvider`). Its sheet takes what the answer
-  needs before it awaits (`_publish`): a sheet dragged away mid-flight has published all the
-  same, and still leads to the order.
-- **No fiat amount field reshapes a typed separator.** A digits-only filter turns a typed
-  `10.50` into `1050`; upstream's grouped field did the same in `es`, where the dot groups
-  (`1.050`), and cut an `en` `1.000` to `1.00`. Either way a valid amount the user never meant
-  was offered. The separator now stays on screen — `wholeAmountInputFormatter` in Simple Mode
-  and the range-take dialog, `ThousandsInputFormatter(keepTypedSeparators: true)` in the create
-  form — and the amount is refused with `orderAmountMustBeWhole` until it is digits. In the
-  create form a separator in grouping position still reads as grouping (`1.000` is a thousand);
-  `canonicalAmount` strips it only there, and `enteredAmount` takes nothing with a decimal
-  part. The fixed-sats field follows the same rule, and so does the premium field (`1.5` used to
-  close up into 15 %): the text stays, nothing is applied, and the reason is said under it.
-  While it stands the form does not publish (`premiumInputInvalidProvider`) — the premium it
-  holds is not the one on screen — and neither Enter nor a tap elsewhere puts the field away.
-  Not covered: the Cashu send dialog, an integer sats field that still drops a typed separator.
-- **A sats estimate repeats mostrod's arithmetic, step for step** (`estimateSats` in
-  `order_detail_rules.dart`, mostrod `get_market_quote`): `fiat / rate × 1e8`, less `premium`
-  percent of it, truncated. A positive premium means fewer sats. Not
-  `fiat / (rate × (1 + premium/100))` — at 10 % the two differ by 1 %.
-- **A daemon refusal is worded in one place.** The core passes a `CantDo` through as
-  `Order rejected by Mostro: <Reason>` (a few still as English prose);
-  `localizedDaemonError` (`lib/core/daemon_errors.dart`) turns reason, prose and local marker
-  into the user's language. No screen shows `e.toString()`, and none passes the raw text as its
-  fallback: a reason with no wording of its own still gets one, naming the daemon's code
-  (`orderRejectedOther`). `InvalidPubkey` reads by the request it answers — a take of your own
-  order with `onTake`, someone else's action otherwise. `PendingOrderExists` has two
-  meanings in mostrod — the taker has a trade waiting on their own step, or (bonded nodes)
-  another taker's bond already locked — so its text says both.
-- **Simple Mode never fills in what it has not read.** The trade view waits for the status and
-  the side instead of assuming `Active` and buyer; `InProgress` is "taken, wait" and tells the
-  buyer not to pay yet; the Buy and Sell lists hold only `pending` orders that are not ours; a
-  range order is taken for the amount typed or not at all; a guarantee appears only when the
-  node's Kind 38385 policy bonds that side (before a trade) or the trade row carries a bond.
-  There is no default bond percentage anywhere. The confirm sheets show this side's half of
-  the node's fee (`tradeFeeShare`, mostrod's rounding) only when the node announced one: the
-  buyer's "you will receive" is net of it, the seller's is added to what they lock. An order
-  of the user's own reads "published, waiting for someone to take it" — never "accepted" —
-  and only once its row is read in, since a take's order can read `pending` too. That is the
-  one status the view offers to withdraw from (`_handleWithdraw`), and it reads the status
-  again when the question is answered: a cancel sent on a trade that went active meanwhile
-  is a request to the counterparty.
-- **The seller's payment details never ride on the order, and leave the device by one door.**
-  An order is public and names methods only (`pm`); the account behind each is kept per method
-  in the settings store, with the identity (`payment_details:saved`, `mostro::payment_details`),
-  and reaches the buyer as a chat message sent by `send_payment_details`. That call refuses
-  unless this user is the seller and the trade row reads `active`, `fiat-sent` or `dispute`
-  (`may_send`), and returns only once a relay accepted the envelope (`send_delivered` —
-  `send_message` keeps a message nobody took and returns it like one that left). In Lightning
-  mode the chat cannot exist before the lock anyway: mostrod names each side's trade key to the
-  other in the two messages that announce `active`. In Cashu mode the seller holds the buyer's
-  key at `waiting-payment`, so the test is the status, never "a chat exists". Don't send them
-  from anywhere else, don't mark them sent on a guess, and don't log them (a test reads both
-  modules' log lines). In Simple Mode the Sell tab and the trade view share one editor
-  (`PaymentDetailsEditor`): its fields are the device's copy, a field to a method, not a draft
-  of one order, and they start over when `resetIdentityScopedState` invalidates
-  `paymentDetailsOwnerProvider` — the Sell tab stays mounted under the Account screen, with the
-  previous user's account numbers in it. The seller is asked at `active` only
-  (`PaymentDetailsSendCard`); the buyer's view says the account comes over the chat. Contract:
-  `specs/004-mostro-p2p-client/contracts/payment_details.md`.
-- **A public `pending` is not always a republication.** mostrod publishes `in-progress` only
-  from (sell, `waiting-buyer-invoice`) and (buy, `waiting-payment`), so a sell order taken with
-  the invoice attached — what this client does whenever a default Lightning address is set —
-  reads `pending` for its whole trade. For our own sell order from the hold-invoice step on
-  (`status::holds_against_public_pending`) the book feed keeps the entry at the row's status
-  and the sweep leaves the row; only the daemon's private `new-order` or `canceled` move it.
-- **A `new-order` on our own `Pending` maker row still advances the status cursor**
-  (`resync_republished_maker_order`), so a newest-first replay cannot apply the messages of a
-  take that was abandoned while the app was closed. Only when the row exists.
-- **A cancel from `WaitingBuyerInvoice` or `WaitingPayment` waits for the daemon**
-  (`pending::publish_and_await_cancel`, up to 10 s). A refusal returns `NotAllowedByStatus` and
-  changes nothing locally; "already cancelled" and a cooperative cancel the daemon opened
-  because the trade went active first both count as done; on silence the local cancel runs
-  under the order's lock and only while the row still exists. Every other cancel goes out
-  without waiting, as before.
-- **The node's dispute id is persisted** under `dispute_id:<order>` (identity-scoped,
-  `mostro::dispute_ids`), written by the dispatcher from the two `dispute-initiated-by-*`
-  messages — the only place it travels. Both parties hold a record from the opening. Never
-  mint an id where one is stored.
-- **A take accepted after the 10 s wait is persisted by the dispatcher**, through
-  `pending::taken_trade` — the constructor `take_order` uses. So `NoDaemonResponse` from a take
-  is not final: the row and a `TradeUpdate` can still arrive. The pending take record carries
-  the amount, lives in memory only, and is matched by trade key plus nonce. Whichever reply
-  consumes it advances the status cursor first — a take gets more than one message with its
-  nonce, and a newest-first replay must not let the older one walk the row back.
-- **New orders and takes are gated on `mostro::node_liveness`** (info event at most 660 s old,
-  no `maintenance_mode`), after a quick look and then a patient one across every relay. It
-  refuses only on evidence — an aged snapshot and a look that read no copy at all means nobody
-  answered, and the order goes out. Age is by the device's clock, so before refusing it also
-  holds the node's event against the newest info event of any **other** node on the relays
-  (`newest_peer_announcement`): within the limit of that **either way** (`abreast_of`), the
-  node is current and the device's clock is what runs ahead. A peer from long before the
-  node's own event is no witness — counted as one, any retired node's last event passed a
-  stopped node as live. Never put that gate in front of an action on an
-  existing trade, and never refresh capabilities
-  from a user action with `fetch_and_set_node_capabilities` — an empty answer resets PoW to 0
-  for trades under way.
-- **A relay is not held to the filter it answers.** nostr-sdk 0.45 verifies the signature of
-  every incoming event, but matches it against the REQ only with `verify_subscriptions`, off
-  here. So anything that *decides* on a fetched event checks kind, author and `d` tag itself,
-  before picking the newest copy: `node_liveness::is_info_event_of` for the node's Kind 38385
-  (capabilities, liveness, maintenance), `select_rates_event` for its rates, `newest_book_order`
-  for orders. An unchecked reader lets any relay in the pool speak for the node.
-- **A rating is a first contact.** The daemon forgets a trade key a minute or two after its
-  order ends, so `rate_user` mines at `pow_first_contact` like a new order does.
-- **Every request carries a request id of its own**, `rate-user` and every cancel included.
-  Only some are waited on. The registries match a reply by its exact id, so an id nobody
-  registered changes nothing about how the reply is handled.
 - **A new identity starts from zero — and every new store must say which side it is on.**
   `delete_identity` (generate *and* import go through it) wipes what the identity produced:
   rows via `Storage::clear_identity_data`, Rust's in-memory stores via `forget_identity_state`,
@@ -432,7 +270,8 @@ one node" under Domain gotchas before touching anything node-related.
   `settings` key family (add its prefix to `IDENTITY_SCOPED_PREFIXES`), a process-wide store,
   a non-`autoDispose` provider — must be added to the matching one, or it leaks into the next
   user's session. The stores are process-wide and tests run in parallel, which is why the
-  identity lifecycle test calls `delete_identity_inner(false)`.
+  identity lifecycle test exercises `delete_identity_inner` with a throwaway store and effect
+  doubles (#553).
 - **`OrderInfo::created_at` is when the order was created, not the event's time.** It comes from
   the NIP-69 `published_at` tag (mostro#1000), then the legacy `created_at` tag (daemon builds
   between mostro#971 and #1000), then the event's time on older nodes; a tag value is capped at
@@ -447,6 +286,16 @@ one node" under Domain gotchas before touching anything node-related.
   means "taken, real state unknown", and a trade's status comes from daemon messages only
   (`wire_status_applies` guards both ingest paths). Treating it as `Active` offers actions the
   daemon rejects with `CantDo` (#203).
+- **A `success` keeps its peer chat for one hour, dated by the completion itself (#642).**
+  `completed_at` is written for `success` alone, before that status reaches the trade row, from
+  the `created_at` of what carried it — the buyer's `purchase-completed`, the
+  seller's Kind 38383 `success` revision (the seller never gets `purchase-completed`) — capped
+  at now, first write wins. Never date it from a now-dated emit or the local clock: a replayed
+  or restored history would reopen old chats. A `success` row without it is closed. A dispute
+  gets no window: the book's plain terminal never replaces an admin verdict
+  (`wire_status_applies`), and a verdict refines a replayed `success` in either order
+  (`status_write_blocked`). Dart decides the room on the persisted row (`TradeRow.rowStatus` +
+  `completedAt`), like `chat_still_relevant_at`, not on the live book status.
 - **Bond statuses never reach the wire book.** `WaitingTakerBond` publishes as `pending` (the
   order stays takeable by others until a bond locks) and `WaitingMakerBond` publishes nothing
   (the order is invisible until the maker's bond locks). Both exist only on the local trade row,

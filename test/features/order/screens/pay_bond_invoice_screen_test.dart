@@ -10,12 +10,16 @@ import 'package:mostro/features/order/providers/bond_providers.dart';
 import 'package:mostro/features/order/providers/exchange_rate_provider.dart';
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
 import 'package:mostro/features/order/screens/pay_bond_invoice_screen.dart';
+import 'package:mostro/features/order/widgets/invoice_widgets.dart';
+import 'package:mostro/features/order/widgets/order_detail_cards.dart';
 import 'package:mostro/features/settings/providers/nwc_provider.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/utils/platform_int64.dart';
+import 'package:mostro/shared/widgets/mostro_modal.dart';
 import 'package:mostro/src/rust/api/types.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../support/fake_trades.dart';
 
@@ -35,6 +39,7 @@ BondInfo _bond({
 Future<void> _pump(
   WidgetTester tester, {
   required TradeInfo trade,
+  bool explainerOpen = false,
   bool walletConnected = false,
   bool? slashOnTimeout,
   Future<TradeInfo> Function(String)? requestAgain,
@@ -42,6 +47,9 @@ Future<void> _pump(
   Future<void> Function(String)? abandon,
   Future<bool> Function(String)? closeExpired,
 }) async {
+  SharedPreferences.setMockInitialValues({
+    kBondExplainerOpenKey: explainerOpen,
+  });
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -88,7 +96,7 @@ void main() {
   ) async {
     await _pump(tester, trade: fakeTrade(bond: _bond()), slashOnTimeout: false);
 
-    expect(find.text('1648'), findsOneWidget);
+    expect(find.text('1,648'), findsOneWidget);
     expect(find.byType(QrImageView), findsOneWidget);
     // Whole sentences: the bold part is spliced into the l10n message and
     // the prose on both sides of it must survive.
@@ -166,9 +174,8 @@ void main() {
     expect(find.text('Read the documentation'), findsOneWidget);
     expect(
       find.textContaining(
-        'It is a hold invoice: your wallet reserves the sats without sending '
-        'them; when the trade completes, the reservation is cancelled on its '
-        'own.',
+        'Your wallet holds the sats without sending them; when the trade '
+        'completes, they are released on their own.',
         findRichText: true,
       ),
       findsOneWidget,
@@ -178,47 +185,28 @@ void main() {
     expect(find.text("Don't take the order"), findsOneWidget);
   });
 
-  testWidgets('arrives on the QR, with the explanation closed', (tester) async {
-    // Taller than the default surface: the explanation is under the three
-    // consequences, and the accordion has to be on screen to be tapped.
-    tester.view.physicalSize = const Size(800, 1400);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-    Future<void> arrive() async {
-      await tester.pumpWidget(const SizedBox.shrink());
-      await _pump(
-        tester,
-        trade: fakeTrade(bond: _bond()),
-        slashOnTimeout: false,
-      );
-    }
-
-    // What someone sent here to pay sees: the invoice, and what can happen
-    // to the deposit. The explanation used to open the first time, in the
-    // QR's place.
-    await arrive();
-    expect(find.byType(QrImageView), findsOneWidget);
-    expect(
-      find.text(
-        'The sats stay held in your wallet, they are not spent',
-        findRichText: true,
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Why Mostro asks for a deposit'), findsOneWidget);
-    expect(find.text('Read the documentation'), findsNothing);
-
-    // Opened, it is the reading view: the long text, no QR.
-    await tester.tap(find.text('Why Mostro asks for a deposit'));
-    await tester.pump();
+  testWidgets('the explainer opens the way the user last left it', (
+    tester,
+  ) async {
+    await _pump(tester, trade: fakeTrade(bond: _bond()), explainerOpen: true);
     expect(find.byType(QrImageView), findsNothing);
     expect(find.text('Read the documentation'), findsOneWidget);
+  });
 
-    // And it was open for that reading, not from then on: the next deposit
-    // arrives on its QR again.
-    await arrive();
-    expect(find.byType(QrImageView), findsOneWidget);
-    expect(find.text('Read the documentation'), findsNothing);
+  testWidgets('the deposit context reads as data rows (DS-CMP-24)', (
+    tester,
+  ) async {
+    await _pump(tester, trade: fakeTrade(bond: _bond()), explainerOpen: true);
+    final row = find.ancestor(
+      of: find.text('You buy 100 USD'),
+      matching: find.byType(OrderDataRow),
+    );
+    expect(row, findsOneWidget);
+    expect(find.descendant(of: row, matching: find.byType(Icon)), findsOne);
+    expect(
+      find.ancestor(of: row, matching: find.byType(OrderDataCard)),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a row without its bolt11 offers the same-take re-request', (
@@ -238,6 +226,50 @@ void main() {
     await tester.pump();
     expect(requested, ['order-1']);
   });
+
+  // DS-CMP-20: leaving the bond window cancels something that exists (the
+  // take, or the unpublished order), so the link is red and asks first.
+  for (final maker in [false, true]) {
+    final leave = maker ? "Don't publish the order" : "Don't take the order";
+    testWidgets('${maker ? 'maker' : 'taker'}: the way out is red and asks '
+        'before cancelling', (tester) async {
+      final canceled = <String>[];
+      await _pump(
+        tester,
+        trade: fakeTrade(
+          isMine: maker,
+          role: maker ? TradeRole.seller : TradeRole.buyer,
+          status:
+              maker
+                  ? OrderStatus.waitingMakerBond
+                  : OrderStatus.waitingTakerBond,
+          bond: _bond(role: maker ? BondRole.maker : BondRole.taker),
+        ),
+        cancel: (id) async => canceled.add(id),
+      );
+
+      final link = find.byWidgetPredicate(
+        (w) => w is InvoiceCancelLink && w.label == leave,
+      );
+      expect(link, findsOneWidget);
+      expect(tester.widget<InvoiceCancelLink>(link).danger, isTrue);
+
+      await tester.ensureVisible(link);
+      await tester.tap(link);
+      await tester.pumpAndSettle();
+      expect(canceled, isEmpty);
+      final dialog = find.byType(MostroDialog);
+      expect(dialog, findsOneWidget);
+      final primary = tester.widget<MostroDialog>(dialog).primary;
+      expect(primary?.label, 'Yes, cancel');
+      expect(primary?.tone, ModalTone.destructive);
+
+      await tester.tap(find.text('Yes, cancel'));
+      await tester.pump();
+      await tester.pump();
+      expect(canceled, ['order-1']);
+    });
+  }
 
   group('maker variant (docs/ANTI_ABUSE_BOND.md §6.2)', () {
     TradeInfo makerTrade({String? invoice = 'lnbc16480n1bond'}) => fakeTrade(
@@ -272,6 +304,9 @@ void main() {
       );
       await tester.ensureVisible(find.text("Don't publish the order"));
       await tester.tap(find.text("Don't publish the order"));
+      // DS-CMP-20: dropping the order asks first.
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Yes, cancel'));
       await tester.pump();
       await tester.pump();
       expect(canceled, ['order-1']);
@@ -295,6 +330,9 @@ void main() {
         );
         await tester.ensureVisible(find.text("Don't publish the order"));
         await tester.tap(find.text("Don't publish the order"));
+        // DS-CMP-20: dropping the order asks first.
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Yes, cancel'));
         await tester.pumpAndSettle();
         expect(find.text("The node didn't cancel the deposit"), findsOneWidget);
         expect(abandoned, isEmpty, reason: 'nothing is dropped on a guess');
@@ -318,6 +356,9 @@ void main() {
       );
       await tester.ensureVisible(find.text("Don't publish the order"));
       await tester.tap(find.text("Don't publish the order"));
+      // DS-CMP-20: dropping the order asks first.
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Yes, cancel'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Keep waiting'));
       await tester.pumpAndSettle();
@@ -335,6 +376,9 @@ void main() {
       );
       await tester.ensureVisible(find.text("Don't publish the order"));
       await tester.tap(find.text("Don't publish the order"));
+      // DS-CMP-20: dropping the order asks first.
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Yes, cancel'));
       await tester.pump();
       await tester.pump();
       expect(

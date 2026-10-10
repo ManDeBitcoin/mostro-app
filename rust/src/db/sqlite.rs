@@ -272,15 +272,6 @@ impl Storage for SqliteStorage {
         Ok(())
     }
 
-    async fn get_trade(&self, id: &str) -> Result<Option<TradeInfo>> {
-        let row: Option<(String,)> =
-            sqlx::query_as("SELECT data FROM trades WHERE id = ?")
-                .bind(id)
-                .fetch_optional(&self.pool)
-                .await?;
-        Ok(row.map(|(data,)| serde_json::from_str(&data)).transpose()?)
-    }
-
     async fn list_trades(&self) -> Result<Vec<TradeInfo>> {
         let rows: Vec<(String, String)> =
             sqlx::query_as("SELECT id, data FROM trades ORDER BY started_at DESC")
@@ -562,10 +553,7 @@ impl Storage for SqliteStorage {
                 .execute(&mut *tx)
                 .await?;
         }
-        for key in [
-            settings_keys::BOND_CLAIM_RETAINED_NODES,
-            settings_keys::RESTORE_SNAPSHOT,
-        ] {
+        for key in settings_keys::IDENTITY_SCOPED_KEYS {
             sqlx::query("DELETE FROM settings WHERE key = ?")
                 .bind(key)
                 .execute(&mut *tx)
@@ -733,27 +721,52 @@ impl Storage for SqliteStorage {
         Ok(())
     }
 
+    async fn set_trade_range_slice(
+        &self,
+        order_id: &str,
+        fiat_amount: Option<f64>,
+        amount_sats: Option<u64>,
+    ) -> Result<()> {
+        // json(?) so a number stays a JSON number and `None` a JSON null.
+        let sql = "UPDATE trades SET data = json_set(\
+             data, \
+             '$.order.fiat_amount', json(?), \
+             '$.order.amount_sats', json(?)) \
+             WHERE json_extract(data, '$.order.id') = ?";
+        sqlx::query(sql)
+            .bind(serde_json::to_string(&fiat_amount)?)
+            .bind(serde_json::to_string(&amount_sats)?)
+            .bind(order_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
     async fn update_trade_peer_reputation(
         &self,
         order_id: &str,
         rating: f64,
         reviews: u32,
         days: u32,
+        since: Option<i64>,
     ) -> Result<()> {
-        // Layer the three scalars with json_set in one statement. Bind rating
+        // Layer the four scalars with json_set in one statement. Bind rating
         // via json(?) so SQLite stores it as a JSON number, not a string — a
         // string would fail to deserialize back into `Option<f64>`. reviews and
-        // days go through json(?) for the same reason (they map to Option<u32>).
+        // days go through json(?) for the same reason (they map to Option<u32>),
+        // and since too: `json('null')` stores a JSON null, read back as None.
         let sql = "UPDATE trades SET data = json_set(\
              data, \
              '$.peer_rating', json(?), \
              '$.peer_reviews', json(?), \
-             '$.peer_days', json(?)) \
+             '$.peer_days', json(?), \
+             '$.peer_since', json(?)) \
              WHERE json_extract(data, '$.order.id') = ?";
         sqlx::query(sql)
             .bind(rating.to_string())
             .bind(reviews.to_string())
             .bind(days.to_string())
+            .bind(serde_json::to_string(&since)?)
             .bind(order_id)
             .execute(&self.pool)
             .await?;
@@ -831,6 +844,50 @@ impl Storage for SqliteStorage {
         Ok(())
     }
 
+    async fn save_announcement(
+        &self,
+        announcement: &crate::nostr::announcement_reader::StoredAnnouncement,
+    ) -> Result<()> {
+        let data = serde_json::to_string(announcement)?;
+        sqlx::query(
+            "INSERT OR REPLACE INTO announcements (address, data, created_at) VALUES (?, ?, ?)",
+        )
+        .bind(&announcement.address)
+        .bind(&data)
+        .bind(announcement.created_at as i64)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn list_announcements(
+        &self,
+    ) -> Result<Vec<crate::nostr::announcement_reader::StoredAnnouncement>> {
+        let rows: Vec<(String, String)> = sqlx::query_as(
+            "SELECT address, data FROM announcements ORDER BY created_at DESC, address",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        let mut announcements = Vec::with_capacity(rows.len());
+        for (address, data) in rows {
+            match serde_json::from_str(&data) {
+                Ok(announcement) => announcements.push(announcement),
+                Err(e) => {
+                    log::warn!("[db] skipping announcement {address}: deserialization failed: {e}")
+                }
+            }
+        }
+        Ok(announcements)
+    }
+
+    async fn delete_announcement(&self, address: &str) -> Result<()> {
+        sqlx::query("DELETE FROM announcements WHERE address = ?")
+            .bind(address)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
     async fn save_attachment_blob(&self, sha256: &str, blob: &[u8]) -> Result<()> {
         sqlx::query(
             "INSERT OR REPLACE INTO attachment_blobs (sha256, data, size, created_at)
@@ -862,6 +919,22 @@ impl Storage for SqliteStorage {
              WHERE json_extract(data, '$.order.id') = ?";
         sqlx::query(sql)
             .bind(rated_at.to_string())
+            .bind(order_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn mark_trade_completed(&self, order_id: &str, completed_at: i64) -> Result<()> {
+        // First write wins: a row that already has a time keeps it. The
+        // denormalised column follows the document.
+        let sql = "UPDATE trades SET data = json_set(\
+             data, '$.completed_at', json(?)), completed_at = ? \
+             WHERE json_extract(data, '$.order.id') = ? \
+             AND json_extract(data, '$.completed_at') IS NULL";
+        sqlx::query(sql)
+            .bind(completed_at.to_string())
+            .bind(completed_at)
             .bind(order_id)
             .execute(&self.pool)
             .await?;
@@ -1143,12 +1216,84 @@ mod tests {
             has_attachment: false,
             attachment: None,
             created_at: 2,
+            reactions: Vec::new(),
         };
         storage.save_message(&msg).await.unwrap();
 
         // A re-wrapped replay carries the same inner id — now known, durably.
         assert!(storage.message_exists(&inner_id).await.unwrap());
         assert!(!storage.message_exists("un".repeat(32).as_str()).await.unwrap());
+
+        drop(storage);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// The contract behind #395, in one place: a row's `trades.id` is not the
+    /// order's, and **every** accessor reaches it by `order.id`. Individual
+    /// methods are covered by their own tests; this one states the rule they
+    /// all follow, so a reader of the storage layer finds it asserted rather
+    /// than implied.
+    ///
+    /// It cannot catch an accessor added later that keys on the primary key —
+    /// no test calls a method it does not know about. What it does is leave
+    /// the invariant written down next to the code that depends on it.
+    #[tokio::test]
+    async fn every_trade_accessor_reaches_a_row_by_its_order_id() {
+        use crate::api::types::*;
+
+        let path = temp_db_path();
+        let storage = SqliteStorage::open(path.to_str().unwrap()).await.unwrap();
+
+        // Taker-shaped: the row id is a fresh UUID, the order id is the
+        // daemon's. Nothing below is allowed to use the former.
+        let row_id = "11111111-1111-4111-8111-111111111111";
+        let order_id = "22222222-2222-4222-8222-222222222222";
+        let mut trade = trade_row(row_id, order_id);
+        storage.save_trade(&trade).await.unwrap();
+
+        // Read.
+        let found = storage
+            .get_trade_by_order_id(order_id)
+            .await
+            .unwrap()
+            .expect("the row is found by the order id");
+        assert_eq!(found.id, row_id, "the row keeps its own id");
+
+        // Write: status, counterparty, reputation — each addressed by order id.
+        storage
+            .update_trade_fields(order_id, Some(OrderStatus::Active), None, Some(5_000))
+            .await
+            .unwrap();
+        storage
+            .update_trade_counterparty(order_id, "peer-pubkey")
+            .await
+            .unwrap();
+        let after = storage
+            .get_trade_by_order_id(order_id)
+            .await
+            .unwrap()
+            .expect("still there after the updates");
+        assert_eq!(after.order.status, OrderStatus::Active);
+        assert_eq!(after.order.amount_sats, Some(5_000));
+        assert_eq!(after.counterparty_pubkey, "peer-pubkey");
+
+        // Re-saving under the same row id replaces rather than duplicates —
+        // the one thing `trades.id` is for.
+        trade.order.status = OrderStatus::FiatSent;
+        storage.save_trade(&trade).await.unwrap();
+        assert_eq!(
+            storage.list_trades().await.unwrap().len(),
+            1,
+            "carrying the row id forward must replace the row, not add one"
+        );
+
+        // Delete.
+        storage.delete_trade_by_order_id(order_id).await.unwrap();
+        assert!(storage
+            .get_trade_by_order_id(order_id)
+            .await
+            .unwrap()
+            .is_none());
 
         drop(storage);
         let _ = std::fs::remove_file(&path);
@@ -1183,6 +1328,8 @@ mod tests {
                 rating: 0.0,
                 total_reviews: 0,
                 days_active: 0,
+                maker_since: None,
+                cashu_mint_url: None,
             },
             role: TradeRole::Buyer,
             counterparty_pubkey: String::new(),
@@ -1198,6 +1345,7 @@ mod tests {
             peer_rating: None,
             peer_reviews: None,
             peer_days: None,
+            peer_since: None,
             rated_at: None,
             bond: None,
             buyer_trade_pubkey: None,
@@ -1260,6 +1408,8 @@ mod tests {
                 rating: 0.0,
                 total_reviews: 0,
                 days_active: 0,
+                maker_since: None,
+                cashu_mint_url: None,
             },
             role: TradeRole::Buyer,
             counterparty_pubkey: String::new(),
@@ -1275,6 +1425,7 @@ mod tests {
             peer_rating: None,
             peer_reviews: None,
             peer_days: None,
+            peer_since: None,
             rated_at: None,
             bond: None,
             buyer_trade_pubkey: None,
@@ -1287,9 +1438,10 @@ mod tests {
         storage.save_trade(&trade("row-a", "order-a")).await.unwrap();
         storage.save_trade(&trade("row-b", "order-b")).await.unwrap();
 
-        // The reproduction's numbers: rating 4.375, 4 reviews, 64 days.
+        // The reproduction's numbers: rating 4.375, 4 reviews, 64 days, plus
+        // the first-trade date a current daemon sends next to the day count.
         storage
-            .update_trade_peer_reputation("order-a", 4.375, 4, 64)
+            .update_trade_peer_reputation("order-a", 4.375, 4, 64, Some(1699920000))
             .await
             .unwrap();
 
@@ -1301,6 +1453,7 @@ mod tests {
         assert_eq!(a.peer_rating, Some(4.375));
         assert_eq!(a.peer_reviews, Some(4));
         assert_eq!(a.peer_days, Some(64));
+        assert_eq!(a.peer_since, Some(1699920000));
 
         // The sibling row is untouched — the update is scoped by order id.
         let b = storage
@@ -1311,11 +1464,13 @@ mod tests {
         assert_eq!(b.peer_rating, None);
         assert_eq!(b.peer_reviews, None);
         assert_eq!(b.peer_days, None);
+        assert_eq!(b.peer_since, None);
 
         // A brand-new taker persists as all-zeros, not as absent — the UI
-        // shows the raw numbers rather than guessing "new user".
+        // shows the raw numbers rather than guessing "new user". A daemon
+        // that predates `since` sends none: it lands as a JSON null.
         storage
-            .update_trade_peer_reputation("order-b", 0.0, 0, 0)
+            .update_trade_peer_reputation("order-b", 0.0, 0, 0, None)
             .await
             .unwrap();
         let b = storage
@@ -1326,21 +1481,38 @@ mod tests {
         assert_eq!(b.peer_rating, Some(0.0));
         assert_eq!(b.peer_reviews, Some(0));
         assert_eq!(b.peer_days, Some(0));
+        assert_eq!(b.peer_since, None);
+        let since_type: Option<String> = sqlx::query_scalar(
+            "SELECT json_type(data, '$.peer_since') FROM trades \
+             WHERE json_extract(data, '$.order.id') = 'order-b'",
+        )
+        .fetch_one(&storage.pool)
+        .await
+        .unwrap();
+        assert_eq!(since_type.as_deref(), Some("null"));
+
+        // A row written before `peer_since` existed has no such key at all;
+        // `serde(default)` must still load it, with the day count intact.
+        sqlx::query("UPDATE trades SET data = json_remove(data, '$.peer_since')")
+            .execute(&storage.pool)
+            .await
+            .unwrap();
+        let a = storage
+            .get_trade_by_order_id("order-a")
+            .await
+            .unwrap()
+            .expect("a row without peer_since still loads");
+        assert_eq!(a.peer_days, Some(64));
+        assert_eq!(a.peer_since, None);
 
         drop(storage);
         let _ = std::fs::remove_file(&path);
     }
 
-    /// The durable rated marker (issue #339) round-trips as a JSON number, is
-    /// scoped to a single order id, and is absent until written.
-    #[tokio::test]
-    async fn mark_trade_rated_round_trips_by_order_id() {
+    /// A buyer's row on `order_id`, for the per-order marker tests.
+    fn trade_row(row_id: &str, order_id: &str) -> crate::api::types::TradeInfo {
         use crate::api::types::*;
-
-        let path = temp_db_path();
-        let storage = SqliteStorage::open(path.to_str().unwrap()).await.unwrap();
-
-        let trade = |row_id: &str, order_id: &str| TradeInfo {
+        TradeInfo {
             id: row_id.into(),
             order: OrderInfo {
                 id: order_id.into(),
@@ -1360,6 +1532,8 @@ mod tests {
                 rating: 0.0,
                 total_reviews: 0,
                 days_active: 0,
+                maker_since: None,
+                cashu_mint_url: None,
             },
             role: TradeRole::Buyer,
             counterparty_pubkey: String::new(),
@@ -1375,6 +1549,7 @@ mod tests {
             peer_rating: None,
             peer_reviews: None,
             peer_days: None,
+            peer_since: None,
             rated_at: None,
             bond: None,
             buyer_trade_pubkey: None,
@@ -1383,9 +1558,18 @@ mod tests {
             cashu_escrow_token: None,
             cashu_locked_at: None,
             cashu_rejected_escrow_tokens: Vec::new(),
-        };
-        storage.save_trade(&trade("row-a", "order-a")).await.unwrap();
-        storage.save_trade(&trade("row-b", "order-b")).await.unwrap();
+        }
+    }
+
+    /// The durable rated marker (issue #339) round-trips as a JSON number, is
+    /// scoped to a single order id, and is absent until written.
+    #[tokio::test]
+    async fn mark_trade_rated_round_trips_by_order_id() {
+        let path = temp_db_path();
+        let storage = SqliteStorage::open(path.to_str().unwrap()).await.unwrap();
+
+        storage.save_trade(&trade_row("row-a", "order-a")).await.unwrap();
+        storage.save_trade(&trade_row("row-b", "order-b")).await.unwrap();
 
         // Absent until written.
         let a = storage
@@ -1412,6 +1596,47 @@ mod tests {
             .unwrap()
             .expect("order-b survives");
         assert_eq!(b.rated_at, None);
+
+        drop(storage);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// The completion time (issue #642) is a JSON number, scoped to one order,
+    /// and never moved once written: a replayed `success` keeps the first.
+    #[tokio::test]
+    async fn mark_trade_completed_keeps_the_first_time() {
+        let path = temp_db_path();
+        let storage = SqliteStorage::open(path.to_str().unwrap()).await.unwrap();
+        storage
+            .save_trade(&trade_row("row-a", "order-a"))
+            .await
+            .unwrap();
+        storage
+            .save_trade(&trade_row("row-b", "order-b"))
+            .await
+            .unwrap();
+
+        storage
+            .mark_trade_completed("order-a", 1_700_000_000)
+            .await
+            .unwrap();
+        storage
+            .mark_trade_completed("order-a", 1_700_009_999)
+            .await
+            .unwrap();
+
+        let a = storage
+            .get_trade_by_order_id("order-a")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(a.completed_at, Some(1_700_000_000));
+        let b = storage
+            .get_trade_by_order_id("order-b")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(b.completed_at, None);
 
         drop(storage);
         let _ = std::fs::remove_file(&path);
@@ -1445,6 +1670,8 @@ mod tests {
                 rating: 0.0,
                 total_reviews: 0,
                 days_active: 0,
+                maker_since: None,
+                cashu_mint_url: None,
             },
             role: TradeRole::Buyer,
             counterparty_pubkey: String::new(),
@@ -1460,6 +1687,7 @@ mod tests {
             peer_rating: None,
             peer_reviews: None,
             peer_days: None,
+            peer_since: None,
             rated_at: None,
             bond: None,
             buyer_trade_pubkey: None,
@@ -1528,6 +1756,8 @@ mod tests {
                 rating: 0.0,
                 total_reviews: 0,
                 days_active: 0,
+                maker_since: None,
+                cashu_mint_url: None,
             },
             role: TradeRole::Buyer,
             counterparty_pubkey: counterparty.into(),
@@ -1543,6 +1773,7 @@ mod tests {
             peer_rating: None,
             peer_reviews: None,
             peer_days: None,
+            peer_since: None,
             rated_at: None,
             bond: None,
             buyer_trade_pubkey: None,
@@ -1639,6 +1870,7 @@ mod tests {
                     has_attachment: false,
                     attachment: None,
                     created_at,
+                    reactions: Vec::new(),
                 })
                 .await
                 .unwrap();
@@ -1680,6 +1912,7 @@ mod tests {
                 has_attachment: false,
                 attachment: None,
                 created_at: 1,
+                reactions: Vec::new(),
             })
             .await
             .unwrap();
@@ -1814,6 +2047,7 @@ mod tests {
                 has_attachment: false,
                 attachment: None,
                 created_at: 1,
+                reactions: Vec::new(),
             })
             .await
             .unwrap();
@@ -2131,6 +2365,8 @@ mod tests {
             rating: 0.0,
             total_reviews: 0,
             days_active: 0,
+            maker_since: None,
+            cashu_mint_url: None,
         };
         storage.save_order(&order).await.unwrap();
         storage
@@ -2151,6 +2387,7 @@ mod tests {
                 peer_rating: None,
                 peer_reviews: None,
                 peer_days: None,
+                peer_since: None,
                 rated_at: None,
                 bond: None,
                 buyer_trade_pubkey: None,
@@ -2174,6 +2411,7 @@ mod tests {
                 has_attachment: false,
                 attachment: None,
                 created_at: 2,
+                reactions: Vec::new(),
             })
             .await
             .unwrap();
@@ -2194,12 +2432,12 @@ mod tests {
             settings_keys::chat_cursor("order-a"),
             settings_keys::dispute_admin("order-a"),
             settings_keys::dispute_mine("order-a"),
-            settings_keys::dispute_id("order-a"),
             settings_keys::status_cursor("order-a"),
             settings_keys::invoice_step_start("order-a"),
             settings_keys::trade_wiped("order-a"),
             settings_keys::BOND_CLAIM_RETAINED_NODES.to_string(),
             settings_keys::RESTORE_SNAPSHOT.to_string(),
+            settings_keys::MY_REPUTATION.to_string(),
         ] {
             storage.set_setting(&key, "1").await.unwrap();
         }
@@ -2228,12 +2466,12 @@ mod tests {
             settings_keys::chat_cursor("order-a"),
             settings_keys::dispute_admin("order-a"),
             settings_keys::dispute_mine("order-a"),
-            settings_keys::dispute_id("order-a"),
             settings_keys::status_cursor("order-a"),
             settings_keys::invoice_step_start("order-a"),
             settings_keys::trade_wiped("order-a"),
             settings_keys::BOND_CLAIM_RETAINED_NODES.to_string(),
             settings_keys::RESTORE_SNAPSHOT.to_string(),
+            settings_keys::MY_REPUTATION.to_string(),
         ] {
             assert_eq!(
                 storage.get_setting(&key).await.unwrap(),

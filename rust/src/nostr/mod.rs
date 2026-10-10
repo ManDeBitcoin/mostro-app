@@ -1,3 +1,5 @@
+pub mod announcement_reader;
+pub mod announcements;
 pub mod blossom;
 pub mod coalesce;
 pub mod first_answer;
@@ -9,5 +11,4 @@ pub mod relay_list;
 pub mod relay_pool;
 pub mod relay_probe;
 pub mod req_census;
-pub mod announcements;
 pub mod subscriptions;

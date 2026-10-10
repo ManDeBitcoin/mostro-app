@@ -9,6 +9,30 @@ bool isStatusRejection(Object error) {
       raw.contains('not allowed in the current order status');
 }
 
+/// How Rust words the node refusing an action: what `cant_do_message`
+/// (`rust/src/api/orders.rs`) makes of a daemon `CantDo` — the prose it
+/// still returns for a few reasons, the markers for the ones Dart localizes,
+/// `CantDo:<reason>` for the rest — and the refusals with a marker of their
+/// own.
+const List<String> _refusalMarkers = [
+  'CantDo:',
+  'Order rejected:',
+  'Action rejected:',
+  'Order is already canceled',
+  'MaintenanceMode',
+  'InvalidTradeIndex',
+  // The node refusing a maker's bond cancel, its bond having locked first.
+  'MakerCancelRefused',
+];
+
+/// Whether [error] is the node answering no (a `CantDo`), as opposed to a
+/// failure that never reached it or never came back: a timeout, a relay, a
+/// protocol mismatch, a local check.
+bool isDaemonRefusal(Object error) {
+  final raw = error.toString();
+  return _refusalMarkers.any(raw.contains);
+}
+
 /// Central mapping from the stable error markers the Rust core emits to
 /// localized, actionable messages.
 ///
@@ -20,19 +44,14 @@ bool isStatusRejection(Object error) {
 ///
 /// Returns [fallback] when the error carries no known marker, so each screen
 /// keeps its action-specific generic failure text.
-///
-/// [onTake] is for the one reason whose meaning depends on the request: the
-/// daemon's `InvalidPubkey` answers a take of the taker's own order, and any
-/// other request made by the party it does not belong to.
 String localizedDaemonError(
   AppLocalizations l10n,
   Object error, {
   required String fallback,
-  bool onTake = false,
 }) {
   final raw = error.toString();
-  // The node speaks a wire protocol this v2-native client does not: it would
-  // never read the request, so only an app or node update fixes it.
+  // The selected node speaks a wire protocol this v2-native client does not:
+  // it would never read the request, so picking another node is the fix.
   if (raw.contains('UnsupportedNodeProtocol')) {
     return l10n.nodeProtocolUnsupported;
   }
@@ -41,13 +60,9 @@ String localizedDaemonError(
   if (raw.contains('NodeCapabilitiesUnknown')) {
     return l10n.nodeCapabilitiesUnknown;
   }
-  // The same wait, met one step earlier: a first-contact message (a new
-  // order, a take, a rating) needs the node's proof-of-work difficulty
-  // before it can be mined, and that fetch has not completed either.
-  if (raw.contains('PowUnknown')) return l10n.nodeCapabilitiesUnknown;
   // The node is in maintenance mode (mostro-core 0.14.6 `MaintenanceMode`):
-  // it refuses new orders and takes until it comes back. Waiting is the only
-  // remedy.
+  // it refuses new orders and takes until it comes back. Waiting or picking
+  // another node in Settings are the only remedies.
   if (raw.contains('MaintenanceMode')) {
     return l10n.mostroMaintenanceMode;
   }
@@ -55,6 +70,13 @@ String localizedDaemonError(
   // it and retry once (mostro::trade_index), so this is a second refusal.
   if (raw.contains('InvalidTradeIndex')) {
     return l10n.invalidTradeIndexError;
+  }
+  // The node does not list the order's currency in its
+  // `fiat_currencies_accepted`. The picker offers only those, so this is a
+  // list that changed, or arrived, after the currency was picked. Rust
+  // returns it as `CantDo:InvalidFiatCurrency` (`cant_do_message`).
+  if (raw.contains('InvalidFiatCurrency')) {
+    return l10n.invalidFiatCurrencyError;
   }
   // The daemon refused the buyer invoice: wrong amount, too short an expiry
   // for its payout window, or not an invoice at all. The Rust core words the
@@ -106,16 +128,6 @@ String localizedDaemonError(
   if (raw.contains('NoRelayAccepted')) {
     return l10n.noRelayAcceptedMessage;
   }
-  // The seller's payment details (`send_payment_details`) leave only while
-  // the escrow is locked, and only once the buyer's key is on this device —
-  // it arrives with the message that announces the lock, so waiting is the
-  // remedy for the second.
-  if (raw.contains('PaymentDetailsEscrowNotLocked')) {
-    return l10n.simplePayDetailsNotLocked;
-  }
-  if (raw.contains('PaymentDetailsPeerUnknown')) {
-    return l10n.simplePayDetailsNoPeerYet;
-  }
   // A range order carries no fixed sats: it is priced at market when taken.
   if (raw.contains('RangeOrderWithSats')) {
     return l10n.rangeOrderWithSats;
@@ -133,89 +145,5 @@ String localizedDaemonError(
   if (raw.contains('DisputeAlreadyOpen')) {
     return l10n.disputeAlreadyOpen;
   }
-  // Pre-send checks of a new order or a take
-  // (`mostro::actions::validate_new_order`): what the daemon would refuse,
-  // or the wire would silently truncate.
-  if (raw.contains('FixedSatsWithPremium')) {
-    return l10n.orderFixedSatsWithPremium;
-  }
-  if (raw.contains('FiatAmountNotWhole')) return l10n.orderAmountMustBeWhole;
-  if (raw.contains('PremiumNotWhole')) return l10n.orderPremiumMustBeWhole;
-  // The node has published no recent info event: it is offline, and the
-  // request was not sent.
-  if (raw.contains('NodeNotAnnouncing')) return l10n.nodeNotAnnouncing;
-  // Someone else took the order first.
-  if (raw.contains('OrderAlreadyTaken')) return l10n.orderAlreadyTaken;
-  // The order left the local book between the tap and the take (its maker
-  // cancelled it, or it expired).
-  if (raw.contains('OrderNotFound')) return l10n.orderNotFoundMessage;
-  // Takes the core refuses before sending anything.
-  if (raw.contains('CannotTakeOwnOrder')) return l10n.orderCannotTakeOwn;
-  if (raw.contains('FiatAmountRequired')) return l10n.orderAmountMustBeWhole;
-  // The bare marker only: `OutOfRangeSatsAmount` and `OutOfRangeFiatAmount`
-  // are the daemon's, about the node's limits, and are worded below.
-  if (_takeOutOfRange.hasMatch(raw)) return l10n.orderTakeAmountOutOfRange;
-  return _localizedRefusal(l10n, raw, onTake: onTake) ?? fallback;
-}
-
-/// The core's `OutOfRange`: a range take for an amount outside the order's
-/// own limits.
-final _takeOutOfRange = RegExp(r'OutOfRange(?![A-Za-z])');
-
-/// The daemon's reason when the core passed a refusal (CantDo) through as
-/// `Order rejected by Mostro: <Reason>` — its wording for every reason it
-/// has no marker or prose of its own for.
-final _refusalReason = RegExp(r'rejected by Mostro: (\w+)');
-
-/// The message for a daemon refusal, or null when [raw] is not one (the
-/// caller's fallback then stands). Reasons are matched on the extracted
-/// name, not by substring: `InvalidPubkey` and `NotFound` are also what
-/// unrelated local errors are called.
-///
-/// A refusal is never shown as the core passed it through. A reason with no
-/// wording of its own gets the general one, naming the daemon's code so
-/// whoever is asked for help can look it up.
-String? _localizedRefusal(
-  AppLocalizations l10n,
-  String raw, {
-  required bool onTake,
-}) {
-  // The reasons the core still words as English prose, or returns as a bare
-  // marker.
-  if (isStatusRejection(raw)) return l10n.orderRejectedByStatus;
-  if (raw.contains('out of the allowed range')) {
-    return l10n.orderRejectedOutOfRange;
-  }
-  if (raw.contains('Order rejected: invalid amount')) {
-    return l10n.orderRejectedInvalidAmount;
-  }
-  if (raw.contains('this order does not belong to you')) {
-    return l10n.orderRejectedNotYours;
-  }
-  return switch (_refusalReason.firstMatch(raw)?.group(1)) {
-    // Not worded as "fixed sats with a premium": that one is refused before
-    // sending (`FixedSatsWithPremium`), so whatever arrives here is some
-    // other parameter the node disliked.
-    'InvalidParameters' => l10n.orderRejectedInvalidParameters,
-    'InvalidAmount' => l10n.orderRejectedInvalidAmount,
-    'InvalidFiatCurrency' => l10n.orderRejectedFiatCurrency,
-    'OutOfRangeSatsAmount' ||
-    'OutOfRangeFiatAmount' => l10n.orderRejectedOutOfRange,
-    'PriceTooStale' => l10n.orderRejectedPriceStale,
-    'PendingOrderExists' => l10n.orderRejectedPendingOrder,
-    // Someone else took it first, or it does not exist on this node.
-    'InvalidOrderStatus' || 'NotFound' => l10n.orderNotFoundMessage,
-    'IsNotYourOrder' => l10n.orderRejectedNotYours,
-    // Taking your own order — one the core did not know was the user's,
-    // or it would have refused first (`CannotTakeOwnOrder`) — or acting as
-    // the party you are not.
-    'InvalidPubkey' =>
-      onTake ? l10n.orderCannotTakeOwn : l10n.orderRejectedNotYourAction,
-    'InvalidPeer' => l10n.orderRejectedOtherParty,
-    null => null,
-    // The daemon gave no reason, or one this build cannot name: still a
-    // refusal, and not something trying again will change.
-    'unknown' || 'Unknown' => l10n.orderRejectedNoReason,
-    final reason => l10n.orderRejectedOther(reason),
-  };
+  return fallback;
 }

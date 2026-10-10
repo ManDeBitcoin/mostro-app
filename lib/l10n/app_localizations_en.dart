@@ -51,8 +51,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get orderDispute => 'Order dispute';
 
   @override
-  String get disputeAdminAssigned =>
-      'An administrator has been assigned to your dispute. They will contact you here shortly.';
+  String get disputeSolverAssigned =>
+      'A dispute resolver has taken your dispute. They will contact you here shortly.';
 
   @override
   String get disputeChatClosed =>
@@ -85,78 +85,166 @@ class AppLocalizationsEn extends AppLocalizations {
       'The order was cooperatively cancelled. No funds were transferred.';
 
   @override
-  String disputeWithBuyer(String handle) {
-    return 'Dispute with Buyer: $handle';
-  }
-
-  @override
-  String disputeWithSeller(String handle) {
-    return 'Dispute with Seller: $handle';
-  }
-
-  @override
   String orderLabel(String orderId) {
     return 'Order $orderId';
   }
 
   @override
-  String get disputeInitiated => 'Initiated';
-
-  @override
-  String get disputeInProgress => 'In progress';
-
-  @override
   String get disputeStatusClosed => 'Closed';
 
   @override
+  String disputeWith(String role, String counterparty) {
+    return 'Dispute with $role: $counterparty';
+  }
+
+  @override
+  String get seller => 'Seller';
+
+  @override
+  String get buyer => 'Buyer';
+
+  @override
+  String get disputeStatusInitiated => 'Initiated';
+
+  @override
+  String get disputeStatusInProgress => 'In-progress';
+
+  @override
+  String get disputeStatusResolved => 'Resolved';
+
+  @override
+  String get disputeInProgress =>
+      'This dispute is currently in progress. A solver is reviewing your case.';
+
+  @override
+  String get disputeInstruction1 =>
+      'Wait for a solver to take your dispute. Once they arrive, share any relevant evidence to help clarify the situation.';
+
+  @override
+  String get disputeInstruction2 =>
+      'The final decision will be made based on the evidence presented.';
+
+  @override
+  String get disputeInstruction3 =>
+      'If you don\'t respond, the system will assume you don\'t want to cooperate and you might lose the dispute.';
+
+  @override
+  String disputeOpenedByYouAgainstSeller(String counterparty) {
+    return 'You opened this dispute against the seller $counterparty, please read carefully below:';
+  }
+
+  @override
+  String disputeOpenedByYouAgainstBuyer(String counterparty) {
+    return 'You opened this dispute against the buyer $counterparty, please read carefully below:';
+  }
+
+  @override
+  String get disputeWaitingForAdmin => 'Waiting for admin assignment';
+
+  @override
   String get disputeLostFundsToBuyer =>
-      'The administrator settled the dispute in the buyer\'s favour. The sats were released to the buyer.';
+      'The dispute resolver settled the dispute in the buyer\'s favour. The sats were released to the buyer.';
 
   @override
   String get disputeLostFundsToSeller =>
-      'The administrator canceled the order and returned the sats to the seller. You did not receive the sats.';
+      'The dispute resolver canceled the order and returned the sats to the seller. You did not receive the sats.';
 
   @override
-  String get walkthroughSlideOneTitle => 'Trade Bitcoin freely — no KYC';
+  String get walkthroughWelcomeTitle => 'P2P Bitcoin, no KYC';
 
   @override
-  String get walkthroughSlideOneBody =>
-      'Mostro is a peer-to-peer exchange that lets you trade Bitcoin for any currency and payment method — no KYC, and no need to give your data to anyone. It\'s built on Nostr, which makes it censorship-resistant. No one can stop you from trading.';
+  String get walkthroughWelcomeBody1 =>
+      'Mostro is a peer-to-peer exchange that lets you trade Bitcoin for any currency and payment method, with no KYC and no need to give your data to anyone.';
 
   @override
-  String get walkthroughSlideTwoTitle => 'Privacy by default';
+  String get walkthroughWelcomeBody2 =>
+      'It\'s built on Nostr, which makes it censorship-resistant. No one can stop you from trading.';
 
   @override
-  String get walkthroughSlideTwoBody =>
-      'Mostro generates a new identity for every exchange, so your trades can\'t be linked. You can also decide how private you want to be:\n• Reputation mode – Lets others see your successful trades and trust level.\n• Full privacy mode – No reputation is built, but your activity is completely anonymous.\nSwitch modes anytime from the Account screen, where you should also save your secret words — they\'re the only way to recover your account.';
+  String get walkthroughPrivacyTitle => 'Privacy by default';
 
   @override
-  String get walkthroughSlideThreeTitle => 'Security at every step';
+  String get walkthroughPrivacyBody1 =>
+      'Mostro generates a new identity for every trade, so your trades can\'t be linked.';
 
   @override
-  String get walkthroughSlideThreeBody =>
-      'Mostro uses Hold Invoices: sats stay in the seller\'s wallet until the end of the trade. This protects both sides. The app is also designed to be intuitive and easy for all kinds of users.';
+  String get walkthroughPrivacyBody2 =>
+      'You can also decide how private you want to be:';
 
   @override
-  String get walkthroughSlideFourTitle => 'Fully encrypted chat';
+  String get walkthroughReputationModeName => 'Reputation mode';
 
   @override
-  String get walkthroughSlideFourBody =>
-      'Each trade has its own private chat, end-to-end encrypted. Only the two users involved can read it. In case of a dispute, you can give the shared key to an admin to help resolve the issue.';
+  String get walkthroughReputationModeBody =>
+      'Lets others see your successful trades and trust level.';
 
   @override
-  String get walkthroughSlideFiveTitle => 'Take an offer';
+  String get walkthroughFullPrivacyModeName => 'Full privacy mode';
 
   @override
-  String get walkthroughSlideFiveBody =>
-      'Browse the order book, choose an offer that works for you, and follow the trade flow step by step. You\'ll be able to check the other user\'s profile, chat securely, and complete the trade with ease.';
+  String get walkthroughFullPrivacyModeBody =>
+      'No reputation is built, but your activity is completely anonymous.';
 
   @override
-  String get walkthroughSlideSixTitle => 'Can\'t find what you need?';
+  String get walkthroughPrivacyFooter =>
+      'Switch modes anytime from the Account screen. That\'s also where you should save your secret words. They\'re the only way to recover your account.';
 
   @override
-  String get walkthroughSlideSixBody =>
-      'You can also create your own offer and wait for someone to take it. Set the amount and preferred payment method — Mostro handles the rest.';
+  String get walkthroughHeldTitle => 'Security at every step';
+
+  @override
+  String get walkthroughHeldBody1 =>
+      'The seller\'s sats stay locked until the trade ends. This protects both sides.';
+
+  @override
+  String get walkthroughHeldBody2 =>
+      'The app is also designed to be intuitive and easy for all kinds of users.';
+
+  @override
+  String get walkthroughChatTitle => 'Fully encrypted chat';
+
+  @override
+  String get walkthroughChatBody1 =>
+      'Each trade has its own private chat, end-to-end encrypted. Only you and your counterpart can read it, unless one of you shares its key.';
+
+  @override
+  String get walkthroughChatBody2 =>
+      'In a dispute, sharing that key with a dispute resolver lets them read the chat and help settle it.';
+
+  @override
+  String get walkthroughTakeTitle => 'Take an order';
+
+  @override
+  String get walkthroughTakeBody1 =>
+      'Browse the order book, choose an order that works for you, and follow the trade step by step.';
+
+  @override
+  String get walkthroughTakeBody2 =>
+      'You\'ll be able to check your counterpart\'s profile, chat securely, and complete the trade with ease.';
+
+  @override
+  String get walkthroughMakeTitle => 'Can\'t find what you need?';
+
+  @override
+  String get walkthroughMakeBody1 =>
+      'You can also create your own order and wait for someone to take it.';
+
+  @override
+  String get walkthroughMakeBody2 =>
+      'Set the amount and your preferred payment method. Mostro handles the rest.';
+
+  @override
+  String get walkthroughNext => 'Next';
+
+  @override
+  String walkthroughStepCounter(int current, int total) {
+    return '$current / $total';
+  }
+
+  @override
+  String walkthroughStepSemantics(int current, int total) {
+    return 'Step $current of $total';
+  }
 
   @override
   String get tabBuyBtc => 'Buy BTC';
@@ -214,7 +302,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get nodeProtocolUnsupported =>
-      'This Mostro node uses a protocol version this app does not support. Check for an app update';
+      'This Mostro node uses a protocol version this app does not support. Pick another node in Settings, or check for an app update';
 
   @override
   String get nodeCapabilitiesUnknown =>
@@ -222,7 +310,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mostroMaintenanceMode =>
-      'The Mostro node you are connected to is under maintenance. Try again later';
+      'The Mostro node you are connected to is under maintenance. Try again later, or connect to a different Mostro node in Settings';
 
   @override
   String get storageUnavailable =>
@@ -233,224 +321,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'A range order can\'t have a fixed sats amount: it is priced at market when taken.';
 
   @override
-  String get nodeNotAnnouncing =>
-      'This community\'s node isn\'t answering right now. Try again in a few minutes.';
-
-  @override
-  String get orderFixedSatsWithPremium =>
-      'An order can\'t carry a fixed sats amount and a premium at the same time.';
-
-  @override
-  String get orderAmountMustBeWhole =>
-      'Enter a whole amount: digits only, no decimals or separators.';
-
-  @override
-  String get orderPremiumMustBeWhole =>
-      'The premium must be a whole percentage.';
-
-  @override
-  String get orderRejectedInvalidAmount =>
-      'The node rejected the amount. Check it and try again.';
-
-  @override
-  String get orderRejectedFiatCurrency =>
-      'This community doesn\'t trade in that currency.';
-
-  @override
-  String get orderRejectedOutOfRange =>
-      'The amount is outside this community\'s limits.';
-
-  @override
-  String get orderRejectedPriceStale =>
-      'The node has no recent price quote. Try again in a few minutes.';
-
-  @override
-  String get orderRejectedPendingOrder =>
-      'The node didn\'t accept this take: you have another trade waiting on you, or someone else has just taken this order.';
-
-  @override
-  String get orderRejectedByStatus =>
-      'The order has changed state and no longer allows this action.';
-
-  @override
-  String get orderRejectedNotYours => 'This order isn\'t yours.';
-
-  @override
-  String get orderRejectedNotYourAction =>
-      'This action isn\'t available to you on this order.';
-
-  @override
-  String get orderRejectedOtherParty =>
-      'This action belongs to the other party.';
-
-  @override
-  String get orderRejectedInvalidParameters =>
-      'The node rejected the request: its parameters are not valid.';
-
-  @override
-  String get simpleCommunityFee => 'Community fee';
-
-  @override
-  String get simpleFeeTakenFromSats => 'Already taken off what you receive';
-
-  @override
-  String get simpleFeeAddedToSats => 'Added to the sats you lock';
-
-  @override
-  String orderRejectedOther(String reason) {
-    return 'The community\'s node refused the request ($reason).';
-  }
-
-  @override
-  String get orderCannotTakeOwn => 'You can\'t take your own order.';
-
-  @override
-  String get orderTakeAmountOutOfRange =>
-      'The amount is outside this order\'s range.';
-
-  @override
-  String get tradesLoadError => 'Your trades could not be loaded.';
-
-  @override
-  String get simpleBeforeCommunityFee => 'Before the community fee';
-
-  @override
-  String get orderRejectedNoReason =>
-      'The community\'s node refused the request without giving a reason.';
-
-  @override
-  String get simpleMethodsChoose => 'Choose one or more';
-
-  @override
-  String get simpleMethodsAny => 'Any payment method';
-
-  @override
-  String get simpleMethodsPick => 'Choose';
-
-  @override
-  String get simpleMethodsEdit => 'Change';
-
-  @override
-  String get simpleMethodsSellHint =>
-      'Tick every way you can be paid. The buyer will pay you by one of them.';
-
-  @override
-  String get simpleMethodsBuyHint =>
-      'Tick the ways you can pay: you will see the offers that take at least one of them. With none ticked you see them all.';
-
-  @override
-  String simpleMethodsDone(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'Done · $count chosen',
-      one: 'Done · 1 chosen',
-      zero: 'Done',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get simpleMethodsClear => 'Clear all';
-
-  @override
-  String simpleMethodsNoMatch(String query) {
-    return 'No method matches “$query”.';
-  }
-
-  @override
-  String get simpleMethodsChooseOne => 'Choose at least one payment method';
-
-  @override
-  String simpleSummaryMethods(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'Payment methods',
-      one: 'Payment method',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get simpleCategoryTickAll => 'All';
-
-  @override
-  String get simpleCategoryTickNone => 'None';
-
-  @override
-  String simpleCategoryTickAllLabel(String category) {
-    return 'Tick all in $category';
-  }
-
-  @override
-  String simpleCategoryTickNoneLabel(String category) {
-    return 'Untick all in $category';
-  }
-
-  @override
-  String simpleCategoryCount(int chosen, int total) {
-    return '$chosen of $total';
-  }
-
-  @override
-  String simpleOffersCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count offers',
-      one: '1 offer',
-      zero: 'No offers',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get simpleCategoryBanks => 'Banks';
-
-  @override
-  String get simpleCategoryCooperatives => 'Credit unions';
-
-  @override
-  String get simpleCategoryWallets => 'Wallets & apps';
-
-  @override
-  String get simpleCategoryCash => 'Cash';
-
-  @override
-  String get simpleCategoryCrypto => 'Crypto';
-
-  @override
-  String get simpleCategoryOther => 'Other';
-
-  @override
-  String get simpleCategoryOnOffers => 'Also on offers';
-
-  @override
-  String simpleRangeAmountHint(String min, String max, String code) {
-    return 'Type a whole amount between $min and $max $code above';
-  }
-
-  @override
-  String get simpleTakenWaitingNode =>
-      'Trade taken. Waiting for the node\'s next step…';
-
-  @override
-  String get simpleDoNotPayYet =>
-      'Don\'t send the money yet: the Bitcoin is not secured yet.';
-
-  @override
-  String get orderRequestFailed =>
-      'The request could not be completed. Try again.';
-
-  @override
   String get orderIdCopied => 'Order ID copied';
 
   @override
   String get comingSoonMessage => 'Coming soon';
-
-  @override
-  String get tradeStatusActive => 'Active';
 
   @override
   String get tradeStatusCompleted => 'Completed';
@@ -757,8 +631,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nodeStatusUnreachableNoSignal => 'Not responding';
 
   @override
-  String get nodeDisclaimerShort =>
-      'Each node is run by an independent third party. Mostro is not responsible for their conduct or for your trades.';
+  String get nodeChoiceSubtitle =>
+      'Select the Mostro node you want to trade on';
+
+  @override
+  String get nodeOperatorDisclaimer =>
+      'The Mostro development team is not responsible for how node operators use the platform. Each operator controls their own Mostro node and is solely responsible for their actions. By using Mostro, you accept full responsibility for your trades and acknowledge that the development team has no control over individual node operators.';
+
+  @override
+  String get nodeChoiceConfirm => 'Use this node';
+
+  @override
+  String get nodeChoiceSaveFailed => 'Couldn\'t save your choice. Try again.';
 
   @override
   String get nodeVerifyKeyWarning =>
@@ -1186,7 +1070,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get openDisputeConfirmation =>
-      'Are you sure you want to open a dispute? This escalates the trade to an admin and cannot be undone.';
+      'Are you sure you want to open a dispute? This escalates the trade to a dispute resolver and cannot be undone.';
 
   @override
   String get disputeAlreadyOpen => 'A dispute for this trade is already open.';
@@ -1428,7 +1312,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notifDisputeUpdatesSubtitle =>
-      'Admin actions and dispute resolutions';
+      'Resolver actions and dispute resolutions';
 
   @override
   String get searchCurrenciesHint => 'Search currencies…';
@@ -1586,8 +1470,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'If it expires, the order is removed from the book. It won\'t affect your reputation.';
 
   @override
-  String get tradeTimerWaitingInvoiceConsequence =>
-      'If it expires, the trade is cancelled and the order returns to the book.';
+  String get tradeTimerExpiryBackToBook =>
+      'If it expires, the order goes back to the book.';
+
+  @override
+  String get tradeTimerExpiryCancelled =>
+      'If it expires, the order is cancelled.';
 
   @override
   String get tradeStepOrderTaken => 'Order taken';
@@ -1679,6 +1567,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get satsAmountLabel => 'Sats Amount';
 
   @override
+  String get peerReputationUnavailable =>
+      'This user\'s reputation is not available';
+
+  @override
   String get statusLabel => 'Status';
 
   @override
@@ -1688,25 +1580,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createdLabel => 'Created';
 
   @override
-  String get tradeDetailsPlaceholder =>
-      'Details wired when trade provider available (Phase 10+)';
-
-  @override
   String get userInformationTitle => 'User Information';
-
-  @override
-  String get peerPublicKeyLabel => 'Peer\'s Public Key';
-
-  @override
-  String get yourSharedKeyLabel => 'Your Shared Key';
-
-  @override
-  String get sharedKeyPlaceholder =>
-      'Available after bridge integration (Phase 10+)';
-
-  @override
-  String get sharedKeySafetyNote =>
-      'Keep your shared key safe — it is needed for dispute resolution';
 
   @override
   String get fileTypeVideo => 'Video';
@@ -1765,7 +1639,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enterInvoiceManually => 'Enter invoice manually';
 
   @override
-  String get submitButton => 'Submit';
+  String get rangeAmountTakeAction => 'Take order';
 
   @override
   String get buyerReputation => 'Buyer reputation';
@@ -1783,13 +1657,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get daysActiveStatLabel => 'days active';
 
   @override
-  String timeRemainingLabel(String time) {
-    return 'Time remaining: $time';
+  String orderAmountOutOfRange(int min, int max) {
+    return 'Amount must be between $min and $max sats for this Mostro node';
   }
 
   @override
-  String orderAmountOutOfRange(int min, int max) {
-    return 'Amount must be between $min and $max sats for this Mostro node';
+  String orderCurrencyNotAccepted(String currency) {
+    return 'This Mostro node does not accept $currency. Pick another currency';
   }
 
   @override
@@ -1846,9 +1720,9 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count chosen',
-      one: '1 chosen',
-      zero: 'none chosen',
+      other: '$count selected',
+      one: '1 selected',
+      zero: 'none selected',
     );
     return '$_temp0';
   }
@@ -2000,7 +1874,18 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get adminLabel => 'Admin';
+  String get solverLabel => 'Resolver';
+
+  @override
+  String get serberoLabel => 'Serbero';
+
+  @override
+  String get disputeSerberoAssigned =>
+      'Serbero, an automated assistant, is helping with your dispute. It will ask you a few questions here and hand the case to a person if needed.';
+
+  @override
+  String get disputeSolverTookOver =>
+      'A dispute resolver has taken over your dispute.';
 
   @override
   String get disputeScreenTitle => 'Dispute';
@@ -2307,9 +2192,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutCashuMintUrlLabel => 'Mint';
 
   @override
-  String get aboutCashuMintNotAdvertised => 'Not advertised';
-
-  @override
   String get aboutCashuLocktimeLabel => 'Escrow locktime';
 
   @override
@@ -2389,6 +2271,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tradeChatEncrypted => 'End-to-end encrypted chat';
+
+  @override
+  String get tradeChatClosed => 'Conversation closed · view messages';
+
+  @override
+  String get tradeChatClosedAnnouncement =>
+      'The conversation is closed. You can still read its messages';
 
   @override
   String get tradeBodyWaitingPaymentBuyer =>
@@ -2621,6 +2510,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get takeOrderUnavailable => 'No longer available';
 
   @override
+  String get takeOrderFailed => 'Could not take the order. Please try again.';
+
+  @override
   String get takeOrderClosed => 'Closed';
 
   @override
@@ -2731,6 +2623,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get openSystemSettingsAction => 'Open settings';
 
   @override
+  String get notificationsPermissionNotAsked =>
+      'This browser has not been allowed to show notifications yet.';
+
+  @override
+  String get allowNotificationsAction => 'Allow notifications';
+
+  @override
   String get notificationsPrivacyFootnote =>
       'Notifications carry no amounts and no counterparties. A push travels through Google\'s or Apple\'s servers and says only that there is something to see.';
 
@@ -2740,6 +2639,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get pushMasterToggleSubtitle =>
       'Wakes the app when a trade or chat message arrives. The notification itself carries nothing.';
+
+  @override
+  String get pushWebStopsWithTab =>
+      'Stops 30 to 48 h after this tab last ran Mostro';
 
   @override
   String get pushStatusOff =>
@@ -2865,7 +2768,21 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get aboutLimitsFootnote => 'Limits in satoshis per order';
+  String get aboutNodeDepositNone => 'No';
+
+  @override
+  String aboutNodeDepositFloor(String amount) {
+    return 'min. $amount sats';
+  }
+
+  @override
+  String get aboutDepositCell => 'Deposit';
+
+  @override
+  String get aboutCurrenciesCell => 'Currencies';
+
+  @override
+  String get aboutOrderExpiryCell => 'Expiration';
 
   @override
   String get aboutNodeTechnicalDataRow => 'Node technical data';
@@ -2895,7 +2812,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String aboutHoursShort(int count) {
-    return '$count h';
+    return '$count h';
   }
 
   @override
@@ -3136,7 +3053,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bondTitle => 'Anti-abuse deposit';
 
   @override
-  String get bondRefundableLabel => 'REFUNDABLE DEPOSIT';
+  String get bondRefundableLabel => 'Refundable deposit';
 
   @override
   String get bondComesBack => 'comes back to you when the trade completes';
@@ -3193,9 +3110,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Mostro does not hold funds, so it cannot penalise whoever abandons a trade; the deposit does that job, and protects every user against scammers.';
 
   @override
-  String bondWhyHold(String hold) {
-    return 'It is a $hold invoice: your wallet reserves the sats without sending them; when the trade completes, the reservation is cancelled on its own.';
-  }
+  String get bondWhyHold =>
+      'Your wallet holds the sats without sending them; when the trade completes, they are released on their own.';
 
   @override
   String get bondWhyDispute =>
@@ -3272,6 +3188,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bondRemoveFromDevice => 'Remove from this device';
 
   @override
+  String get bondLeaveMakerTitle => 'Don\'t publish this order?';
+
+  @override
+  String get bondLeaveMakerBody =>
+      'The order won\'t be published and its deposit invoice is cancelled.';
+
+  @override
+  String get bondLeaveTakerTitle => 'Don\'t take this order?';
+
+  @override
+  String get bondLeaveTakerBody =>
+      'The order stays in the book for others and the deposit invoice is cancelled.';
+
+  @override
   String get bondKeepWaiting => 'Keep waiting';
 
   @override
@@ -3287,7 +3217,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bondClaimTitle => 'Claim your share';
 
   @override
-  String get bondClaimShareLabel => 'YOUR SHARE';
+  String get bondClaimShareLabel => 'Your share';
 
   @override
   String bondClaimShareSemantics(String sats) {
@@ -3476,9 +3406,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bondRequestFailed => 'The node did not resend the deposit invoice';
 
   @override
-  String get invoiceOrderIdCopied => 'Order ID copied';
-
-  @override
   String get invoiceYouReceiveLabel => 'You will receive';
 
   @override
@@ -3592,9 +3519,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get invoiceOpenWallet => 'Open in my wallet';
 
   @override
-  String invoiceHoldNote(String hold) {
-    return 'This is a $hold invoice: the sats are held, they don\'t leave your wallet until you confirm the buyer\'s payment.';
-  }
+  String get invoiceHoldNote =>
+      'The sats are held: they don\'t leave your wallet until you confirm the buyer\'s payment.';
 
   @override
   String invoiceQrSemantics(String invoice) {
@@ -3602,21 +3528,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get invoiceExpiredTitle => 'The invoice expired';
-
-  @override
-  String get invoiceExpiredBody =>
-      'It was not paid in time: Mostro cancels the trade and no sats left your wallet.';
-
-  @override
   String get invoiceBackToBook => 'Back to the order book';
 
   @override
-  String get invoiceTimeUpTitle => 'Time is up';
+  String get invoiceStepElapsed =>
+      'Time is up. Mostro will close this step shortly unless it is completed.';
 
   @override
-  String get invoiceTimeUpBody =>
-      'The invoice was not sent in time: Mostro cancels the trade. Nothing was committed on your side.';
+  String get stepElapsedBackToBook =>
+      'Time is up. If it is not completed, Mostro will return the order to the book shortly.';
+
+  @override
+  String get stepElapsedCancelled =>
+      'Time is up. If it is not completed, Mostro will cancel the order shortly.';
 
   @override
   String invoiceErrorWrongNetwork(String invoice, String node) {
@@ -3627,6 +3551,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String invoiceCountdownHours(String hours, String minutes) {
     return '$hours h $minutes';
   }
+
+  @override
+  String get countdownExpiresInLabel => 'Expires in';
+
+  @override
+  String get bondPayWithinLabel => 'Pay within';
 
   @override
   String get tradeCardWaitingBuyerInvoiceTitle =>
@@ -3776,6 +3706,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your account is out of sync with this Mostro node, so it refused the order. Try again in a moment';
 
   @override
+  String get invalidFiatCurrencyError =>
+      'This Mostro node does not accept that currency, so it refused the order. Pick another currency';
+
+  @override
   String get recoveringTradesMessage =>
       'Account imported. Recovering your trades from Mostro…';
 
@@ -3796,7 +3730,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Account imported, but Mostro did not answer, so your trades in progress were not recovered';
 
   @override
-  String get paymentMethodsChosenLabel => 'Chosen';
+  String get paymentMethodsChosenLabel => 'Selected';
 
   @override
   String paymentMethodsSelectedCount(int count) {
@@ -3805,7 +3739,7 @@ class AppLocalizationsEn extends AppLocalizations {
       locale: localeName,
       other: '$count methods selected',
       one: '1 method selected',
-      zero: 'Choose at least one method',
+      zero: 'Select at least one method',
     );
     return '$_temp0';
   }
@@ -3846,6 +3780,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fundsAtRiskBondInvoicePending => 'Bond invoice still payable';
+
+  @override
+  String get fundsAtRiskCashuBalance => 'Ecash in the Cashu wallet';
+
+  @override
+  String get fundsAtRiskCashuHint => 'Only this user\'s words bring it back';
 
   @override
   String get fundsAtRiskKeep => 'Keep this user';
@@ -4062,6 +4002,44 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cashuNotConnected => 'Not connected to a mint';
 
   @override
+  String get cashuNoMintSet =>
+      'No mint set. Set one, or receive a token to use its mint.';
+
+  @override
+  String get cashuSetMintButton => 'Set mint';
+
+  @override
+  String get cashuChangeMintButton => 'Change mint';
+
+  @override
+  String get cashuMintDialogTitle => 'Cashu mint';
+
+  @override
+  String get cashuMintFieldLabel => 'Mint URL';
+
+  @override
+  String get cashuMintFieldHint => 'https://mint.example.com';
+
+  @override
+  String get cashuChangeMintTitle => 'Change mint?';
+
+  @override
+  String cashuChangeMintWarning(String sats, String mint) {
+    return 'Your $sats sats stay at $mint. They come back when you connect to that mint again.';
+  }
+
+  @override
+  String get cashuErrorNoMint => 'Set a mint in the Cashu wallet first.';
+
+  @override
+  String get cashuErrorInvalidMintUrl =>
+      'That is not a mint URL you can use. It must start with https://.';
+
+  @override
+  String get cashuErrorWalletOnOtherMint =>
+      'Your Cashu wallet uses another mint. Switch it to this node\'s mint in Settings → Cashu wallet, then try again.';
+
+  @override
   String get cashuReceiveButton => 'Receive';
 
   @override
@@ -4069,6 +4047,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cashuReceiveHint => 'Paste or scan a Cashu token';
+
+  @override
+  String get cashuReceiveTitle => 'Receive a token';
+
+  @override
+  String get cashuTokenFieldLabel => 'Cashu token';
+
+  @override
+  String get cashuPasteTokenHint => 'Paste a Cashu token';
+
+  @override
+  String get qrScanUnavailable => 'Not available on this device';
 
   @override
   String get cashuAmountLabel => 'Amount in sats';
@@ -4099,7 +4089,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cashuWalletExplanation =>
-      'This wallet holds ecash issued by the mint your Mostro node uses. It exists to fund and receive trades on that node — it is not a general-purpose wallet.';
+      'This wallet holds ecash from the mint you choose. It exists to fund and receive Cashu trades — it is not a general-purpose wallet.';
 
   @override
   String get cashuErrorNotEnabled =>
@@ -4115,7 +4105,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cashuErrorMintUnusable =>
-      'This node\'s mint is missing features the escrow needs, so trading is not possible here.';
+      'This mint is missing features the wallet needs. Choose another mint.';
 
   @override
   String get cashuErrorUnsupportedOnWeb =>
@@ -4158,10 +4148,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get cashuTokenTooLargeForQr =>
       'This token is too large for a QR code. Copy it instead.';
-
-  @override
-  String get cashuErrorMintChanged =>
-      'The active node changed and this wallet is bound to another mint. Go back and open the wallet again.';
 
   @override
   String get cashuErrorNoMnemonic =>
@@ -4252,8 +4238,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your escrow is locked but the node has not confirmed it. Retrying is safe — it will not lock a second time.';
 
   @override
-  String get lockEscrowMintUnknown =>
-      'This node has not published its mint, so there is nowhere to lock the escrow.';
+  String get lockEscrowMintNotSupported =>
+      'This node lets each order choose its mint, and this version of the app can only lock an escrow on a node with a single mint.';
 
   @override
   String get lockEscrowNotRecorded =>
@@ -4296,190 +4282,113 @@ class AppLocalizationsEn extends AppLocalizations {
       'They\'re locking the sats in escrow. Once it\'s locked, it\'s your turn to pay the fiat.';
 
   @override
-  String get simplePayDetailsLocalNote =>
-      'Kept on this device only. They are not published with the offer: you send them to the buyer over the encrypted chat once your Bitcoin is locked.';
+  String get shareChatKeyAction => 'Share the chat key with the resolver';
 
   @override
-  String get simplePayDetailsPickFirst =>
-      'First choose how you want to be paid.';
+  String get shareChatKeyTitle => 'Share the chat key with the resolver?';
 
   @override
-  String get simplePayDetailsLabel => 'Payment details';
+  String get shareChatKeyBody =>
+      'If you confirm, the resolver of this dispute will be able to read the whole chat between you and your counterparty in this order, and only that chat: not the chats of your earlier or later trades. This cannot be undone. Sharing is optional, but it helps the resolver settle the dispute faster.';
 
   @override
-  String get simplePayDetailsNotPublished =>
-      'Not published with the offer. You send them to the buyer over the chat once your Bitcoin is locked.';
+  String get shareChatKeyConfirm => 'Share';
 
   @override
-  String get simplePayDetailsLater =>
-      'You have not written your payment details yet. You can write and send them once a buyer takes the offer.';
+  String get chatKeySharedIndicator => 'Chat key shared with the resolver';
 
   @override
-  String get simplePayDetailsSendTitle =>
-      'Send your payment details to the buyer';
+  String get shareChatKeyUnavailable =>
+      'The chat key of this trade is not available on this device.';
 
   @override
-  String get simplePayDetailsSendBody =>
-      'The buyer needs them to pay you. They travel encrypted over the chat: only the buyer sees them.';
+  String get moreReactions => 'More reactions';
 
   @override
-  String get simplePayDetailsSendAction => 'Send to the buyer';
-
-  @override
-  String get simplePayDetailsSendAgain => 'Send again';
-
-  @override
-  String simplePayDetailsSentAt(String time) {
-    return 'Payment details sent to the buyer · $time';
+  String messageReactionLabel(String emoji) {
+    return 'Reaction: $emoji';
   }
 
   @override
-  String get simplePayDetailsNothingToSend =>
-      'Write your details for at least one method to send them.';
+  String get reactionSendFailed =>
+      'Couldn\'t send the reaction. Please try again.';
 
   @override
-  String get simplePayDetailsSendFailed =>
-      'Your details could not be sent. Try again.';
+  String get messageMenuHint => 'Open the message menu';
 
   @override
-  String get simplePayDetailsNoPeerYet =>
-      'There is no connection with the buyer yet. Wait a moment and try again.';
+  String get cashuAnyMint => 'Any mint';
 
   @override
-  String get simplePayDetailsNotLocked =>
-      'Your details can only be sent once the Bitcoin is locked.';
+  String get settingsMintLabel => 'Mint';
 
   @override
-  String get simplePayDetailsMessageHeader =>
-      'My details to receive the payment:';
+  String get settingsMintCopied => 'Mint URL copied';
 
   @override
-  String simplePayDetailsInclude(String method) {
-    return 'Include $method';
-  }
+  String get pwaInstallTitle => 'Install Mostro';
 
   @override
-  String get simplePayDetailsViewChat => 'View chat';
+  String get pwaInstallBody =>
+      'Open it from your home screen, full screen, like any other app.';
 
   @override
-  String get simplePayDetailsFromSeller =>
-      'The seller sends you their payment details over the encrypted chat. If they have not arrived yet, ask for them there.';
+  String get pwaInstallAction => 'Install';
 
   @override
-  String get simplePayDetailsOpenChat => 'Open chat';
+  String get pwaInstallNotNow => 'Not now';
 
   @override
-  String simplePayDetailsNewMessages(int count) {
+  String get pwaInstallSettingTitle => 'Install app';
+
+  @override
+  String get pwaInstallStepsTitle => 'Add Mostro to your home screen';
+
+  @override
+  String get pwaInstallStepShare =>
+      'Tap the Share button in your browser\'s toolbar.';
+
+  @override
+  String get pwaInstallStepAdd => 'Choose “Add to Home Screen”.';
+
+  @override
+  String get pwaInstallStepsDone => 'Got it';
+
+  @override
+  String get myReputationTitle => 'Your reputation';
+
+  @override
+  String myReputationReviews(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count new messages',
-      one: '1 new message',
+      other: '$count ratings',
+      one: '1 rating',
     );
     return '$_temp0';
   }
 
   @override
-  String get simplePriceLabel => 'Price';
-
-  @override
-  String get simplePriceMarket => 'Market';
-
-  @override
-  String get simplePriceLower => '1 % lower';
-
-  @override
-  String get simplePriceRaise => '1 % higher';
-
-  @override
-  String get simplePriceSellMarket => 'You sell at the market price.';
-
-  @override
-  String simplePriceSellAbove(String percent) {
-    return 'At a premium: you hand over $percent % fewer sats.';
+  String myReputationSince(String date) {
+    return 'since $date';
   }
 
   @override
-  String simplePriceSellBelow(String percent) {
-    return 'At a discount: you hand over $percent % more sats.';
+  String get myReputationNoReviews =>
+      'No ratings yet. Your reputation starts with your first rated trade.';
+
+  @override
+  String get myReputationPrivacyMode =>
+      'Full privacy mode keeps no reputation. Choose reputation mode below to build one.';
+
+  @override
+  String get myReputationLoading => 'Asking your node…';
+
+  @override
+  String get myReputationUnavailable => 'Your node has not answered yet.';
+
+  @override
+  String myReputationOnNode(String node) {
+    return 'On $node';
   }
-
-  @override
-  String get simplePriceBuyMarket => 'You buy at the market price.';
-
-  @override
-  String simplePriceBuyAbove(String percent) {
-    return 'At a premium: you receive $percent % fewer sats.';
-  }
-
-  @override
-  String simplePriceBuyBelow(String percent) {
-    return 'At a discount: you receive $percent % more sats.';
-  }
-
-  @override
-  String get simpleBuyOrderPrompt => 'No offer suits you?';
-
-  @override
-  String get simpleBuyOrderPromptAction => 'Publish your own';
-
-  @override
-  String get simpleBuyOrderEmptyHint =>
-      'Try another payment method, or publish your own buy order: the community\'s sellers will see it.';
-
-  @override
-  String get simpleBuyOrderAction => 'Publish buy order';
-
-  @override
-  String get simpleBuyOrderOpen => 'Create a buy order';
-
-  @override
-  String get simpleBuyOrderTitle => 'Publish your buy order';
-
-  @override
-  String get simpleBuyOrderAmount => 'You want to buy';
-
-  @override
-  String get simpleBuyOrderMethods => 'How can you pay?';
-
-  @override
-  String get simpleBuyOrderMethodsHint =>
-      'Tick every way you can pay. They are published with your order.';
-
-  @override
-  String get simpleBuyOrderNotice =>
-      'The community\'s sellers will see your order. When one takes it and their Bitcoin is locked, the app tells you to pay. Do not send money before that.';
-
-  @override
-  String get simpleOfferWaitingTaker =>
-      'Offer published. Waiting for someone to take it';
-
-  @override
-  String get simpleWithdrawOffer => 'Withdraw offer';
-
-  @override
-  String get simpleWithdrawTitle => 'Withdraw your offer?';
-
-  @override
-  String get simpleWithdrawBody =>
-      'It will no longer show on the market. You can publish another whenever you like.';
-
-  @override
-  String get simpleWithdrawBodyBond =>
-      'It will no longer show on the market and your temporary guarantee is released. You can publish another whenever you like.';
-
-  @override
-  String get simpleWithdrawConfirm => 'Yes, withdraw';
-
-  @override
-  String get simpleWithdrawSent =>
-      'Withdrawal sent. Your offer will stop showing in a few seconds.';
-
-  @override
-  String get simpleWithdrawFailed =>
-      'The offer could not be withdrawn. Try again.';
-
-  @override
-  String get simpleWithdrawTaken =>
-      'Someone has just taken your offer: it can no longer be withdrawn.';
 }

@@ -110,8 +110,15 @@ BondCancelCopy bondCancelCopy(TradeUpdateReason? reason) => switch (reason) {
   // the bond window; nothing to explain here.
   TradeUpdateReason.cooperativeCancelRequestedByMe ||
   TradeUpdateReason.cooperativeCancelRequestedByPeer ||
+  // A re-stated status (a restore, a re-read) says nothing new.
+  TradeUpdateReason.replayed ||
   null => BondCancelCopy.neutral,
 };
+
+/// The explainer accordion is open the first time a user sees the screen
+/// and then remembers what they did with it — per user, not per screen
+/// (handoff, "estado del acordeón persistente").
+bool bondExplainerOpens({required bool? stored}) => stored ?? true;
 
 /// `2 060 ARS`: the fiat equivalent rounded to whole units in [locale]'s
 /// digit grouping, with the order's currency code.

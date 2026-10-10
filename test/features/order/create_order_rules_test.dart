@@ -5,6 +5,44 @@ import 'package:mostro/features/about/models/mostro_instance.dart'
 import 'package:mostro/features/order/models/create_order_rules.dart';
 
 void main() {
+  group('fiatRefused', () {
+    test('only a listed node can refuse a currency', () {
+      expect(fiatRefused('USD', ['ARS']), isTrue);
+      expect(fiatRefused('ARS', ['ARS']), isFalse);
+      expect(fiatRefused('USD', null), isFalse);
+    });
+  });
+
+  group('fiatForNode', () {
+    test('keeps an accepted currency', () {
+      expect(fiatForNode('USD', ['ARS', 'USD']), 'USD');
+    });
+
+    test('falls back to the node\'s first currency', () {
+      expect(fiatForNode('USD', ['ARS', 'EUR']), 'ARS');
+    });
+
+    test('no limit keeps the current currency', () {
+      expect(fiatForNode('USD', null), 'USD');
+    });
+  });
+
+  group('offeredFiatCodes', () {
+    const catalogue = ['USD', 'EUR', 'ARS'];
+
+    test('narrows the catalogue to the accepted codes, in its order', () {
+      expect(offeredFiatCodes(catalogue, ['ARS', 'USD']), ['USD', 'ARS']);
+    });
+
+    test('keeps an accepted code the catalogue does not know, last', () {
+      expect(offeredFiatCodes(catalogue, ['CUP', 'EUR']), ['EUR', 'CUP']);
+    });
+
+    test('no limit offers the whole catalogue', () {
+      expect(offeredFiatCodes(catalogue, null), catalogue);
+    });
+  });
+
   group('makerBondApplies', () {
     test('applies only to an enabled policy that bonds makers', () {
       expect(
@@ -33,37 +71,6 @@ void main() {
         isFalse,
       );
       expect(makerBondApplies(policy: null, applyTo: null), isFalse);
-    });
-  });
-
-  group('takerBondApplies', () {
-    test('applies only to an enabled policy that bonds takers', () {
-      expect(
-        takerBondApplies(policy: BondPolicy.enabled, applyTo: BondApplyTo.take),
-        isTrue,
-      );
-      expect(
-        takerBondApplies(policy: BondPolicy.enabled, applyTo: BondApplyTo.both),
-        isTrue,
-      );
-      expect(
-        takerBondApplies(policy: BondPolicy.enabled, applyTo: BondApplyTo.make),
-        isFalse,
-      );
-    });
-    test('unknown, disabled or missing policy takes as before', () {
-      expect(
-        takerBondApplies(
-          policy: BondPolicy.disabled,
-          applyTo: BondApplyTo.both,
-        ),
-        isFalse,
-      );
-      expect(
-        takerBondApplies(policy: BondPolicy.unsupported, applyTo: null),
-        isFalse,
-      );
-      expect(takerBondApplies(policy: null, applyTo: null), isFalse);
     });
   });
 
@@ -134,37 +141,6 @@ void main() {
     });
   });
 
-  group('isGroupedWhole', () {
-    test('digits alone, or groups of three behind the separator', () {
-      for (final text in ['7', '150', '1000', '1.000', '25.000', '1.234.567']) {
-        expect(isGroupedWhole(text, '.'), isTrue, reason: text);
-      }
-      expect(isGroupedWhole('1,000', ','), isTrue);
-      expect(isGroupedWhole('1\u202f000', '\u202f'), isTrue);
-    });
-
-    test('not a separator that groups nothing, nor another mark', () {
-      for (final text in [
-        '',
-        '10.50',
-        '1.00',
-        '10.',
-        '.5',
-        '1.0000',
-        '1000.000',
-        '1..000',
-        '1,000',
-        '1.000,5',
-        // No field writes a group behind a leading zero.
-        '0.500',
-        '0.000',
-        '00.500',
-      ]) {
-        expect(isGroupedWhole(text, '.'), isFalse, reason: '"$text"');
-      }
-    });
-  });
-
   group('canonicalAmount', () {
     String? es(String text) =>
         canonicalAmount(text, groupSeparator: '.', decimalSeparator: ',');
@@ -183,24 +159,6 @@ void main() {
 
     test('accepts a plain number and trims whitespace', () {
       expect(en(' 42 '), '42');
-    });
-
-    test('reads no amount in a group separator that groups nothing', () {
-      // Stripped wherever it stood, the dot of a typed `10.50` left 1050.
-      expect(es('10.50'), isNull);
-      expect(es('100.5'), isNull);
-      expect(es('1.00'), isNull);
-      expect(es('10.'), isNull);
-      expect(es('1.0000'), isNull);
-      expect(en('10,50'), isNull);
-      expect(en('1,00'), isNull);
-      expect(es('0.500'), isNull);
-      expect(en('0,500'), isNull);
-      // After the decimal separator there is nothing to group.
-      expect(es('1,000.5'), isNull);
-      // Grouping proper still reads, to any length.
-      expect(es('1.000.000'), '1000000');
-      expect(en('1,234,567.5'), '1234567.5');
     });
 
     test('rejects empty, non-numeric, zero, negative and special doubles', () {

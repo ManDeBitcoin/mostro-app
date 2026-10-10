@@ -190,11 +190,11 @@ abstract class AppLocalizations {
   /// **'Order dispute'**
   String get orderDispute;
 
-  /// Banner shown when an admin is assigned but no messages exist yet
+  /// Banner shown when a person took the dispute but no messages exist yet
   ///
   /// In en, this message translates to:
-  /// **'An administrator has been assigned to your dispute. They will contact you here shortly.'**
-  String get disputeAdminAssigned;
+  /// **'A dispute resolver has taken your dispute. They will contact you here shortly.'**
+  String get disputeSolverAssigned;
 
   /// Lock banner shown when the dispute is resolved
   ///
@@ -250,125 +250,263 @@ abstract class AppLocalizations {
   /// **'The order was cooperatively cancelled. No funds were transferred.'**
   String get disputeCoopCancelMessage;
 
-  /// Dispute chat screen title when trading as seller (peer is the buyer)
-  ///
-  /// In en, this message translates to:
-  /// **'Dispute with Buyer: {handle}'**
-  String disputeWithBuyer(String handle);
-
-  /// Dispute chat screen title when trading as buyer (peer is the seller)
-  ///
-  /// In en, this message translates to:
-  /// **'Dispute with Seller: {handle}'**
-  String disputeWithSeller(String handle);
-
   /// Sub-title showing the truncated order/trade ID
   ///
   /// In en, this message translates to:
   /// **'Order {orderId}'**
   String orderLabel(String orderId);
 
-  /// Status chip label for a newly opened dispute
-  ///
-  /// In en, this message translates to:
-  /// **'Initiated'**
-  String get disputeInitiated;
-
-  /// Status chip label for a dispute under admin review
-  ///
-  /// In en, this message translates to:
-  /// **'In progress'**
-  String get disputeInProgress;
-
-  /// Status chip label for a resolved/closed dispute
+  /// Dispute info card chip: the dispute ended without a verdict (e.g. a cooperative cancel)
   ///
   /// In en, this message translates to:
   /// **'Closed'**
   String get disputeStatusClosed;
 
+  /// Dispute info card title: the counterparty's role (seller or buyer) and pseudonym
+  ///
+  /// In en, this message translates to:
+  /// **'Dispute with {role}: {counterparty}'**
+  String disputeWith(String role, String counterparty);
+
+  /// Role name for the seller, used inside disputeWith
+  ///
+  /// In en, this message translates to:
+  /// **'Seller'**
+  String get seller;
+
+  /// Role name for the buyer, used inside disputeWith
+  ///
+  /// In en, this message translates to:
+  /// **'Buyer'**
+  String get buyer;
+
+  /// Dispute info card chip: opened, no solver yet
+  ///
+  /// In en, this message translates to:
+  /// **'Initiated'**
+  String get disputeStatusInitiated;
+
+  /// Dispute info card chip: a solver has the dispute
+  ///
+  /// In en, this message translates to:
+  /// **'In-progress'**
+  String get disputeStatusInProgress;
+
+  /// Dispute info card chip: a solver's verdict ended the dispute
+  ///
+  /// In en, this message translates to:
+  /// **'Resolved'**
+  String get disputeStatusResolved;
+
+  /// Dispute info card: status sentence while a solver reviews the dispute (or one has taken it)
+  ///
+  /// In en, this message translates to:
+  /// **'This dispute is currently in progress. A solver is reviewing your case.'**
+  String get disputeInProgress;
+
+  /// Dispute info card: first instruction bullet
+  ///
+  /// In en, this message translates to:
+  /// **'Wait for a solver to take your dispute. Once they arrive, share any relevant evidence to help clarify the situation.'**
+  String get disputeInstruction1;
+
+  /// Dispute info card: second instruction bullet
+  ///
+  /// In en, this message translates to:
+  /// **'The final decision will be made based on the evidence presented.'**
+  String get disputeInstruction2;
+
+  /// Dispute info card: third instruction bullet
+  ///
+  /// In en, this message translates to:
+  /// **'If you don\'t respond, the system will assume you don\'t want to cooperate and you might lose the dispute.'**
+  String get disputeInstruction3;
+
+  /// Dispute info card: status sentence when the user (buyer) opened the dispute and no solver took it yet
+  ///
+  /// In en, this message translates to:
+  /// **'You opened this dispute against the seller {counterparty}, please read carefully below:'**
+  String disputeOpenedByYouAgainstSeller(String counterparty);
+
+  /// Dispute info card: status sentence when the user (seller) opened the dispute and no solver took it yet
+  ///
+  /// In en, this message translates to:
+  /// **'You opened this dispute against the buyer {counterparty}, please read carefully below:'**
+  String disputeOpenedByYouAgainstBuyer(String counterparty);
+
+  /// Dispute info card: status sentence when the peer opened the dispute and no solver took it yet
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for admin assignment'**
+  String get disputeWaitingForAdmin;
+
   /// Resolution text shown to the seller when admin released funds to the buyer
   ///
   /// In en, this message translates to:
-  /// **'The administrator settled the dispute in the buyer\'s favour. The sats were released to the buyer.'**
+  /// **'The dispute resolver settled the dispute in the buyer\'s favour. The sats were released to the buyer.'**
   String get disputeLostFundsToBuyer;
 
   /// Resolution text shown to the buyer when admin returned funds to the seller
   ///
   /// In en, this message translates to:
-  /// **'The administrator canceled the order and returned the sats to the seller. You did not receive the sats.'**
+  /// **'The dispute resolver canceled the order and returned the sats to the seller. You did not receive the sats.'**
   String get disputeLostFundsToSeller;
 
-  /// Title for walkthrough slide 1
+  /// Walkthrough slide 1: title
   ///
   /// In en, this message translates to:
-  /// **'Trade Bitcoin freely — no KYC'**
-  String get walkthroughSlideOneTitle;
+  /// **'P2P Bitcoin, no KYC'**
+  String get walkthroughWelcomeTitle;
 
-  /// Body text for walkthrough slide 1
+  /// Walkthrough slide 1: first paragraph
   ///
   /// In en, this message translates to:
-  /// **'Mostro is a peer-to-peer exchange that lets you trade Bitcoin for any currency and payment method — no KYC, and no need to give your data to anyone. It\'s built on Nostr, which makes it censorship-resistant. No one can stop you from trading.'**
-  String get walkthroughSlideOneBody;
+  /// **'Mostro is a peer-to-peer exchange that lets you trade Bitcoin for any currency and payment method, with no KYC and no need to give your data to anyone.'**
+  String get walkthroughWelcomeBody1;
 
-  /// Title for walkthrough slide 2
+  /// Walkthrough slide 1: second paragraph
+  ///
+  /// In en, this message translates to:
+  /// **'It\'s built on Nostr, which makes it censorship-resistant. No one can stop you from trading.'**
+  String get walkthroughWelcomeBody2;
+
+  /// Walkthrough slide 2: title
   ///
   /// In en, this message translates to:
   /// **'Privacy by default'**
-  String get walkthroughSlideTwoTitle;
+  String get walkthroughPrivacyTitle;
 
-  /// Body text for walkthrough slide 2
+  /// Walkthrough slide 2: first paragraph
   ///
   /// In en, this message translates to:
-  /// **'Mostro generates a new identity for every exchange, so your trades can\'t be linked. You can also decide how private you want to be:\n• Reputation mode – Lets others see your successful trades and trust level.\n• Full privacy mode – No reputation is built, but your activity is completely anonymous.\nSwitch modes anytime from the Account screen, where you should also save your secret words — they\'re the only way to recover your account.'**
-  String get walkthroughSlideTwoBody;
+  /// **'Mostro generates a new identity for every trade, so your trades can\'t be linked.'**
+  String get walkthroughPrivacyBody1;
 
-  /// Title for walkthrough slide 3
+  /// Walkthrough slide 2: second paragraph
+  ///
+  /// In en, this message translates to:
+  /// **'You can also decide how private you want to be:'**
+  String get walkthroughPrivacyBody2;
+
+  /// Walkthrough slide 2: mode card name
+  ///
+  /// In en, this message translates to:
+  /// **'Reputation mode'**
+  String get walkthroughReputationModeName;
+
+  /// Walkthrough slide 2: mode card description
+  ///
+  /// In en, this message translates to:
+  /// **'Lets others see your successful trades and trust level.'**
+  String get walkthroughReputationModeBody;
+
+  /// Walkthrough slide 2: mode card name
+  ///
+  /// In en, this message translates to:
+  /// **'Full privacy mode'**
+  String get walkthroughFullPrivacyModeName;
+
+  /// Walkthrough slide 2: mode card description
+  ///
+  /// In en, this message translates to:
+  /// **'No reputation is built, but your activity is completely anonymous.'**
+  String get walkthroughFullPrivacyModeBody;
+
+  /// Walkthrough slide 2: paragraph after the mode cards
+  ///
+  /// In en, this message translates to:
+  /// **'Switch modes anytime from the Account screen. That\'s also where you should save your secret words. They\'re the only way to recover your account.'**
+  String get walkthroughPrivacyFooter;
+
+  /// Walkthrough slide 3: title
   ///
   /// In en, this message translates to:
   /// **'Security at every step'**
-  String get walkthroughSlideThreeTitle;
+  String get walkthroughHeldTitle;
 
-  /// Body text for walkthrough slide 3
+  /// Walkthrough slide 3: first paragraph
   ///
   /// In en, this message translates to:
-  /// **'Mostro uses Hold Invoices: sats stay in the seller\'s wallet until the end of the trade. This protects both sides. The app is also designed to be intuitive and easy for all kinds of users.'**
-  String get walkthroughSlideThreeBody;
+  /// **'The seller\'s sats stay locked until the trade ends. This protects both sides.'**
+  String get walkthroughHeldBody1;
 
-  /// Title for walkthrough slide 4
+  /// Walkthrough slide 3: second paragraph
+  ///
+  /// In en, this message translates to:
+  /// **'The app is also designed to be intuitive and easy for all kinds of users.'**
+  String get walkthroughHeldBody2;
+
+  /// Walkthrough slide 4: title
   ///
   /// In en, this message translates to:
   /// **'Fully encrypted chat'**
-  String get walkthroughSlideFourTitle;
+  String get walkthroughChatTitle;
 
-  /// Body text for walkthrough slide 4
+  /// Walkthrough slide 4: first paragraph
   ///
   /// In en, this message translates to:
-  /// **'Each trade has its own private chat, end-to-end encrypted. Only the two users involved can read it. In case of a dispute, you can give the shared key to an admin to help resolve the issue.'**
-  String get walkthroughSlideFourBody;
+  /// **'Each trade has its own private chat, end-to-end encrypted. Only you and your counterpart can read it, unless one of you shares its key.'**
+  String get walkthroughChatBody1;
 
-  /// Title for walkthrough slide 5
+  /// Walkthrough slide 4: second paragraph
   ///
   /// In en, this message translates to:
-  /// **'Take an offer'**
-  String get walkthroughSlideFiveTitle;
+  /// **'In a dispute, sharing that key with a dispute resolver lets them read the chat and help settle it.'**
+  String get walkthroughChatBody2;
 
-  /// Body text for walkthrough slide 5
+  /// Walkthrough slide 5: title
   ///
   /// In en, this message translates to:
-  /// **'Browse the order book, choose an offer that works for you, and follow the trade flow step by step. You\'ll be able to check the other user\'s profile, chat securely, and complete the trade with ease.'**
-  String get walkthroughSlideFiveBody;
+  /// **'Take an order'**
+  String get walkthroughTakeTitle;
 
-  /// Title for walkthrough slide 6
+  /// Walkthrough slide 5: first paragraph
+  ///
+  /// In en, this message translates to:
+  /// **'Browse the order book, choose an order that works for you, and follow the trade step by step.'**
+  String get walkthroughTakeBody1;
+
+  /// Walkthrough slide 5: second paragraph
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ll be able to check your counterpart\'s profile, chat securely, and complete the trade with ease.'**
+  String get walkthroughTakeBody2;
+
+  /// Walkthrough slide 6: title
   ///
   /// In en, this message translates to:
   /// **'Can\'t find what you need?'**
-  String get walkthroughSlideSixTitle;
+  String get walkthroughMakeTitle;
 
-  /// Body text for walkthrough slide 6
+  /// Walkthrough slide 6: first paragraph
   ///
   /// In en, this message translates to:
-  /// **'You can also create your own offer and wait for someone to take it. Set the amount and preferred payment method — Mostro handles the rest.'**
-  String get walkthroughSlideSixBody;
+  /// **'You can also create your own order and wait for someone to take it.'**
+  String get walkthroughMakeBody1;
+
+  /// Walkthrough slide 6: second paragraph
+  ///
+  /// In en, this message translates to:
+  /// **'Set the amount and your preferred payment method. Mostro handles the rest.'**
+  String get walkthroughMakeBody2;
+
+  /// Walkthrough: primary button that moves to the next slide
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get walkthroughNext;
+
+  /// Walkthrough: visible slide counter, current slide of total
+  ///
+  /// In en, this message translates to:
+  /// **'{current} / {total}'**
+  String walkthroughStepCounter(int current, int total);
+
+  /// Walkthrough: screen-reader form of the slide counter
+  ///
+  /// In en, this message translates to:
+  /// **'Step {current} of {total}'**
+  String walkthroughStepSemantics(int current, int total);
 
   /// Tab label for the buy Bitcoin order book
   ///
@@ -451,7 +589,7 @@ abstract class AppLocalizations {
   /// Error shown when the selected Mostro node advertises a protocol version this v2-native client does not speak, so it would never read the request
   ///
   /// In en, this message translates to:
-  /// **'This Mostro node uses a protocol version this app does not support. Check for an app update'**
+  /// **'This Mostro node uses a protocol version this app does not support. Pick another node in Settings, or check for an app update'**
   String get nodeProtocolUnsupported;
 
   /// Error shown when a send fails closed because the selected node's capability fetch (PoW, protocol version) has not completed yet — retrying shortly usually succeeds
@@ -463,7 +601,7 @@ abstract class AppLocalizations {
   /// Error shown when the selected Mostro node answers CantDo(MaintenanceMode): it is draining (for example before a Lightning node migration) and refuses new orders and takes until it is back
   ///
   /// In en, this message translates to:
-  /// **'The Mostro node you are connected to is under maintenance. Try again later'**
+  /// **'The Mostro node you are connected to is under maintenance. Try again later, or connect to a different Mostro node in Settings'**
   String get mostroMaintenanceMode;
 
   /// Error shown when a trade key cannot be derived because the local database is unavailable, so orders cannot be created or taken
@@ -478,312 +616,6 @@ abstract class AppLocalizations {
   /// **'A range order can\'t have a fixed sats amount: it is priced at market when taken.'**
   String get rangeOrderWithSats;
 
-  /// Create or take error (NodeNotAnnouncing marker): the node has published no recent info event, so it is treated as offline and the request is not sent
-  ///
-  /// In en, this message translates to:
-  /// **'This community\'s node isn\'t answering right now. Try again in a few minutes.'**
-  String get nodeNotAnnouncing;
-
-  /// Create-order error (FixedSatsWithPremium marker, or the daemon CantDo InvalidParameters): an order is priced by fixed sats or by a premium over the market, never both
-  ///
-  /// In en, this message translates to:
-  /// **'An order can\'t carry a fixed sats amount and a premium at the same time.'**
-  String get orderFixedSatsWithPremium;
-
-  /// Shown wherever a fiat amount has to be a whole number written in digits: the line under Simple Mode's amount field (also while it is empty), the range-take dialog, the create-order preview bar, and the core's FiatAmountNotWhole marker. Simple Mode and the dialog refuse any typed dot or comma; the create-order form refuses one that is not its own thousands grouping
-  ///
-  /// In en, this message translates to:
-  /// **'Enter a whole amount: digits only, no decimals or separators.'**
-  String get orderAmountMustBeWhole;
-
-  /// Create-order error (PremiumNotWhole marker): the premium is not a whole percentage
-  ///
-  /// In en, this message translates to:
-  /// **'The premium must be a whole percentage.'**
-  String get orderPremiumMustBeWhole;
-
-  /// Daemon refusal CantDo InvalidAmount: fiat amount zero or negative, or an incomplete or inverted range
-  ///
-  /// In en, this message translates to:
-  /// **'The node rejected the amount. Check it and try again.'**
-  String get orderRejectedInvalidAmount;
-
-  /// Daemon refusal CantDo InvalidFiatCurrency: the node does not accept the order currency
-  ///
-  /// In en, this message translates to:
-  /// **'This community doesn\'t trade in that currency.'**
-  String get orderRejectedFiatCurrency;
-
-  /// Daemon refusal CantDo OutOfRangeSatsAmount or OutOfRangeFiatAmount: the amount is outside the node limits, or outside the range of the order being taken
-  ///
-  /// In en, this message translates to:
-  /// **'The amount is outside this community\'s limits.'**
-  String get orderRejectedOutOfRange;
-
-  /// Daemon refusal CantDo PriceTooStale: the node has no recent exchange rate to price the order with
-  ///
-  /// In en, this message translates to:
-  /// **'The node has no recent price quote. Try again in a few minutes.'**
-  String get orderRejectedPriceStale;
-
-  /// Daemon refusal CantDo PendingOrderExists on a take. mostrod sends it in two cases: the taker already has a trade waiting on their own step (their invoice or their payment), or — on a node with bonds — another taker's bond has already locked on this order
-  ///
-  /// In en, this message translates to:
-  /// **'The node didn\'t accept this take: you have another trade waiting on you, or someone else has just taken this order.'**
-  String get orderRejectedPendingOrder;
-
-  /// Daemon refusal CantDo NotAllowedByStatus: the order moved to a state that no longer accepts the requested action
-  ///
-  /// In en, this message translates to:
-  /// **'The order has changed state and no longer allows this action.'**
-  String get orderRejectedByStatus;
-
-  /// Daemon refusal CantDo IsNotYourOrder: the trade key is not a party to the order
-  ///
-  /// In en, this message translates to:
-  /// **'This order isn\'t yours.'**
-  String get orderRejectedNotYours;
-
-  /// Daemon refusal CantDo InvalidPubkey: taking your own order, or an action sent by a key that is not the expected party
-  ///
-  /// In en, this message translates to:
-  /// **'This action isn\'t available to you on this order.'**
-  String get orderRejectedNotYourAction;
-
-  /// Daemon refusal CantDo InvalidPeer: the action belongs to the counterparty (only the seller releases, only the buyer adds an invoice)
-  ///
-  /// In en, this message translates to:
-  /// **'This action belongs to the other party.'**
-  String get orderRejectedOtherParty;
-
-  /// Daemon refusal CantDo InvalidParameters for any cause the app did not rule out before sending (fixed sats with a premium is refused locally and has its own message)
-  ///
-  /// In en, this message translates to:
-  /// **'The node rejected the request: its parameters are not valid.'**
-  String get orderRejectedInvalidParameters;
-
-  /// Simple Mode confirm sheets: label of the row with the share of the node fee this side pays, in sats
-  ///
-  /// In en, this message translates to:
-  /// **'Community fee'**
-  String get simpleCommunityFee;
-
-  /// Simple Mode buy confirm sheet: under the community fee, for the buyer. The sats shown above it are already net of this fee
-  ///
-  /// In en, this message translates to:
-  /// **'Already taken off what you receive'**
-  String get simpleFeeTakenFromSats;
-
-  /// Simple Mode sell confirm sheet: under the community fee, for the seller
-  ///
-  /// In en, this message translates to:
-  /// **'Added to the sats you lock'**
-  String get simpleFeeAddedToSats;
-
-  /// A daemon refusal (CantDo) whose reason has no wording of its own; the reason is the daemon's own code, shown so support can look it up
-  ///
-  /// In en, this message translates to:
-  /// **'The community\'s node refused the request ({reason}).'**
-  String orderRejectedOther(String reason);
-
-  /// Take refused locally (CannotTakeOwnOrder marker)
-  ///
-  /// In en, this message translates to:
-  /// **'You can\'t take your own order.'**
-  String get orderCannotTakeOwn;
-
-  /// Take of a range order refused locally (OutOfRange marker): the amount is not within the order's limits
-  ///
-  /// In en, this message translates to:
-  /// **'The amount is outside this order\'s range.'**
-  String get orderTakeAmountOutOfRange;
-
-  /// Simple Mode trades list: the local read of the trades failed
-  ///
-  /// In en, this message translates to:
-  /// **'Your trades could not be loaded.'**
-  String get tradesLoadError;
-
-  /// Simple Mode buy confirm sheet: under the sats to receive, when the node fee is not known and the figure is therefore not net of it
-  ///
-  /// In en, this message translates to:
-  /// **'Before the community fee'**
-  String get simpleBeforeCommunityFee;
-
-  /// A daemon refusal (CantDo) that carries no reason, or one this version of the protocol library cannot name
-  ///
-  /// In en, this message translates to:
-  /// **'The community\'s node refused the request without giving a reason.'**
-  String get orderRejectedNoReason;
-
-  /// Simple Mode, Sell tab: the payment-method field while the seller has ticked none
-  ///
-  /// In en, this message translates to:
-  /// **'Choose one or more'**
-  String get simpleMethodsChoose;
-
-  /// Simple Mode, Buy tab: the payment-method field while no method is ticked, so every offer is shown
-  ///
-  /// In en, this message translates to:
-  /// **'Any payment method'**
-  String get simpleMethodsAny;
-
-  /// Simple Mode payment-method field: what opens the picker while nothing is ticked
-  ///
-  /// In en, this message translates to:
-  /// **'Choose'**
-  String get simpleMethodsPick;
-
-  /// Simple Mode payment-method field: what opens the picker once something is ticked
-  ///
-  /// In en, this message translates to:
-  /// **'Change'**
-  String get simpleMethodsEdit;
-
-  /// Simple Mode payment-method picker opened from the Sell tab: what ticking several methods means for the order
-  ///
-  /// In en, this message translates to:
-  /// **'Tick every way you can be paid. The buyer will pay you by one of them.'**
-  String get simpleMethodsSellHint;
-
-  /// Simple Mode payment-method picker opened from the Buy tab: how the ticked methods filter the offers
-  ///
-  /// In en, this message translates to:
-  /// **'Tick the ways you can pay: you will see the offers that take at least one of them. With none ticked you see them all.'**
-  String get simpleMethodsBuyHint;
-
-  /// Simple Mode payment-method picker: the button that closes it, with how many methods are ticked
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =0{Done} =1{Done · 1 chosen} other{Done · {count} chosen}}'**
-  String simpleMethodsDone(int count);
-
-  /// Simple Mode payment-method picker: link that unticks every method
-  ///
-  /// In en, this message translates to:
-  /// **'Clear all'**
-  String get simpleMethodsClear;
-
-  /// Simple Mode payment-method picker: shown in place of the list when the search box finds no method
-  ///
-  /// In en, this message translates to:
-  /// **'No method matches “{query}”.'**
-  String simpleMethodsNoMatch(String query);
-
-  /// Simple Mode, Sell tab: beside the publish button while it is off because no payment method is ticked
-  ///
-  /// In en, this message translates to:
-  /// **'Choose at least one payment method'**
-  String get simpleMethodsChooseOne;
-
-  /// Simple Mode confirm sheets: label of the row that lists the order's payment methods, by how many there are
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{Payment method} other{Payment methods}}'**
-  String simpleSummaryMethods(int count);
-
-  /// Simple Mode payment-method picker: beside a heading, ticks every method under it
-  ///
-  /// In en, this message translates to:
-  /// **'All'**
-  String get simpleCategoryTickAll;
-
-  /// Simple Mode payment-method picker: beside a heading whose methods are all ticked, unticks them
-  ///
-  /// In en, this message translates to:
-  /// **'None'**
-  String get simpleCategoryTickNone;
-
-  /// Screen-reader label of the control that ticks every method under a heading of the payment-method picker
-  ///
-  /// In en, this message translates to:
-  /// **'Tick all in {category}'**
-  String simpleCategoryTickAllLabel(String category);
-
-  /// Screen-reader label of the control that unticks every method under a heading of the payment-method picker
-  ///
-  /// In en, this message translates to:
-  /// **'Untick all in {category}'**
-  String simpleCategoryTickNoneLabel(String category);
-
-  /// Simple Mode payment-method picker: beside a heading, how many of its methods are ticked
-  ///
-  /// In en, this message translates to:
-  /// **'{chosen} of {total}'**
-  String simpleCategoryCount(int chosen, int total);
-
-  /// Simple Mode payment-method picker opened from the Buy tab: beside a method, how many offers on the book take it
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =0{No offers} =1{1 offer} other{{count} offers}}'**
-  String simpleOffersCount(int count);
-
-  /// Heading of the payment-method picker: banks
-  ///
-  /// In en, this message translates to:
-  /// **'Banks'**
-  String get simpleCategoryBanks;
-
-  /// Heading of the payment-method picker: savings and credit cooperatives
-  ///
-  /// In en, this message translates to:
-  /// **'Credit unions'**
-  String get simpleCategoryCooperatives;
-
-  /// Heading of the payment-method picker: wallets and payment apps
-  ///
-  /// In en, this message translates to:
-  /// **'Wallets & apps'**
-  String get simpleCategoryWallets;
-
-  /// Heading of the payment-method picker: cash, in person or from a cash machine
-  ///
-  /// In en, this message translates to:
-  /// **'Cash'**
-  String get simpleCategoryCash;
-
-  /// Heading of the payment-method picker: stablecoins and other crypto
-  ///
-  /// In en, this message translates to:
-  /// **'Crypto'**
-  String get simpleCategoryCrypto;
-
-  /// Heading of the payment-method picker: methods that fit no other heading
-  ///
-  /// In en, this message translates to:
-  /// **'Other'**
-  String get simpleCategoryOther;
-
-  /// Heading of the payment-method picker on the Buy tab: methods some offer takes that the community's own list does not carry
-  ///
-  /// In en, this message translates to:
-  /// **'Also on offers'**
-  String get simpleCategoryOnOffers;
-
-  /// Simple Mode, on a range offer while the amount typed is not one it can be taken for
-  ///
-  /// In en, this message translates to:
-  /// **'Type a whole amount between {min} and {max} {code} above'**
-  String simpleRangeAmountHint(String min, String max, String code);
-
-  /// Simple Mode trade view: the public book reports the order as taken, before the node has told this user which step the trade is on
-  ///
-  /// In en, this message translates to:
-  /// **'Trade taken. Waiting for the node\'s next step…'**
-  String get simpleTakenWaitingNode;
-
-  /// Simple Mode trade view, said to the buyer while the seller's Bitcoin is not known to be locked
-  ///
-  /// In en, this message translates to:
-  /// **'Don\'t send the money yet: the Bitcoin is not secured yet.'**
-  String get simpleDoNotPayYet;
-
-  /// Generic failure of a create or take request in Simple Mode when the error carries no known marker; never shows the raw exception
-  ///
-  /// In en, this message translates to:
-  /// **'The request could not be completed. Try again.'**
-  String get orderRequestFailed;
-
   /// Snackbar shown after copying an order ID to clipboard
   ///
   /// In en, this message translates to:
@@ -795,12 +627,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Coming soon'**
   String get comingSoonMessage;
-
-  /// Trade status chip label: active
-  ///
-  /// In en, this message translates to:
-  /// **'Active'**
-  String get tradeStatusActive;
 
   /// Trade status chip label: completed
   ///
@@ -1348,11 +1174,29 @@ abstract class AppLocalizations {
   /// **'Not responding'**
   String get nodeStatusUnreachableNoSignal;
 
-  /// Two-line operator disclaimer at the foot of the node selector
+  /// First-run node choice, under the title: what the screen asks (v1 mostroNodeDescription)
   ///
   /// In en, this message translates to:
-  /// **'Each node is run by an independent third party. Mostro is not responsible for their conduct or for your trades.'**
-  String get nodeDisclaimerShort;
+  /// **'Select the Mostro node you want to trade on'**
+  String get nodeChoiceSubtitle;
+
+  /// First-run node choice: the full operator disclaimer of v1 (communityDisclaimerBody), in a warning note
+  ///
+  /// In en, this message translates to:
+  /// **'The Mostro development team is not responsible for how node operators use the platform. Each operator controls their own Mostro node and is solely responsible for their actions. By using Mostro, you accept full responsibility for your trades and acknowledge that the development team has no control over individual node operators.'**
+  String get nodeOperatorDisclaimer;
+
+  /// First-run node choice: primary button, enabled once a node card is picked
+  ///
+  /// In en, this message translates to:
+  /// **'Use this node'**
+  String get nodeChoiceConfirm;
+
+  /// First-run node choice: snackbar when the choice could not be saved on the device; both actions stay available
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save your choice. Try again.'**
+  String get nodeChoiceSaveFailed;
 
   /// Warning box in the add-own-node dialog
   ///
@@ -2143,7 +1987,7 @@ abstract class AppLocalizations {
   /// Body of the open-dispute confirmation dialog
   ///
   /// In en, this message translates to:
-  /// **'Are you sure you want to open a dispute? This escalates the trade to an admin and cannot be undone.'**
+  /// **'Are you sure you want to open a dispute? This escalates the trade to a dispute resolver and cannot be undone.'**
   String get openDisputeConfirmation;
 
   /// Snackbar shown when a dispute is opened for a trade that already has one, or while a previous attempt is still in flight
@@ -2563,7 +2407,7 @@ abstract class AppLocalizations {
   /// Subtitle of the dispute updates notification toggle
   ///
   /// In en, this message translates to:
-  /// **'Admin actions and dispute resolutions'**
+  /// **'Resolver actions and dispute resolutions'**
   String get notifDisputeUpdatesSubtitle;
 
   /// Hint text of the currency search field
@@ -2836,11 +2680,17 @@ abstract class AppLocalizations {
   /// **'If it expires, the order is removed from the book. It won\'t affect your reputation.'**
   String get tradeTimerPendingConsequence;
 
-  /// Timer consequence for the waiting-invoice/payment state
+  /// Trade screen countdown note on a waiting step the taker owes: mostrod puts the order back in the book when it runs out
   ///
   /// In en, this message translates to:
-  /// **'If it expires, the trade is cancelled and the order returns to the book.'**
-  String get tradeTimerWaitingInvoiceConsequence;
+  /// **'If it expires, the order goes back to the book.'**
+  String get tradeTimerExpiryBackToBook;
+
+  /// Trade screen countdown note on a waiting step the maker owes: mostrod cancels the order when it runs out
+  ///
+  /// In en, this message translates to:
+  /// **'If it expires, the order is cancelled.'**
+  String get tradeTimerExpiryCancelled;
 
   /// Timeline step: order taken
   ///
@@ -2986,7 +2836,7 @@ abstract class AppLocalizations {
   /// **'Trade Information'**
   String get tradeInformationTitle;
 
-  /// Label for the order ID field
+  /// Dispute info card: label over the order ID
   ///
   /// In en, this message translates to:
   /// **'Order ID'**
@@ -3003,6 +2853,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sats Amount'**
   String get satsAmountLabel;
+
+  /// User information panel: the counterparty shared no reputation for this order (full privacy) or it has not arrived yet
+  ///
+  /// In en, this message translates to:
+  /// **'This user\'s reputation is not available'**
+  String get peerReputationUnavailable;
 
   /// Label for the status field
   ///
@@ -3022,41 +2878,11 @@ abstract class AppLocalizations {
   /// **'Created'**
   String get createdLabel;
 
-  /// Placeholder note in the trade information panel
-  ///
-  /// In en, this message translates to:
-  /// **'Details wired when trade provider available (Phase 10+)'**
-  String get tradeDetailsPlaceholder;
-
   /// Title of the user information panel
   ///
   /// In en, this message translates to:
   /// **'User Information'**
   String get userInformationTitle;
-
-  /// Label for the peer public key
-  ///
-  /// In en, this message translates to:
-  /// **'Peer\'s Public Key'**
-  String get peerPublicKeyLabel;
-
-  /// Label for the shared key
-  ///
-  /// In en, this message translates to:
-  /// **'Your Shared Key'**
-  String get yourSharedKeyLabel;
-
-  /// Placeholder note for the shared key
-  ///
-  /// In en, this message translates to:
-  /// **'Available after bridge integration (Phase 10+)'**
-  String get sharedKeyPlaceholder;
-
-  /// Safety note about the shared key
-  ///
-  /// In en, this message translates to:
-  /// **'Keep your shared key safe — it is needed for dispute resolution'**
-  String get sharedKeySafetyNote;
 
   /// File type chip: video
   ///
@@ -3148,11 +2974,11 @@ abstract class AppLocalizations {
   /// **'Enter invoice manually'**
   String get enterInvoiceManually;
 
-  /// Generic submit button label
+  /// Answer of the range amount dialog, opened from the take-order button. Same wording as takeOrderButton (DS-CMP-26).
   ///
   /// In en, this message translates to:
-  /// **'Submit'**
-  String get submitButton;
+  /// **'Take order'**
+  String get rangeAmountTakeAction;
 
   /// Title of the counterpart reputation card when the taker is the buyer
   ///
@@ -3184,17 +3010,17 @@ abstract class AppLocalizations {
   /// **'days active'**
   String get daysActiveStatLabel;
 
-  /// Countdown label below the take-order timer
-  ///
-  /// In en, this message translates to:
-  /// **'Time remaining: {time}'**
-  String timeRemainingLabel(String time);
-
   /// Shown when a fixed-sats order amount is outside the node min/max order amount
   ///
   /// In en, this message translates to:
   /// **'Amount must be between {min} and {max} sats for this Mostro node'**
   String orderAmountOutOfRange(int min, int max);
+
+  /// Shown in place of the order preview, with Publish disabled, when the active Mostro node does not list the selected currency in fiat_currencies_accepted and the user already picked that currency or entered an amount or payment methods
+  ///
+  /// In en, this message translates to:
+  /// **'This Mostro node does not accept {currency}. Pick another currency'**
+  String orderCurrencyNotAccepted(String currency);
 
   /// Shown when a market-price order amount converts outside the node min/max order amount, with the range expressed in the user's fiat currency
   ///
@@ -3286,10 +3112,10 @@ abstract class AppLocalizations {
   /// **'Maximum'**
   String get amountMaxLabel;
 
-  /// Counter in the payment-methods card header
+  /// Counter in the payment-methods card header. Says "selected" (glossary, DS-L10N-4); the key name predates the glossary
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =0{none chosen} =1{1 chosen} other{{count} chosen}}'**
+  /// **'{count, plural, =0{none selected} =1{1 selected} other{{count} selected}}'**
   String paymentMethodsChosenCount(int count);
 
   /// Chip that opens the payment-method picker; also the button that turns the custom text into a chip
@@ -3406,7 +3232,7 @@ abstract class AppLocalizations {
   /// **'Publish order'**
   String get publishOrder;
 
-  /// Accessibility label of the × on a chosen payment-method chip
+  /// Accessibility label of the × on a selected payment-method chip
   ///
   /// In en, this message translates to:
   /// **'Remove {method}'**
@@ -3478,13 +3304,13 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{Select 1 star} other{Select {count} stars}}'**
   String selectStarTooltip(int count);
 
-  /// Title of the dispute info card
+  /// App bar title of the dispute chat screen once the dispute is found (v1's title)
   ///
   /// In en, this message translates to:
   /// **'Dispute Details'**
   String get disputeDetailsTitle;
 
-  /// Label for the dispute ID field
+  /// Dispute info card: label over the dispute ID
   ///
   /// In en, this message translates to:
   /// **'Dispute ID'**
@@ -3496,11 +3322,29 @@ abstract class AppLocalizations {
   /// **'Reason: {reason}'**
   String disputeReasonLabel(String reason);
 
-  /// Sender label for administrator messages in a dispute
+  /// Sender label for a person solving the dispute (not the Serbero assistant)
   ///
   /// In en, this message translates to:
-  /// **'Admin'**
-  String get adminLabel;
+  /// **'Resolver'**
+  String get solverLabel;
+
+  /// Sender label for Serbero, the node's automated dispute assistant; a product name, not translated
+  ///
+  /// In en, this message translates to:
+  /// **'Serbero'**
+  String get serberoLabel;
+
+  /// Banner shown when Serbero, the automated assistant, took the dispute but no messages exist yet
+  ///
+  /// In en, this message translates to:
+  /// **'Serbero, an automated assistant, is helping with your dispute. It will ask you a few questions here and hand the case to a person if needed.'**
+  String get disputeSerberoAssigned;
+
+  /// System line in the dispute chat where a person took the dispute over from Serbero
+  ///
+  /// In en, this message translates to:
+  /// **'A dispute resolver has taken over your dispute.'**
+  String get disputeSolverTookOver;
 
   /// App bar title of the dispute chat screen
   ///
@@ -3946,12 +3790,6 @@ abstract class AppLocalizations {
   /// **'Mint'**
   String get aboutCashuMintUrlLabel;
 
-  /// About screen — shown when a node says it runs Cashu but publishes no mint, which means trades cannot run
-  ///
-  /// In en, this message translates to:
-  /// **'Not advertised'**
-  String get aboutCashuMintNotAdvertised;
-
   /// About screen — Cashu escrow locktime row label
   ///
   /// In en, this message translates to:
@@ -4095,6 +3933,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'End-to-end encrypted chat'**
   String get tradeChatEncrypted;
+
+  /// Subtitle of the trade screen's chat card once the conversation has ended (trade cancelled, or completed more than an hour ago); tapping opens the conversation read-only
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation closed · view messages'**
+  String get tradeChatClosed;
+
+  /// Screen-reader announcement when the trade screen's chat card turns closed while the user is on it (the completed trade's hour ran out); the messages stay readable
+  ///
+  /// In en, this message translates to:
+  /// **'The conversation is closed. You can still read its messages'**
+  String get tradeChatClosedAnnouncement;
 
   /// Step body for the buyer while the seller pays the hold invoice
   ///
@@ -4432,7 +4282,13 @@ abstract class AppLocalizations {
   /// **'No longer available'**
   String get takeOrderUnavailable;
 
-  /// Replaces the countdown in the app bar once the order is gone
+  /// Snackbar when a take fails for a reason the app has no specific message for
+  ///
+  /// In en, this message translates to:
+  /// **'Could not take the order. Please try again.'**
+  String get takeOrderFailed;
+
+  /// Value of the take order's countdown row once the order is gone
   ///
   /// In en, this message translates to:
   /// **'Closed'**
@@ -4624,6 +4480,18 @@ abstract class AppLocalizations {
   /// **'Open settings'**
   String get openSystemSettingsAction;
 
+  /// Web only: banner above the push settings while the browser has not been asked for the notification permission
+  ///
+  /// In en, this message translates to:
+  /// **'This browser has not been allowed to show notifications yet.'**
+  String get notificationsPermissionNotAsked;
+
+  /// Web only: link in that banner that shows the browser's permission prompt
+  ///
+  /// In en, this message translates to:
+  /// **'Allow notifications'**
+  String get allowNotificationsAction;
+
   /// Footnote: what a push notification does not carry, and the one true sentence about how it travels. Must not claim the token is encrypted.
   ///
   /// In en, this message translates to:
@@ -4641,6 +4509,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Wakes the app when a trade or chat message arrives. The notification itself carries nothing.'**
   String get pushMasterToggleSubtitle;
+
+  /// Extra line under the master push toggle on the web only: with the tab closed nothing renews the registration, and the push server forgets it 48 hours after the last renewal. A running tab renews a registration once it is 12 to 18 hours old, so push stops 30 to 48 hours after the tab last ran
+  ///
+  /// In en, this message translates to:
+  /// **'Stops 30 to 48 h after this tab last ran Mostro'**
+  String get pushWebStopsWithTab;
 
   /// Status line under the master push toggle when push is turned off
   ///
@@ -4834,17 +4708,41 @@ abstract class AppLocalizations {
   /// **'Fee'**
   String get aboutFeeCell;
 
-  /// About screen — node fee figure; value is the locale-formatted percentage number
+  /// About screen — node fee figure; value is the locale-formatted percentage number. Keep the non-breaking space (U+00A0) wherever the locale puts a space before the unit, so a line never splits the figure from it
   ///
   /// In en, this message translates to:
   /// **'{value}%'**
   String aboutFeeValue(String value);
 
-  /// About screen redesign (12a/12b)
+  /// Value of the deposit row on the About screen's connected node card when the node asks for no anti-abuse deposit (disabled, or a node that predates deposits)
   ///
   /// In en, this message translates to:
-  /// **'Limits in satoshis per order'**
-  String get aboutLimitsFootnote;
+  /// **'No'**
+  String get aboutNodeDepositNone;
+
+  /// Under the deposit share on the About screen's connected node card: the least the node locks whatever the order's amount (bond_base_amount_sats). amount is the locale-formatted number of sats
+  ///
+  /// In en, this message translates to:
+  /// **'min. {amount} sats'**
+  String aboutNodeDepositFloor(String amount);
+
+  /// Cell label on the About screen's connected node card: the anti-abuse deposit the node asks for (glossary term)
+  ///
+  /// In en, this message translates to:
+  /// **'Deposit'**
+  String get aboutDepositCell;
+
+  /// Cell label on the About screen's connected node card: the fiat currencies the node accepts
+  ///
+  /// In en, this message translates to:
+  /// **'Currencies'**
+  String get aboutCurrenciesCell;
+
+  /// Cell label on the About screen's connected node card: how long an order stays published before it expires
+  ///
+  /// In en, this message translates to:
+  /// **'Expiration'**
+  String get aboutOrderExpiryCell;
 
   /// About screen redesign (12a/12b)
   ///
@@ -4882,10 +4780,10 @@ abstract class AppLocalizations {
   /// **'Waiting timeout'**
   String get aboutWaitingTimeoutLabel;
 
-  /// About screen — a duration in hours, abbreviated
+  /// About screen — a duration in hours, abbreviated. Keep the non-breaking space (U+00A0) between the number and the unit, so a line never splits them
   ///
   /// In en, this message translates to:
-  /// **'{count} h'**
+  /// **'{count} h'**
   String aboutHoursShort(int count);
 
   /// About screen — a duration in seconds, abbreviated
@@ -5299,7 +5197,7 @@ abstract class AppLocalizations {
   /// 14a hero label above the bond amount
   ///
   /// In en, this message translates to:
-  /// **'REFUNDABLE DEPOSIT'**
+  /// **'Refundable deposit'**
   String get bondRefundableLabel;
 
   /// 14a hero context line without a fiat rate
@@ -5380,11 +5278,11 @@ abstract class AppLocalizations {
   /// **'Mostro does not hold funds, so it cannot penalise whoever abandons a trade; the deposit does that job, and protects every user against scammers.'**
   String get bondWhyCustody;
 
-  /// 14b explainer paragraph 2; hold is the protocol term, rendered bold and left untranslated
+  /// 14b explainer paragraph 2: the wallet holds the deposit's sats without sending them. Plain words, no "hold" term (DS-L10N-4)
   ///
   /// In en, this message translates to:
-  /// **'It is a {hold} invoice: your wallet reserves the sats without sending them; when the trade completes, the reservation is cancelled on its own.'**
-  String bondWhyHold(String hold);
+  /// **'Your wallet holds the sats without sending them; when the trade completes, they are released on their own.'**
+  String get bondWhyHold;
 
   /// 14b explainer paragraph 3 on a node that does not slash on timeout
   ///
@@ -5500,6 +5398,30 @@ abstract class AppLocalizations {
   /// **'Remove from this device'**
   String get bondRemoveFromDevice;
 
+  /// Confirm dialog title before a maker drops an order still waiting for its deposit (DS-CMP-20)
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t publish this order?'**
+  String get bondLeaveMakerTitle;
+
+  /// Body of that dialog: what dropping the unpublished order does
+  ///
+  /// In en, this message translates to:
+  /// **'The order won\'t be published and its deposit invoice is cancelled.'**
+  String get bondLeaveMakerBody;
+
+  /// Confirm dialog title before a taker leaves an order whose deposit is not paid yet (DS-CMP-20)
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t take this order?'**
+  String get bondLeaveTakerTitle;
+
+  /// Body of that dialog: the order stays available to others
+  ///
+  /// In en, this message translates to:
+  /// **'The order stays in the book for others and the deposit invoice is cancelled.'**
+  String get bondLeaveTakerBody;
+
   /// Dialog action: keep the order and stay on the deposit screen
   ///
   /// In en, this message translates to:
@@ -5527,7 +5449,7 @@ abstract class AppLocalizations {
   /// Claim screen hero label, upper case
   ///
   /// In en, this message translates to:
-  /// **'YOUR SHARE'**
+  /// **'Your share'**
   String get bondClaimShareLabel;
 
   /// Semantics of the claim hero
@@ -5830,12 +5752,6 @@ abstract class AppLocalizations {
   /// **'The node did not resend the deposit invoice'**
   String get bondRequestFailed;
 
-  /// Snackbar after tapping the order id in the invoice app bar
-  ///
-  /// In en, this message translates to:
-  /// **'Order ID copied'**
-  String get invoiceOrderIdCopied;
-
   /// 13a hero card label above the amount (rendered uppercase)
   ///
   /// In en, this message translates to:
@@ -6022,11 +5938,11 @@ abstract class AppLocalizations {
   /// **'Open in my wallet'**
   String get invoiceOpenWallet;
 
-  /// 13b note explaining the hold invoice; hold is the protocol term 'hold', rendered bold and deliberately left untranslated in every locale (as in 'factura hold') — move the placeholder, do not replace it
+  /// 13b note: paying the invoice keeps the sats held in the seller's wallet until they confirm the buyer's payment. Plain words, no "hold" term (DS-L10N-4)
   ///
   /// In en, this message translates to:
-  /// **'This is a {hold} invoice: the sats are held, they don\'t leave your wallet until you confirm the buyer\'s payment.'**
-  String invoiceHoldNote(String hold);
+  /// **'The sats are held: they don\'t leave your wallet until you confirm the buyer\'s payment.'**
+  String get invoiceHoldNote;
 
   /// 13b screen reader label of the QR: the whole invoice
   ///
@@ -6034,35 +5950,29 @@ abstract class AppLocalizations {
   /// **'Lightning invoice QR code: {invoice}'**
   String invoiceQrSemantics(String invoice);
 
-  /// 13b terminal state when the hold invoice ran out
-  ///
-  /// In en, this message translates to:
-  /// **'The invoice expired'**
-  String get invoiceExpiredTitle;
-
-  /// 13b terminal state explanation
-  ///
-  /// In en, this message translates to:
-  /// **'It was not paid in time: Mostro cancels the trade and no sats left your wallet.'**
-  String get invoiceExpiredBody;
-
-  /// 13b terminal state action
+  /// Terminal state action of the bond invoice screens
   ///
   /// In en, this message translates to:
   /// **'Back to the order book'**
   String get invoiceBackToBook;
 
-  /// 13a terminal state when the buyer's invoice window ran out
+  /// Countdown at 00:00 on the invoice screens while the order side is not known yet: the local window ended, the daemon has not acted yet.
   ///
   /// In en, this message translates to:
-  /// **'Time is up'**
-  String get invoiceTimeUpTitle;
+  /// **'Time is up. Mostro will close this step shortly unless it is completed.'**
+  String get invoiceStepElapsed;
 
-  /// 13a terminal state explanation
+  /// Countdown at 00:00 on a waiting step the taker owes (trade and invoice screens): the daemon has not acted yet
   ///
   /// In en, this message translates to:
-  /// **'The invoice was not sent in time: Mostro cancels the trade. Nothing was committed on your side.'**
-  String get invoiceTimeUpBody;
+  /// **'Time is up. If it is not completed, Mostro will return the order to the book shortly.'**
+  String get stepElapsedBackToBook;
+
+  /// Countdown at 00:00 on a waiting step the maker owes (trade and invoice screens): the daemon has not acted yet
+  ///
+  /// In en, this message translates to:
+  /// **'Time is up. If it is not completed, Mostro will cancel the order shortly.'**
+  String get stepElapsedCancelled;
 
   /// 13a validation error: the invoice is for another chain than the node's; both are LND network names like mainnet or testnet
   ///
@@ -6070,11 +5980,23 @@ abstract class AppLocalizations {
   /// **'The invoice is for {invoice}, the node uses {node}'**
   String invoiceErrorWrongNetwork(String invoice, String node);
 
-  /// Invoice time band countdown above one hour; hours is a whole number, minutes is always two digits (e.g. 1 h 05). Keep it short: it sits inside a sentence
+  /// Every countdown above one hour (DS-CMP-21: invoice band, trade step, take order, my order, chat); hours is a whole number, minutes is always two digits (e.g. 1 h 05). Keep it short: it sits inside a sentence or a row
   ///
   /// In en, this message translates to:
   /// **'{hours} h {minutes}'**
   String invoiceCountdownHours(String hours, String minutes);
+
+  /// Label of an order's countdown (take order data row, own order status); the figure follows it, e.g. Expires in 23 h 12
+  ///
+  /// In en, this message translates to:
+  /// **'Expires in'**
+  String get countdownExpiresInLabel;
+
+  /// Label above the bond time pill in the compact amount row: the time left to pay the bond invoice
+  ///
+  /// In en, this message translates to:
+  /// **'Pay within'**
+  String get bondPayWithinLabel;
 
   /// Notifications card title for a trade status change (issue #474); role-neutral, both sides see it
   ///
@@ -6304,6 +6226,12 @@ abstract class AppLocalizations {
   /// **'Your account is out of sync with this Mostro node, so it refused the order. Try again in a moment'**
   String get invalidTradeIndexError;
 
+  /// Error shown when the Mostro node refuses a new order with CantDo(InvalidFiatCurrency): its fiat_currencies_accepted list does not include the order's currency
+  ///
+  /// In en, this message translates to:
+  /// **'This Mostro node does not accept that currency, so it refused the order. Pick another currency'**
+  String get invalidFiatCurrencyError;
+
   /// Snackbar shown on the Account screen right after a mnemonic import, while the app asks Mostro for the identity's trades in progress
   ///
   /// In en, this message translates to:
@@ -6322,16 +6250,16 @@ abstract class AppLocalizations {
   /// **'Account imported, but Mostro did not answer, so your trades in progress were not recovered'**
   String get recoverTradesFailedMessage;
 
-  /// Label in front of the chips summarising the methods chosen so far on the payment-method picker screen
+  /// Label in front of the chips summarising the methods selected so far on the payment-method picker screen (glossary: selected, DS-L10N-4)
   ///
   /// In en, this message translates to:
-  /// **'Chosen'**
+  /// **'Selected'**
   String get paymentMethodsChosenLabel;
 
   /// Count line above the confirm button of the payment-method picker screen
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =0{Choose at least one method} =1{1 method selected} other{{count} methods selected}}'**
+  /// **'{count, plural, =0{Select at least one method} =1{1 method selected} other{{count} methods selected}}'**
   String paymentMethodsSelectedCount(int count);
 
   /// Button that saves the payment-method selection and closes the picker screen
@@ -6405,6 +6333,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bond invoice still payable'**
   String get fundsAtRiskBondInvoicePending;
+
+  /// Funds-at-risk list entry: ecash in the current user's Cashu wallet, stranded if the user is replaced
+  ///
+  /// In en, this message translates to:
+  /// **'Ecash in the Cashu wallet'**
+  String get fundsAtRiskCashuBalance;
+
+  /// Funds-at-risk list entry, second line under the Cashu balance: only the current user's recovery words restore it
+  ///
+  /// In en, this message translates to:
+  /// **'Only this user\'s words bring it back'**
+  String get fundsAtRiskCashuHint;
 
   /// Safe, primary action of the funds-at-risk warning: abandon the generation or import
   ///
@@ -6760,6 +6700,72 @@ abstract class AppLocalizations {
   /// **'Not connected to a mint'**
   String get cashuNotConnected;
 
+  /// Cashu wallet — no mint was ever set; how to get one
+  ///
+  /// In en, this message translates to:
+  /// **'No mint set. Set one, or receive a token to use its mint.'**
+  String get cashuNoMintSet;
+
+  /// Cashu wallet — button that sets the wallet's mint when none is set
+  ///
+  /// In en, this message translates to:
+  /// **'Set mint'**
+  String get cashuSetMintButton;
+
+  /// Cashu wallet — button that changes the wallet's mint
+  ///
+  /// In en, this message translates to:
+  /// **'Change mint'**
+  String get cashuChangeMintButton;
+
+  /// Cashu wallet — title of the dialog where the user enters a mint URL
+  ///
+  /// In en, this message translates to:
+  /// **'Cashu mint'**
+  String get cashuMintDialogTitle;
+
+  /// Cashu wallet — label of the mint URL field
+  ///
+  /// In en, this message translates to:
+  /// **'Mint URL'**
+  String get cashuMintFieldLabel;
+
+  /// Cashu wallet — example mint URL shown in the empty field; not translated
+  ///
+  /// In en, this message translates to:
+  /// **'https://mint.example.com'**
+  String get cashuMintFieldHint;
+
+  /// Cashu wallet — title of the warning before changing the mint with a balance
+  ///
+  /// In en, this message translates to:
+  /// **'Change mint?'**
+  String get cashuChangeMintTitle;
+
+  /// Cashu wallet — the balance stays at the old mint when the wallet changes mint
+  ///
+  /// In en, this message translates to:
+  /// **'Your {sats} sats stay at {mint}. They come back when you connect to that mint again.'**
+  String cashuChangeMintWarning(String sats, String mint);
+
+  /// Cashu — an action needs the wallet's mint and none is set
+  ///
+  /// In en, this message translates to:
+  /// **'Set a mint in the Cashu wallet first.'**
+  String get cashuErrorNoMint;
+
+  /// Cashu wallet — the mint URL is not an https URL with a host (http only for a mint on this device)
+  ///
+  /// In en, this message translates to:
+  /// **'That is not a mint URL you can use. It must start with https://.'**
+  String get cashuErrorInvalidMintUrl;
+
+  /// Lock escrow — the wallet is bound to another mint than the node's
+  ///
+  /// In en, this message translates to:
+  /// **'Your Cashu wallet uses another mint. Switch it to this node\'s mint in Settings → Cashu wallet, then try again.'**
+  String get cashuErrorWalletOnOtherMint;
+
   /// Cashu wallet — button that scans or pastes a token to redeem
   ///
   /// In en, this message translates to:
@@ -6777,6 +6783,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Paste or scan a Cashu token'**
   String get cashuReceiveHint;
+
+  /// Cashu wallet — title of the Receive dialog, which takes the token by pasting or scanning
+  ///
+  /// In en, this message translates to:
+  /// **'Receive a token'**
+  String get cashuReceiveTitle;
+
+  /// Cashu wallet — label above the token field in the Receive dialog; shown in capitals
+  ///
+  /// In en, this message translates to:
+  /// **'Cashu token'**
+  String get cashuTokenFieldLabel;
+
+  /// Cashu wallet — dimmed placeholder of the token field; disappears once something is pasted or typed
+  ///
+  /// In en, this message translates to:
+  /// **'Paste a Cashu token'**
+  String get cashuPasteTokenHint;
+
+  /// Tooltip of a disabled Scan QR action (NWC wallet, Cashu wallet) where the device has no usable camera (desktop, web)
+  ///
+  /// In en, this message translates to:
+  /// **'Not available on this device'**
+  String get qrScanUnavailable;
 
   /// Cashu wallet — amount field when exporting a token
   ///
@@ -6829,7 +6859,7 @@ abstract class AppLocalizations {
   /// Cashu wallet — explanation of what the wallet is for
   ///
   /// In en, this message translates to:
-  /// **'This wallet holds ecash issued by the mint your Mostro node uses. It exists to fund and receive trades on that node — it is not a general-purpose wallet.'**
+  /// **'This wallet holds ecash from the mint you choose. It exists to fund and receive Cashu trades — it is not a general-purpose wallet.'**
   String get cashuWalletExplanation;
 
   /// Cashu error — the active node is not a Cashu node
@@ -6853,7 +6883,7 @@ abstract class AppLocalizations {
   /// Cashu error — the mint answered but lacks a required NUT or keyset
   ///
   /// In en, this message translates to:
-  /// **'This node\'s mint is missing features the escrow needs, so trading is not possible here.'**
+  /// **'This mint is missing features the wallet needs. Choose another mint.'**
   String get cashuErrorMintUnusable;
 
   /// Cashu error — the web build has no proof storage
@@ -6921,12 +6951,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This token is too large for a QR code. Copy it instead.'**
   String get cashuTokenTooLargeForQr;
-
-  /// Cashu wallet — the node was switched while the wallet was bound to the previous node's mint
-  ///
-  /// In en, this message translates to:
-  /// **'The active node changed and this wallet is bound to another mint. Go back and open the wallet again.'**
-  String get cashuErrorMintChanged;
 
   /// Cashu wallet — permanent: an nsec-imported identity has no seed
   ///
@@ -7072,11 +7096,11 @@ abstract class AppLocalizations {
   /// **'Your escrow is locked but the node has not confirmed it. Retrying is safe — it will not lock a second time.'**
   String get lockEscrowPendingSubmission;
 
-  /// Escrow error — the node published no mint (CashuMintUnknown)
+  /// Escrow error — the node accepts several mints, or any, so each order names its own, and this build can only lock on a node with a single mint (CashuMintNotSupported, MostroP2P/mostro#1047)
   ///
   /// In en, this message translates to:
-  /// **'This node has not published its mint, so there is nowhere to lock the escrow.'**
-  String get lockEscrowMintUnknown;
+  /// **'This node lets each order choose its mint, and this version of the app can only lock an escrow on a node with a single mint.'**
+  String get lockEscrowMintNotSupported;
 
   /// Escrow error — submitted, but the device could not save the token (CashuEscrowNotPersisted)
   ///
@@ -7138,299 +7162,185 @@ abstract class AppLocalizations {
   /// **'They\'re locking the sats in escrow. Once it\'s locked, it\'s your turn to pay the fiat.'**
   String get tradeBodyWaitingPaymentBuyerCashu;
 
-  /// Simple Mode, Sell tab: under the title of the seller's payment details, where they are kept and when they leave the device
+  /// Dispute chat app bar: tooltip of the action that sends the solver the peer chat key (#415)
   ///
   /// In en, this message translates to:
-  /// **'Kept on this device only. They are not published with the offer: you send them to the buyer over the encrypted chat once your Bitcoin is locked.'**
-  String get simplePayDetailsLocalNote;
+  /// **'Share the chat key with the resolver'**
+  String get shareChatKeyAction;
 
-  /// Simple Mode, Sell tab: in place of the payment-details fields while no payment method is chosen
+  /// Title of the dialog confirming that the peer chat key goes to the dispute solver
   ///
   /// In en, this message translates to:
-  /// **'First choose how you want to be paid.'**
-  String get simplePayDetailsPickFirst;
+  /// **'Share the chat key with the resolver?'**
+  String get shareChatKeyTitle;
 
-  /// Simple Mode sell confirm sheet: label of the rows with the seller's payment details, one per method
+  /// Body of the dialog confirming that the peer chat key goes to the dispute solver: what the solver can read, and only that
   ///
   /// In en, this message translates to:
-  /// **'Payment details'**
-  String get simplePayDetailsLabel;
+  /// **'If you confirm, the resolver of this dispute will be able to read the whole chat between you and your counterparty in this order, and only that chat: not the chats of your earlier or later trades. This cannot be undone. Sharing is optional, but it helps the resolver settle the dispute faster.'**
+  String get shareChatKeyBody;
 
-  /// Simple Mode sell confirm sheet: under the seller's payment details, that the order does not carry them
+  /// Confirm button of the dialog that shares the peer chat key with the solver
   ///
   /// In en, this message translates to:
-  /// **'Not published with the offer. You send them to the buyer over the chat once your Bitcoin is locked.'**
-  String get simplePayDetailsNotPublished;
+  /// **'Share'**
+  String get shareChatKeyConfirm;
 
-  /// Simple Mode sell confirm sheet: shown instead of the payment details when the seller typed none
+  /// Dispute chat app bar: tooltip of the share-chat-key action once the chat key went to the current solver (it can still be sent again)
   ///
   /// In en, this message translates to:
-  /// **'You have not written your payment details yet. You can write and send them once a buyer takes the offer.'**
-  String get simplePayDetailsLater;
+  /// **'Chat key shared with the resolver'**
+  String get chatKeySharedIndicator;
 
-  /// Simple Mode trade view, seller, escrow locked: title of the card that sends the payment details to the buyer
+  /// Error in the share-chat-key dialog: the counterparty or trade key of this order is not known on this device
   ///
   /// In en, this message translates to:
-  /// **'Send your payment details to the buyer'**
-  String get simplePayDetailsSendTitle;
+  /// **'The chat key of this trade is not available on this device.'**
+  String get shareChatKeyUnavailable;
 
-  /// Simple Mode trade view, seller: under the title of the card that sends the payment details
+  /// «…» in a chat message's menu, and the title of the sheet with every emoji
   ///
   /// In en, this message translates to:
-  /// **'The buyer needs them to pay you. They travel encrypted over the chat: only the buyer sees them.'**
-  String get simplePayDetailsSendBody;
+  /// **'More reactions'**
+  String get moreReactions;
 
-  /// Simple Mode trade view, seller: button that sends the payment details to the buyer over the chat
+  /// Screen-reader label of the reaction shown under a chat message
   ///
   /// In en, this message translates to:
-  /// **'Send to the buyer'**
-  String get simplePayDetailsSendAction;
+  /// **'Reaction: {emoji}'**
+  String messageReactionLabel(String emoji);
 
-  /// Simple Mode trade view, seller: link that opens the payment details again after they were sent
+  /// Snackbar shown when a reaction to a chat message could not be sent
   ///
   /// In en, this message translates to:
-  /// **'Send again'**
-  String get simplePayDetailsSendAgain;
+  /// **'Couldn\'t send the reaction. Please try again.'**
+  String get reactionSendFailed;
 
-  /// Simple Mode trade view, seller: the payment details were sent, with the time of day
+  /// Screen-reader hint of a chat message: what tapping it (or holding an attachment) opens
   ///
   /// In en, this message translates to:
-  /// **'Payment details sent to the buyer · {time}'**
-  String simplePayDetailsSentAt(String time);
+  /// **'Open the message menu'**
+  String get messageMenuHint;
 
-  /// Simple Mode trade view, seller: beside the send button while no ticked method has any text
+  /// Mint of a Cashu node that lists no mint and so accepts any the order's maker picks (MostroP2P/mostro#1047): value in Settings, About and the node selector
   ///
   /// In en, this message translates to:
-  /// **'Write your details for at least one method to send them.'**
-  String get simplePayDetailsNothingToSend;
+  /// **'Any mint'**
+  String get cashuAnyMint;
 
-  /// Simple Mode trade view, seller: the payment details could not be sent, for a reason with no wording of its own
+  /// Settings, Payments group — label of a row naming a Cashu mint the active node accepts (one row per mint); shown only when the node runs Cashu
   ///
   /// In en, this message translates to:
-  /// **'Your details could not be sent. Try again.'**
-  String get simplePayDetailsSendFailed;
+  /// **'Mint'**
+  String get settingsMintLabel;
 
-  /// Sending the payment details failed because the chat with the buyer is not set up yet (PeerUnknown, SessionNotFound)
+  /// Snackbar after tapping a mint row in Settings, which copies the mint's full URL
   ///
   /// In en, this message translates to:
-  /// **'There is no connection with the buyer yet. Wait a moment and try again.'**
-  String get simplePayDetailsNoPeerYet;
+  /// **'Mint URL copied'**
+  String get settingsMintCopied;
 
-  /// Sending the payment details was refused because the seller's Bitcoin is not locked (PaymentDetailsEscrowNotLocked)
+  /// Title of the card on the order book (web, mobile) that offers to install the app to the home screen
   ///
   /// In en, this message translates to:
-  /// **'Your details can only be sent once the Bitcoin is locked.'**
-  String get simplePayDetailsNotLocked;
+  /// **'Install Mostro'**
+  String get pwaInstallTitle;
 
-  /// First line of the chat message that carries the seller's payment details to the buyer
+  /// Body of the install card: what installing gives the user
   ///
   /// In en, this message translates to:
-  /// **'My details to receive the payment:'**
-  String get simplePayDetailsMessageHeader;
+  /// **'Open it from your home screen, full screen, like any other app.'**
+  String get pwaInstallBody;
 
-  /// Screen-reader label of the tick that puts a payment method's details into the message to the buyer
+  /// Install card action: installs the app (Android) or shows how to (iOS)
   ///
   /// In en, this message translates to:
-  /// **'Include {method}'**
-  String simplePayDetailsInclude(String method);
+  /// **'Install'**
+  String get pwaInstallAction;
 
-  /// Simple Mode trade view, seller: link to the chat, beside the note that the payment details were sent
+  /// Install card way out: hides the card for good on this device
   ///
   /// In en, this message translates to:
-  /// **'View chat'**
-  String get simplePayDetailsViewChat;
+  /// **'Not now'**
+  String get pwaInstallNotNow;
 
-  /// Simple Mode trade view, buyer, escrow locked: where the seller's payment details come from
+  /// Settings row (web only) that installs the app, for whoever dismissed the card
   ///
   /// In en, this message translates to:
-  /// **'The seller sends you their payment details over the encrypted chat. If they have not arrived yet, ask for them there.'**
-  String get simplePayDetailsFromSeller;
+  /// **'Install app'**
+  String get pwaInstallSettingTitle;
 
-  /// Simple Mode trade view, buyer: button that opens the chat with the seller, where the payment details arrive
+  /// Title of the sheet that explains how to add the app to the iOS home screen
   ///
   /// In en, this message translates to:
-  /// **'Open chat'**
-  String get simplePayDetailsOpenChat;
+  /// **'Add Mostro to your home screen'**
+  String get pwaInstallStepsTitle;
 
-  /// Simple Mode trade view, buyer: unread messages from the seller, beside the button that opens the chat
+  /// Step 1 on iOS: the Share button of Safari or of the browser
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 new message} other{{count} new messages}}'**
-  String simplePayDetailsNewMessages(int count);
+  /// **'Tap the Share button in your browser\'s toolbar.'**
+  String get pwaInstallStepShare;
 
-  /// Simple Mode, Sell tab and the sheet that publishes a buy order: label of the control that sets the order's price against the market
+  /// Step 2 on iOS: the Share menu entry, named as iOS names it in this language
   ///
   /// In en, this message translates to:
-  /// **'Price'**
-  String get simplePriceLabel;
+  /// **'Choose “Add to Home Screen”.'**
+  String get pwaInstallStepAdd;
 
-  /// Simple Mode price control: the figure shown at 0 %, the market price. One short word, it sits between two buttons
+  /// Closes the iOS install steps sheet
   ///
   /// In en, this message translates to:
-  /// **'Market'**
-  String get simplePriceMarket;
+  /// **'Got it'**
+  String get pwaInstallStepsDone;
 
-  /// Simple Mode price control: tooltip and screen-reader label of the button that takes one percent off the price
+  /// Title of the Account card showing the user's own reputation on the active node
   ///
   /// In en, this message translates to:
-  /// **'1 % lower'**
-  String get simplePriceLower;
+  /// **'Your reputation'**
+  String get myReputationTitle;
 
-  /// Simple Mode price control: tooltip and screen-reader label of the button that adds one percent to the price
+  /// Number of ratings the user has received, on their own reputation card
   ///
   /// In en, this message translates to:
-  /// **'1 % higher'**
-  String get simplePriceRaise;
+  /// **'{count, plural, =1{1 rating} other{{count} ratings}}'**
+  String myReputationReviews(int count);
 
-  /// Simple Mode price control, seller: what 0 % means
+  /// Date of the user's first trade on their reputation card; date is a localized month and year
   ///
   /// In en, this message translates to:
-  /// **'You sell at the market price.'**
-  String get simplePriceSellMarket;
+  /// **'since {date}'**
+  String myReputationSince(String date);
 
-  /// Simple Mode price control, seller: what a premium means, said in sats because that is exact (the node takes the premium off the sats). {percent} is a whole number without sign
+  /// Own reputation card when the node has no ratings for the user
   ///
   /// In en, this message translates to:
-  /// **'At a premium: you hand over {percent} % fewer sats.'**
-  String simplePriceSellAbove(String percent);
+  /// **'No ratings yet. Your reputation starts with your first rated trade.'**
+  String get myReputationNoReviews;
 
-  /// Simple Mode price control, seller: what a discount means, said in sats. {percent} is a whole number without sign
+  /// Own reputation card in full privacy mode, where no reputation exists
   ///
   /// In en, this message translates to:
-  /// **'At a discount: you hand over {percent} % more sats.'**
-  String simplePriceSellBelow(String percent);
+  /// **'Full privacy mode keeps no reputation. Choose reputation mode below to build one.'**
+  String get myReputationPrivacyMode;
 
-  /// Simple Mode price control, buyer publishing a buy order: what 0 % means
+  /// Own reputation card while the node is asked and nothing is cached
   ///
   /// In en, this message translates to:
-  /// **'You buy at the market price.'**
-  String get simplePriceBuyMarket;
+  /// **'Asking your node…'**
+  String get myReputationLoading;
 
-  /// Simple Mode price control, buyer publishing a buy order: what a premium means, said in sats. {percent} is a whole number without sign
+  /// Own reputation card when the node has never answered
   ///
   /// In en, this message translates to:
-  /// **'At a premium: you receive {percent} % fewer sats.'**
-  String simplePriceBuyAbove(String percent);
+  /// **'Your node has not answered yet.'**
+  String get myReputationUnavailable;
 
-  /// Simple Mode price control, buyer publishing a buy order: what a discount means, said in sats. {percent} is a whole number without sign
+  /// Names the node the reputation belongs to
   ///
   /// In en, this message translates to:
-  /// **'At a discount: you receive {percent} % more sats.'**
-  String simplePriceBuyBelow(String percent);
-
-  /// Simple Mode, Buy tab: question on the row above the offers that leads to publishing a buy order
-  ///
-  /// In en, this message translates to:
-  /// **'No offer suits you?'**
-  String get simpleBuyOrderPrompt;
-
-  /// Simple Mode, Buy tab: the action on the row above the offers; opens the sheet that publishes a buy order
-  ///
-  /// In en, this message translates to:
-  /// **'Publish your own'**
-  String get simpleBuyOrderPromptAction;
-
-  /// Simple Mode, Buy tab: shown when no offer matches, above the button that publishes a buy order
-  ///
-  /// In en, this message translates to:
-  /// **'Try another payment method, or publish your own buy order: the community\'s sellers will see it.'**
-  String get simpleBuyOrderEmptyHint;
-
-  /// Simple Mode, buy order sheet: the button at its foot that publishes the user's buy order
-  ///
-  /// In en, this message translates to:
-  /// **'Publish buy order'**
-  String get simpleBuyOrderAction;
-
-  /// Simple Mode, Buy tab: button on the empty list that opens the sheet where a buy order is set up. It does not publish, so it must not read like the sheet own publish button
-  ///
-  /// In en, this message translates to:
-  /// **'Create a buy order'**
-  String get simpleBuyOrderOpen;
-
-  /// Simple Mode: title of the sheet that publishes a buy order
-  ///
-  /// In en, this message translates to:
-  /// **'Publish your buy order'**
-  String get simpleBuyOrderTitle;
-
-  /// Simple Mode, buy order sheet: label of the fiat amount the user wants to buy
-  ///
-  /// In en, this message translates to:
-  /// **'You want to buy'**
-  String get simpleBuyOrderAmount;
-
-  /// Simple Mode, buy order sheet: heading over the payment methods the buyer can pay with
-  ///
-  /// In en, this message translates to:
-  /// **'How can you pay?'**
-  String get simpleBuyOrderMethods;
-
-  /// Simple Mode, buy order sheet: said in the payment method picker opened from the sheet
-  ///
-  /// In en, this message translates to:
-  /// **'Tick every way you can pay. They are published with your order.'**
-  String get simpleBuyOrderMethodsHint;
-
-  /// Simple Mode, buy order sheet: what happens after publishing, and the warning not to pay before the seller's Bitcoin is locked
-  ///
-  /// In en, this message translates to:
-  /// **'The community\'s sellers will see your order. When one takes it and their Bitcoin is locked, the app tells you to pay. Do not send money before that.'**
-  String get simpleBuyOrderNotice;
-
-  /// Simple Mode trade timeline: first step of the user's own order while nobody has taken it
-  ///
-  /// In en, this message translates to:
-  /// **'Offer published. Waiting for someone to take it'**
-  String get simpleOfferWaitingTaker;
-
-  /// Simple Mode trade view: button that withdraws (cancels) the user's own order while nobody has taken it
-  ///
-  /// In en, this message translates to:
-  /// **'Withdraw offer'**
-  String get simpleWithdrawOffer;
-
-  /// Simple Mode trade view: title of the sheet that confirms withdrawing the user's own untaken order
-  ///
-  /// In en, this message translates to:
-  /// **'Withdraw your offer?'**
-  String get simpleWithdrawTitle;
-
-  /// Simple Mode trade view: body of the sheet that confirms withdrawing an untaken order, when the order has no guarantee locked
-  ///
-  /// In en, this message translates to:
-  /// **'It will no longer show on the market. You can publish another whenever you like.'**
-  String get simpleWithdrawBody;
-
-  /// Simple Mode trade view: body of the sheet that confirms withdrawing an untaken order whose maker locked a guarantee (bond): cancelling releases it
-  ///
-  /// In en, this message translates to:
-  /// **'It will no longer show on the market and your temporary guarantee is released. You can publish another whenever you like.'**
-  String get simpleWithdrawBodyBond;
-
-  /// Simple Mode trade view: the button that confirms withdrawing the order
-  ///
-  /// In en, this message translates to:
-  /// **'Yes, withdraw'**
-  String get simpleWithdrawConfirm;
-
-  /// Simple Mode trade view: shown once the withdrawal was sent to the node. The node's answer arrives later, so it does not say the order is gone already
-  ///
-  /// In en, this message translates to:
-  /// **'Withdrawal sent. Your offer will stop showing in a few seconds.'**
-  String get simpleWithdrawSent;
-
-  /// Simple Mode trade view: fallback when withdrawing the order failed for a reason with no wording of its own
-  ///
-  /// In en, this message translates to:
-  /// **'The offer could not be withdrawn. Try again.'**
-  String get simpleWithdrawFailed;
-
-  /// Simple Mode trade view: the order was taken while the user was confirming its withdrawal; nothing was sent
-  ///
-  /// In en, this message translates to:
-  /// **'Someone has just taken your offer: it can no longer be withdrawn.'**
-  String get simpleWithdrawTaken;
+  /// **'On {node}'**
+  String myReputationOnNode(String node);
 }
 
 class _AppLocalizationsDelegate

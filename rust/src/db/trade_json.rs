@@ -50,17 +50,32 @@ pub(crate) fn apply_fields(
     Ok(())
 }
 
-/// Stores the counterparty reputation snapshot as JSON numbers.
+/// `$.order.fiat_amount` and `$.order.amount_sats` exactly as given, `None`
+/// writing a JSON null (`Storage::set_trade_range_slice`).
+pub(crate) fn set_range_slice(
+    trade: &mut Value,
+    fiat_amount: Option<f64>,
+    amount_sats: Option<u64>,
+) -> Result<()> {
+    *field(trade, &["order", "fiat_amount"])? = serde_json::to_value(fiat_amount)?;
+    *field(trade, &["order", "amount_sats"])? = serde_json::to_value(amount_sats)?;
+    Ok(())
+}
+
+/// Stores the counterparty reputation snapshot as JSON numbers; an absent
+/// `since` is stored as null.
 pub(crate) fn set_peer_reputation(
     trade: &mut Value,
     rating: f64,
     reviews: u32,
     days: u32,
+    since: Option<i64>,
 ) -> Result<()> {
     *field(trade, &["peer_rating"])? =
         serde_json::Number::from_f64(rating).map_or(Value::Null, Value::Number);
     *field(trade, &["peer_reviews"])? = Value::from(reviews);
     *field(trade, &["peer_days"])? = Value::from(days);
+    *field(trade, &["peer_since"])? = Value::from(since);
     Ok(())
 }
 
@@ -73,6 +88,17 @@ pub(crate) fn set_bond(trade: &mut Value, bond: &crate::api::types::BondInfo) ->
 /// `$.rated_at = rated_at` as a JSON number.
 pub(crate) fn mark_rated(trade: &mut Value, rated_at: i64) -> Result<()> {
     *field(trade, &["rated_at"])? = Value::from(rated_at);
+    Ok(())
+}
+
+/// `$.completed_at = completed_at` as a JSON number, unless the trade already
+/// has one: the first completion recorded wins, so a replayed `success`
+/// never moves the end of the trade (and its chat window) forward.
+pub(crate) fn mark_completed(trade: &mut Value, completed_at: i64) -> Result<()> {
+    let slot = field(trade, &["completed_at"])?;
+    if slot.is_null() {
+        *slot = Value::from(completed_at);
+    }
     Ok(())
 }
 
@@ -176,11 +202,29 @@ mod tests {
     #[test]
     fn numbers_stay_numbers_so_the_row_deserialises_again() {
         let mut t = trade();
-        set_peer_reputation(&mut t, 4.5, 12, 300).unwrap();
+        set_peer_reputation(&mut t, 4.5, 12, 300, Some(1699920000)).unwrap();
         mark_rated(&mut t, 1700000123).unwrap();
         assert!(t["peer_rating"].is_f64());
         assert!(t["peer_reviews"].is_u64() && t["peer_days"].is_u64());
+        assert_eq!(t["peer_since"], 1699920000);
         assert!(t["rated_at"].is_i64());
+    }
+
+    #[test]
+    fn an_absent_peer_since_is_stored_as_null() {
+        let mut t = trade();
+        set_peer_reputation(&mut t, 4.5, 12, 300, None).unwrap();
+        assert!(t["peer_since"].is_null());
+        assert_eq!(t["peer_days"], 300);
+    }
+
+    #[test]
+    fn the_first_completion_recorded_wins() {
+        let mut t = trade();
+        mark_completed(&mut t, 1700000500).unwrap();
+        assert!(t["completed_at"].is_i64());
+        mark_completed(&mut t, 1700009999).unwrap();
+        assert_eq!(t["completed_at"], 1700000500);
     }
 
     #[test]

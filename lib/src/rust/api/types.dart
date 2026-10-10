@@ -10,7 +10,7 @@ part 'types.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `default_expiration_hours`, `default_expiration_seconds`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `AppState`, `MostroNodeInfo`, `QueuedMessageStatus`, `TradeHistoryEntry`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// The `bond_claims` key for a node / order pair.
 Future<String> bondClaimKey({
@@ -699,6 +699,12 @@ class ChatMessage {
   final AttachmentInfo? attachment;
   final PlatformInt64 createdAt;
 
+  /// Reactions to this message (protocol chat.md, "Reactions"), at most one
+  /// per party: the newest that party sent. One with an empty `emoji` was
+  /// withdrawn; it is kept so a re-wrapped older reaction changes nothing.
+  /// Older stored messages have none, hence the default.
+  final List<ChatReaction> reactions;
+
   const ChatMessage({
     required this.id,
     required this.tradeId,
@@ -710,6 +716,7 @@ class ChatMessage {
     required this.hasAttachment,
     this.attachment,
     required this.createdAt,
+    required this.reactions,
   });
 
   @override
@@ -723,7 +730,8 @@ class ChatMessage {
       isRead.hashCode ^
       hasAttachment.hashCode ^
       attachment.hashCode ^
-      createdAt.hashCode;
+      createdAt.hashCode ^
+      reactions.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -739,7 +747,49 @@ class ChatMessage {
           isRead == other.isRead &&
           hasAttachment == other.hasAttachment &&
           attachment == other.attachment &&
-          createdAt == other.createdAt;
+          createdAt == other.createdAt &&
+          reactions == other.reactions;
+}
+
+/// A party's reaction to a chat message: an inner kind 7 event naming the
+/// message by its inner id.
+class ChatReaction {
+  /// Trade pubkey of the party who reacted, from the verified inner event.
+  final String senderPubkey;
+
+  /// The emoji, or empty when the reaction was withdrawn.
+  final String emoji;
+
+  /// Inner `created_at`: of a party's reactions to one message, the newest
+  /// holds.
+  final PlatformInt64 createdAt;
+
+  /// Inner event id: breaks a tie between two reactions of the same second.
+  final String eventId;
+
+  const ChatReaction({
+    required this.senderPubkey,
+    required this.emoji,
+    required this.createdAt,
+    required this.eventId,
+  });
+
+  @override
+  int get hashCode =>
+      senderPubkey.hashCode ^
+      emoji.hashCode ^
+      createdAt.hashCode ^
+      eventId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatReaction &&
+          runtimeType == other.runtimeType &&
+          senderPubkey == other.senderPubkey &&
+          emoji == other.emoji &&
+          createdAt == other.createdAt &&
+          eventId == other.eventId;
 }
 
 enum ConnectionState { online, offline, reconnecting }
@@ -783,6 +833,10 @@ class Dispute {
   /// Whether the local user has seen the latest dispute update.
   final bool isRead;
 
+  /// Whether this side already sent the current solver the chat key
+  /// (#415). A takeover clears it: the new solver never got the key.
+  final bool chatKeyShared;
+
   const Dispute({
     required this.id,
     required this.tradeId,
@@ -794,6 +848,7 @@ class Dispute {
     required this.openedAt,
     this.resolvedAt,
     required this.isRead,
+    required this.chatKeyShared,
   });
 
   @override
@@ -807,7 +862,8 @@ class Dispute {
       resolution.hashCode ^
       openedAt.hashCode ^
       resolvedAt.hashCode ^
-      isRead.hashCode;
+      isRead.hashCode ^
+      chatKeyShared.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -823,7 +879,8 @@ class Dispute {
           resolution == other.resolution &&
           openedAt == other.openedAt &&
           resolvedAt == other.resolvedAt &&
-          isRead == other.isRead;
+          isRead == other.isRead &&
+          chatKeyShared == other.chatKeyShared;
 }
 
 enum DisputeResolution {
@@ -848,9 +905,16 @@ class EscrowModeInfo {
   /// translate; Dart maps this to a localized string.
   final String mode;
 
-  /// Mint the node pins for every escrow, override applied. `None` on a
-  /// Lightning node, or on a Cashu node that published none.
+  /// The one mint every escrow on the node is locked at, override applied:
+  /// set only when the node accepts exactly one (the wallet binds to it).
+  /// `None` on a Lightning node, and on a Cashu node that accepts several
+  /// mints or any.
   final String? mintUrl;
+
+  /// Every mint the node accepts (MostroP2P/mostro#1047), override applied.
+  /// Meaningful only when [`Self::mode`] is `"cashu"`, where empty means the
+  /// node accepts any mint.
+  final List<String> mintUrls;
 
   /// NUT-11 locktime the seller must set, in days.
   final int? escrowLocktimeDays;
@@ -862,9 +926,9 @@ class EscrowModeInfo {
   /// the node's own tags.
   final bool isOverridden;
 
-  /// **The gate.** True only when the mode is Cashu *and* there is a usable
-  /// mint to connect to. `mode == "cashu"` alone is not enough — a node can
-  /// advertise Cashu and publish no mint.
+  /// **The gate.** True only when the mode is Cashu *and* the node pins one
+  /// mint for the wallet to bind to. `mode == "cashu"` alone is not enough —
+  /// a node can accept several mints, or any.
   final bool isCashuAvailable;
 
   /// Developer override state, mirrored so the dev-only settings surface can
@@ -877,6 +941,7 @@ class EscrowModeInfo {
   const EscrowModeInfo({
     required this.mode,
     this.mintUrl,
+    required this.mintUrls,
     this.escrowLocktimeDays,
     this.settlementMarginDays,
     required this.isOverridden,
@@ -889,6 +954,7 @@ class EscrowModeInfo {
   int get hashCode =>
       mode.hashCode ^
       mintUrl.hashCode ^
+      mintUrls.hashCode ^
       escrowLocktimeDays.hashCode ^
       settlementMarginDays.hashCode ^
       isOverridden.hashCode ^
@@ -903,6 +969,7 @@ class EscrowModeInfo {
           runtimeType == other.runtimeType &&
           mode == other.mode &&
           mintUrl == other.mintUrl &&
+          mintUrls == other.mintUrls &&
           escrowLocktimeDays == other.escrowLocktimeDays &&
           settlementMarginDays == other.settlementMarginDays &&
           isOverridden == other.isOverridden &&
@@ -960,6 +1027,11 @@ enum FundsAtRiskReason {
 
   /// A bond invoice that can still be paid: nothing is locked yet.
   bondInvoicePending,
+
+  /// Ecash in this identity's Cashu wallet. Its proof store opens only
+  /// under this identity, so only these words bring it back. Not tied to an
+  /// order: `order_id` is empty.
+  cashuWalletBalance,
 }
 
 class IdentityInfo {
@@ -1432,7 +1504,21 @@ class OrderInfo {
   final int totalReviews;
 
   /// Days the maker has been active on this Mostro node (`days`).
+  /// Deprecated on the wire in favour of [`Self::maker_since`]; kept as the
+  /// fallback for daemons that do not publish `since`.
   final int daysActive;
+
+  /// Unix timestamp (seconds) of the maker's first trade, truncated to its
+  /// UTC day start (the `rating` tag's `since`). `None` from daemons that
+  /// predate it and for users without a date. The UI computes the age at
+  /// display time (now − since) and falls back to [`Self::days_active`].
+  final PlatformInt64? makerSince;
+
+  /// Mint the order's escrow is locked at, from the Kind 38383
+  /// `cashu_mint_url` tag (MostroP2P/mostro#1047): the maker picks it among
+  /// the node's mints. `None` on a Lightning order, on a Cashu order from an
+  /// older daemon, and on our own new order until its book event says.
+  final String? cashuMintUrl;
 
   const OrderInfo({
     required this.id,
@@ -1452,6 +1538,8 @@ class OrderInfo {
     required this.rating,
     required this.totalReviews,
     required this.daysActive,
+    this.makerSince,
+    this.cashuMintUrl,
   });
 
   @override
@@ -1472,7 +1560,9 @@ class OrderInfo {
       isMine.hashCode ^
       rating.hashCode ^
       totalReviews.hashCode ^
-      daysActive.hashCode;
+      daysActive.hashCode ^
+      makerSince.hashCode ^
+      cashuMintUrl.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1495,7 +1585,9 @@ class OrderInfo {
           isMine == other.isMine &&
           rating == other.rating &&
           totalReviews == other.totalReviews &&
-          daysActive == other.daysActive;
+          daysActive == other.daysActive &&
+          makerSince == other.makerSince &&
+          cashuMintUrl == other.cashuMintUrl;
 }
 
 /// Shared types exposed to Flutter via flutter_rust_bridge.
@@ -1860,9 +1952,38 @@ enum SlashCause {
   dispute,
 }
 
+/// Who a dispute solver is, for the label the dispute chat shows (#637).
+/// Rust decides it; Dart only localizes it.
+enum SolverRole {
+  /// The dispute assistant (Serbero) a known node announces in its info
+  /// event: it helps the parties and hands the case to a person.
+  assistant,
+
+  /// Anyone else: a person who can settle or cancel. Every solver of a node
+  /// that announces no assistant is one.
+  human,
+}
+
 enum ThemeMode { system, dark, light }
 
 class TradeInfo {
+  /// This row's own id — **not** the order's, and not reliably either the
+  /// same or different.
+  ///
+  /// A take made on this device mints a fresh UUID here (`take_order`)
+  /// while `order.id` holds the id the daemon knows, so the two diverge. A
+  /// row rebuilt instead of taken — from a replayed daemon message on a
+  /// fresh device (`trade_row_from_small_order`), or from a restored bond
+  /// (`restored_bond_row`) — reuses the order id for both. So neither
+  /// equality nor inequality says whose row it is, and no code should ask:
+  /// `order.is_mine` and `role` are what carry that.
+  ///
+  /// Nothing looks a trade up by this, whether or not it happens to match.
+  /// Every accessor on [`crate::db::Storage`] keys on `order.id`, and so
+  /// does the chat (`messages.trade_id`); its one job is to be the row's
+  /// primary key, so `save_trade` replaces a row instead of inserting a
+  /// second one. Carry it forward when rebuilding a row, and reach for
+  /// `order.id` when looking one up (issue #395).
   final String id;
   final OrderInfo order;
   final TradeRole role;
@@ -1886,15 +2007,23 @@ class TradeInfo {
   final int? peerReviews;
   final int? peerDays;
 
-  /// Durable "the local user rated this trade" marker (unix seconds), set
-  /// after `submit_rating` publishes (issue #339).
+  /// Unix timestamp (seconds) of the counterparty's first trade, truncated
+  /// to its UTC day start (`UserInfo.since` in the Peer DM). `None` from
+  /// daemons that predate it and for users without a date. The UI computes
+  /// the age at display time (now − since) and falls back to
+  /// [`Self::peer_days`].
+  final PlatformInt64? peerSince;
+
+  /// Durable "the local user rated this trade" marker (unix seconds): set
+  /// after `submit_rating` publishes (issue #339), and when the daemon's
+  /// `rate-received` — sent to the rater alone — arrives or is replayed,
+  /// dated by it: a rating made on another device closes the step here too.
   ///
-  /// Whether we rated a counterparty is local knowledge: the daemon's kind
-  /// 38383 tag carries the peer's *aggregate* reputation, and its one-shot
-  /// `rate-received` is not re-sent on reconnect — so nothing on the wire can
-  /// rebuild it. Persisting the timestamp here lets the rated state survive a
-  /// restart and keeps the duplicate-rating guard armed. The score itself is
-  /// deliberately not stored — the rated UI shows only a label, not the note.
+  /// The daemon's kind 38383 tag carries the peer's *aggregate* reputation
+  /// only, and `rate-received` lives only as long as the relays keep it, so
+  /// the marker is persisted here: the closed state survives a restart and
+  /// keeps the duplicate-rating guard armed. The score itself is
+  /// deliberately not stored — the closed UI shows only a label, not the note.
   /// `#[serde(default)]` keeps trade rows written before this field existed
   /// deserializable.
   final PlatformInt64? ratedAt;
@@ -1956,6 +2085,7 @@ class TradeInfo {
     this.peerRating,
     this.peerReviews,
     this.peerDays,
+    this.peerSince,
     this.ratedAt,
     this.bond,
     this.buyerTradePubkey,
@@ -1984,6 +2114,7 @@ class TradeInfo {
       peerRating.hashCode ^
       peerReviews.hashCode ^
       peerDays.hashCode ^
+      peerSince.hashCode ^
       ratedAt.hashCode ^
       bond.hashCode ^
       buyerTradePubkey.hashCode ^
@@ -2014,6 +2145,7 @@ class TradeInfo {
           peerRating == other.peerRating &&
           peerReviews == other.peerReviews &&
           peerDays == other.peerDays &&
+          peerSince == other.peerSince &&
           ratedAt == other.ratedAt &&
           bond == other.bond &&
           buyerTradePubkey == other.buyerTradePubkey &&
@@ -2139,6 +2271,14 @@ enum TradeUpdateReason {
   /// The counterparty asked to cancel; this side decides whether to
   /// cancel too. Emitted on `cooperative-cancel-initiated-by-peer`.
   cooperativeCancelRequestedByPeer,
+
+  /// Not a step this client just learned of: a status Rust re-states so
+  /// the screens read the trade again: a restore filing an old trade, a
+  /// re-read after the peer's reputation arrived. A restore's is dated by
+  /// the local clock, so its `occurred_at` cannot tell it from news; this
+  /// does (#770). Not the startup sweep's cancel: that is the daemon's
+  /// `Canceled` learned late, news like the message it stands in for.
+  replayed,
 }
 
 enum WalletStatus { connected, disconnected, connecting, error }

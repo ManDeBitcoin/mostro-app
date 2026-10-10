@@ -61,13 +61,9 @@ class AmountSection extends ConsumerWidget {
     final side = ref.watch(orderSideProvider);
     final isRange = ref.watch(isRangeOrderProvider);
     final formatters = [
-      // An order carries its fiat amount as an integer. A separator the
-      // user types is kept on screen rather than dropped, so the form can
-      // refuse `10.50` instead of regrouping it into another amount.
       ThousandsInputFormatter(
         groupSeparator: symbols.group,
         decimalSeparator: symbols.decimal,
-        keepTypedSeparators: true,
       ),
     ];
 

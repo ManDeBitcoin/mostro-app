@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:mostro/features/notifications/services/web_push.dart';
 
 /// The Android channel the push server's visible notification names
 /// (docs/PUSH_NOTIFICATIONS.md §3.2, `android.notification.channel_id`).
@@ -12,6 +11,10 @@ import 'package:mostro/features/notifications/services/web_push.dart';
 /// notification, which the OS renders from the server's payload.
 const kPushChannelId = 'mostro_notifications';
 const kPushChannelName = 'Mostro';
+
+/// The small icon of every notification on Android, the chat-wake notice and
+/// (through the manifest) the server's trade update alike.
+const kNotificationIcon = '@drawable/ic_notification';
 
 final FlutterLocalNotificationsPlugin _plugin =
     FlutterLocalNotificationsPlugin();
@@ -26,7 +29,9 @@ const _kChatWakeTag = 'mostro-chat';
 /// app is alive; the background isolate passes none.
 Future<void> _initialize({VoidCallback? onTap}) => _plugin.initialize(
   const InitializationSettings(
-    android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    // A white silhouette: the launcher icon is opaque and would render as a
+    // solid square (see the FCM default icon in AndroidManifest.xml).
+    android: AndroidInitializationSettings(kNotificationIcon),
     // Permission is asked by the push service, not here.
     iOS: DarwinInitializationSettings(
       requestAlertPermission: false,
@@ -58,54 +63,6 @@ Future<void> showChatWakeNotification(String title, String body) async {
       ),
       iOS: DarwinNotificationDetails(threadIdentifier: _kChatWakeTag),
     ),
-  );
-}
-
-/// Track recently displayed notification keys and their timestamp to debounce duplicates.
-final Map<String, DateTime> _recentAlertTimestamps = {};
-
-/// Displays a cross-platform notification (mobile local notification or web browser notification).
-Future<void> showNotificationAlert({
-  required String title,
-  required String body,
-  int? id,
-  String? tag,
-  String? payload,
-}) async {
-  final dedupKey = '${tag ?? ""}:$title:$body';
-  final now = DateTime.now();
-  final lastTime = _recentAlertTimestamps[dedupKey];
-  if (lastTime != null && now.difference(lastTime).inSeconds < 10) {
-    debugPrint('[notifications] Suppressing duplicate alert: $dedupKey');
-    return;
-  }
-  _recentAlertTimestamps[dedupKey] = now;
-  if (_recentAlertTimestamps.length > 50) {
-    _recentAlertTimestamps.removeWhere(
-      (_, time) => now.difference(time).inSeconds > 60,
-    );
-  }
-
-  if (kIsWeb) {
-    showWebNotification(title, body: body, tag: tag);
-    return;
-  }
-  await _initialize();
-  await _plugin.show(
-    id ?? (tag?.hashCode.abs() ?? kChatWakeNotificationId),
-    title,
-    body,
-    NotificationDetails(
-      android: AndroidNotificationDetails(
-        kPushChannelId,
-        kPushChannelName,
-        importance: Importance.high,
-        priority: Priority.high,
-        tag: tag,
-      ),
-      iOS: DarwinNotificationDetails(threadIdentifier: tag),
-    ),
-    payload: payload,
   );
 }
 

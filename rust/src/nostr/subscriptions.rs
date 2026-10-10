@@ -443,7 +443,7 @@ mod tests {
             PendingRequest {
                 request_id: 7,
                 trade_index: 1,
-                kind: PendingRequestKind::Take { fiat_amount: None },
+                kind: PendingRequestKind::Take,
                 tx: None,
             },
         );
@@ -626,7 +626,7 @@ mod tests {
             PendingRequest {
                 request_id: 9,
                 trade_index: 1,
-                kind: PendingRequestKind::Take { fiat_amount: None },
+                kind: PendingRequestKind::Take,
                 tx: Some(tx),
             },
         );

@@ -43,6 +43,8 @@ const BOND_CLAIMS_STORE: &str = "bond_claims";
 /// cache can be trimmed without loading every blob.
 const ATTACHMENT_BLOBS_STORE: &str = "attachment_blobs";
 const ATTACHMENT_INDEX_STORE: &str = "attachment_blob_index";
+/// Announcements (specs/006 §5.4), a `StoredAnnouncement` JSON per address.
+/// Device-scoped: `clear_identity_data` leaves it alone.
 const ANNOUNCEMENTS_STORE: &str = "announcements";
 /// The single identity document's key, mirroring SQLite's `id = 1` row.
 const IDENTITY_KEY: &str = "1";
@@ -315,13 +317,6 @@ impl Storage for IndexedDbStorage {
         let json = serde_json::to_string(trade)?;
         self.put_string(TRADES_STORE, &trade.id, &json).await
     }
-    async fn get_trade(&self, id: &str) -> Result<Option<TradeInfo>> {
-        Ok(self
-            .get_string(TRADES_STORE, id)
-            .await?
-            .map(|json| serde_json::from_str(&json))
-            .transpose()?)
-    }
     async fn list_trades(&self) -> Result<Vec<TradeInfo>> {
         Ok(self
             .trade_documents()
@@ -530,8 +525,7 @@ impl Storage for IndexedDbStorage {
                     settings_keys::IDENTITY_SCOPED_PREFIXES
                         .iter()
                         .any(|prefix| key.starts_with(prefix))
-                        || key == settings_keys::BOND_CLAIM_RETAINED_NODES
-                        || key == settings_keys::RESTORE_SNAPSHOT
+                        || settings_keys::IDENTITY_SCOPED_KEYS.contains(&key.as_str())
                 })
                 .collect()
         };
@@ -645,15 +639,28 @@ impl Storage for IndexedDbStorage {
         .await
     }
 
+    async fn set_trade_range_slice(
+        &self,
+        order_id: &str,
+        fiat_amount: Option<f64>,
+        amount_sats: Option<u64>,
+    ) -> Result<()> {
+        self.patch_trade_by_order_id(order_id, |doc| {
+            trade_json::set_range_slice(doc, fiat_amount, amount_sats)
+        })
+        .await
+    }
+
     async fn update_trade_peer_reputation(
         &self,
         order_id: &str,
         rating: f64,
         reviews: u32,
         days: u32,
+        since: Option<i64>,
     ) -> Result<()> {
         self.patch_trade_by_order_id(order_id, |doc| {
-            trade_json::set_peer_reputation(doc, rating, reviews, days)
+            trade_json::set_peer_reputation(doc, rating, reviews, days, since)
         })
         .await
     }
@@ -670,6 +677,13 @@ impl Storage for IndexedDbStorage {
     async fn mark_trade_rated(&self, order_id: &str, rated_at: i64) -> Result<()> {
         self.patch_trade_by_order_id(order_id, |doc| trade_json::mark_rated(doc, rated_at))
             .await
+    }
+
+    async fn mark_trade_completed(&self, order_id: &str, completed_at: i64) -> Result<()> {
+        self.patch_trade_by_order_id(order_id, |doc| {
+            trade_json::mark_completed(doc, completed_at)
+        })
+        .await
     }
 
     async fn set_cooperative_cancel_state(
@@ -741,6 +755,41 @@ impl Storage for IndexedDbStorage {
             &crate::api::types::bond_claim_key(node_pubkey, order_id),
         )
         .await
+    }
+
+    // ── Announcements — whole-document, keyed by address ─────────────────────
+
+    async fn save_announcement(
+        &self,
+        announcement: &crate::nostr::announcement_reader::StoredAnnouncement,
+    ) -> Result<()> {
+        let json = serde_json::to_string(announcement)?;
+        self.put_string(ANNOUNCEMENTS_STORE, &announcement.address, &json)
+            .await
+    }
+
+    async fn list_announcements(
+        &self,
+    ) -> Result<Vec<crate::nostr::announcement_reader::StoredAnnouncement>> {
+        let mut announcements: Vec<crate::nostr::announcement_reader::StoredAnnouncement> = self
+            .get_all_strings(ANNOUNCEMENTS_STORE)
+            .await?
+            .into_iter()
+            .filter_map(|json| match serde_json::from_str(&json) {
+                Ok(announcement) => Some(announcement),
+                Err(e) => {
+                    log::warn!("[db] skipping announcement: deserialization failed: {e}");
+                    None
+                }
+            })
+            .collect();
+        // Same order as SQLite: newest first, then by address.
+        announcements.sort_by_key(|a| (std::cmp::Reverse(a.created_at), a.address.clone()));
+        Ok(announcements)
+    }
+
+    async fn delete_announcement(&self, address: &str) -> Result<()> {
+        self.delete_key(ANNOUNCEMENTS_STORE, address).await
     }
 
     // ── Chat attachment cache (#589 phase 4) — encrypted blobs only ─────────

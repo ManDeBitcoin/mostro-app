@@ -10,10 +10,8 @@ import 'package:go_router/go_router.dart';
 import 'package:mostro/core/app_routes.dart';
 import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/core/automation/automation_ids.dart';
-import 'package:mostro/core/ui_mode.dart';
 import 'package:mostro/features/about/screens/about_screen.dart'
     show appVersionProvider;
-import 'package:mostro/features/simple_mode/l10n/simple_l10n.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart'
     show orderBookNotificationCountProvider;
 import 'package:mostro/l10n/app_localizations.dart';
@@ -85,7 +83,6 @@ class DrawerMenu extends ConsumerWidget {
     final chatCount = persistent ? ref.watch(chatNotificationCountProvider) : 0;
     // Loading and a failed read both hide the version line.
     final version = ref.watch(appVersionProvider).valueOrNull;
-    final uiMode = ref.watch(uiModeProvider);
 
     final content = _SidebarContent(
       palette: palette,
@@ -94,9 +91,6 @@ class DrawerMenu extends ConsumerWidget {
       chatCount: chatCount,
       version: version,
       onNavigate: persistent ? null : onClose,
-      onSwitchToSimple: uiMode == UiMode.advanced
-          ? () => ref.read(uiModeProvider.notifier).setMode(UiMode.simple)
-          : null,
     );
 
     if (persistent) {
@@ -305,7 +299,6 @@ class _SidebarContent extends StatelessWidget {
     required this.chatCount,
     required this.version,
     required this.onNavigate,
-    this.onSwitchToSimple,
   });
 
   final DrawerPalette palette;
@@ -316,9 +309,6 @@ class _SidebarContent extends StatelessWidget {
 
   /// Called before each navigation push (closes overlay drawer if not null).
   final VoidCallback? onNavigate;
-
-  /// Optional callback to switch to Simple Mode.
-  final VoidCallback? onSwitchToSimple;
 
   @override
   Widget build(BuildContext context) {
@@ -423,24 +413,6 @@ class _SidebarContent extends StatelessWidget {
           margin: _rowGap,
         ),
       ...accountRows,
-      if (onSwitchToSimple != null) ...[
-        _GradientLine(
-          height: 1,
-          colors: palette.footerHairline,
-          margin: _rowGap,
-        ),
-        _MenuRow(
-          palette: palette,
-          automationId: 'drawer-switch-to-simple',
-          icon: Icons.auto_awesome_rounded,
-          label: SimpleL10n.switchToSimple(context),
-          showChevron: true,
-          onTap: () {
-            onNavigate?.call();
-            onSwitchToSimple?.call();
-          },
-        ),
-      ],
     ]);
   }
 

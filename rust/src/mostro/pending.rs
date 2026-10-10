@@ -156,16 +156,7 @@ pub(crate) enum PendingRequestKind {
         bond_requested: bool,
     },
     /// A take-buy / take-sell awaiting the daemon's first reply.
-    Take {
-        /// The fiat amount the order was taken at, as the user chose it —
-        /// what `take_order` writes on the trade row for a range order.
-        /// Carried here because the daemon's reply does not always say:
-        /// a take with the invoice attached is answered with a bare
-        /// `waiting-seller-to-pay`. When that reply outruns the caller's
-        /// wait, the dispatcher builds the row, and the record is the only
-        /// place left that knows the amount.
-        fiat_amount: Option<f64>,
-    },
+    Take,
     /// A buyer's add-invoice awaiting the daemon's acknowledgement.
     AddInvoice,
     /// An `add-bond-invoice` reply (the payout claim's bolt11) awaiting the
@@ -288,38 +279,6 @@ pub(crate) fn take_matching_restore(pubkey_hex: &str, reply_ts: i64) -> Option<P
 
 /// The marker a request returns when the daemon did not answer in time.
 pub(crate) const NO_DAEMON_RESPONSE: &str = "NoDaemonResponse";
-
-/// The marker a take returns when somebody else got the order first. One
-/// spelling for both ways of finding out: the local book already showing the
-/// order as taken, and the daemon refusing the take.
-pub(crate) const ORDER_ALREADY_TAKEN: &str = "OrderAlreadyTaken";
-
-/// The daemon's refusal of an action because the order has moved on
-/// (`cant-do not_allowed_by_status`), as a marker rather than as the prose
-/// the generic `CantDo` wording gives it.
-pub(crate) const NOT_ALLOWED_BY_STATUS: &str = "NotAllowedByStatus";
-
-/// The daemon's answer to a cancel of an order that is cancelled already
-/// (`cant-do order_already_canceled`): the other side's cancel, or the
-/// daemon's own timeout, got there first.
-pub(crate) const ORDER_ALREADY_CANCELED: &str = "OrderAlreadyCanceled";
-
-/// What `take_order` tells its caller when the daemon refuses the take.
-///
-/// `reason` is the `CantDoReason` as the dispatcher names it (its `Debug`
-/// form) and `message` the wording the `CantDo` arm gave it. A take needs a
-/// `pending` order, so `InvalidOrderStatus` has one meaning here: someone
-/// else took it first — what the local check already says with
-/// [`ORDER_ALREADY_TAKEN`] when the book had the news. v0.19.2 answers a
-/// second `take-sell` exactly so (`taker_leaves`, `concurrent_takes`).
-/// Every other reason keeps the wording it has today.
-pub(crate) fn take_refusal_error(reason: &str, message: &str) -> String {
-    if reason == "InvalidOrderStatus" {
-        ORDER_ALREADY_TAKEN.to_string()
-    } else {
-        message.to_string()
-    }
-}
 
 /// The marker `send_invoice` returns when its submission reached the relays
 /// but the daemon has not given a verdict within the reply window (#615).
@@ -544,7 +503,7 @@ pub(crate) fn take_matching_take(
     match map.get(trade_pubkey_hex) {
         Some(p)
             if request_id_matches(p.request_id, got)
-                && matches!(p.kind, PendingRequestKind::Take { .. }) =>
+                && matches!(p.kind, PendingRequestKind::Take) =>
         {
             map.remove(trade_pubkey_hex)
         }
@@ -707,27 +666,6 @@ pub(crate) enum MakerCancelReply {
     /// `cant-do`: a daemon without mostro#996, the bond locked first, or
     /// another refusal — the caller tells them apart.
     Rejected { reason: String, message: String },
-    /// `cooperative-cancel-initiated-by-you`: the trade had gone active by
-    /// the time the cancel arrived, so the daemon opened a cooperative
-    /// cancel instead of cancelling. Only a cancel sent from a waiting step
-    /// ([`publish_and_await_cancel`]) can meet it.
-    CooperativeRequested,
-}
-
-/// Answers a waiting cancel with [`MakerCancelReply::CooperativeRequested`]
-/// when dropped, so every exit of the dispatcher's
-/// `cooperative-cancel-initiated-by-you` arm answers it — and only after the
-/// arm's own writes.
-pub(crate) struct CooperativeCancelWake(
-    pub(crate) Option<Option<tokio::sync::oneshot::Sender<MakerCancelReply>>>,
-);
-
-impl Drop for CooperativeCancelWake {
-    fn drop(&mut self) {
-        if let Some(Some(tx)) = self.0.take() {
-            let _ = tx.send(MakerCancelReply::CooperativeRequested);
-        }
-    }
 }
 
 struct MakerCancel {
@@ -752,11 +690,6 @@ struct MakerCancel {
 /// which waits for the `new-order` of a bond that may yet lock
 /// (docs/ANTI_ABUSE_BOND.md §6.2): the cancel must not take its place.
 /// Keys are per trade, so nothing here outlives the identity that made them.
-///
-/// Also where a cancel from a waiting step waits for its verdict
-/// ([`publish_and_await_cancel`]), maker's or taker's: the same two replies
-/// answer it (`canceled`, `cant-do`), and its key may hold another request's
-/// record just the same.
 static MAKER_CANCELS: OnceLock<std::sync::Mutex<HashMap<String, MakerCancel>>> = OnceLock::new();
 
 fn maker_cancels() -> &'static std::sync::Mutex<HashMap<String, MakerCancel>> {
@@ -879,191 +812,6 @@ pub(crate) fn remove_maker_cancel(trade_pubkey_hex: &str, request_id: u64) {
                 map.remove(trade_pubkey_hex);
             }
         }
-    }
-}
-
-// ── Cancel of a trade waiting on its first step ─────────────────────────────
-
-/// How long a cancel sent from a waiting step waits for the daemon's
-/// verdict. The same window every other correlated request gets.
-pub(crate) const CANCEL_REPLY_WINDOW: std::time::Duration = std::time::Duration::from_secs(10);
-
-/// How the daemon answered a cancel sent from a waiting step
-/// (`status::cancel_awaits_verdict`).
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum CancelVerdict {
-    /// `canceled`, echoing the cancel's nonce. The dispatcher's `canceled`
-    /// arm has already wiped the never-active row, dropped its session and
-    /// settled the book entry before this is handed over.
-    Canceled,
-    /// `cant-do order_already_canceled`: the order was cancelled before this
-    /// cancel reached the daemon. What the user asked for is done, only not
-    /// by this request — nothing to report as a failure.
-    AlreadyCanceled,
-    /// `cooperative-cancel-initiated-by-you`: the seller's payment landed
-    /// first and the trade was active when the cancel arrived, so it became
-    /// a request the counterparty must agree to. The dispatcher recorded it.
-    Cooperative,
-    /// `cant-do`: the daemon cancelled nothing and the trade goes on. Holds
-    /// the error for the caller, a marker where there is one
-    /// ([`cancel_refusal_error`]).
-    Refused(String),
-    /// No answer within the window. The record stays registered, waiterless,
-    /// so a late `canceled` or `cant-do` is still recognised as this cancel's.
-    Unanswered,
-}
-
-/// What `cancel_order` tells its caller when the daemon refuses the cancel.
-///
-/// `NotAllowedByStatus` — the order moved on, which since v0.19.2 is what a
-/// cancel meets when the seller has just paid the hold invoice — travels as
-/// its marker, so Dart can say so in the user's language. Any other reason
-/// keeps the wording the `CantDo` arm gives it, as every other request does.
-pub(crate) fn cancel_refusal_error(reason: &str, message: &str) -> String {
-    if reason == NOT_ALLOWED_BY_STATUS {
-        NOT_ALLOWED_BY_STATUS.to_string()
-    } else {
-        message.to_string()
-    }
-}
-
-/// Publish a cancel that carries `request_id` and wait for the daemon's
-/// verdict on it.
-///
-/// The cancel is registered in the same registry as the maker's bond-window
-/// cancel ([`register_maker_cancel`]) — and for the same reason kept apart
-/// from [`pending_requests`]: the trade key may still hold another request's
-/// record there (a buyer's add-invoice, say), which the cancel must not
-/// displace. That registry is already answered by the dispatcher's
-/// `canceled` arm, after its own writes, and by its `cant-do` arm.
-///
-/// `publish` sends the event; taking it as a closure keeps this free of the
-/// relay pool. A failed publish unregisters the cancel — nothing can answer
-/// what never left — and is returned as it is.
-pub(crate) async fn publish_and_await_cancel<P, Fut>(
-    trade_pubkey_hex: &str,
-    request_id: u64,
-    publish: P,
-    window: std::time::Duration,
-) -> anyhow::Result<CancelVerdict>
-where
-    P: FnOnce() -> Fut,
-    Fut: std::future::Future<Output = anyhow::Result<()>>,
-{
-    // Registered before the publish so the reply cannot beat it.
-    let reply_rx = register_maker_cancel(trade_pubkey_hex, request_id);
-    if let Err(e) = publish().await {
-        remove_maker_cancel(trade_pubkey_hex, request_id);
-        return Err(e);
-    }
-    match crate::rt::time::timeout(window, reply_rx).await {
-        Ok(Ok(MakerCancelReply::Canceled)) => Ok(CancelVerdict::Canceled),
-        Ok(Ok(MakerCancelReply::Rejected { reason, .. })) if reason == ORDER_ALREADY_CANCELED => {
-            Ok(CancelVerdict::AlreadyCanceled)
-        }
-        Ok(Ok(MakerCancelReply::Rejected { reason, message })) => Ok(CancelVerdict::Refused(
-            cancel_refusal_error(&reason, &message),
-        )),
-        Ok(Ok(MakerCancelReply::CooperativeRequested)) => Ok(CancelVerdict::Cooperative),
-        // Timed out, or a retry took the key over and dropped this waiter.
-        // Either way nobody is listening any more; the record stays for a
-        // late answer.
-        _ => {
-            detach_maker_cancel(trade_pubkey_hex, request_id);
-            Ok(CancelVerdict::Unanswered)
-        }
-    }
-}
-
-// ── The row of a confirmed take ─────────────────────────────────────────────
-
-/// How long the daemon gives a taken order's first step before it cancels
-/// the take (`expiration_seconds`, 900 by default). A take's row carries it
-/// as `timeout_at`, which is what keeps the stale sweep off a live take.
-pub(crate) const TAKE_WINDOW_SECS: i64 = 900;
-
-/// The trade row of a take the daemon accepted: the order as the book held
-/// it, moved on by what the daemon's first reply said.
-///
-/// One definition for the two places that persist such a row — `take_order`
-/// when the reply arrives while it waits, and the dispatcher when the reply
-/// arrives after `take_order` gave up — so a late take cannot end up with a
-/// row shaped differently from a prompt one.
-///
-/// * `status` and `amount_sats` replace the book's only when the reply
-///   carried them.
-/// * `fiat_amount` is the amount a range order was taken at: the row
-///   remembers it, so a same-take re-request sends the same one.
-/// * `bond` is the anti-abuse bond the daemon asked for, if any. While it is
-///   outstanding the escrow step has not started, so its `timeout_at` does
-///   not apply yet: the bond's deadline is the invoice's own expiry.
-/// * `taken_at` dates the take: local time for a prompt reply, the reply's
-///   own timestamp for a late one.
-///
-/// `counterparty_pubkey` stays empty on purpose: `creator_pubkey` on a book
-/// order is the Mostro node (the 38383 author), and seeding it here poisons
-/// the durable peer record (#334). The peer arrives with the reveal.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn taken_trade(
-    order: &crate::api::types::OrderInfo,
-    role: crate::api::types::TradeRole,
-    trade_index: u32,
-    status: Option<crate::api::types::OrderStatus>,
-    amount_sats: Option<u64>,
-    fiat_amount: Option<f64>,
-    hold_invoice: Option<String>,
-    bond: Option<crate::api::types::BondInfo>,
-    trade_pubkeys: &TradePubkeys,
-    taken_at: i64,
-) -> crate::api::types::TradeInfo {
-    use crate::api::types::{BuyerStep, SellerStep, TradeInfo, TradeRole, TradeStep};
-
-    let current_step = match role {
-        TradeRole::Buyer => TradeStep::Buyer(BuyerStep::OrderTaken),
-        TradeRole::Seller => TradeStep::Seller(SellerStep::TakerFound),
-    };
-    let mut order = order.clone();
-    if let Some(status) = status {
-        order.status = status;
-    }
-    if amount_sats.is_some() {
-        order.amount_sats = amount_sats;
-    }
-    if fiat_amount.is_some() {
-        order.fiat_amount = fiat_amount;
-    }
-    let waiting_bond = bond.is_some();
-    TradeInfo {
-        id: uuid::Uuid::new_v4().to_string(),
-        order,
-        role,
-        counterparty_pubkey: String::new(),
-        current_step,
-        hold_invoice,
-        buyer_invoice: None,
-        trade_key_index: trade_index,
-        cooperative_cancel_state: None,
-        timeout_at: if waiting_bond {
-            None
-        } else {
-            Some(taken_at + TAKE_WINDOW_SECS)
-        },
-        started_at: taken_at,
-        completed_at: None,
-        outcome: None,
-        peer_rating: None,
-        peer_reviews: None,
-        peer_days: None,
-        rated_at: None,
-        bond,
-        // From the daemon's reply, not from the order book: this is the only
-        // source of the counterparty's per-order trade key (C5).
-        buyer_trade_pubkey: trade_pubkeys.buyer.clone(),
-        seller_trade_pubkey: trade_pubkeys.seller.clone(),
-        cashu_mint_url: None,
-        cashu_escrow_token: None,
-        cashu_locked_at: None,
-        cashu_rejected_escrow_tokens: Vec::new(),
     }
 }
 
@@ -1369,7 +1117,7 @@ mod tests {
             PendingRequest {
                 request_id,
                 trade_index: 4,
-                kind: PendingRequestKind::Take { fiat_amount: None },
+                kind: PendingRequestKind::Take,
                 tx: Some(tx),
             },
         );
@@ -1599,7 +1347,7 @@ mod tests {
         assert!(take_matching_take(take_key, Some(99)).is_none());
         assert!(pending_requests().lock().unwrap().contains_key(take_key));
         let pending = take_matching_take(take_key, Some(42)).expect("must match");
-        assert!(matches!(pending.kind, PendingRequestKind::Take { .. }));
+        assert!(matches!(pending.kind, PendingRequestKind::Take));
         assert!(!pending_requests().lock().unwrap().contains_key(take_key));
 
         pending_requests().lock().unwrap().remove(create_key);
@@ -2123,320 +1871,5 @@ mod tests {
         // Direct cleanup: the surviving record still has its waiter attached,
         // so the detached-only purge would (correctly) leave it in the map.
         pending_requests().lock().unwrap().remove(key);
-    }
-
-    /// mostrod v0.19.2 answers a take of an order somebody else got first
-    /// with `cant-do invalid_order_status` (`taker_leaves`, second
-    /// `take-sell`). The take says so with the marker the local check
-    /// already uses; every other refusal keeps its wording.
-    #[test]
-    fn a_take_refused_for_its_status_is_an_order_already_taken() {
-        // The reason as the dispatcher names it: the `Debug` form of what
-        // the fixture's payload deserialises to.
-        let payload: mostro_core::message::Payload =
-            serde_json::from_str(r#"{"cant_do":"invalid_order_status"}"#).unwrap();
-        let mostro_core::message::Payload::CantDo(Some(reason)) = payload else {
-            panic!("not a cant-do payload");
-        };
-        let reason = format!("{reason:?}");
-        assert_eq!(reason, "InvalidOrderStatus");
-
-        assert_eq!(
-            take_refusal_error(&reason, "Order rejected by Mostro: InvalidOrderStatus"),
-            "OrderAlreadyTaken"
-        );
-        assert_eq!(ORDER_ALREADY_TAKEN, "OrderAlreadyTaken");
-        // Anything else passes through untouched, markers included.
-        for (reason, message) in [
-            ("PendingOrderExists", "Order rejected by Mostro: PendingOrderExists"),
-            ("MaintenanceMode", "MaintenanceMode"),
-            ("InvalidTradeIndex", "InvalidTradeIndex"),
-            ("OutOfRangeSatsAmount", "Order rejected: sats amount is out of the allowed range."),
-        ] {
-            assert_eq!(take_refusal_error(reason, message), message);
-        }
-    }
-
-    /// A refused cancel names the order's status with a marker; other
-    /// refusals keep the wording every other request gets.
-    #[test]
-    fn a_cancel_refused_for_its_status_returns_the_marker() {
-        assert_eq!(
-            cancel_refusal_error(
-                "NotAllowedByStatus",
-                "Action rejected: not allowed in the current order status."
-            ),
-            "NotAllowedByStatus"
-        );
-        assert_eq!(NOT_ALLOWED_BY_STATUS, "NotAllowedByStatus");
-        for (reason, message) in [
-            ("OrderAlreadyCanceled", "Order is already canceled."),
-            ("IsNotYourOrder", "Order rejected: this order does not belong to you."),
-            ("InvalidPubkey", "Order rejected by Mostro: InvalidPubkey"),
-        ] {
-            assert_eq!(cancel_refusal_error(reason, message), message);
-        }
-    }
-
-    /// The three ways a waiting-step cancel ends, at the registry: the
-    /// daemon's `canceled`, its `cant-do`, and silence. Each reply is
-    /// delivered the way the dispatcher's arms deliver it.
-    #[tokio::test]
-    async fn a_waiting_cancel_resolves_to_the_daemons_verdict() {
-        let window = std::time::Duration::from_secs(5);
-
-        // `canceled` echoing the nonce.
-        let key = "test-cancel-verdict-canceled";
-        let verdict = publish_and_await_cancel(
-            key,
-            501,
-            || async {
-                let waiter = take_maker_cancel(key, Some(501)).expect("registered before publish");
-                let _ = waiter
-                    .expect("the caller is waiting")
-                    .send(MakerCancelReply::Canceled);
-                Ok(())
-            },
-            window,
-        )
-        .await
-        .unwrap();
-        assert_eq!(verdict, CancelVerdict::Canceled);
-        assert!(take_maker_cancel(key, Some(501)).is_none(), "consumed");
-
-        // `cant-do not_allowed_by_status` echoing the nonce.
-        let key = "test-cancel-verdict-refused";
-        let verdict = publish_and_await_cancel(
-            key,
-            502,
-            || async {
-                let waiter =
-                    take_maker_cancel_refusal(key, Some(502)).expect("registered before publish");
-                let _ = waiter
-                    .expect("the caller is waiting")
-                    .send(MakerCancelReply::Rejected {
-                        reason: "NotAllowedByStatus".to_string(),
-                        message: "Action rejected: not allowed in the current order status."
-                            .to_string(),
-                    });
-                Ok(())
-            },
-            window,
-        )
-        .await
-        .unwrap();
-        assert_eq!(
-            verdict,
-            CancelVerdict::Refused("NotAllowedByStatus".to_string())
-        );
-
-        // `cant-do order_already_canceled`: cancelled before this cancel got
-        // there — the outcome asked for, so not a refusal to report.
-        let key = "test-cancel-verdict-already";
-        let verdict = publish_and_await_cancel(
-            key,
-            504,
-            || async {
-                let waiter =
-                    take_maker_cancel_refusal(key, Some(504)).expect("registered before publish");
-                let _ = waiter
-                    .expect("the caller is waiting")
-                    .send(MakerCancelReply::Rejected {
-                        reason: "OrderAlreadyCanceled".to_string(),
-                        message: "Order is already canceled.".to_string(),
-                    });
-                Ok(())
-            },
-            window,
-        )
-        .await
-        .unwrap();
-        assert_eq!(verdict, CancelVerdict::AlreadyCanceled);
-
-        // `cooperative-cancel-initiated-by-you` echoing the nonce: the trade
-        // went active first (flow `cooperative_cancel` shows the echo). The
-        // dispatcher's arm wakes the waiter as it returns.
-        let key = "test-cancel-verdict-cooperative";
-        let verdict = publish_and_await_cancel(
-            key,
-            505,
-            || async {
-                drop(CooperativeCancelWake(take_maker_cancel(key, Some(505))));
-                Ok(())
-            },
-            window,
-        )
-        .await
-        .unwrap();
-        assert_eq!(verdict, CancelVerdict::Cooperative);
-        assert!(take_maker_cancel(key, Some(505)).is_none(), "consumed");
-
-        // A reply that echoes another nonce, or none, answers nothing.
-        let key = "test-cancel-verdict-foreign";
-        let verdict = publish_and_await_cancel(
-            key,
-            503,
-            || async {
-                assert!(take_maker_cancel(key, None).is_none());
-                assert!(take_maker_cancel(key, Some(999)).is_none());
-                assert!(take_maker_cancel_refusal(key, Some(999)).is_none());
-                Ok(())
-            },
-            std::time::Duration::from_millis(30),
-        )
-        .await
-        .unwrap();
-        assert_eq!(verdict, CancelVerdict::Unanswered);
-        // Silence keeps the record, waiterless: a late `canceled` is still
-        // recognised as this cancel's, and finds nobody to wake.
-        assert!(matches!(take_maker_cancel(key, Some(503)), Some(None)));
-    }
-
-    /// A cancel that never left the device waits for nothing and leaves no
-    /// record behind: the publish error is the answer.
-    #[tokio::test]
-    async fn a_cancel_that_was_not_published_leaves_no_record() {
-        let key = "test-cancel-verdict-unpublished";
-        let err = publish_and_await_cancel(
-            key,
-            504,
-            || async { Err(anyhow::anyhow!("NoRelayAccepted")) },
-            std::time::Duration::from_secs(5),
-        )
-        .await
-        .unwrap_err();
-        assert_eq!(err.to_string(), "NoRelayAccepted");
-        assert!(take_maker_cancel(key, Some(504)).is_none());
-    }
-
-    fn book_order(kind: crate::api::types::OrderKind) -> crate::api::types::OrderInfo {
-        crate::api::types::OrderInfo {
-            id: "bc404264-3e9d-4605-9ada-85b16e44a700".to_string(),
-            kind,
-            status: crate::api::types::OrderStatus::Pending,
-            amount_sats: None,
-            fiat_amount: Some(30.0),
-            fiat_amount_min: None,
-            fiat_amount_max: None,
-            fiat_code: "USD".to_string(),
-            payment_method: "Transferencia bancaria".to_string(),
-            premium: 0.0,
-            creator_pubkey: "node".to_string(),
-            created_at: 1_791_130_933,
-            expires_at: Some(1_791_217_333),
-            is_mine: false,
-            rating: 0.0,
-            total_reviews: 0,
-            days_active: 0,
-        }
-    }
-
-    /// The row of a confirmed take: the book's order moved on by the reply,
-    /// the take's own key, and the daemon's window as its deadline — unless
-    /// a bond is outstanding, whose own expiry is the deadline.
-    #[test]
-    fn a_confirmed_take_row_is_the_book_order_moved_on_by_the_reply() {
-        use crate::api::types::{
-            BondInfo, BondRole, BondState, BuyerStep, OrderKind, OrderStatus, SellerStep,
-            TradeRole, TradeStep,
-        };
-
-        // A buyer's take answered with `add-invoice`.
-        let order = book_order(OrderKind::Sell);
-        let row = taken_trade(
-            &order,
-            TradeRole::Buyer,
-            7,
-            Some(OrderStatus::WaitingBuyerInvoice),
-            Some(35_078),
-            None,
-            None,
-            None,
-            &TradePubkeys::default(),
-            1_000,
-        );
-        assert_eq!(row.order.id, order.id);
-        assert_eq!(row.order.status, OrderStatus::WaitingBuyerInvoice);
-        assert_eq!(row.order.amount_sats, Some(35_078));
-        assert_eq!(row.order.fiat_amount, Some(30.0));
-        assert_eq!(row.order.creator_pubkey, "node", "the issuing node is kept");
-        assert!(!row.order.is_mine);
-        assert_eq!(row.role, TradeRole::Buyer);
-        assert_eq!(row.current_step, TradeStep::Buyer(BuyerStep::OrderTaken));
-        assert_eq!(row.trade_key_index, 7);
-        assert_eq!(row.started_at, 1_000);
-        assert_eq!(row.timeout_at, Some(1_000 + TAKE_WINDOW_SECS));
-        assert!(row.counterparty_pubkey.is_empty(), "never the node's key");
-        assert!(row.hold_invoice.is_none() && row.bond.is_none());
-
-        // A seller's take answered with the hold invoice; a reply without a
-        // status or an amount leaves the book's.
-        let row = taken_trade(
-            &book_order(OrderKind::Buy),
-            TradeRole::Seller,
-            8,
-            None,
-            None,
-            None,
-            Some("lnbcrt1hold".to_string()),
-            None,
-            &TradePubkeys {
-                buyer: Some("b".repeat(64)),
-                seller: Some("5".repeat(64)),
-            },
-            2_000,
-        );
-        assert_eq!(row.order.status, OrderStatus::Pending);
-        assert_eq!(row.order.amount_sats, None);
-        assert_eq!(row.current_step, TradeStep::Seller(SellerStep::TakerFound));
-        assert_eq!(row.hold_invoice.as_deref(), Some("lnbcrt1hold"));
-        assert_eq!(row.buyer_trade_pubkey, Some("b".repeat(64)));
-        assert_eq!(row.seller_trade_pubkey, Some("5".repeat(64)));
-
-        // A range order remembers the amount it was taken at.
-        let mut range = book_order(OrderKind::Sell);
-        range.fiat_amount = None;
-        range.fiat_amount_min = Some(20.0);
-        range.fiat_amount_max = Some(60.0);
-        let row = taken_trade(
-            &range,
-            TradeRole::Buyer,
-            9,
-            Some(OrderStatus::WaitingBuyerInvoice),
-            Some(34_377),
-            Some(30.0),
-            None,
-            None,
-            &TradePubkeys::default(),
-            3_000,
-        );
-        assert_eq!(row.order.fiat_amount, Some(30.0));
-        assert_eq!(row.order.fiat_amount_min, Some(20.0));
-        assert_eq!(row.order.fiat_amount_max, Some(60.0));
-
-        // A take parked on its bond has no escrow deadline yet.
-        let bond = BondInfo {
-            role: BondRole::Taker,
-            amount_sats: 1_054,
-            invoice: Some("lnbcrt1bond".to_string()),
-            state: BondState::Requested,
-            requested_at: 4_000,
-            expires_at: Some(4_300),
-            locked_at: None,
-        };
-        let row = taken_trade(
-            &book_order(OrderKind::Sell),
-            TradeRole::Buyer,
-            10,
-            Some(OrderStatus::WaitingTakerBond),
-            None,
-            None,
-            None,
-            Some(bond.clone()),
-            &TradePubkeys::default(),
-            4_000,
-        );
-        assert_eq!(row.timeout_at, None);
-        assert_eq!(row.bond, Some(bond));
     }
 }

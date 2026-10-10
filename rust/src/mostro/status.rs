@@ -143,95 +143,24 @@ fn is_terminal_status(s: &OrderStatus) -> bool {
     )
 }
 
+/// Whether a public Kind 38383 status may overwrite the local one: it fills
+/// an unknown or still-pending status, or announces a terminal one (#203).
+///
+/// Never over an admin verdict, the mirror of [`admin_verdict_refines`]: the
+/// book shows an admin settle as `success` and an admin cancel as `canceled`,
+/// and a replay of that event must not erase the verdict — the dispute's
+/// history and a slashed bond's cause read from it, and a plain `success`
+/// would give the trade a completed trade's chat window (#642).
 pub(crate) fn wire_status_applies(local: Option<&OrderStatus>, wire: &OrderStatus) -> bool {
     match local {
         None | Some(OrderStatus::Pending) => true,
+        Some(
+            OrderStatus::SettledByAdmin
+            | OrderStatus::CanceledByAdmin
+            | OrderStatus::CompletedByAdmin,
+        ) => false,
         Some(_) => is_terminal_status(wire),
     }
-}
-
-/// Whether a public `pending` says nothing about a trade of ours: it may
-/// then neither replace the status the order's book entry carries nor make
-/// the stale sweep put the trade row back to `Pending`.
-///
-/// mostrod publishes a taken order as `in-progress` from exactly two
-/// statuses (nip33.rs `create_status_tags`): `waiting-buyer-invoice` of a
-/// **sell** order and `waiting-payment` of a **buy** order. A sell order
-/// taken with the buyer's invoice already attached skips the first and goes
-/// straight to `waiting-payment`, which publishes nothing for a sell order —
-/// and nothing after it does either — so its Kind 38383 keeps reading
-/// `pending` from the take until `success` or `canceled`. A buyer using this
-/// client with a default Lightning address set attaches it to every take, so
-/// that is a common path, not a corner.
-///
-/// For the **maker** of such an order the public `pending` is the order's
-/// past, not its present. Read as the present it showed the seller an
-/// untaken order with nothing to pay while a hold invoice was running out,
-/// and once the stale sweep reached the row it wrote `Pending` over it.
-/// The daemon's own messages are the authority here: `pay-invoice` opened
-/// the step, and only `new-order` (the taker walked away, the order is
-/// republished) or `canceled` close it — both replayed by the kind-14 feed
-/// on every start.
-///
-/// Everything else keeps reading the public `pending` as before:
-///
-/// * a **buy** order — its take always publishes `in-progress`
-///   (`waiting-payment`), so a later `pending` is a republish;
-/// * a maker-seller still at `waiting-buyer-invoice` or `in-progress` —
-///   that take did publish `in-progress`, so `pending` again means the taker
-///   left before sending an invoice;
-/// * a row that is itself `Pending`, a **taker**'s row (the lost-take
-///   restore and the taker's sweep read the same signal) and an order that
-///   is not ours.
-///
-/// The price is one fallback: a maker-seller whose taker cancelled *after*
-/// the hold invoice went out, and whose private `new-order` never arrived,
-/// now waits for the next daemon message instead of being reset by the
-/// sweep. The two cases cannot be told apart from the status alone — only
-/// the event's `created_at` against the private step would — and a stale
-/// "pay this invoice" (the invoice is cancelled, paying it fails) costs less
-/// than hiding a live one.
-pub(crate) fn holds_against_public_pending(
-    is_maker: bool,
-    kind: &crate::api::types::OrderKind,
-    local: &OrderStatus,
-) -> bool {
-    is_maker
-        && *kind == crate::api::types::OrderKind::Sell
-        && matches!(
-            local,
-            OrderStatus::WaitingPayment
-                | OrderStatus::Active
-                | OrderStatus::FiatSent
-                | OrderStatus::Dispute
-                | OrderStatus::SettledHoldInvoice
-        )
-}
-
-/// Whether a `cancel` sent from a trade in `status` waits for the daemon's
-/// verdict before the caller is told anything.
-///
-/// The two waiting steps are where mostrod cancels at once (cancel.rs
-/// `cancel_not_active_order`) and where it can also refuse: since v0.19.2 a
-/// cancel that meets a hold invoice the seller has just paid is answered
-/// with `cant-do not_allowed_by_status`, and the trade goes active instead.
-/// A cancel sent without a `request_id` cannot be matched to that refusal,
-/// so the user was told "cancel sent" about a trade that was about to hold
-/// their funds.
-///
-/// Not the rest, on purpose. From `active` on a cancel is a request the
-/// counterparty must agree to, answered with
-/// `cooperative-cancel-initiated-by-you`, not `canceled`. `in-progress` is
-/// the public bucket: the trade behind it may be either. A plain `pending`
-/// order is refused only when a take commits while the cancel is being
-/// published (cancel.rs `cancel_pending_order_from_maker`, the lost
-/// compare-and-swap), and that take's own messages then say so. The bond
-/// windows have their own paths.
-pub(crate) fn cancel_awaits_verdict(status: &OrderStatus) -> bool {
-    matches!(
-        status,
-        OrderStatus::WaitingBuyerInvoice | OrderStatus::WaitingPayment
-    )
 }
 
 /// Whether a daemon `canceled` should wipe the local trade record instead of
@@ -293,14 +222,21 @@ pub(crate) fn add_invoice_sync(
 /// Counterparty (taker) reputation from the daemon's follow-up `Peer` DM
 /// (issue #305). The daemon rides it on the same `PayInvoice` / `AddInvoice`
 /// action as the flow message, with an empty `pubkey` and the reputation
-/// snapshot. Returns `(rating, reviews, operating_days)` when present.
+/// snapshot. Returns `(rating, reviews, operating_days, since)` when present.
 ///
 /// `reputation` is `None` for a full-privacy taker; a brand-new user arrives
 /// as all-zeros — the two are indistinguishable on the wire, so this only
 /// reports whether a snapshot was carried, leaving the display to the UI.
+///
+/// `since` (Unix seconds of the first trade, truncated to its UTC day start)
+/// supersedes the deprecated `operating_days`; it is `None` from daemons that
+/// predate it, for users without a date, and for a value that is not a
+/// positive number of seconds Dart's `DateTime` can hold
+/// (`reputation::since_from_wire`), and the UI then falls back to
+/// `operating_days`.
 pub(crate) fn peer_reputation(
     payload: &Option<mostro_core::message::Payload>,
-) -> Option<(f64, u32, u32)> {
+) -> Option<(f64, u32, u32, Option<i64>)> {
     match payload {
         Some(mostro_core::message::Payload::Peer(peer)) => peer.reputation.as_ref().map(|u| {
             // Saturate rather than wrap or zero out: reviews is an unconstrained
@@ -311,6 +247,7 @@ pub(crate) fn peer_reputation(
                 u.rating,
                 u.reviews.clamp(0, u32::MAX as i64) as u32,
                 u.operating_days.min(u32::MAX as u64) as u32,
+                u.since.and_then(crate::mostro::reputation::since_from_wire),
             )
         }),
         _ => None,
@@ -482,120 +419,20 @@ mod tests {
         }
     }
 
-    /// Every status a trade row can hold, for the tables below. Exhaustive:
-    /// a new variant fails to compile in `all_statuses_listed`.
-    const ALL_STATUSES: [OrderStatus; 17] = [
-        OrderStatus::Pending,
-        OrderStatus::WaitingBuyerInvoice,
-        OrderStatus::WaitingPayment,
-        OrderStatus::Active,
-        OrderStatus::FiatSent,
-        OrderStatus::SettledHoldInvoice,
-        OrderStatus::Success,
-        OrderStatus::Canceled,
-        OrderStatus::Expired,
-        OrderStatus::CooperativelyCanceled,
-        OrderStatus::CanceledByAdmin,
-        OrderStatus::SettledByAdmin,
-        OrderStatus::CompletedByAdmin,
-        OrderStatus::Dispute,
-        OrderStatus::InProgress,
-        OrderStatus::WaitingTakerBond,
-        OrderStatus::WaitingMakerBond,
-    ];
-
+    /// The book shows an admin settle as `success` and an admin cancel as
+    /// `canceled`: replayed after the verdict, it must not erase it (#642 —
+    /// a plain `success` would open a completed trade's chat window).
     #[test]
-    fn all_statuses_listed() {
-        for s in &ALL_STATUSES {
-            match s {
-                OrderStatus::Pending
-                | OrderStatus::WaitingBuyerInvoice
-                | OrderStatus::WaitingPayment
-                | OrderStatus::Active
-                | OrderStatus::FiatSent
-                | OrderStatus::SettledHoldInvoice
-                | OrderStatus::Success
-                | OrderStatus::Canceled
-                | OrderStatus::Expired
-                | OrderStatus::CooperativelyCanceled
-                | OrderStatus::CanceledByAdmin
-                | OrderStatus::SettledByAdmin
-                | OrderStatus::CompletedByAdmin
-                | OrderStatus::Dispute
-                | OrderStatus::InProgress
-                | OrderStatus::WaitingTakerBond
-                | OrderStatus::WaitingMakerBond => {}
-            }
-        }
-    }
-
-    /// mostrod v0.19.2, `inline_invoice_take`: a sell order taken with the
-    /// invoice attached is published `pending`, then `success` — never
-    /// `in-progress`. So for its maker a public `pending` is the order's
-    /// past from `waiting-payment` on, and only there.
-    #[test]
-    fn a_public_pending_is_silent_only_for_the_maker_of_a_taken_sell_order() {
-        use crate::api::types::OrderKind::{Buy, Sell};
+    fn a_plain_public_terminal_never_replaces_an_admin_verdict() {
         use OrderStatus as S;
 
-        let held = [
-            S::WaitingPayment,
-            S::Active,
-            S::FiatSent,
-            S::Dispute,
-            S::SettledHoldInvoice,
-        ];
-        for local in &ALL_STATUSES {
-            assert_eq!(
-                holds_against_public_pending(true, &Sell, local),
-                held.contains(local),
-                "maker of a sell order at {local:?}"
-            );
-            // A buy order's take always publishes `in-progress`: `pending`
-            // after it is a republish, at every status.
-            assert!(
-                !holds_against_public_pending(true, &Buy, local),
-                "maker of a buy order at {local:?} must keep reading pending"
-            );
-            // A taker's row, either kind: the lost-take restore and the
-            // taker's sweep read the same public `pending`.
-            for kind in [Sell, Buy] {
+        for local in [S::SettledByAdmin, S::CanceledByAdmin, S::CompletedByAdmin] {
+            for wire in [S::Success, S::Canceled, S::Expired, S::InProgress, S::Pending] {
                 assert!(
-                    !holds_against_public_pending(false, &kind, local),
-                    "a taker at {local:?} must keep reading pending"
+                    !wire_status_applies(Some(&local), &wire),
+                    "{wire:?} must not overwrite {local:?}"
                 );
             }
-        }
-        // The two statuses the fix must leave alone on a maker's sell order:
-        // the row that is itself pending, and the take that did publish
-        // `in-progress` (no invoice attached), where `pending` again means
-        // the taker left.
-        assert!(!holds_against_public_pending(true, &Sell, &S::Pending));
-        assert!(!holds_against_public_pending(
-            true,
-            &Sell,
-            &S::WaitingBuyerInvoice
-        ));
-        assert!(!holds_against_public_pending(true, &Sell, &S::InProgress));
-    }
-
-    /// A cancel waits for the daemon's verdict only where the daemon cancels
-    /// at once and can also refuse: the two waiting steps (mostrod cancel.rs
-    /// `cancel_not_active_order`).
-    #[test]
-    fn only_a_waiting_step_cancel_waits_for_the_daemons_verdict() {
-        use OrderStatus as S;
-        for status in &ALL_STATUSES {
-            assert_eq!(
-                cancel_awaits_verdict(status),
-                matches!(status, S::WaitingBuyerInvoice | S::WaitingPayment),
-                "{status:?}"
-            );
-        }
-        // Everything that waits is a never-active trade: the daemon's
-        // `canceled` wipes its row, so there is nothing to mark locally.
-        for status in ALL_STATUSES.iter().filter(|s| cancel_awaits_verdict(s)) {
-            assert!(cancellation_wipes_history(status), "{status:?}");
         }
     }
 
@@ -654,7 +491,7 @@ mod tests {
                 since: None,
             }),
         });
-        assert_eq!(peer_reputation(&Some(peer)), Some((4.375, 4, 64)));
+        assert_eq!(peer_reputation(&Some(peer)), Some((4.375, 4, 64, None)));
 
         // A full-privacy taker carries no snapshot.
         let private = Payload::Peer(Peer {
@@ -673,7 +510,7 @@ mod tests {
                 since: None,
             }),
         });
-        assert_eq!(peer_reputation(&Some(fresh)), Some((0.0, 0, 0)));
+        assert_eq!(peer_reputation(&Some(fresh)), Some((0.0, 0, 0, None)));
 
         // Non-Peer payloads and the empty case carry no reputation.
         let so = small_order_with(mostro_core::order::Status::WaitingBuyerInvoice, 484);
@@ -704,19 +541,73 @@ mod tests {
         // Above u32::MAX saturates to u32::MAX, not 0 / wraparound.
         assert_eq!(
             peer_reputation(&Some(peer(i64::MAX, u64::MAX))),
-            Some((5.0, u32::MAX, u32::MAX))
+            Some((5.0, u32::MAX, u32::MAX, None))
         );
         // Exact boundary is preserved; one past it saturates.
         assert_eq!(
             peer_reputation(&Some(peer(u32::MAX as i64, u32::MAX as u64))),
-            Some((5.0, u32::MAX, u32::MAX))
+            Some((5.0, u32::MAX, u32::MAX, None))
         );
         assert_eq!(
             peer_reputation(&Some(peer(u32::MAX as i64 + 1, u32::MAX as u64 + 1))),
-            Some((5.0, u32::MAX, u32::MAX))
+            Some((5.0, u32::MAX, u32::MAX, None))
         );
         // A negative review count clamps to 0.
-        assert_eq!(peer_reputation(&Some(peer(-7, 0))), Some((5.0, 0, 0)));
+        assert_eq!(peer_reputation(&Some(peer(-7, 0))), Some((5.0, 0, 0, None)));
+    }
+
+    /// `since` supersedes the deprecated `operating_days`: it is carried
+    /// through as seconds when the daemon sends it, and absent otherwise so
+    /// the UI falls back to the day count.
+    #[test]
+    fn peer_reputation_carries_since_when_the_daemon_sends_it() {
+        use mostro_core::message::{Payload, Peer};
+        use mostro_core::user::UserInfo;
+
+        let peer = |since: Option<u64>| {
+            Payload::Peer(Peer {
+                pubkey: String::new(),
+                reputation: Some(UserInfo {
+                    rating: 4.5,
+                    reviews: 12,
+                    operating_days: 10,
+                    since,
+                }),
+            })
+        };
+
+        assert_eq!(
+            peer_reputation(&Some(peer(Some(1_699_920_000)))),
+            Some((4.5, 12, 10, Some(1_699_920_000)))
+        );
+        // An older daemon (or a user without a date) keeps the day count.
+        assert_eq!(
+            peer_reputation(&Some(peer(None))),
+            Some((4.5, 12, 10, None))
+        );
+        // Zero is no date, and a value past i64::MAX is not one either.
+        assert_eq!(
+            peer_reputation(&Some(peer(Some(0)))),
+            Some((4.5, 12, 10, None))
+        );
+        assert_eq!(
+            peer_reputation(&Some(peer(Some(u64::MAX)))),
+            Some((4.5, 12, 10, None))
+        );
+        // Past what Dart's `DateTime` can hold, building the date would throw
+        // instead of falling back; the last representable second still counts.
+        assert_eq!(
+            peer_reputation(&Some(peer(Some(i64::MAX as u64)))),
+            Some((4.5, 12, 10, None))
+        );
+        assert_eq!(
+            peer_reputation(&Some(peer(Some(8_640_000_000_001)))),
+            Some((4.5, 12, 10, None))
+        );
+        assert_eq!(
+            peer_reputation(&Some(peer(Some(8_640_000_000_000)))),
+            Some((4.5, 12, 10, Some(8_640_000_000_000)))
+        );
     }
 
     /// The hard-terminal set must match protocol finality: statuses mostrod

@@ -64,17 +64,17 @@ class OrderCardFormats {
   /// `+5.0%`, `0.0%`, `-1.5%` — zero carries no sign.
   String premiumPercent(double value) {
     final rounded = shown(value);
-    final text = rounded == 0
-        ? _unsignedPremium.format(0)
-        : premium.format(rounded);
+    final text =
+        rounded == 0 ? _unsignedPremium.format(0) : premium.format(rounded);
     return '$text%';
   }
 
   /// `832 – 5,000` for a range, `25` for a single amount.
-  String amount(OrderItem order) => order.isRange
-      ? '${fiat.format(order.fiatAmountMin!)} – '
-            '${fiat.format(order.fiatAmountMax!)}'
-      : fiat.format(order.fiatAmount!);
+  String amount(OrderItem order) =>
+      order.isRange
+          ? '${fiat.format(order.fiatAmountMin!)} – '
+              '${fiat.format(order.fiatAmountMax!)}'
+          : fiat.format(order.fiatAmount!);
 }
 
 /// Order-book card (order-book handoff, variant 4b).
@@ -181,11 +181,12 @@ class _HeaderRow extends StatelessWidget {
 
     // The card carries no buy/sell chip (the tabs already scope the side);
     // the only functional signal kept is "yours" on own orders.
-    final mineLabel = order.isMine
-        ? (order.kind == 'sell'
-              ? l10n.orderPillYouAreSelling
-              : l10n.orderPillYouAreBuying)
-        : null;
+    final mineLabel =
+        order.isMine
+            ? (order.kind == 'sell'
+                ? l10n.orderPillYouAreSelling
+                : l10n.orderPillYouAreBuying)
+            : null;
 
     final highlight = switch (reason) {
       OrderReason.bestPremium => _Chip(
@@ -204,49 +205,50 @@ class _HeaderRow extends StatelessWidget {
     };
 
     return LayoutBuilder(
-      builder: (context, constraints) => Row(
-        children: [
-          // Chips keep their intrinsic width and wrap to a second run when
-          // they don't fit beside the time — shrinking them ellipsized the
-          // labels on small phones.
-          Expanded(
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                _CurrencyChip(
-                  flag: flag,
-                  code: order.fiatCode,
-                  palette: palette,
+      builder:
+          (context, constraints) => Row(
+            children: [
+              // Chips keep their intrinsic width and wrap to a second run when
+              // they don't fit beside the time — shrinking them ellipsized the
+              // labels on small phones.
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _CurrencyChip(
+                      flag: flag,
+                      code: order.fiatCode,
+                      palette: palette,
+                    ),
+                    // Own-order chip before the highlight: on an own order it
+                    // must always be readable.
+                    if (mineLabel != null)
+                      _Chip(
+                        label: mineLabel,
+                        color: palette.textSecondary,
+                        fill: palette.currencyChipFill,
+                        border: palette.border,
+                      ),
+                    if (highlight != null) highlight,
+                  ],
                 ),
-                // Own-order chip before the highlight: on an own order it
-                // must always be readable.
-                if (mineLabel != null)
-                  _Chip(
-                    label: mineLabel,
-                    color: palette.textSecondary,
-                    fill: palette.currencyChipFill,
-                    border: palette.border,
-                  ),
-                if (highlight != null) highlight,
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              // Flush right at its natural width, capped at half the row so a
+              // long localized time at a large text scale wraps instead of
+              // pushing the chips out.
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: constraints.maxWidth / 2),
+                child: Text(
+                  _relativeTime(order.createdAt, l10n),
+                  textAlign: TextAlign.end,
+                  style: TextStyle(fontSize: 11, color: palette.textFaint),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          // Flush right at its natural width, capped at half the row so a
-          // long localized time at a large text scale wraps instead of
-          // pushing the chips out.
-          ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: constraints.maxWidth / 2),
-            child: Text(
-              _relativeTime(order.createdAt, l10n),
-              textAlign: TextAlign.end,
-              style: TextStyle(fontSize: 11, color: palette.textFaint),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -536,6 +538,7 @@ class _ReputationStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final isNew = order.tradeCount == 0;
+    final days = order.makerDaysOnMostro;
     final separator = Text('|', style: TextStyle(color: palette.divider));
 
     return Container(
@@ -584,8 +587,8 @@ class _ReputationStrip extends StatelessWidget {
               ),
             separator,
             _Stat(
-              value: formats.decimal.format(order.daysActive),
-              label: l10n.reputationDaysLabel(order.daysActive),
+              value: formats.decimal.format(days),
+              label: l10n.reputationDaysLabel(days),
               palette: palette,
             ),
           ],

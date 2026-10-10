@@ -171,11 +171,6 @@ class OrderBookPalette {
   final List<BoxShadow> fabShadow;
   final List<BoxShadow> buyShadow;
   final List<BoxShadow> sellShadow;
-  
-  // Legacy aliases used by simple UI
-  Color get surfaceCard => surface;
-  Color get textTitle => textPrimary;
-  Color get limeBorder => borderHighlight;
 
   static const dark = OrderBookPalette(
     bg: Color(0xFF12161F),

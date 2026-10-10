@@ -27,6 +27,7 @@ import 'package:mostro/features/settings/providers/settings_provider.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart'
     show refreshTrades;
 import 'package:mostro/l10n/app_localizations.dart';
+import 'package:mostro/shared/mascot/mascot_cues.dart';
 import 'package:mostro/shared/utils/order_amount_limits.dart';
 import 'package:mostro/shared/widgets/pill_segmented.dart';
 import 'package:mostro/src/rust/api/orders.dart' as rust_orders;
@@ -73,8 +74,7 @@ class AddOrderScreen extends ConsumerStatefulWidget {
   return null;
 }
 
-/// The amount [text] holds — a whole number — or null when it is not one
-/// the form can submit.
+/// The amount [text] holds, or null when it is not one the form can submit.
 ///
 /// `Infinity`, `-Infinity` and `NaN` all parse as doubles and would pass a
 /// bare positivity check, only to throw in the sats conversion further down —
@@ -82,13 +82,7 @@ class AddOrderScreen extends ConsumerStatefulWidget {
 /// (`canonicalAmount`), never the grouped text of the field.
 @visibleForTesting
 double? enteredAmount(String text) {
-  final digits = text.trim();
-  // An order carries its fiat amount as an integer: a fraction is refused by
-  // the core (`FiatAmountNotWhole`), so it is not submittable here either —
-  // nor is anything written with a decimal part, `150.00` included. What the
-  // field shows is what goes out, and it shows no decimals.
-  if (!RegExp(r'^\d+$').hasMatch(digits)) return null;
-  final value = double.tryParse(digits);
+  final value = double.tryParse(text.trim());
   if (value == null || !value.isFinite || value <= 0) return null;
   return value;
 }
@@ -135,6 +129,8 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
       final defaultFiat =
           ref.read(settingsProvider).defaultFiatCode ?? 'USD';
       ref.read(selectedFiatCodeProvider.notifier).state = defaultFiat;
+      ref.read(fiatPickedByUserProvider.notifier).state = false;
+      _keepFiatAccepted(ref.read(acceptedFiatCodesProvider));
       ref.read(isMarketPriceProvider.notifier).state = true;
       ref.read(isRangeOrderProvider.notifier).state = false;
       ref.read(premiumValueProvider.notifier).state = 0.0;
@@ -149,6 +145,30 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
     _maxController.dispose();
     super.dispose();
   }
+
+  /// Moves the form off a currency the node does not accept ([fiatForNode]),
+  /// but only while the form is untouched: once an amount or a payment
+  /// method is in, switching would reinterpret the amount and drop the
+  /// methods that belong to the old currency, and a currency the user picked
+  /// is theirs to change. The build then shows the
+  /// currency as refused and keeps Publish disabled instead. Only the form's
+  /// currency changes: the default currency in settings is never written.
+  void _keepFiatAccepted(List<String>? accepted) {
+    if (!_untouched) return;
+    final selected = ref.read(selectedFiatCodeProvider.notifier);
+    final next = fiatForNode(selected.state, accepted);
+    if (next != selected.state) selected.state = next;
+  }
+
+  /// No currency picked, and no amount, fixed sats or payment method entered
+  /// yet.
+  bool get _untouched =>
+      !ref.read(fiatPickedByUserProvider) &&
+      _amountController.text.isEmpty &&
+      _minController.text.isEmpty &&
+      _maxController.text.isEmpty &&
+      ref.read(fixedSatsProvider).isEmpty &&
+      ref.read(allPaymentMethodsProvider).isEmpty;
 
   // ── Locale-aware amounts ──────────────────────────────────────────────────
 
@@ -381,15 +401,7 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
       isRange: isRange,
       amounts: amounts,
     );
-    // And the premium on screen is the one that goes out: a field left on
-    // `1.5` has not set any.
-    final premiumNotWhole =
-        isMarket && ref.read(premiumInputInvalidProvider);
-    if (_submitting ||
-        !valid ||
-        outOfRange != null ||
-        fiatOutOfRange != null ||
-        premiumNotWhole) {
+    if (_submitting || !valid || outOfRange != null || fiatOutOfRange != null) {
       return;
     }
     setState(() => _submitting = true);
@@ -426,24 +438,20 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
         context.push(AppRoute.payBondPath(order.id));
         return;
       }
+      ref.read(mascotCueProvider.notifier).orderPublished();
       context.go(AppRoute.myOrderPath(order.id));
     } catch (e) {
       if (!mounted) return;
+      ref.read(mascotCueProvider.notifier).daemonRefused(e);
       // CantDo rejections from Mostro arrive as errors from createOrder.
       // Strip the Rust error prefix for a cleaner message.
       final raw = e.toString();
       final anyhowMatch = RegExp(r'^.*?AnyhowException\((.+)\)$').firstMatch(raw);
       final msg = anyhowMatch != null ? anyhowMatch.group(1)! : raw;
-      // Worded in one place, and never the raw text: a reason the app has
-      // no wording for still reads in the user's language. The order was
-      // not created. The raw text is kept for whoever debugs it.
-      debugPrint('[AddOrderScreen] create failed: $msg');
-      final l10n = AppLocalizations.of(context);
-      final display = localizedDaemonError(
-        l10n,
-        msg,
-        fallback: l10n.orderRequestFailed,
-      );
+      // The daemon never answered: show the localized "no response" message
+      // instead of the raw marker. The order was not created.
+      final display =
+          localizedDaemonError(AppLocalizations.of(context), msg, fallback: msg);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(display)),
       );
@@ -462,6 +470,15 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
     final locale = _locale(context);
     final symbols = _symbols(context);
 
+    // The node's list can land after the form opened, or change with a node
+    // switch: on an untouched form a currency it does not accept gives way to
+    // its first one; otherwise the currency stays and is shown as refused.
+    ref.listen<List<String>?>(
+      acceptedFiatCodesProvider,
+      (_, accepted) => _keepFiatAccepted(accepted),
+    );
+    final accepted = ref.watch(acceptedFiatCodesProvider);
+
     final side = ref.watch(orderSideProvider);
     final methods = ref.watch(allPaymentMethodsProvider);
     final isMarket = ref.watch(isMarketPriceProvider);
@@ -471,6 +488,7 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
     final premium = ref.watch(premiumValueProvider);
     final node = ref.watch(mostroNodeProvider).valueOrNull;
     final amounts = _amounts(isRange, symbols);
+    final currencyRefused = fiatRefused(fiatCode, accepted);
 
     final satsRangeError = (!isMarket && !isRange && fixedSatsStr.isNotEmpty)
         ? satsOutOfNodeRange(
@@ -498,35 +516,15 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
         ) &&
         satsRangeError == null &&
         fiatRangeError == null &&
-        // The premium field holds something that is no premium.
-        !(isMarket && ref.watch(premiumInputInvalidProvider));
-    // An amount written with a separator of the user's own is not an order
-    // — `isValid` is already false — and it is said first: until it is a
-    // whole number, its range means nothing.
-    final hasTypedSeparator =
-        (isRange
-                ? [_minController, _maxController]
-                : [_amountController])
-            .any(
-              (controller) => amountHasTypedSeparator(
-                controller.text,
-                groupSeparator: symbols.group,
-                decimalSeparator: symbols.decimal,
-              ),
-            );
-    // A premium typed with decimals is not the premium the form holds, so
-    // the form is not ready either: said after the amount's own trouble.
-    final premiumNotWhole =
-        isMarket && ref.watch(premiumInputInvalidProvider);
-    final amountWarning = hasTypedSeparator
-        ? l10n.orderAmountMustBeWhole
+        !currencyRefused;
+    final rangeWarning = currencyRefused
+        ? l10n.orderCurrencyNotAccepted(fiatCode)
         : _rangeWarning(
-                l10n: l10n,
-                satsRangeError: satsRangeError,
-                fiatRangeError: fiatRangeError,
-                fiatCode: fiatCode,
-              ) ??
-              (premiumNotWhole ? l10n.orderPremiumMustBeWhole : null);
+            l10n: l10n,
+            satsRangeError: satsRangeError,
+            fiatRangeError: fiatRangeError,
+            fiatCode: fiatCode,
+          );
     // A node that bonds makers asks for a deposit before publishing
     // (docs/ANTI_ABUSE_BOND.md §6.2): said here, before the tap.
     final bondNotice = makerBondApplies(
@@ -606,7 +604,7 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
               symbols: symbols,
               fiatFormat: NumberFormat('#,##0.##', locale),
               quickAmounts: quickAmounts(fiatPerUsd),
-              hasError: hasTypedSeparator || fiatRangeError != null,
+              hasError: fiatRangeError != null,
               onChanged: () => setState(() {}),
               onRangeChanged: _onRangeChanged,
             ),
@@ -619,7 +617,7 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
       ),
       // Pinned: rises with the keyboard so the preview stays in view.
       bottomNavigationBar: OrderPreviewBar(
-        fragments: amountWarning == null
+        fragments: rangeWarning == null
             ? _preview(
                 l10n: l10n,
                 locale: locale,
@@ -633,7 +631,7 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
                 expirationHours: node?.expirationHours,
               )
             : null,
-        error: amountWarning,
+        error: rangeWarning,
         notice: bondNotice,
         premiumFavour: premiumFavour(side, premium),
         canSubmit: isValid,

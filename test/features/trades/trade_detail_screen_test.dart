@@ -10,7 +10,8 @@ import 'package:mostro/features/account/providers/privacy_mode_provider.dart';
 import 'package:mostro/core/app_routes.dart';
 import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/core/automation/automation_ids.dart';
-import 'package:mostro/core/ui_mode.dart';
+import 'package:mostro/features/disputes/providers/disputes_providers.dart'
+    show disputeLookupProvider;
 import 'package:mostro/features/home/providers/home_order_providers.dart';
 import 'package:mostro/features/notifications/models/notification_model.dart';
 import 'package:mostro/features/notifications/providers/notifications_provider.dart';
@@ -19,12 +20,14 @@ import 'package:mostro/features/order/providers/trade_state_provider.dart';
 import 'package:mostro/features/rate/providers/rating_providers.dart';
 import 'package:mostro/features/rate/screens/rate_counterpart_screen.dart';
 import 'package:mostro/features/rate/widgets/star_rating.dart';
-import 'package:mostro/features/simple_mode/screens/simple_trade_detail_view.dart';
 import 'package:mostro/features/trades/providers/release_pending_provider.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart';
 import 'package:mostro/features/trades/screens/trade_detail_screen.dart';
 import 'package:mostro/features/trades/widgets/cancel_request_notice.dart';
 import 'package:mostro/features/trades/widgets/trade_chat_card.dart';
+import 'package:mostro/features/chat/models/chat_list_rules.dart';
+import 'package:mostro/features/chat/providers/chat_list_provider.dart';
+import 'package:mostro/features/chat/providers/chat_providers.dart';
 import 'package:mostro/features/trades/widgets/trade_completed_card.dart';
 import 'package:mostro/features/trades/widgets/trade_step_block.dart';
 import 'package:mostro/features/trades/widgets/trade_timeline.dart';
@@ -62,14 +65,18 @@ Future<ProviderContainer> _pumpTradeDetail(
   Future<RatingInfo?> Function()? ratingFetch,
   Locale locale = const Locale('en'),
   List<TradeInfo>? trades,
+  List<OrderItem> book = const [],
+  bool roleKnown = true,
   bool privacyMode = false,
   NotificationsNotifier? notifications,
-  UiMode uiMode = UiMode.advanced,
-  bool roleKnown = true,
+  ChatRowState? chatState,
+  List<Override> extraOverrides = const [],
 }) async {
   final container = createContainer(
-    uiMode: uiMode,
     overrides: [
+      ...extraOverrides,
+      if (chatState != null)
+        chatRowStateProvider(orderId).overrideWithValue(chatState),
       if (notifications != null)
         notificationsProvider.overrideWith((_) => notifications),
       if (privacyMode)
@@ -79,13 +86,15 @@ Future<ProviderContainer> _pumpTradeDetail(
       if (releaseOrder != null)
         releaseOrderActionProvider.overrideWithValue(releaseOrder),
       if (trades != null) rawTradesProvider.overrideWith((ref) async => trades),
-      // [roleKnown] off leaves the side to the row lookup, which without a
-      // bridge never answers: the screen then has no side to show.
-      if (roleKnown) tradeRoleProvider.overrideWith((ref) => {orderId: isBuyer}),
+      tradeRoleProvider.overrideWith(
+        (ref) => roleKnown ? {orderId: isBuyer} : <String, bool>{},
+      ),
+      if (!roleKnown)
+        tradeRoleFromDbProvider(orderId).overrideWith((ref) async => null),
       tradeStatusProvider(
         orderId,
       ).overrideWith((ref) => statusUpdates ?? Stream.value(status)),
-      orderBookProvider.overrideWith((ref) => Stream.value(const [])),
+      orderBookProvider.overrideWith((ref) => Stream.value(book)),
       // A waiting step draws its countdown from the step deadline, which
       // without a bridge resolves to "unknown" — and then the screen draws
       // none (#270). The 8a cases below assert the countdown's label, so the
@@ -140,11 +149,12 @@ Future<void> _pumpRoutedTradeDetail(
   Future<void> Function(String)? cancelOrder,
   Stream<OrderStatus>? statusUpdates,
   Stream<List<OrderItem>>? bookUpdates,
-  UiMode uiMode = UiMode.advanced,
+  Future<Dispute?> Function(String tradeId)? disputeLookup,
 }) async {
   final container = createContainer(
-    uiMode: uiMode,
     overrides: [
+      if (disputeLookup != null)
+        disputeLookupProvider.overrideWithValue(disputeLookup),
       if (cancelOrder != null)
         cancelOrderActionProvider.overrideWithValue(cancelOrder),
       tradeRoleProvider.overrideWith((ref) => {orderId: true}),
@@ -171,6 +181,13 @@ Future<void> _pumpRoutedTradeDetail(
         builder:
             (_, state) =>
                 TradeDetailScreen(orderId: state.pathParameters['orderId']!),
+      ),
+      GoRoute(
+        path: AppRoute.disputeDetails,
+        builder:
+            (_, state) => Scaffold(
+              body: Text('dispute ${state.pathParameters['disputeId']}'),
+            ),
       ),
     ],
   );
@@ -329,6 +346,16 @@ void main() {
           orderId: 'order-8a',
           isBuyer: true,
           status: OrderStatus.waitingPayment,
+          // A buy order: the seller who owes the payment took it, so expiry
+          // puts the order back in the book.
+          trades: [
+            fakeTrade(
+              id: 'order-8a',
+              orderId: 'order-8a',
+              status: OrderStatus.waitingPayment,
+              kind: OrderKind.buy,
+            ),
+          ],
         );
 
         expect(find.text(_en.tradeScreenTitle), findsOneWidget);
@@ -338,10 +365,7 @@ void main() {
         expect(find.byType(TradeChatLockedLine), findsOneWidget);
         expect(find.byType(TradeChatCard), findsNothing);
         expect(find.text(_en.tradeTimerTheyHave), findsOneWidget);
-        expect(
-          find.text(_en.tradeTimerWaitingInvoiceConsequence),
-          findsOneWidget,
-        );
+        expect(find.text(_en.tradeTimerExpiryBackToBook), findsOneWidget);
         expect(_outlinedButtonWithText(_en.cancelTradeButton), findsOneWidget);
         expect(_outlinedButtonWithText(_en.openDisputeButton), findsNothing);
         expect(
@@ -466,6 +490,34 @@ void main() {
       // The dialog says what accepting does, not what a first request does.
       expect(find.text(_en.cancelTradeDialogContentAccept), findsOneWidget);
       expect(find.text(_en.cancelTradeDialogContent), findsNothing);
+    });
+
+    testWidgets('a dispute keeps the request: the buyer can accept it', (
+      tester,
+    ) async {
+      // mostrod leaves the request in place when a dispute opens; the
+      // counterparty's cancel then ends the trade and closes the dispute.
+      await _pumpTradeDetail(
+        tester,
+        orderId: 'order-coop-dispute',
+        isBuyer: true,
+        status: OrderStatus.dispute,
+        trades: [
+          fakeTrade(
+            id: 'coop-dispute',
+            status: OrderStatus.dispute,
+            cooperativeCancelState: CooperativeCancelState.requestedByPeer,
+          ),
+        ],
+      );
+
+      expect(find.text(_en.tradeCancelRequestedByPeerNotice), findsOneWidget);
+      expect(_filledButtonWithText(_en.viewDisputeButton), findsOneWidget);
+      expect(_outlinedButtonWithText(_en.acceptCancelButton), findsOneWidget);
+
+      await tester.tap(_outlinedButtonWithText(_en.acceptCancelButton));
+      await _settle(tester);
+      expect(find.text(_en.cancelTradeDialogContentAccept), findsOneWidget);
     });
 
     testWidgets('a settled trade shows no stale request', (tester) async {
@@ -847,6 +899,28 @@ void main() {
       expect(find.text(_en.tradeHeadlinePayoutPending), findsNothing);
     });
 
+    // DS-CMP-20: skipping the rating undoes nothing, so it is a neutral
+    // link, not an outlined button as heavy as sending the rating.
+    testWidgets('skipping the rating is a neutral link', (tester) async {
+      await _pumpTradeDetail(
+        tester,
+        orderId: 'order-seller-skips',
+        isBuyer: false,
+        status: OrderStatus.settledHoldInvoice,
+        ratingRoute: true,
+      );
+      expect(
+        find.widgetWithText(OutlinedButton, _en.closeRatingButton),
+        findsNothing,
+      );
+      final link = find.widgetWithText(TextButton, _en.closeRatingButton);
+      expect(link, findsOneWidget);
+      final label = tester.widget<RichText>(
+        find.descendant(of: link, matching: find.byType(RichText)),
+      );
+      expect(label.text.style?.color, OrderBookPalette.dark.textSecondary);
+    });
+
     testWidgets('who already rated is not offered the form again', (
       tester,
     ) async {
@@ -998,7 +1072,10 @@ void main() {
       },
     );
 
-    testWidgets('buyer + disputed: View dispute only', (tester) async {
+    testWidgets('buyer + disputed: View dispute and Cancel, no Release', (
+      tester,
+    ) async {
+      // mostrod accepts a cooperative cancel from either party in `dispute`.
       await _pumpTradeDetail(
         tester,
         orderId: 'order-6',
@@ -1007,7 +1084,9 @@ void main() {
       );
 
       expect(_filledButtonWithText(_en.viewDisputeButton), findsOneWidget);
-      expect(find.byType(OutlinedButton), findsNothing);
+      expect(_outlinedButtonWithText(_en.cancelTradeButton), findsOneWidget);
+      expect(_outlinedButtonWithText(_en.releaseSatsButton), findsNothing);
+      expect(_outlinedButtonWithText(_en.openDisputeButton), findsNothing);
     });
 
     testWidgets('cancelled: the reason, Close, no chat, no timeline', (
@@ -1364,7 +1443,7 @@ void main() {
           ),
         );
         // The visible id is shortened around an ellipsis.
-        expect(find.text('a-ver…0123', skipOffstage: false), findsOneWidget);
+        expect(find.text('a-very-l…0123', skipOffstage: false), findsOneWidget);
       } finally {
         semantics.dispose();
       }
@@ -1419,6 +1498,67 @@ void main() {
         expect(tester.takeException(), isNull);
       });
     }
+
+    // DS-A11Y-4: 320 dp, 2× text, German. The id row (label, shortened id,
+    // copy icon and, with the order in the book, its creation date) is the
+    // one this screen's own code lays out; the step block header has its own
+    // debt, so these statuses are the ones whose header fits.
+    for (final status in [OrderStatus.waitingPayment, OrderStatus.success]) {
+      for (final inBook in [false, true]) {
+        testWidgets('the id row fits 320 dp at 2× text in German '
+            '($status, ${inBook ? 'with' : 'without'} the creation date)', (
+          tester,
+        ) async {
+          tester.view.physicalSize = const Size(320, 760);
+          tester.view.devicePixelRatio = 1.0;
+          tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+          addTearDown(tester.view.reset);
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+          await _pumpTradeDetail(
+            tester,
+            orderId: 'order-de-narrow',
+            isBuyer: true,
+            status: status,
+            locale: const Locale('de'),
+            book: inBook ? [fakeOrder(id: 'order-de-narrow')] : const [],
+          );
+          // The row closes the scroll: bring it on screen so its last
+          // layout is the one checked, with the date when the order is in
+          // the book.
+          await tester.scrollUntilVisible(find.text('ID'), 200);
+          if (inBook) {
+            expect(find.textContaining('erstellt'), findsOneWidget);
+          }
+          expect(tester.takeException(), isNull);
+        });
+      }
+    }
+
+    // DS-A11Y-4: the disputed bar gained the buyer's Cancel; the seller's
+    // carries Release and Cancel side by side under View dispute.
+    for (final isBuyer in [true, false]) {
+      testWidgets('the disputed bar in German, 320dp, 2x text '
+          '(isBuyer: $isBuyer)', (tester) async {
+        tester.view.physicalSize = const Size(320, 760);
+        tester.view.devicePixelRatio = 1.0;
+        tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+        await _pumpTradeDetail(
+          tester,
+          orderId: 'order-de-dispute-$isBuyer',
+          isBuyer: isBuyer,
+          status: OrderStatus.dispute,
+          locale: const Locale('de'),
+        );
+
+        expect(tester.takeException(), isNull);
+        expect(find.byType(OutlinedButton), findsNWidgets(isBuyer ? 1 : 2));
+      });
+    }
   });
 
   group('the cancel dialog says what the cancel does', () {
@@ -1449,6 +1589,8 @@ void main() {
       ),
       (OrderStatus.active, 'cooperative', l10n.cancelTradeDialogContent),
       (OrderStatus.fiatSent, 'cooperative', l10n.cancelTradeDialogContent),
+      // mostrod cancels from `dispute` as from `active`.
+      (OrderStatus.dispute, 'cooperative', l10n.cancelTradeDialogContent),
     ]) {
       testWidgets('${status.name}: the $kind cancel', (tester) async {
         await _pumpTradeDetail(
@@ -1848,145 +1990,623 @@ void main() {
     });
   });
 
-  // Simple Mode shows the same trade through its own view. What it must
-  // never do is fill in a status or a side it has not read: "active" and
-  // "buyer" as defaults put a pay-now button on a trade whose escrow may not
-  // be funded.
-  group('Simple Mode', () {
-    const orderId = 'simple-1';
+  group('a range order taken for one amount inside it', () {
+    // The book keeps the range; the trade row holds the slice the take
+    // priced (MostroP2P/app#620).
+    TradeInfo takenRange(OrderStatus status) => fakeTrade(
+      id: 'range',
+      status: status,
+      role: TradeRole.seller,
+      fiatCode: 'ARS',
+      paymentMethod: 'Mercado Pago',
+      isMine: true,
+      fiatAmount: 219500,
+      fiatAmountMin: 10000,
+      fiatAmountMax: 1000000,
+      amountSats: BigInt.from(163069),
+    );
+    final rangeInBook = fakeOrder(
+      id: 'order-range',
+      fiatAmountMin: 10000,
+      fiatAmountMax: 1000000,
+      fiatCode: 'ARS',
+      paymentMethod: 'Mercado Pago',
+      isMine: true,
+    );
 
-    testWidgets('waits, with no action, while the side is unknown', (
+    testWidgets('the step card says what was sold, in fiat and sats', (
       tester,
     ) async {
+      // Arrange + Act
       await _pumpTradeDetail(
         tester,
-        orderId: orderId,
+        orderId: 'order-range',
+        isBuyer: false,
+        status: OrderStatus.waitingPayment,
+        trades: [takenRange(OrderStatus.waitingPayment)],
+        book: [rangeInBook],
+      );
+
+      // Assert
+      expect(
+        find.text('${_en.tradesDirectionSell} · 219,500 ARS · 163,069 sats'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('10,000'), findsNothing);
+    });
+
+    testWidgets('the side comes from the row while the role is unknown', (
+      tester,
+    ) async {
+      // Arrange + Act: the role lookup has no answer; the row says seller.
+      await _pumpTradeDetail(
+        tester,
+        orderId: 'order-range',
         isBuyer: true,
-        status: OrderStatus.active,
-        uiMode: UiMode.simple,
         roleKnown: false,
+        status: OrderStatus.waitingPayment,
+        trades: [takenRange(OrderStatus.waitingPayment)],
+        book: [rangeInBook],
       );
 
-      expect(find.byType(SimpleTradeDetailView), findsNothing);
-      expect(find.text('I HAVE PAID'), findsNothing);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      // Assert
+      expect(
+        find.text('${_en.tradesDirectionSell} · 219,500 ARS · 163,069 sats'),
+        findsOneWidget,
+      );
+      expect(find.textContaining(_en.tradesDirectionBuy), findsNothing);
     });
 
-    testWidgets('waits, with no action, until the status arrives', (
-      tester,
-    ) async {
-      final statuses = StreamController<OrderStatus>();
-      addTearDown(statuses.close);
+    testWidgets('the headline names the slice, not the range', (tester) async {
+      // Arrange + Act
       await _pumpTradeDetail(
         tester,
-        orderId: orderId,
-        isBuyer: true,
+        orderId: 'order-range',
+        isBuyer: false,
         status: OrderStatus.active,
-        statusUpdates: statuses.stream,
-        uiMode: UiMode.simple,
+        trades: [takenRange(OrderStatus.active)],
+        book: [rangeInBook],
       );
 
-      expect(find.byType(SimpleTradeDetailView), findsNothing);
-      expect(find.text('I HAVE PAID'), findsNothing);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-
-      // The real status, once it comes, is what the view gets.
-      statuses.add(OrderStatus.active);
-      await tester.pump();
-      await tester.pump();
-      final view = tester.widget<SimpleTradeDetailView>(
-        find.byType(SimpleTradeDetailView),
+      // Assert
+      expect(
+        find.text(_en.tradeHeadlineActiveSeller('219,500 ARS')),
+        findsOneWidget,
       );
-      expect(view.status, OrderStatus.active);
-      expect(view.isBuyer, isTrue);
+      expect(find.textContaining('1000000'), findsNothing);
+    });
+  });
+
+  group('View dispute on a dispute the counterparty opened', () {
+    // The list is only hydrated on resume or when this side opens the
+    // dispute, so the peer's is missing from it; the bridge holds it.
+    testWidgets('asks the bridge and opens the dispute', (tester) async {
+      // Arrange
+      final asked = <String>[];
+      await _pumpRoutedTradeDetail(
+        tester,
+        orderId: 'order-peer-dispute',
+        status: OrderStatus.dispute,
+        loadTrades:
+            () async => [
+              fakeTrade(
+                id: 'peer-dispute',
+                status: OrderStatus.dispute,
+                role: TradeRole.buyer,
+              ),
+            ],
+        disputeLookup: (tradeId) async {
+          asked.add(tradeId);
+          return Dispute(
+            id: 'dispute-9',
+            tradeId: tradeId,
+            status: DisputeStatus.open,
+            initiatedByMe: false,
+            openedAt: intToPlatformInt64(1000),
+            isRead: false,
+            chatKeyShared: false,
+          );
+        },
+      );
+
+      // Act
+      await tester.tap(_filledButtonWithText(_en.viewDisputeButton));
+      await _finishPageTransition(tester);
+
+      // Assert
+      expect(asked, ['order-peer-dispute']);
+      expect(find.text(_en.disputeNotFoundForOrder), findsNothing);
+      expect(find.text('dispute dispute-9'), findsOneWidget);
+      // Let the button's and the snackbar's timers run out.
+      await tester.pump(const Duration(seconds: 5));
     });
 
-    testWidgets('a trade that is only "taken" offers the buyer no payment', (
+    testWidgets('says so when the bridge has none either', (tester) async {
+      // Arrange
+      await _pumpRoutedTradeDetail(
+        tester,
+        orderId: 'order-no-dispute',
+        status: OrderStatus.dispute,
+        loadTrades:
+            () async => [
+              fakeTrade(
+                id: 'no-dispute',
+                status: OrderStatus.dispute,
+                role: TradeRole.buyer,
+              ),
+            ],
+        disputeLookup: (_) async => null,
+      );
+
+      // Act
+      await tester.tap(_filledButtonWithText(_en.viewDisputeButton));
+      await tester.pump();
+      await tester.pump();
+
+      // Assert
+      expect(find.text(_en.disputeNotFoundForOrder), findsOneWidget);
+      // Let the button's and the snackbar's timers run out.
+      await tester.pump(const Duration(seconds: 5));
+    });
+  });
+
+  group('the chat card stays pinned above the scroll', () {
+    Finder inList(Type type) =>
+        find.descendant(of: find.byType(ListView), matching: find.byType(type));
+
+    testWidgets('scrolling to the bottom leaves it in place, tappable', (
       tester,
     ) async {
-      await _pumpTradeDetail(
-        tester,
-        orderId: orderId,
-        isBuyer: true,
-        status: OrderStatus.inProgress,
-        uiMode: UiMode.simple,
-      );
-
-      final view = tester.widget<SimpleTradeDetailView>(
-        find.byType(SimpleTradeDetailView),
-      );
-      expect(view.status, OrderStatus.inProgress);
-      expect(find.text('I HAVE PAID'), findsNothing);
-      expect(find.text(AppLocalizationsEn().simpleDoNotPayYet), findsOneWidget);
-    });
-
-    testWidgets('an active trade does offer it', (tester) async {
-      // Tall enough for the button to be built: the view is a lazy list,
-      // and the button sits under the card that says where the seller's
-      // payment details come from.
-      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.physicalSize = const Size(360, 560);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
       await _pumpTradeDetail(
         tester,
-        orderId: orderId,
+        orderId: 'order-pinned',
         isBuyer: true,
         status: OrderStatus.active,
-        uiMode: UiMode.simple,
       );
+      expect(inList(TradeChatCard), findsNothing);
+      final before = tester.getTopLeft(find.byType(TradeChatCard));
 
-      expect(find.text('I HAVE PAID'), findsOneWidget);
-      expect(find.text(AppLocalizationsEn().simpleDoNotPayYet), findsNothing);
+      await tester.scrollUntilVisible(
+        find.text(_en.tradeIdLabel),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await _settle(tester);
+
+      expect(tester.getTopLeft(find.byType(TradeChatCard)), before);
+      expect(find.byType(TradeChatCard).hitTestable(), findsOneWidget);
     });
 
-    testWidgets('shows no public pending before the row says whose it is', (
+    testWidgets('the lock note before the trade is active scrolls with the '
+        'content', (tester) async {
+      await _pumpTradeDetail(
+        tester,
+        orderId: 'order-locked',
+        isBuyer: true,
+        status: OrderStatus.waitingPayment,
+      );
+      expect(inList(TradeChatLockedLine), findsOneWidget);
+      expect(find.byType(TradeChatCard), findsNothing);
+    });
+
+    const room = ChatRoomState(
+      orderId: 'order-done',
+      peerPubkey: 'peer',
+      peerHandle: 'bright-fox-41',
+      peerIconIndex: 3,
+      peerColorHue: 120,
+      isSelling: false,
+    );
+
+    for (final (name, chatState, closed) in [
+      (
+        'keeps it open during its hour',
+        const ChatRowState(
+          group: ChatGroup.active,
+          tone: ChatAvatarTone.waiting,
+        ),
+        false,
+      ),
+      (
+        'keeps it, closed, once the hour is over',
+        const ChatRowState(
+          group: ChatGroup.closed,
+          tone: ChatAvatarTone.closed,
+        ),
+        true,
+      ),
+    ]) {
+      testWidgets('a completed trade $name (#642)', (tester) async {
+        final container = await _pumpTradeDetail(
+          tester,
+          orderId: 'order-done',
+          isBuyer: true,
+          status: OrderStatus.success,
+          chatState: chatState,
+        );
+        container.read(chatRoomsNotifierProvider.notifier).upsertRoom(room);
+        await _settle(tester);
+
+        expect(find.byType(TradeChatCard), findsOneWidget);
+        expect(inList(TradeChatCard), findsNothing);
+        expect(
+          find.text(_en.tradeChatClosed),
+          closed ? findsOneWidget : findsNothing,
+        );
+      });
+    }
+
+    testWidgets('a trade cancelled after it was active keeps it, closed', (
       tester,
     ) async {
-      // A take parked on its deposit: publicly its order still reads
-      // `pending`, which in Simple Mode is "published, waiting for someone
-      // to take it". Until the row is read in, that is not known to be the
-      // user's own order.
-      final rows = Completer<List<TradeInfo>>();
-      await _pumpRoutedTradeDetail(
+      final container = await _pumpTradeDetail(
         tester,
-        orderId: orderId,
-        status: OrderStatus.pending,
-        loadTrades: () => rows.future,
-        book: [fakeOrder(id: orderId)],
-        uiMode: UiMode.simple,
+        orderId: 'order-done',
+        isBuyer: true,
+        status: OrderStatus.canceled,
+        chatState: const ChatRowState(
+          group: ChatGroup.closed,
+          tone: ChatAvatarTone.closed,
+        ),
       );
+      container
+          .read(chatRoomsNotifierProvider.notifier)
+          .upsertRoom(room.copyWith(unreadCount: 3));
+      await _settle(tester);
 
-      expect(find.byType(SimpleTradeDetailView), findsNothing);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text(_en.tradeChatClosed), findsOneWidget);
+      // Unread until the room is opened, as the chat list and the Chat tab
+      // count them: closing the conversation does not read its messages.
+      expect(find.text('3'), findsOneWidget);
+    });
 
-      rows.complete([
-        fakeTrade(orderId: orderId, status: OrderStatus.waitingTakerBond),
-      ]);
-      await tester.pump();
-      await tester.pump();
+    testWidgets('a trade cancelled before it was active has no card', (
+      tester,
+    ) async {
+      await _pumpTradeDetail(
+        tester,
+        orderId: 'order-never-active',
+        isBuyer: true,
+        status: OrderStatus.canceled,
+      );
+      expect(find.byType(TradeChatCard), findsNothing);
+    });
+
+    testWidgets('the card turns closed when the conversation ends on screen', (
+      tester,
+    ) async {
+      final chatState = StateProvider(
+        (_) => const ChatRowState(
+          group: ChatGroup.active,
+          tone: ChatAvatarTone.waiting,
+        ),
+      );
+      final container = await _pumpTradeDetail(
+        tester,
+        orderId: 'order-done',
+        isBuyer: true,
+        status: OrderStatus.success,
+        extraOverrides: [
+          chatRowStateProvider(
+            'order-done',
+          ).overrideWith((ref) => ref.watch(chatState)),
+        ],
+      );
+      container.read(chatRoomsNotifierProvider.notifier).upsertRoom(room);
+      await _settle(tester);
+      expect(find.text(_en.tradeChatEncrypted), findsOneWidget);
+
+      container.read(chatState.notifier).state = const ChatRowState(
+        group: ChatGroup.closed,
+        tone: ChatAvatarTone.closed,
+      );
+      await _settle(tester);
+      expect(find.text(_en.tradeChatClosed), findsOneWidget);
+    });
+
+    testWidgets('the end of the conversation is announced once, on screen', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      final chatState = StateProvider(
+        (_) => const ChatRowState(
+          group: ChatGroup.active,
+          tone: ChatAvatarTone.waiting,
+        ),
+      );
+      final container = await _pumpTradeDetail(
+        tester,
+        orderId: 'order-done',
+        isBuyer: true,
+        status: OrderStatus.success,
+        extraOverrides: [
+          chatRowStateProvider(
+            'order-done',
+          ).overrideWith((ref) => ref.watch(chatState)),
+        ],
+      );
+      container.read(chatRoomsNotifierProvider.notifier).upsertRoom(room);
+      await _settle(tester);
+      expect(tester.takeAnnouncements(), isEmpty);
+
+      container.read(chatState.notifier).state = const ChatRowState(
+        group: ChatGroup.closed,
+        tone: ChatAvatarTone.closed,
+      );
+      await _settle(tester);
+      // A rebuild with the conversation still closed says nothing more.
+      container
+          .read(chatRoomsNotifierProvider.notifier)
+          .upsertRoom(room.copyWith(unreadCount: 1));
+      await _settle(tester);
+
       expect(
-        tester
-            .widget<SimpleTradeDetailView>(find.byType(SimpleTradeDetailView))
-            .status,
-        OrderStatus.waitingTakerBond,
+        [for (final a in tester.takeAnnouncements()) a.message],
+        [_en.tradeChatClosedAnnouncement],
       );
+      semantics.dispose();
     });
 
-    testWidgets("leaves a take that is no longer this user's", (tester) async {
-      // No trade row and a stranger's order in the book: a lost take, handed
-      // back to the public book as `pending`.
-      await _pumpRoutedTradeDetail(
+    testWidgets('a conversation already closed when the screen opens is not '
+        'announced', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final container = await _pumpTradeDetail(
         tester,
-        orderId: orderId,
-        status: OrderStatus.pending,
-        loadTrades: () async => const [],
-        book: [fakeOrder(id: orderId)],
-        uiMode: UiMode.simple,
+        orderId: 'order-done',
+        isBuyer: true,
+        status: OrderStatus.canceled,
+        chatState: const ChatRowState(
+          group: ChatGroup.closed,
+          tone: ChatAvatarTone.closed,
+        ),
       );
-      await _finishPageTransition(tester);
+      container.read(chatRoomsNotifierProvider.notifier).upsertRoom(room);
+      await _settle(tester);
 
-      expect(find.text('home'), findsOneWidget);
-      expect(find.byType(SimpleTradeDetailView), findsNothing);
+      expect(tester.takeAnnouncements(), isEmpty);
+      semantics.dispose();
     });
+
+    testWidgets('turning active, the lock note never fades over the step '
+        'block, which crossfades', (tester) async {
+      final updates = StreamController<OrderStatus>();
+      addTearDown(() => unawaited(updates.close()));
+      updates.add(OrderStatus.waitingPayment);
+      await _pumpTradeDetail(
+        tester,
+        orderId: 'order-turns-active',
+        isBuyer: true,
+        status: OrderStatus.waitingPayment,
+        statusUpdates: updates.stream,
+      );
+      expect(inList(TradeChatLockedLine), findsOneWidget);
+
+      updates.add(OrderStatus.active);
+      await tester.pump();
+      var crossfaded = false;
+      for (var frame = 0; frame < 15; frame++) {
+        await tester.pump(const Duration(milliseconds: 20));
+        final blocks = find.byType(TradeStepBlock);
+        crossfaded |= blocks.evaluate().length == 2;
+        for (final note in find.byType(TradeChatLockedLine).evaluate()) {
+          final noteRect = tester.getRect(find.byWidget(note.widget));
+          for (final block in blocks.evaluate()) {
+            expect(
+              noteRect.overlaps(tester.getRect(find.byWidget(block.widget))),
+              isFalse,
+              reason: 'frame $frame: the lock note is drawn over a step block',
+            );
+          }
+        }
+      }
+      expect(crossfaded, isTrue, reason: 'the step block did not crossfade');
+      expect(find.byType(TradeChatLockedLine), findsNothing);
+      expect(find.byType(TradeChatCard), findsOneWidget);
+    });
+
+    testWidgets('with animations off, the card takes the top at once', (
+      tester,
+    ) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      final updates = StreamController<OrderStatus>();
+      addTearDown(() => unawaited(updates.close()));
+      updates.add(OrderStatus.waitingPayment);
+      await _pumpTradeDetail(
+        tester,
+        orderId: 'order-no-motion',
+        isBuyer: true,
+        status: OrderStatus.waitingPayment,
+        statusUpdates: updates.stream,
+      );
+
+      updates.add(OrderStatus.active);
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.byType(TradeChatLockedLine), findsNothing);
+      final fades = tester.widgetList<FadeTransition>(
+        find.ancestor(
+          of: find.byType(TradeChatCard),
+          matching: find.byType(FadeTransition),
+        ),
+      );
+      expect([for (final f in fades) f.opacity.value], everyElement(1.0));
+      final slides = tester.widgetList<SlideTransition>(
+        find.ancestor(
+          of: find.byType(TradeChatCard),
+          matching: find.byType(SlideTransition),
+        ),
+      );
+      expect([
+        for (final s in slides) s.position.value,
+      ], everyElement(Offset.zero));
+    });
+
+    testWidgets('the line under the card goes once nothing scrolls beneath '
+        'it', (tester) async {
+      tester.view.physicalSize = const Size(360, 760);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final updates = StreamController<OrderStatus>.broadcast();
+      addTearDown(() => unawaited(updates.close()));
+      final container = await _pumpTradeDetail(
+        tester,
+        orderId: 'order-done',
+        isBuyer: false,
+        status: OrderStatus.fiatSent,
+        statusUpdates: updates.stream,
+        chatState: const ChatRowState(
+          group: ChatGroup.active,
+          tone: ChatAvatarTone.waiting,
+        ),
+      );
+      container.read(chatRoomsNotifierProvider.notifier).upsertRoom(room);
+      updates.add(OrderStatus.fiatSent);
+      await _settle(tester);
+      final book = OrderBookPalette.of(
+        tester.element(find.byType(TradeChatCard)),
+      );
+      Color chatLine() {
+        final box = tester.widget<DecoratedBox>(
+          find
+              .ancestor(
+                of: find.byType(TradeChatCard),
+                matching: find.byWidgetPredicate(
+                  (w) =>
+                      w is DecoratedBox &&
+                      w.decoration is BoxDecoration &&
+                      (w.decoration as BoxDecoration).border is Border,
+                ),
+              )
+              .first,
+        );
+        return ((box.decoration as BoxDecoration).border! as Border)
+            .bottom
+            .color;
+      }
+
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -2000));
+      await _settle(tester);
+      expect(chatLine(), book.navBorder);
+
+      updates.add(OrderStatus.success);
+      await _settle(tester);
+
+      expect(find.byType(TradeChatCard), findsOneWidget);
+      expect(chatLine(), Colors.transparent);
+    });
+
+    // DS-A11Y-4: the pinned card leaves the rest reachable at 320 dp, 2x text,
+    // in German.
+    for (final status in [
+      OrderStatus.active,
+      OrderStatus.fiatSent,
+      OrderStatus.dispute,
+    ]) {
+      testWidgets('German, 320dp, 2x text: the content still scrolls under it '
+          '($status)', (tester) async {
+        tester.view.physicalSize = const Size(320, 760);
+        tester.view.devicePixelRatio = 1.0;
+        tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+        addTearDown(tester.view.reset);
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+        await _pumpTradeDetail(
+          tester,
+          orderId: 'order-pinned-de-$status',
+          // The buyer's active step header still overflows here (its chip,
+          // #712); the seller's does not, and the card is the same.
+          isBuyer: status != OrderStatus.active,
+          status: status,
+          locale: const Locale('de'),
+        );
+        expect(tester.takeException(), isNull);
+
+        await tester.scrollUntilVisible(
+          find.text(lookupAppLocalizations(const Locale('de')).tradeIdLabel),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        expect(tester.takeException(), isNull);
+        expect(find.byType(TradeChatCard).hitTestable(), findsOneWidget);
+      });
+    }
+  });
+
+  // Issue #724, DS-CMP-22: the trade's id row reads the same short form as
+  // every other screen (8 + 4, not 5 + 4), beside the copy icon of 16.
+  testWidgets('the id row reads the short id with the copy icon', (
+    tester,
+  ) async {
+    const id = '09150348-1a2b-4c3d-8e9f-0a1b2c3d99b5';
+    await _pumpTradeDetail(
+      tester,
+      orderId: id,
+      isBuyer: true,
+      status: OrderStatus.active,
+    );
+
+    expect(find.text('09150348…99b5', skipOffstage: false), findsOneWidget);
+    final icon = tester.widget<Icon>(
+      find.byIcon(Icons.copy_rounded, skipOffstage: false),
+    );
+    expect(icon.size, 16);
+  });
+
+  // DS-CMP-22: the id row sits in a card of the screen, not bare on the
+  // scroll after the timeline.
+  testWidgets('the id row sits in a card', (tester) async {
+    const id = '09150348-1a2b-4c3d-8e9f-0a1b2c3d99b5';
+    await _pumpTradeDetail(
+      tester,
+      orderId: id,
+      isBuyer: true,
+      status: OrderStatus.active,
+    );
+
+    final card = find.ancestor(
+      of: find.text('09150348…99b5', skipOffstage: false),
+      matching: find.byWidgetPredicate(
+        (w) =>
+            w is Container &&
+            w.decoration is BoxDecoration &&
+            (w.decoration! as BoxDecoration).border != null &&
+            (w.decoration! as BoxDecoration).borderRadius ==
+                BorderRadius.circular(18),
+        skipOffstage: false,
+      ),
+    );
+    expect(card, findsOneWidget);
+  });
+
+  // DS-CMP-6 and DS-A11Y-1: the id card is a copy button at least 48 high.
+  testWidgets('the id row is a button of at least 48 dp', (tester) async {
+    const id = '09150348-1a2b-4c3d-8e9f-0a1b2c3d99b5';
+    final semantics = tester.ensureSemantics();
+    await _pumpTradeDetail(
+      tester,
+      orderId: id,
+      isBuyer: true,
+      status: OrderStatus.active,
+    );
+
+    final row = find.ancestor(
+      of: find.text('09150348…99b5', skipOffstage: false),
+      matching: find.byType(InkWell, skipOffstage: false),
+    );
+    expect(row, findsOneWidget);
+    expect(tester.getSize(row).height, greaterThanOrEqualTo(48));
+    expect(
+      tester.getSemantics(row),
+      isSemantics(isButton: true, hasTapAction: true),
+    );
+    semantics.dispose();
   });
 }

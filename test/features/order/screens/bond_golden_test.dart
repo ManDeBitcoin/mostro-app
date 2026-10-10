@@ -5,15 +5,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/features/about/models/mostro_instance.dart' as instance;
 import 'package:mostro/features/about/providers/mostro_node_provider.dart';
+import 'package:mostro/features/order/providers/bond_providers.dart';
 import 'package:mostro/features/order/providers/exchange_rate_provider.dart';
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
 import 'package:mostro/features/order/screens/pay_bond_invoice_screen.dart';
-import 'package:mostro/features/order/widgets/bond_widgets.dart';
 import 'package:mostro/features/settings/providers/nwc_provider.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/utils/platform_int64.dart';
 import 'package:mostro/src/rust/api/types.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../support/fake_trades.dart';
 
@@ -47,6 +48,9 @@ Future<void> _pump(
   tester.view.physicalSize = const Size(360, 760);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
+  SharedPreferences.setMockInitialValues({
+    kBondExplainerOpenKey: explainerOpen,
+  });
 
   await withClock(Clock.fixed(_now), () async {
     await tester.pumpWidget(
@@ -82,12 +86,6 @@ Future<void> _pump(
       ),
     );
     await tester.pumpAndSettle();
-    // The screen is arrived at closed (14a); 14b is the user opening the
-    // explanation.
-    if (explainerOpen) {
-      await tester.tap(find.byType(BondExplainerToggle));
-      await tester.pumpAndSettle();
-    }
   });
 }
 

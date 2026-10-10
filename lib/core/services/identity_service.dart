@@ -172,24 +172,6 @@ class IdentityService {
   ///
   /// Replaces any currently loaded identity. Throws if [words] is not a valid
   /// 12- or 24-word BIP-39 phrase.
-  /// Import an identity from an nsec key and persist it.
-  static Future<void> importNsecAndStore(String nsec) async {
-    await identity_api.deleteIdentity();
-    await identity_api.importFromNsec(nsec: nsec);
-
-    await _storage.write(key: _kMnemonic, value: nsec);
-    await Future.wait([
-      _storage.write(key: _kTradeKeyIndex, value: '0'),
-      _storage.write(key: _kPrivacyMode, value: 'false'),
-      _storage.write(
-        key: _kCreatedAt,
-        value: DateTime.now().millisecondsSinceEpoch.toString(),
-      ),
-    ]);
-
-    debugPrint('[identity] identity imported from nsec');
-  }
-
   static Future<void> importAndStore(List<String> words) async {
     await identity_api.deleteIdentity();
     await identity_api.importFromMnemonic(words: words, recover: false);
@@ -314,26 +296,35 @@ class IdentityService {
     return words;
   }
 
-  static Future<List<String>> _loadExisting(StoredIdentity stored) async {
-    final words = stored.words;
-    final tradeKeyIndex = stored.tradeKeyIndex;
-    final privacyMode = stored.privacyMode;
+  static Future<List<String>> _loadExisting(StoredIdentity stored) =>
+      loadExisting(stored);
+
+  /// Loads [stored] into the Rust core, then hands it the saved privacy
+  /// mode: the core's flag lives in memory and starts off at every launch,
+  /// and left there the next trade would be signed with the identity key.
+  @visibleForTesting
+  static Future<List<String>> loadExisting(
+    StoredIdentity stored, {
+    Future<void> Function(StoredIdentity stored)? load,
+    Future<void> Function(bool enabled)? applyPrivacyMode,
+  }) async {
+    await (load ?? _loadIntoCore)(stored);
+    await (applyPrivacyMode ?? _applyPrivacyMode)(stored.privacyMode);
+    return stored.words;
+  }
+
+  static Future<void> _applyPrivacyMode(bool enabled) =>
+      reputation_api.setPrivacyMode(enabled: enabled);
+
+  static Future<void> _loadIntoCore(StoredIdentity stored) async {
     final createdAt = stored.createdAtMillis;
-
-    if (words.length == 1 && words.first.startsWith('nsec1')) {
-      final info = await identity_api.importFromNsec(nsec: words.first);
-      debugPrint('[identity] identity loaded from nsec — pubkey=${info.publicKey}');
-      return words;
-    }
-
     final info = await identity_api.loadIdentityFromMnemonic(
-      words: words,
-      tradeKeyIndex: tradeKeyIndex,
-      privacyMode: privacyMode,
+      words: stored.words,
+      tradeKeyIndex: stored.tradeKeyIndex,
+      privacyMode: stored.privacyMode,
       createdAt: createdAt > 0 ? intToPlatformInt64(createdAt ~/ 1000) : null,
     );
 
     debugPrint('[identity] identity loaded — pubkey=${info.publicKey}');
-    return words;
   }
 }

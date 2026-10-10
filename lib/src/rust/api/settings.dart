@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
-// These functions are ignored because they are not marked as `pub`: `new`, `notify`, `read`, `store`, `validate_fiat_code`, `validate_lightning_address`, `validate_locale`, `write_with`
+// These functions are ignored because they are not marked as `pub`: `new`, `normalize_node_pubkey`, `notify`, `read`, `store`, `validate_fiat_code`, `validate_lightning_address`, `validate_locale`, `write_with`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SettingsStore`
 
 /// Return current settings with `privacy_mode` mirrored from the Identity layer.
@@ -55,7 +55,8 @@ Future<String> getMostroPubkey() =>
 /// Validates the hex pubkey, persists it as the active node's identity,
 /// updates the in-memory override so outgoing events target the new node
 /// immediately, and re-targets the live order-book / Mostro-reply
-/// subscriptions (clearing stale orders and refreshing PoW) to it.
+/// subscriptions (clearing stale orders and refreshing PoW) to it, and asks
+/// it for the user's own reputation in the background.
 ///
 /// Pass `DEFAULT_MOSTRO_PUBKEY` to return to the default node.
 ///

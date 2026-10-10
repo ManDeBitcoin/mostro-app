@@ -3,15 +3,17 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mostro/features/account/providers/my_reputation_provider.dart';
+import 'package:mostro/features/cashu/providers/cashu_wallet_provider.dart';
 import 'package:mostro/features/chat/attachments/attachment_launcher.dart';
 import 'package:mostro/features/chat/attachments/attachment_providers.dart';
 import 'package:mostro/features/chat/providers/chat_providers.dart';
 import 'package:mostro/features/disputes/providers/disputes_providers.dart';
 import 'package:mostro/features/notifications/providers/notifications_provider.dart';
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
-import 'package:mostro/features/simple_mode/providers/payment_details_providers.dart';
 import 'package:mostro/features/trades/providers/release_pending_provider.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart';
+import 'package:mostro/shared/mascot/mascot_cues.dart';
 import 'package:mostro/shared/providers/session_provider.dart';
 
 /// Empties the UI-layer state that belongs to one identity, after that
@@ -25,8 +27,8 @@ import 'package:mostro/shared/providers/session_provider.dart';
 /// says.
 ///
 /// Device preferences are not identity data and stay: theme, language, the
-/// node and relay choice, the wallet connection, the trade-list filter, the
-/// order-book filters.
+/// node and relay choice, the NWC wallet connection, the Cashu wallet's mint,
+/// the trade-list filter, the order-book filters.
 ///
 /// New identity-scoped state must be added here, or it leaks into the next
 /// user's session.
@@ -49,11 +51,16 @@ Future<void> resetIdentityScopedState(ProviderContainer container) async {
   container.invalidate(disputeNotifierProvider);
   // Releases the previous user published and is still waiting on.
   container.invalidate(releasePendingProvider);
-  // How the previous user is paid. Rust erased what the device kept; the
-  // Sell tab stays mounted under the screen that made the swap, with their
-  // account numbers still in its fields, until this empties them.
-  container.invalidate(paymentDetailsOwnerProvider);
-  container.invalidate(paymentDetailsSentAtProvider);
+  // The Cashu wallet's last status: Rust stops serving a wallet built from
+  // another identity's seed, but this stream only updates on a wallet
+  // change, so the previous user's mint and balance would stay on screen.
+  // Re-subscribing asks Rust again, which now reports it disconnected.
+  container.invalidate(cashuWalletProvider);
+  // A trade step of the previous user still waiting for the mascot.
+  container.invalidate(mascotCueProvider);
+  // The previous user's reputation (#755): rebuilt from the new identity's
+  // cache, which Rust keys by identity.
+  container.invalidate(myReputationProvider);
   // Persisted (sembast), so it needs a real wipe, not just an invalidation.
   final notices = container.read(notificationsProvider).length;
   await container.read(notificationsProvider.notifier).wipeForIdentityChange();

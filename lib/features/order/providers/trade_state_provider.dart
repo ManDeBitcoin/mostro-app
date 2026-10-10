@@ -204,13 +204,6 @@ final takeOrderActionProvider = Provider<
       ),
 );
 
-/// Publishes a new order through the bridge; injectable so what a screen
-/// sends — and what it does with the answer — can be tested without Rust.
-final createOrderActionProvider =
-    Provider<Future<OrderInfo> Function(NewOrderParams)>(
-      (ref) => (params) => orders_api.createOrder(params: params),
-    );
-
 /// Publishes the seller release command; publication is not payout completion.
 final releaseOrderActionProvider = Provider<Future<void> Function(String)>(
   (ref) => (orderId) => orders_api.releaseOrder(orderId: orderId),

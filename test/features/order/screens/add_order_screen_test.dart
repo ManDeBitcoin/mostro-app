@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/core/create_order_palette.dart';
+import 'package:mostro/core/mostro_defaults.dart';
 import 'package:mostro/features/about/models/mostro_instance.dart';
 import 'package:mostro/features/about/providers/mostro_node_provider.dart';
 import 'package:mostro/features/home/providers/home_order_providers.dart';
@@ -15,9 +18,12 @@ import 'package:mostro/features/order/screens/add_order_screen.dart';
 import 'package:mostro/features/order/widgets/currency_section.dart';
 import 'package:mostro/features/order/widgets/payment_method_section.dart';
 import 'package:mostro/features/order/widgets/price_section.dart';
-import 'package:mostro/features/order/widgets/underline_amount_field.dart';
+import 'package:mostro/features/settings/providers/mostro_nodes_provider.dart';
+import 'package:mostro/features/settings/providers/node_stats_provider.dart';
+import 'package:mostro/features/settings/providers/settings_provider.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/utils/fiat_currencies.dart';
+import 'package:mostro/shared/widgets/mostro_modal.dart';
 import '../../../support/provider_harness.dart';
 
 const _node = MostroInstance(
@@ -35,6 +41,9 @@ Future<ProviderContainer> _pump(
   String orderType = 'sell',
   Locale locale = const Locale('en'),
   MostroInstance node = _node,
+  List<String> accepted = const [],
+  Map<String, Completer<List<String>>>? acceptedByNode,
+  List<String> Function()? cachedList,
   int? bondEstimate,
 }) async {
   tester.view.physicalSize = const Size(400, 1600);
@@ -43,6 +52,11 @@ Future<ProviderContainer> _pump(
   final container = createContainer(
     overrides: [
       mostroNodeProvider.overrideWith((ref) async => node),
+      activeNodeCurrenciesProvider.overrideWith(
+        (ref) =>
+            acceptedByNode?[ref.watch(activeMostroPubkeyProvider)]!.future ??
+            Future.value(cachedList?.call() ?? accepted),
+      ),
       bondEstimateProvider.overrideWith((ref, sats) async => bondEstimate),
       exchangeRateProvider.overrideWith(
         (ref, code) async => switch (code) {
@@ -87,13 +101,6 @@ Future<ProviderContainer> _pump(
 }
 
 Finder _amountField() => find.byType(TextField).first;
-
-/// The amount field's own widget, for its error state.
-Finder _amountRow() => find.byType(UnderlineAmountField).first;
-
-const _wholeEn = 'Enter a whole amount: digits only, no decimals or separators.';
-const _wholeEs =
-    'Escribe un importe entero: solo cifras, sin decimales ni separadores.';
 
 FilledButton _publishButton(WidgetTester tester) =>
     tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Publish order'));
@@ -367,192 +374,6 @@ void main() {
       expect(_publishButton(tester).onPressed, isNull);
     });
 
-    testWidgets('an amount with decimals is explained, never reshaped', (
-      tester,
-    ) async {
-      final container = await _pump(tester);
-      container.read(selectedPaymentMethodsProvider.notifier).state = ['Zelle'];
-      await tester.enterText(_amountField(), '100.5');
-      await tester.pumpAndSettle();
-
-      // The field holds what was typed. A field that dropped the separator
-      // would hold 1,005 here, with Publish enabled.
-      expect(find.text('100.5'), findsOneWidget);
-      expect(find.text('1,005'), findsNothing);
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('preview-error')),
-          matching: find.text(_wholeEn),
-        ),
-        findsOneWidget,
-      );
-      expect(tester.widget<UnderlineAmountField>(_amountRow()).hasError, isTrue);
-      expect(find.byKey(const ValueKey('preview-sentence')), findsNothing);
-      expect(_publishButton(tester).onPressed, isNull);
-
-      // Corrected, the same form publishes.
-      await tester.enterText(_amountField(), '100');
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('preview-error')), findsNothing);
-      expect(find.byKey(const ValueKey('preview-sentence')), findsOneWidget);
-      expect(_publishButton(tester).onPressed, isNotNull);
-    });
-
-    testWidgets('a range end with decimals is explained too', (tester) async {
-      final container = await _pump(tester);
-      container.read(selectedPaymentMethodsProvider.notifier).state = ['Zelle'];
-      container.read(isRangeOrderProvider.notifier).state = true;
-      await tester.pumpAndSettle();
-
-      // Either end: the maximum first, then the minimum alone.
-      await tester.enterText(find.byType(TextField).at(0), '50');
-      await tester.enterText(find.byType(TextField).at(1), '200.75');
-      await tester.pumpAndSettle();
-      expect(find.text(_wholeEn), findsOneWidget);
-      expect(_publishButton(tester).onPressed, isNull);
-
-      await tester.enterText(find.byType(TextField).at(0), '50.5');
-      await tester.enterText(find.byType(TextField).at(1), '200');
-      await tester.pumpAndSettle();
-      expect(find.text(_wholeEn), findsOneWidget);
-      expect(_publishButton(tester).onPressed, isNull);
-
-      await tester.enterText(find.byType(TextField).at(0), '50');
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('preview-error')), findsNothing);
-      expect(_publishButton(tester).onPressed, isNotNull);
-    });
-
-    testWidgets('in Spanish, the dot of a typed 10.50 is not grouping', (
-      tester,
-    ) async {
-      final container = await _pump(tester, locale: const Locale('es'));
-      container.read(selectedPaymentMethodsProvider.notifier).state = ['Zelle'];
-
-      // The dot groups in `es`. Dropped and regrouped, each of these was
-      // another amount with Publish enabled: 1.050, 1.005, and 1 for 1,000.
-      for (final typed in ['10.50', '100.5', '10,50', '1,000', '150,']) {
-        await tester.enterText(_amountField(), typed);
-        await tester.pumpAndSettle();
-        expect(find.text(typed), findsOneWidget, reason: typed);
-        expect(
-          find.descendant(
-            of: find.byKey(const ValueKey('preview-error')),
-            matching: find.text(_wholeEs),
-          ),
-          findsOneWidget,
-          reason: typed,
-        );
-        expect(
-          find.byKey(const ValueKey('preview-sentence')),
-          findsNothing,
-          reason: typed,
-        );
-        expect(
-          tester.widget<UnderlineAmountField>(_amountRow()).hasError,
-          isTrue,
-          reason: typed,
-        );
-        expect(
-          tester
-              .widget<FilledButton>(
-                find.widgetWithText(FilledButton, 'Publicar orden'),
-              )
-              .onPressed,
-          isNull,
-          reason: typed,
-        );
-      }
-
-      // The same over a figure the field had grouped: typed after `25000`,
-      // the dot of `10.50` is no more grouping than in an empty field.
-      await tester.enterText(_amountField(), '25000');
-      await tester.pumpAndSettle();
-      expect(find.text('25.000'), findsOneWidget);
-      await tester.enterText(_amountField(), '10.50');
-      await tester.pumpAndSettle();
-      expect(find.text('10.50'), findsOneWidget);
-      expect(find.text('1.050'), findsNothing);
-      expect(find.text(_wholeEs), findsOneWidget);
-
-      // A thousand typed with its dot is a thousand, and publishes as one.
-      await tester.enterText(_amountField(), '1.000');
-      await tester.pumpAndSettle();
-      expect(find.text('1.000'), findsOneWidget);
-      expect(find.byKey(const ValueKey('preview-error')), findsNothing);
-      expect(_previewText(tester), contains('1.000 USD'));
-      expect(tester.widget<UnderlineAmountField>(_amountRow()).hasError, isFalse);
-      expect(
-        tester
-            .widget<FilledButton>(
-              find.widgetWithText(FilledButton, 'Publicar orden'),
-            )
-            .onPressed,
-        isNotNull,
-      );
-    });
-
-    testWidgets('decimals are said before the range they would fall in', (
-      tester,
-    ) async {
-      final container = await _pump(tester);
-      container.read(selectedPaymentMethodsProvider.notifier).state = ['Zelle'];
-
-      // An absurd amount with decimals is out of the node's range as well;
-      // until it is a whole number, that is not the thing to say.
-      await tester.enterText(_amountField(), '999999999.5');
-      await tester.pumpAndSettle();
-
-      expect(find.text(_wholeEn), findsOneWidget);
-      expect(_publishButton(tester).onPressed, isNull);
-
-      await tester.enterText(_amountField(), '999999999');
-      await tester.pumpAndSettle();
-      expect(find.text(_wholeEn), findsNothing);
-      expect(find.byKey(const ValueKey('preview-error')), findsOneWidget);
-    });
-
-    testWidgets('a premium typed with decimals holds the form back', (
-      tester,
-    ) async {
-      final container = await _pump(tester);
-      container.read(selectedPaymentMethodsProvider.notifier).state = ['Zelle'];
-      await tester.enterText(_amountField(), '100');
-      await tester.pumpAndSettle();
-      expect(_publishButton(tester).onPressed, isNotNull);
-
-      // The premium figure opens its field in place.
-      await tester.tap(find.byKey(const ValueKey('premium-figure')));
-      await tester.pumpAndSettle();
-      final premiumField = find.descendant(
-        of: find.byKey(const ValueKey('premium-block')),
-        matching: find.byType(TextField),
-      );
-      await tester.enterText(premiumField, '1.5');
-      await tester.pumpAndSettle();
-
-      // The premium the form holds is not the one on screen, so it does not
-      // publish — the tap on Publish used to close the field on the old
-      // premium and send that — and the bar says why.
-      expect(_publishButton(tester).onPressed, isNull);
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('preview-error')),
-          matching: find.text('The premium must be a whole percentage.'),
-        ),
-        findsOneWidget,
-      );
-      expect(container.read(premiumValueProvider), 0);
-
-      // A whole percent, and the form is ready again.
-      await tester.enterText(premiumField, '2');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('preview-error')), findsNothing);
-      expect(_publishButton(tester).onPressed, isNotNull);
-      expect(container.read(premiumValueProvider), 2);
-    });
-
     testWidgets('the Sell tab uses the coral tint', (tester) async {
       await _pump(tester);
       final tab = tester.widget<AnimatedContainer>(
@@ -567,6 +388,254 @@ void main() {
         (tab.decoration! as BoxDecoration).color,
         CreateOrderPalette.dark.sellActiveBg,
       );
+    });
+  });
+
+  group('currency picker', () {
+    /// The codes the open picker lists, in order.
+    List<String> pickerCodes(WidgetTester tester) => tester
+        .widgetList<ListTile>(
+          find.descendant(
+            of: find.byType(MostroDialog),
+            matching: find.byType(ListTile),
+          ),
+        )
+        .map((tile) => (tile.title! as Text).data!)
+        .toList();
+
+    Future<void> openPicker(WidgetTester tester) async {
+      await tester.tap(find.byType(CurrencyInlineSelector));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('offers only the currencies the node accepts', (tester) async {
+      await _pump(
+        tester,
+        accepted: const ['ARS'],
+      );
+      await openPicker(tester);
+      expect(pickerCodes(tester), ['ARS']);
+    });
+
+    testWidgets('offers the whole catalogue when the node sets no limit', (
+      tester,
+    ) async {
+      await _pump(tester);
+      await openPicker(tester);
+      expect(pickerCodes(tester), ['USD', 'ARS']);
+    });
+
+    testWidgets('lists an accepted code the catalogue does not know', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        accepted: const ['CUP', 'ARS'],
+      );
+      await openPicker(tester);
+      expect(pickerCodes(tester), ['ARS', 'CUP']);
+      final cup = tester.widget<ListTile>(
+        find.ancestor(of: find.text('CUP'), matching: find.byType(ListTile)),
+      );
+      expect(cup.subtitle, isNull);
+    });
+
+    testWidgets('rereads the list once the cache is written', (tester) async {
+      var cached = const <String>[];
+      final container = await _pump(tester, cachedList: () => cached);
+      await openPicker(tester);
+      expect(pickerCodes(tester), ['USD', 'ARS']);
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
+
+      // What the startup warm-up and the node selector's fetch do once
+      // they have written the node's kind 38385 event.
+      cached = const ['ARS'];
+      container.invalidate(activeNodeCurrenciesProvider);
+      await tester.pumpAndSettle();
+
+      expect(container.read(selectedFiatCodeProvider), 'ARS');
+      await openPicker(tester);
+      expect(pickerCodes(tester), ['ARS']);
+    });
+
+    testWidgets("a node switch drops the previous node's list", (
+      tester,
+    ) async {
+      final nodeA = Completer<List<String>>()..complete(const ['ARS']);
+      final nodeB = Completer<List<String>>();
+      final container = await _pump(
+        tester,
+        acceptedByNode: {defaultMostroPubkey: nodeA, 'node-b': nodeB},
+      );
+      expect(container.read(acceptedFiatCodesProvider), ['ARS']);
+
+      container.read(mostroPubkeyProvider.notifier).state = 'node-b';
+      await tester.pump();
+      expect(container.read(acceptedFiatCodesProvider), isNull);
+
+      nodeB.complete(const ['USD']);
+      await tester.pumpAndSettle();
+      expect(container.read(acceptedFiatCodesProvider), ['USD']);
+    });
+  });
+
+  group('selected currency', () {
+    testWidgets("opens on the node's first currency when it lacks USD", (
+      tester,
+    ) async {
+      final container = await _pump(
+        tester,
+        accepted: const ['ARS', 'EUR'],
+      );
+      expect(container.read(selectedFiatCodeProvider), 'ARS');
+      // The form's currency only: the default in settings is not written.
+      expect(container.read(settingsProvider).defaultFiatCode, isNull);
+    });
+
+    testWidgets('keeps the default when the node accepts it', (tester) async {
+      final container = await _pump(
+        tester,
+        accepted: const ['ARS', 'USD'],
+      );
+      expect(container.read(selectedFiatCodeProvider), 'USD');
+    });
+
+    testWidgets("moves off USD when the node's list arrives late", (
+      tester,
+    ) async {
+      final listArrives = Completer<List<String>>();
+      final container = await _pump(
+        tester,
+        acceptedByNode: {defaultMostroPubkey: listArrives},
+      );
+      expect(container.read(selectedFiatCodeProvider), 'USD');
+
+      listArrives.complete(const ['ARS']);
+      await tester.pumpAndSettle();
+
+      expect(container.read(selectedFiatCodeProvider), 'ARS');
+    });
+
+    testWidgets('a late list keeps what the user entered and refuses it', (
+      tester,
+    ) async {
+      final listArrives = Completer<List<String>>();
+      final container = await _pump(
+        tester,
+        acceptedByNode: {defaultMostroPubkey: listArrives},
+      );
+      await tester.enterText(_amountField(), '100');
+      container.read(selectedPaymentMethodsProvider.notifier).state = ['Zelle'];
+      await tester.pumpAndSettle();
+      expect(_publishButton(tester).onPressed, isNotNull);
+
+      listArrives.complete(const ['ARS']);
+      await tester.pumpAndSettle();
+
+      expect(container.read(selectedFiatCodeProvider), 'USD');
+      expect(container.read(selectedPaymentMethodsProvider), ['Zelle']);
+      expect(tester.widget<TextField>(_amountField()).controller!.text, '100');
+      expect(
+        find.text('This Mostro node does not accept USD. Pick another currency'),
+        findsOneWidget,
+      );
+      expect(_publishButton(tester).onPressed, isNull);
+    });
+
+    testWidgets("a node switch moves an untouched form to the new node's list", (
+      tester,
+    ) async {
+      final nodeA = Completer<List<String>>()..complete(const ['ARS', 'USD']);
+      final nodeB = Completer<List<String>>()..complete(const ['ARS']);
+      final container = await _pump(
+        tester,
+        acceptedByNode: {defaultMostroPubkey: nodeA, 'node-b': nodeB},
+      );
+      expect(container.read(selectedFiatCodeProvider), 'USD');
+
+      container.read(mostroPubkeyProvider.notifier).state = 'node-b';
+      await tester.pumpAndSettle();
+
+      expect(container.read(selectedFiatCodeProvider), 'ARS');
+    });
+
+    testWidgets('a reread of the same node keeps a refused currency refused', (
+      tester,
+    ) async {
+      final byNode = {defaultMostroPubkey: Completer<List<String>>()};
+      final container = await _pump(tester, acceptedByNode: byNode);
+      await tester.enterText(_amountField(), '100');
+      container.read(selectedPaymentMethodsProvider.notifier).state = ['Zelle'];
+      byNode[defaultMostroPubkey]!.complete(const ['ARS']);
+      await tester.pumpAndSettle();
+      expect(_publishButton(tester).onPressed, isNull);
+
+      // The cache is written again and the local read is still pending.
+      byNode[defaultMostroPubkey] = Completer<List<String>>();
+      container.invalidate(activeNodeCurrenciesProvider);
+      await tester.pump();
+      await tester.pump();
+
+      expect(container.read(acceptedFiatCodesProvider), ['ARS']);
+      expect(_publishButton(tester).onPressed, isNull);
+
+      byNode[defaultMostroPubkey]!.complete(const ['ARS']);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets("rereads the node's list when its info event is fetched live", (
+      tester,
+    ) async {
+      var cached = const <String>[];
+      final container = await _pump(tester, cachedList: () => cached);
+      expect(container.read(selectedFiatCodeProvider), 'USD');
+
+      // The live fetch behind mostroNodeProvider writes the cache in Rust.
+      cached = const ['ARS'];
+      container.invalidate(mostroNodeProvider);
+      await tester.pumpAndSettle();
+
+      expect(container.read(selectedFiatCodeProvider), 'ARS');
+    });
+
+    testWidgets('a currency the user picked survives a late list', (
+      tester,
+    ) async {
+      final listArrives = Completer<List<String>>();
+      final container = await _pump(
+        tester,
+        acceptedByNode: {defaultMostroPubkey: listArrives},
+      );
+      await tester.tap(find.byType(CurrencyInlineSelector));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('ARS'));
+      await tester.pumpAndSettle();
+
+      listArrives.complete(const ['USD']);
+      await tester.pumpAndSettle();
+
+      expect(container.read(selectedFiatCodeProvider), 'ARS');
+      expect(
+        find.text('This Mostro node does not accept ARS. Pick another currency'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a pick survives the same list arriving again', (
+      tester,
+    ) async {
+      final container = await _pump(tester, accepted: const ['USD', 'ARS']);
+      await tester.tap(find.byType(CurrencyInlineSelector));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('ARS'));
+      await tester.pumpAndSettle();
+      expect(container.read(selectedFiatCodeProvider), 'ARS');
+
+      container.invalidate(activeNodeCurrenciesProvider);
+      await tester.pumpAndSettle();
+
+      expect(container.read(selectedFiatCodeProvider), 'ARS');
     });
   });
 }

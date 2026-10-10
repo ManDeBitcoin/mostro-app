@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'package:mostro/core/app_theme.dart';
-import 'package:mostro/core/automation/automation_id.dart';
 import 'package:mostro/core/automation/automation_ids.dart';
+import 'package:mostro/core/create_order_palette.dart';
+import 'package:mostro/features/order/widgets/underline_amount_field.dart';
 import 'package:mostro/l10n/app_localizations.dart';
-import 'package:mostro/shared/utils/whole_amount_input.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
 
 /// Shows a modal dialog for entering an amount within a range.
 ///
-/// Returns the selected amount — always a whole number, which is all a take
-/// can carry — or `null` if cancelled.
+/// Returns the selected amount, or `null` if cancelled.
 Future<double?> showRangeAmountModal({
   required BuildContext context,
   required double min,
@@ -40,13 +40,24 @@ class _RangeAmountDialog extends StatefulWidget {
   State<_RangeAmountDialog> createState() => _RangeAmountDialogState();
 }
 
+/// The amount is typed, shown and bounded the way the take-order card prints
+/// the range: grouped by the locale (`25.000` in `es`), so the dialog never
+/// reads `2000 – 998000` under a card that says `2.000 – 998.000` (#720).
 class _RangeAmountDialogState extends State<_RangeAmountDialog> {
   final _controller = TextEditingController();
   String? _error;
 
-  /// Whole amounts only: the take carries the fiat amount as an integer,
-  /// so `50.9` would be traded as 50 while this dialog said 50.9.
-  double? get _parsed => int.tryParse(_controller.text.trim())?.toDouble();
+  String get _locale => Localizations.localeOf(context).toString();
+
+  NumberFormat get _fiat => NumberFormat('#,##0.##', _locale);
+
+  /// The typed amount without the grouping the field adds, or null while the
+  /// field is empty. Whole units only: the take sends it as an integer. Zero
+  /// parses, so it gets the range error like any other value under [min].
+  double? get _parsed {
+    final digits = _controller.text.replaceAll(_fiat.symbols.GROUP_SEP, '');
+    return int.tryParse(digits)?.toDouble();
+  }
 
   bool get _isValid {
     final v = _parsed;
@@ -55,25 +66,17 @@ class _RangeAmountDialogState extends State<_RangeAmountDialog> {
 
   void _validate() {
     final v = _parsed;
-    final l10n = AppLocalizations.of(context);
     setState(() {
       if (v == null) {
-        // Nothing typed is nothing to correct; anything else that is not a
-        // whole number is — a typed `50.9` stays on screen so it can be
-        // said, where dropping the dot would have offered 509.
-        _error = _controller.text.trim().isEmpty
-            ? null
-            : l10n.orderAmountMustBeWhole;
+        _error = null; // don't show error while typing
       } else if (v < widget.min || v > widget.max) {
-        _error = l10n.amountRangeError(_fmt(widget.min), _fmt(widget.max));
+        _error = AppLocalizations.of(
+          context,
+        ).amountRangeError(_fiat.format(widget.min), _fiat.format(widget.max));
       } else {
         _error = null;
       }
     });
-  }
-
-  static String _fmt(double v) {
-    return v == v.truncateToDouble() ? v.toInt().toString() : v.toString();
   }
 
   @override
@@ -84,9 +87,11 @@ class _RangeAmountDialogState extends State<_RangeAmountDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<AppColors>();
-    final green = colors?.mostroGreen ?? const Color(0xFF8CC63F);
+    final book = OrderBookPalette.of(context);
+    final palette = CreateOrderPalette.of(context);
     final l10n = AppLocalizations.of(context);
+    final symbols = _fiat.symbols;
+    final error = _error;
 
     return MostroDialog(
       title: l10n.enterAmountTitle,
@@ -94,31 +99,43 @@ class _RangeAmountDialogState extends State<_RangeAmountDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
+          UnderlineAmountField(
             controller: _controller,
             autofocus: true,
+            hintText: '0',
+            hasError: error != null,
             keyboardType: TextInputType.number,
-            inputFormatters: [wholeAmountInputFormatter],
-            cursorColor: green,
-            style: Theme.of(context).textTheme.headlineMedium,
-            decoration: InputDecoration(
-              hintText: '0',
-              suffixText: widget.currencyCode,
-              errorText: _error,
-              focusedBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: green, width: 2),
+            inputFormatters: [
+              ThousandsInputFormatter(
+                groupSeparator: symbols.GROUP_SEP,
+                decimalSeparator: symbols.DECIMAL_SEP,
+                allowDecimals: false,
+              ),
+            ],
+            trailing: Text(
+              widget.currencyCode,
+              style: TextStyle(
+                fontFamily: AppFonts.figures,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: book.textTertiary,
               ),
             ),
             onChanged: (_) => _validate(),
-          ).withAutomationId(AutomationIds.orderTakeAmount),
+            automationId: AutomationIds.orderTakeAmount,
+          ),
+          if (error != null) ...[
+            const SizedBox(height: 6),
+            Text(error, style: TextStyle(fontSize: 12, color: palette.error)),
+          ],
           const SizedBox(height: AppSpacing.sm),
           Text(
             l10n.minMaxRangeLabel(
-              _fmt(widget.min),
-              _fmt(widget.max),
+              _fiat.format(widget.min),
+              _fiat.format(widget.max),
               widget.currencyCode,
             ),
-            style: TextStyle(color: colors?.textSubtle, fontSize: 12),
+            style: TextStyle(fontSize: 12, color: book.textTertiary),
           ),
         ],
       ),
@@ -127,7 +144,7 @@ class _RangeAmountDialogState extends State<_RangeAmountDialog> {
         onPressed: () => Navigator.pop(context),
       ),
       primary: ModalAction(
-        label: l10n.submitButton,
+        label: l10n.rangeAmountTakeAction,
         onPressed: _isValid ? () => Navigator.pop(context, _parsed) : null,
         automationId: AutomationIds.orderTakeAmountConfirm,
       ),

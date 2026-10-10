@@ -13,13 +13,17 @@ import 'package:mostro/core/automation/automation_ids.dart';
 import 'package:mostro/core/backup_palette.dart';
 import 'package:mostro/core/services/identity_scoped_state.dart';
 import 'package:mostro/core/services/identity_service.dart';
+import 'package:mostro/features/about/providers/mostro_node_provider.dart';
 import 'package:mostro/features/account/providers/backup_reminder_provider.dart';
+import 'package:mostro/features/account/providers/my_reputation_provider.dart';
 import 'package:mostro/features/account/providers/privacy_mode_provider.dart';
 import 'package:mostro/features/account/restore/restore_run.dart';
 import 'package:mostro/features/account/restore/restore_sheet.dart';
+import 'package:mostro/features/account/widgets/account_card.dart';
 import 'package:mostro/features/account/widgets/backup_trigger_sheet.dart';
 import 'package:mostro/features/account/widgets/backup_widgets.dart';
 import 'package:mostro/features/account/widgets/funds_at_risk_dialog.dart';
+import 'package:mostro/features/account/widgets/my_reputation_card.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
 import 'package:mostro/shared/widgets/redesign_app_bar.dart';
@@ -92,6 +96,13 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   void initState() {
     super.initState();
     unawaited(_loadPublicKey());
+    // A rating may have landed since the last answer: ask the node again
+    // (user_info.md, Freshness). Full privacy mode has nothing to ask for.
+    // After the first frame: the refresh changes provider state at once.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || ref.read(privacyModeProvider)) return;
+      unawaited(ref.read(myReputationProvider.notifier).refresh());
+    });
   }
 
   Future<void> _loadPublicKey() async {
@@ -197,7 +208,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
           fit: StackFit.expand,
           children: [
             BackupFillViewport(
-              gap: 11,
+              gap: 12,
               blocks: [
                 if (backedUp)
                   _SecretWordsCard(
@@ -210,6 +221,11 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   )
                 else
                   _BackupBanner(onTap: () => showBackupTriggerSheet(context)),
+                MyReputationCard(
+                  privacyMode: privacyMode,
+                  state: ref.watch(myReputationProvider),
+                  nodeName: ref.watch(activeNodeNameProvider),
+                ),
                 _PrivacyCard(
                   privacyMode: privacyMode,
                   onSelect:
@@ -425,16 +441,12 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     );
   }
 
-  Future<void> _importIdentity(BuildContext context, String input) async {
+  Future<void> _importIdentity(BuildContext context, List<String> words) async {
     final swap = _IdentitySwap.of(context);
     final l10n = swap.l10n;
     try {
-      if (input.startsWith('nsec1')) {
-        await IdentityService.importNsecAndStore(input);
-      } else {
-        final words = input.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
-        await (widget.debugImport?.call(words) ?? IdentityService.importAndStore(words));
-      }
+      await (widget.debugImport?.call(words) ??
+          IdentityService.importAndStore(words));
     } catch (e) {
       debugPrint('[account] importIdentity error: $e');
       swap.messenger.showSnackBar(
@@ -446,10 +458,13 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       );
       return;
     }
+    // Before the recovery below, not after: what it brings back belongs to
+    // the imported identity and must survive.
     await _forgetPreviousIdentity(swap);
-    if (!input.startsWith('nsec1')) {
-      await _restoreOrders(swap);
-    }
+    // A seed that already traded must learn its trades and trade index from
+    // the daemon before its first new order (InvalidTradeIndex otherwise).
+    await _restoreOrders(swap);
+    // The user restored from words they already had: nothing to back up.
     await _finishIdentitySwap(swap, alreadyBackedUp: true);
   }
 
@@ -606,7 +621,7 @@ class _BackupBanner extends StatelessWidget {
     final pal = BackupPalette.of(context);
     final l10n = AppLocalizations.of(context);
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(18),
       side: BorderSide(color: pal.amberBorder),
     );
 
@@ -619,7 +634,7 @@ class _BackupBanner extends StatelessWidget {
           onTap: onTap,
           customBorder: shape,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             child: Row(
               children: [
                 Icon(Icons.shield_outlined, size: 20, color: pal.amber),
@@ -689,11 +704,11 @@ class _SecretWordsCard extends StatelessWidget {
     final pal = BackupPalette.of(context);
     final l10n = AppLocalizations.of(context);
 
-    return _Card(
+    return AccountCard(
       padding: const EdgeInsets.all(14),
-      gap: 9,
+      gap: 8,
       children: [
-        _CardHeader(
+        AccountCardHeader(
           icon: Icons.key_rounded,
           title: l10n.secretWordsTitle,
           trailing: const _BackedUpChip(),
@@ -703,14 +718,14 @@ class _SecretWordsCard extends StatelessWidget {
           Material(
             color: pal.revealFill,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(12),
               side: BorderSide(color: pal.revealBorder),
             ),
             child: InkWell(
               onTap: loading ? null : onReveal,
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(12),
               child: Padding(
-                padding: const EdgeInsets.all(11),
+                padding: const EdgeInsets.all(12),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -726,10 +741,10 @@ class _SecretWordsCard extends StatelessWidget {
                     else
                       Icon(
                         Icons.visibility_outlined,
-                        size: 15,
+                        size: 16,
                         color: book.limeText,
                       ),
-                    const SizedBox(width: 7),
+                    const SizedBox(width: 8),
                     Text(
                       l10n.showWordsButton,
                       style: TextStyle(
@@ -773,7 +788,7 @@ class _BackedUpChip extends StatelessWidget {
     final book = OrderBookPalette.of(context);
     final pal = BackupPalette.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: pal.chipFill,
         borderRadius: BorderRadius.circular(999),
@@ -781,7 +796,7 @@ class _BackedUpChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.check_rounded, size: 11, color: pal.accent),
+          Icon(Icons.check_rounded, size: 12, color: pal.accent),
           const SizedBox(width: 4),
           Text(
             AppLocalizations.of(context).backedUpBadgeLabel,
@@ -855,18 +870,18 @@ class _PrivacyCard extends StatelessWidget {
     final book = OrderBookPalette.of(context);
     final l10n = AppLocalizations.of(context);
 
-    return _Card(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+    return AccountCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       gap: 12,
       children: [
-        _CardHeader(
+        AccountCardHeader(
           icon: Icons.shield_outlined,
           title: l10n.privacyCardTitle,
           trailing: IconButton(
             onPressed: onInfo,
             icon: Icon(
               Icons.info_outline_rounded,
-              size: 15,
+              size: 16,
               color: book.textTertiary,
             ),
             tooltip: l10n.moreInformationTooltip,
@@ -1011,20 +1026,20 @@ class _AccountActions extends StatelessWidget {
           leading: Icons.person_add_alt_1_outlined,
           onPressed: onGenerate,
         ).withAutomationId(AutomationIds.keysGenerate),
-        const SizedBox(height: 9),
+        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: onImport,
-                icon: const Icon(Icons.download_rounded, size: 15),
+                icon: const Icon(Icons.download_rounded, size: 16),
                 label: Text(l10n.importMostroUserButton),
                 style: outline.copyWith(
-                  padding: const WidgetStatePropertyAll(EdgeInsets.all(13)),
+                  padding: const WidgetStatePropertyAll(EdgeInsets.all(12)),
                 ),
               ).withAutomationId(AutomationIds.keysImport),
             ),
-            const SizedBox(width: 9),
+            const SizedBox(width: 8),
             OutlinedButton(
               onPressed: onRefresh,
               style: outline.copyWith(
@@ -1045,71 +1060,6 @@ class _AccountActions extends StatelessWidget {
 
 // ── Shared card pieces ────────────────────────────────────────────────────────
 
-class _Card extends StatelessWidget {
-  const _Card({
-    required this.padding,
-    required this.gap,
-    required this.children,
-  });
-
-  final EdgeInsets padding;
-  final double gap;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: OrderBookPalette.of(context).surface,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) SizedBox(height: gap),
-            children[i],
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _CardHeader extends StatelessWidget {
-  const _CardHeader({
-    required this.icon,
-    required this.title,
-    required this.trailing,
-  });
-
-  final IconData icon;
-  final String title;
-  final Widget trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 17, color: BackupPalette.of(context).accent),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            title,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: OrderBookPalette.of(context).textStrong,
-            ),
-          ),
-        ),
-        trailing,
-      ],
-    );
-  }
-}
-
 // ── Import mnemonic dialog ─────────────────────────────────────────────────────
 
 /// Self-contained dialog that owns its [TextEditingController] lifecycle,
@@ -1118,7 +1068,7 @@ class _CardHeader extends StatelessWidget {
 class _ImportMnemonicDialog extends StatefulWidget {
   const _ImportMnemonicDialog({required this.onImport});
 
-  final void Function(String input) onImport;
+  final void Function(List<String> words) onImport;
 
   @override
   State<_ImportMnemonicDialog> createState() => _ImportMnemonicDialogState();
@@ -1135,17 +1085,12 @@ class _ImportMnemonicDialogState extends State<_ImportMnemonicDialog> {
   }
 
   void _submit() {
-    final text = _controller.text.trim();
-    if (text.startsWith('nsec1')) {
-      if (text.length < 50) {
-        setState(() => _error = AppLocalizations.of(context).enterValidMnemonicError);
-        return;
-      }
-      Navigator.pop(context);
-      widget.onImport(text);
-      return;
-    }
-    final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    final words =
+        _controller.text
+            .trim()
+            .split(RegExp(r'\s+'))
+            .where((w) => w.isNotEmpty)
+            .toList();
     final validLength = words.length == 12 || words.length == 24;
     final validWords = words.every((w) => RegExp(r'^[a-zA-Z]+$').hasMatch(w));
     if (!validLength || !validWords) {
@@ -1155,12 +1100,20 @@ class _ImportMnemonicDialogState extends State<_ImportMnemonicDialog> {
       return;
     }
     Navigator.pop(context);
-    widget.onImport(text);
+    widget.onImport(words);
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final book = OrderBookPalette.of(context);
+    final pal = BackupPalette.of(context);
+    // A pasted, multi-line value: a boxed field (DS-CMP-11).
+    OutlineInputBorder box(Color color, [double width = 1]) =>
+        OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: color, width: width),
+        );
     return MostroDialog(
       title: l10n.importMnemonicDialogTitle,
       content: TextField(
@@ -1169,9 +1122,20 @@ class _ImportMnemonicDialogState extends State<_ImportMnemonicDialog> {
         autocorrect: false,
         enableSuggestions: false,
         enableIMEPersonalizedLearning: false,
+        cursorColor: book.lime,
+        style: TextStyle(fontSize: 14, color: book.textStrong),
         decoration: InputDecoration(
           hintText: l10n.importMnemonicHintText,
+          hintStyle: TextStyle(fontSize: 14, color: book.textTertiary),
           errorText: _error,
+          errorStyle: TextStyle(fontSize: 12, color: pal.wrong),
+          filled: true,
+          fillColor: book.inset,
+          contentPadding: const EdgeInsets.all(12),
+          enabledBorder: box(book.border),
+          focusedBorder: box(book.lime, 1.5),
+          errorBorder: box(pal.wrong),
+          focusedErrorBorder: box(pal.wrong, 1.5),
         ),
         onChanged: (_) {
           if (_error != null) setState(() => _error = null);

@@ -1,37 +1,52 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/features/order/widgets/range_amount_modal.dart';
 import 'package:mostro/l10n/app_localizations.dart';
+import 'package:mostro/shared/widgets/mostro_modal.dart';
 
-/// What the dialog resolved to: [_unset] until it closes, then the amount
-/// (or null for a cancel).
-const _unset = -1.0;
-
-/// Opens the dialog for a 100–200 USD range order and returns a reader for
-/// what it resolved to.
-Future<double? Function()> _open(WidgetTester tester) async {
-  double? result = _unset;
+/// Opens the range dialog in [locale] and returns a reader for its result.
+Future<double? Function()> _open(
+  WidgetTester tester, {
+  required Locale locale,
+  double textScale = 1.0,
+}) async {
+  double? result;
   await tester.pumpWidget(
     MaterialApp(
       theme: buildDarkTheme(),
-      locale: const Locale('en'),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => TextButton(
-            onPressed: () async {
-              result = await showRangeAmountModal(
-                context: context,
-                min: 100,
-                max: 200,
-                currencyCode: 'USD',
-              );
-            },
-            child: const Text('open'),
+      locale: locale,
+      builder:
+          (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child!,
           ),
-        ),
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Builder(
+        builder:
+            (context) => Scaffold(
+              body: TextButton(
+                onPressed: () async {
+                  result = await showRangeAmountModal(
+                    context: context,
+                    min: 2000,
+                    max: 998000,
+                    currencyCode: 'ARS',
+                  );
+                },
+                child: const Text('open'),
+              ),
+            ),
       ),
     ),
   );
@@ -40,84 +55,104 @@ Future<double? Function()> _open(WidgetTester tester) async {
   return () => result;
 }
 
-FilledButton _submit(WidgetTester tester) =>
-    tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Submit'));
-
-const _whole = 'Enter a whole amount: digits only, no decimals or separators.';
-
 void main() {
-  group('range amount dialog', () {
-    testWidgets('takes a whole amount inside the range', (tester) async {
-      final result = await _open(tester);
-      expect(_submit(tester).onPressed, isNull);
-
-      await tester.enterText(find.byType(TextField), '150');
-      await tester.pump();
-      expect(find.text(_whole), findsNothing);
-      expect(_submit(tester).onPressed, isNotNull);
-
-      await tester.tap(find.widgetWithText(FilledButton, 'Submit'));
-      await tester.pumpAndSettle();
-      expect(result(), 150);
-    });
-
-    testWidgets('keeps a typed separator on screen and says why it will not do', (
+  // Issue #730, DS-CMP-26: the dialog opens from "Take order" and answered
+  // "Submit". Its answer repeats the opener, in every language.
+  for (final locale in AppLocalizations.supportedLocales) {
+    testWidgets('answers with the take button\'s verb in $locale', (
       tester,
     ) async {
-      final result = await _open(tester);
+      final l10n = lookupAppLocalizations(locale);
+      await _open(tester, locale: locale);
 
-      // A digits-only field dropped the separator and kept the rest: `15.0`
-      // became 150 — inside this range, with Submit enabled.
-      for (final typed in ['15.0', '150.5', '150,5']) {
-        await tester.enterText(find.byType(TextField), typed);
-        await tester.pump();
-        expect(find.text(typed), findsOneWidget, reason: typed);
-        expect(find.text(_whole), findsOneWidget, reason: typed);
-        expect(_submit(tester).onPressed, isNull, reason: typed);
-      }
-
-      // Tapping the dead button takes nothing: the dialog is still open.
-      await tester.tap(find.widgetWithText(FilledButton, 'Submit'));
-      await tester.pumpAndSettle();
-      expect(result(), _unset);
-      expect(find.byType(TextField), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(ModalFooter),
+          matching: find.text(l10n.takeOrderButton),
+        ),
+        findsOneWidget,
+      );
     });
+  }
 
-    testWidgets('lets through digits and the two separators, nothing else', (
-      tester,
-    ) async {
-      await _open(tester);
+  // Issue #720: the dialog printed its bounds by hand (`2000 – 998000`)
+  // right under a card that groups them (`2.000 – 998.000`).
+  // DS-A11Y-4: the dialog's answer is a verb now, and German's is the
+  // longest ("Order annehmen"). At 320 dp and 2x text the dialog must not
+  // overflow, and the answer must not break onto a second line.
+  testWidgets('fits at 320 dp and 2x text in German', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    const locale = Locale('de');
+    final l10n = lookupAppLocalizations(locale);
 
-      // No sign, no hex, no letters: `int.tryParse` would read `0x96` as 150.
-      await tester.enterText(find.byType(TextField), '+0x96 a');
-      await tester.pump();
-      expect(find.text('096'), findsOneWidget);
-      expect(_submit(tester).onPressed, isNull);
-    });
+    await _open(tester, locale: locale, textScale: 2.0);
 
-    testWidgets('says nothing about an empty field', (tester) async {
-      await _open(tester);
+    expect(tester.takeException(), isNull);
+    final answer = tester.renderObject<RenderParagraph>(
+      find.text(l10n.rangeAmountTakeAction),
+    );
+    final line = answer.getFullHeightForCaret(const TextPosition(offset: 0));
+    expect(answer.size.height, lessThan(line * 1.5), reason: 'one line');
+  });
 
-      await tester.enterText(find.byType(TextField), '150.5');
-      await tester.pump();
-      expect(find.text(_whole), findsOneWidget);
+  testWidgets("shows the bounds with the locale's grouping", (tester) async {
+    await _open(tester, locale: const Locale('es'));
 
-      await tester.enterText(find.byType(TextField), '');
-      await tester.pump();
-      expect(find.text(_whole), findsNothing);
-      expect(_submit(tester).onPressed, isNull);
-    });
+    expect(find.text('Mín: 2.000 – Máx: 998.000 ARS'), findsOneWidget);
+  });
 
-    testWidgets('still refuses a whole amount outside the range', (
-      tester,
-    ) async {
-      await _open(tester);
+  testWidgets('groups the typed amount and returns its value', (tester) async {
+    final result = await _open(tester, locale: const Locale('es'));
 
-      await tester.enterText(find.byType(TextField), '250');
-      await tester.pump();
-      expect(find.text('Amount must be between 100 and 200'), findsOneWidget);
-      expect(find.text(_whole), findsNothing);
-      expect(_submit(tester).onPressed, isNull);
-    });
+    await tester.enterText(find.byType(TextField), '25000');
+    await tester.pump();
+    expect(find.text('25.000'), findsOneWidget);
+
+    await tester.tap(find.text('Tomar orden'));
+    await tester.pumpAndSettle();
+    expect(result(), 25000);
+  });
+
+  // The take sends the amount as an integer (`Payload::Amount(amt as i64)`),
+  // so a fraction would be truncated on the wire without the user knowing.
+  // The field never accepts one.
+  testWidgets('accepts no fraction, as the wire amount is whole', (
+    tester,
+  ) async {
+    final result = await _open(tester, locale: const Locale('es'));
+
+    await tester.enterText(find.byType(TextField), '2500,5');
+    await tester.pump();
+    expect(find.text('2.500'), findsOneWidget);
+
+    await tester.tap(find.text('Tomar orden'));
+    await tester.pumpAndSettle();
+    expect(result(), 2500);
+  });
+
+  testWidgets('a zero amount still gets the range error', (tester) async {
+    await _open(tester, locale: const Locale('en'));
+
+    await tester.enterText(find.byType(TextField), '0');
+    await tester.pump();
+
+    expect(
+      find.text('Amount must be between 2,000 and 998,000'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('words the range error with grouped bounds', (tester) async {
+    await _open(tester, locale: const Locale('en'));
+
+    await tester.enterText(find.byType(TextField), '1000');
+    await tester.pump();
+
+    expect(
+      find.text('Amount must be between 2,000 and 998,000'),
+      findsOneWidget,
+    );
   });
 }

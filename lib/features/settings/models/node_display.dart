@@ -16,18 +16,17 @@ String? regionFlag(String? region) {
   return isEmoji ? first : null;
 }
 
-/// Display title for a node entry: kind 0 / user-given name, then the
-/// community name for the app's own node, then the region place name, then
-/// the truncated pubkey — with the region flag appended when the name doesn't
-/// already carry it.
+/// Display title for a node entry: kind 0 / user-given name, then the region
+/// place name, then the truncated pubkey — with the region flag appended when
+/// the name doesn't already carry it.
 String nodeDisplayName(MostroNodeEntry entry) {
   final flag = regionFlag(entry.region);
   var name = entry.name ?? '';
-  if (name.isEmpty && entry.pubkey == defaultMostroPubkey) {
-    name = defaultMostroName;
-  }
   if (name.isEmpty && entry.region != null) {
     name = entry.region!.split(' ').skip(1).join(' ');
+  }
+  if (name.isEmpty && entry.pubkey == defaultMostroPubkey) {
+    name = 'Mostro';
   }
   if (name.isEmpty) name = truncatePubkey(entry.pubkey);
   if (flag != null && !name.contains(flag)) return '$name $flag';

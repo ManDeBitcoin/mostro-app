@@ -9,9 +9,10 @@
 //
 //   1. the page is cross-origin isolated  (no SharedArrayBuffer → no wasm threads)
 //   2. the Flutter engine mounted         (the view element exists)
-//   3. a Rust bridge call returned        (the FRB worker pool survived)
+//   3. startup finished                   (Rust bridge answered, nothing fatal after it)
 //  3b. seeded bond rows read back         (opt-in: SMOKE_BOND_STORE=1)
 //  3d. an attachment upload + read-back   (opt-in: SMOKE_ATTACHMENTS=1)
+//  3e. Chrome would install it as an app (opt-in: SMOKE_INSTALLABLE=1)
 //   4. nothing errored along the way      (console + uncaught page errors)
 //   5. every asset the page asked for was served (catches --base-href breakage)
 //
@@ -30,7 +31,8 @@
 
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -79,6 +81,17 @@ const MIME = {
 const IGNORABLE = [/WebSocket connection to 'wss:\/\//i, /favicon\.ico/i];
 
 const isIgnorable = (text) => IGNORABLE.some((re) => re.test(text));
+
+/** Frames printed per uncaught error; a wasm trap's culprit sits near the top. */
+const MAX_STACK_FRAMES = 25;
+
+/** The `at …` lines of an error's stack, without the message line it repeats. */
+const stackFrames = (stack) =>
+  (stack ?? '')
+    .split('\n')
+    .filter((line) => /^\s+at /.test(line))
+    .slice(0, MAX_STACK_FRAMES)
+    .map((line) => line.trim());
 
 /**
  * Serves BUNDLE_DIR under BASE_PATH, cross-origin isolated.
@@ -348,13 +361,20 @@ async function main() {
       }, forcedLanguages.split(','));
     }
 
-    const record = (origin, text) => {
-      (isIgnorable(text) ? ignored : errors).push(`[${origin}] ${text}`);
+    // `frames` only adds context to the report: whether an error is ignorable
+    // is still decided on its message alone.
+    const record = (origin, text, frames = []) => {
+      const entry = [`[${origin}] ${text}`, ...frames].join('\n    ');
+      (isIgnorable(text) ? ignored : errors).push(entry);
     };
     page.on('console', (msg) => {
       if (msg.type() === 'error') record('console', msg.text());
     });
-    page.on('pageerror', (err) => record('pageerror', err.message));
+    // The stack is what names the culprit: "Atomics.wait cannot be called in
+    // this context" alone does not say which Rust lock blocked (#294).
+    page.on('pageerror', (err) =>
+      record('pageerror', err.message, stackFrames(err.stack)),
+    );
 
     // Collected but never fatal on its own: a cancelled preload is routine,
     // while a blocked CDN fetch is not, and only the surrounding failure says
@@ -446,8 +466,10 @@ async function main() {
       console.log(`✓ locale sanitized to [${actual}]`);
     }
 
-    // 3. The Rust bridge answered. Poll for either outcome so a broken bridge
-    //    fails immediately with its reason instead of timing out silently.
+    // 3. Startup finished, which takes the Rust bridge answering. The app sets
+    //    the ready flag only at the very end, so a failure anywhere in startup
+    //    shows up here. Poll for either outcome so a failure stops the
+    //    run immediately with its reason instead of timing out silently.
     await page
       .waitForFunction(
         () =>
@@ -458,13 +480,13 @@ async function main() {
       )
       .catch(() =>
         fail(
-          'no Rust bridge call completed — the FRB worker pool is probably dead ' +
+          'startup never finished — most often the FRB worker pool is dead ' +
             '(DataCloneError); check that web/pkg was built by scripts/build-web.sh',
         ),
       );
     const bridgeError = await page.evaluate(() => globalThis.mostroBridgeError);
-    if (bridgeError) await fail(`Rust bridge call failed: ${bridgeError}`);
-    console.log('✓ Rust bridge call returned');
+    if (bridgeError) await fail(`startup failed: ${bridgeError}`);
+    console.log('✓ startup finished (Rust bridge answered)');
 
     // 3b. Bond rows survive the persistent store (docs/ANTI_ABUSE_BOND.md T5.1).
     //
@@ -502,7 +524,7 @@ async function main() {
         .catch(() => fail('the app never published what it read from the store (mostroStoreProbe)'));
       const reloadBridgeError = await page.evaluate(() => globalThis.mostroBridgeError);
       if (reloadBridgeError) {
-        await fail(`Rust bridge call failed after the reload: ${reloadBridgeError}`);
+        await fail(`startup failed after the reload: ${reloadBridgeError}`);
       }
       const probeError = await page.evaluate(() => globalThis.mostroStoreProbeError);
       if (probeError) await fail(`reading the bond rows back failed: ${probeError}`);
@@ -585,6 +607,17 @@ async function main() {
       console.log('✓ attachment uploaded, downloaded, cached and decrypted');
     }
 
+    // 3e. Chrome would install the page as an app (#658). Opt-in:
+    //     SMOKE_INSTALLABLE=1. A broken manifest link, a missing icon or a
+    //     scope that excludes the start URL all leave the page working and
+    //     only take away the install prompt, and with it web push on iOS,
+    //     which Safari only allows for a home-screen app.
+    if (process.env.SMOKE_INSTALLABLE === '1') {
+      const reasons = await installabilityErrors(url);
+      if (reasons.length) await fail(`Chrome would not install the page: ${reasons.join(', ')}`);
+      console.log('✓ installable as an app');
+    }
+
     // 4/5. Anything the page complained about, and anything it asked for that
     //      this server could not serve.
     if (ignored.length) {
@@ -604,6 +637,36 @@ async function main() {
     server.close();
     blossom?.closeAllConnections();
     blossom?.close();
+  }
+}
+
+/**
+ * Chrome's own reasons not to install the page at [url], as error ids; empty
+ * when it would. Asks Chrome (`Page.getInstallabilityErrors`) instead of
+ * re-implementing its criteria. Two things make the answer mean something:
+ * the full Chromium build, because the default headless shell reports every
+ * page installable, and a persistent profile, because an incognito one never
+ * is. Polled briefly, since the manifest and its icons load after the page.
+ */
+async function installabilityErrors(url) {
+  const profile = await mkdtemp(join(tmpdir(), 'smoke-install-'));
+  const context = await chromium.launchPersistentContext(profile, { channel: 'chromium' });
+  try {
+    const page = await context.newPage();
+    await page.goto(url, { waitUntil: 'load' });
+    const cdp = await context.newCDPSession(page);
+    const deadline = Date.now() + Math.min(TIMEOUT_MS, 15_000);
+    let reasons;
+    do {
+      const { installabilityErrors } = await cdp.send('Page.getInstallabilityErrors');
+      reasons = installabilityErrors.map((e) => e.errorId);
+      if (!reasons.length) return reasons;
+      await new Promise((ok) => setTimeout(ok, 500));
+    } while (Date.now() < deadline);
+    return reasons;
+  } finally {
+    await context.close().catch(() => {});
+    await rm(profile, { recursive: true, force: true }).catch(() => {});
   }
 }
 

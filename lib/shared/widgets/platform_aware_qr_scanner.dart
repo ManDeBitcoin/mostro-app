@@ -1,22 +1,60 @@
-import 'dart:math' as math;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import 'package:mostro/core/app_theme.dart';
+import 'package:mostro/features/order/widgets/order_detail_cards.dart';
 import 'package:mostro/l10n/app_localizations.dart';
+import 'package:mostro/shared/widgets/input_source_action.dart';
+import 'package:mostro/shared/widgets/paste_field.dart';
+
+/// How [PlatformAwareQrScanner] takes its input on a platform.
+enum QrInput {
+  /// The device camera, through `mobile_scanner`.
+  camera,
+
+  /// A text field the user pastes or types into.
+  paste,
+}
+
+/// Which [QrInput] a platform gets.
+///
+/// Callers pass `kIsWeb` and `defaultTargetPlatform`. `kIsWeb` is a parameter
+/// rather than read here because it is a compile-time constant: a test could
+/// otherwise never reach the web branch.
+QrInput qrInputFor(bool isWeb, TargetPlatform platform) {
+  // On web `platform` is the browser's OS: a phone browser reports android.
+  if (isWeb) return QrInput.paste;
+  return switch (platform) {
+    TargetPlatform.android || TargetPlatform.iOS => QrInput.camera,
+    // mobile_scanner implements Android, iOS, macOS and web only: on Linux
+    // and Windows every channel call is a MissingPluginException and the
+    // scanner renders nothing (#458). macOS has the plugin, but the sandboxed
+    // app lacks `com.apple.security.device.camera` and
+    // `NSCameraUsageDescription`, so it pastes until someone with a Mac
+    // enables and tests the camera there.
+    _ => QrInput.paste,
+  };
+}
+
+/// Whether this build scans with the camera ([qrInputFor] answers
+/// [QrInput.camera]). Where it does not, a Scan QR action is disabled and
+/// says why, rather than opening a second paste field.
+bool canScanQr() => qrInputFor(kIsWeb, defaultTargetPlatform) == QrInput.camera;
 
 /// Platform-aware QR scanner.
 ///
-/// Displays a live camera feed with an alignment viewfinder overlay
-/// and immediate hardware release upon detection, manual mode toggle,
-/// or disposal.
+/// On **Android and iOS**: opens the device camera using `mobile_scanner`. If
+/// the camera cannot start — no camera, or the permission refused — the paste
+/// field below takes its place.
+/// On **web and desktop**: shows a paste-from-clipboard text field. On web,
+/// camera access requires HTTPS and a user gesture that differs across
+/// browsers; on desktop, see [qrInputFor].
 ///
-/// On web and desktop environments where camera permissions are denied or
-/// hardware is unavailable, falls back gracefully to a manual input form.
-///
-/// [onDetected] is called exactly once with the decoded string value.
+/// [onDetected] is called exactly once with the decoded string as soon as a
+/// QR code is scanned or the user submits pasted content.
 class PlatformAwareQrScanner extends StatefulWidget {
   const PlatformAwareQrScanner({
     super.key,
@@ -35,430 +73,155 @@ class PlatformAwareQrScanner extends StatefulWidget {
 }
 
 class _PlatformAwareQrScannerState extends State<PlatformAwareQrScanner> {
-  late final MobileScannerController _scannerController;
-  final TextEditingController _pasteController = TextEditingController();
-  bool _hasEmitted = false;
-  bool _showCamera = true;
-  bool _cameraUnavailable = false;
+  final _controller = TextEditingController();
   String? _errorText;
-
-  @override
-  void initState() {
-    super.initState();
-    if (kIsWeb) {
-      try {
-        MobileScannerPlatform.instance.setWebBarcodeReader(WebBarcodeReader.zxingJs);
-      } catch (_) {}
-    }
-    _scannerController = MobileScannerController(
-      detectionSpeed: DetectionSpeed.noDuplicates,
-      facing: CameraFacing.back,
-      torchEnabled: false,
-      autoStart: true,
-      formats: const [BarcodeFormat.qrCode],
-    );
-  }
+  bool _hasEmitted = false;
 
   @override
   void dispose() {
-    _scannerController.dispose();
-    _pasteController.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
-  Future<void> _emitOnce(String value) async {
+  void _emitOnce(String value) {
     if (_hasEmitted) return;
     _hasEmitted = true;
-    try {
-      await _scannerController.stop();
-    } catch (_) {}
-    if (mounted) {
-      widget.onDetected(value);
-    }
-  }
-
-  Future<void> _switchToManual() async {
-    try {
-      await _scannerController.stop();
-    } catch (_) {}
-    if (mounted) {
-      setState(() => _showCamera = false);
-    }
-  }
-
-  Future<void> _switchToCamera() async {
-    if (mounted) {
-      setState(() => _showCamera = true);
-    }
-    try {
-      await _scannerController.start();
-    } catch (_) {}
+    widget.onDetected(value);
   }
 
   Future<void> _pasteFromClipboard() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text?.trim() ?? '';
     if (text.isEmpty) {
-      if (mounted) {
-        setState(() => _errorText = AppLocalizations.of(context).clipboardEmptyError);
-      }
+      if (!mounted) return;
+      setState(
+        () => _errorText = AppLocalizations.of(context).clipboardEmptyError,
+      );
       return;
     }
     if (!mounted) return;
     setState(() => _errorText = null);
-    await _emitOnce(text);
+    _emitOnce(text);
   }
 
-  Future<void> _submitManual() async {
-    final text = _pasteController.text.trim();
+  void _submit() {
+    final text = _controller.text.trim();
     if (text.isEmpty) {
       setState(() => _errorText = AppLocalizations.of(context).enterValueError);
       return;
     }
-    await _emitOnce(text);
+    _emitOnce(text);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (_showCamera && !_cameraUnavailable) {
-      return Stack(
-        children: [
-          Positioned.fill(
-            child: MobileScanner(
-              controller: _scannerController,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted && _showCamera) {
-                    _scannerController.stop();
-                    setState(() {
-                      _showCamera = false;
-                      _cameraUnavailable = true;
-                    });
-                  }
-                });
-                return const SizedBox.shrink();
-              },
-              onDetect: (capture) {
-                if (_hasEmitted) return;
-                final raw = capture.barcodes.firstOrNull?.rawValue?.trim();
-                if (raw != null && raw.isNotEmpty) {
-                  _emitOnce(raw);
-                }
-              },
-            ),
-          ),
-          Positioned.fill(
-            child: _ScannerOverlay(
-              onSwitchToManual: _switchToManual,
-            ),
-          ),
-        ],
-      );
-    }
-
-    return _ManualFallback(
-      controller: _pasteController,
+  Widget _pasteForm() {
+    return _PasteFallback(
+      controller: _controller,
       errorText: _errorText,
       hint: widget.hint,
-      canSwitchToCamera: !_cameraUnavailable,
       onChanged: (_) {
         if (_errorText != null) setState(() => _errorText = null);
       },
       onPaste: _pasteFromClipboard,
-      onSubmit: _submitManual,
-      onSwitchToCamera: _switchToCamera,
+      onSubmit: _submit,
     );
   }
-}
-
-// ── Viewfinder overlay ────────────────────────────────────────────────────────
-
-class _ScannerOverlay extends StatelessWidget {
-  const _ScannerOverlay({
-    required this.onSwitchToManual,
-  });
-
-  final VoidCallback onSwitchToManual;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final size = MediaQuery.sizeOf(context);
-    final scanBoxSize = math.min(
-      size.width * 0.70,
-      math.min(size.height * 0.45, 280.0),
-    );
+    if (!canScanQr()) {
+      return _pasteForm();
+    }
+    return _CameraScanner(onDetected: _emitOnce, onError: _pasteForm);
+  }
+}
 
-    return Stack(
-      children: [
-        // Cutout scrim with dark background and clear center box
-        Positioned.fill(
-          child: CustomPaint(
-            painter: _ScannerCutoutPainter(
-              boxSize: scanBoxSize,
-              borderColor: const Color(0xFFC4F43A),
-              scrimColor: Colors.black.withValues(alpha: 0.65),
-            ),
-          ),
-        ),
-        // Instructions pill below the viewfinder box
-        Align(
-          alignment: Alignment.center,
-          child: Padding(
-            padding: EdgeInsets.only(top: scanBoxSize + 40.0),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.black87,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.15),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.qr_code_scanner,
-                    color: Color(0xFFC4F43A),
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    l10n.scanQrCodeTitle,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        // Bottom toolbar: Manual input toggle
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 24,
-          child: SafeArea(
-            child: Center(
-              child: FilledButton.tonalIcon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.black.withValues(alpha: 0.7),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                ),
-                onPressed: onSwitchToManual,
-                icon: const Icon(Icons.keyboard_outlined, size: 20),
-                label: Text(l10n.pasteButtonLabel),
-              ),
-            ),
-          ),
-        ),
-      ],
+// ── Camera scanner (Android / iOS) ───────────────────────────────────────────
+
+class _CameraScanner extends StatelessWidget {
+  const _CameraScanner({required this.onDetected, required this.onError});
+
+  /// Guarded by the parent's `_emitOnce`, so a code held in front of the
+  /// camera for several frames is reported once.
+  final void Function(String) onDetected;
+
+  /// What replaces the preview when the camera cannot start.
+  final Widget Function() onError;
+
+  @override
+  Widget build(BuildContext context) {
+    return MobileScanner(
+      // Without this, a refused permission or a device without a camera shows
+      // mobile_scanner's black error box and nothing else to do.
+      errorBuilder: (_, _) => onError(),
+      onDetect: (capture) {
+        final raw = capture.barcodes.firstOrNull?.rawValue?.trim();
+        if (raw != null && raw.isNotEmpty) onDetected(raw);
+      },
     );
   }
 }
 
-// ── Cutout painter ────────────────────────────────────────────────────────────
+// ── Paste fallback (web, desktop, camera unavailable) ────────────────────────
 
-class _ScannerCutoutPainter extends CustomPainter {
-  const _ScannerCutoutPainter({
-    required this.boxSize,
-    required this.borderColor,
-    required this.scrimColor,
-  });
-
-  static const double borderRadius = 18.0;
-  static const double cornerLength = 30.0;
-  static const double strokeWidth = 3.5;
-
-  final double boxSize;
-  final Color borderColor;
-  final Color scrimColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final rect = Rect.fromCenter(
-      center: center,
-      width: boxSize,
-      height: boxSize,
-    );
-    final rrect = RRect.fromRectAndRadius(
-      rect,
-      const Radius.circular(borderRadius),
-    );
-
-    // Dark scrim with transparent cutout
-    final scrimPaint = Paint()
-      ..color = scrimColor
-      ..style = PaintingStyle.fill;
-
-    final scrimPath = Path()
-      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
-      ..addRRect(rrect)
-      ..fillType = PathFillType.evenOdd;
-
-    canvas.drawPath(scrimPath, scrimPaint);
-
-    // Subtle outline of the viewfinder
-    final borderPaint = Paint()
-      ..color = borderColor.withValues(alpha: 0.25)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-    canvas.drawRRect(rrect, borderPaint);
-
-    // Highlighted corner brackets
-    final cornerPaint = Paint()
-      ..color = borderColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-
-    final left = rect.left;
-    final top = rect.top;
-    final right = rect.right;
-    final bottom = rect.bottom;
-    const radius = Radius.circular(borderRadius);
-
-    // Top-left
-    final topLeft = Path()
-      ..moveTo(left, top + cornerLength)
-      ..lineTo(left, top + borderRadius)
-      ..arcToPoint(Offset(left + borderRadius, top), radius: radius)
-      ..lineTo(left + cornerLength, top);
-    canvas.drawPath(topLeft, cornerPaint);
-
-    // Top-right
-    final topRight = Path()
-      ..moveTo(right - cornerLength, top)
-      ..lineTo(right - borderRadius, top)
-      ..arcToPoint(Offset(right, top + borderRadius), radius: radius)
-      ..lineTo(right, top + cornerLength);
-    canvas.drawPath(topRight, cornerPaint);
-
-    // Bottom-left
-    final bottomLeft = Path()
-      ..moveTo(left, bottom - cornerLength)
-      ..lineTo(left, bottom - borderRadius)
-      ..arcToPoint(
-        Offset(left + borderRadius, bottom),
-        radius: radius,
-        clockwise: false,
-      )
-      ..lineTo(left + cornerLength, bottom);
-    canvas.drawPath(bottomLeft, cornerPaint);
-
-    // Bottom-right
-    final bottomRight = Path()
-      ..moveTo(right - cornerLength, bottom)
-      ..lineTo(right - borderRadius, bottom)
-      ..arcToPoint(
-        Offset(right, bottom - borderRadius),
-        radius: radius,
-        clockwise: false,
-      )
-      ..lineTo(right, bottom - cornerLength);
-    canvas.drawPath(bottomRight, cornerPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ScannerCutoutPainter oldDelegate) {
-    return oldDelegate.boxSize != boxSize ||
-        oldDelegate.borderColor != borderColor ||
-        oldDelegate.scrimColor != scrimColor;
-  }
-}
-
-// ── Manual fallback (paste / type) ────────────────────────────────────────────
-
-class _ManualFallback extends StatelessWidget {
-  const _ManualFallback({
+class _PasteFallback extends StatelessWidget {
+  const _PasteFallback({
     required this.controller,
     required this.errorText,
     required this.hint,
-    required this.canSwitchToCamera,
     required this.onChanged,
     required this.onPaste,
     required this.onSubmit,
-    required this.onSwitchToCamera,
   });
 
   final TextEditingController controller;
   final String? errorText;
   final String hint;
-  final bool canSwitchToCamera;
   final ValueChanged<String> onChanged;
   final VoidCallback onPaste;
   final VoidCallback onSubmit;
-  final VoidCallback onSwitchToCamera;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<AppColors>();
-    if (colors == null) {
-      throw StateError('AppColors theme extension must be registered');
-    }
+    final book = OrderBookPalette.of(context);
     final l10n = AppLocalizations.of(context);
 
+    // Scrolls because the keyboard is up whenever the field is in use: on a
+    // narrow phone at a large text size the form is taller than what is left.
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: AppSpacing.md),
           Text(
             l10n.pasteQrCodeHeading,
-            style: Theme.of(context).textTheme.titleMedium,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: book.textPrimary,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
-          TextField(
+          PasteField(
             controller: controller,
-            decoration: InputDecoration(
-              hintText: hint,
-              errorText: errorText,
-            ),
-            autocorrect: false,
-            enableSuggestions: false,
+            hint: hint,
+            errorText: errorText,
             onChanged: onChanged,
-            onSubmitted: (_) => onSubmit(),
+            // Enter is Submit, under the same rule as the button; on an empty
+            // field it says so and the focus stays put.
+            onEditingComplete: onSubmit,
           ),
           const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onPaste,
-                  icon: const Icon(Icons.content_paste),
-                  label: Text(l10n.pasteButtonLabel),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: FilledButton(
-                  onPressed: onSubmit,
-                  child: Text(l10n.submitButtonLabel),
-                ),
-              ),
-            ],
+          InputSourceAction(
+            icon: Icons.content_paste_outlined,
+            label: l10n.pasteButtonLabel,
+            onTap: onPaste,
           ),
-          if (canSwitchToCamera) ...[
-            const SizedBox(height: AppSpacing.xl),
-            Center(
-              child: TextButton.icon(
-                onPressed: onSwitchToCamera,
-                icon: const Icon(Icons.camera_alt_outlined),
-                label: Text(l10n.scanQrButtonLabel),
-              ),
-            ),
-          ],
+          const SizedBox(height: 18),
+          OrderPrimaryButton(
+            label: l10n.submitButtonLabel,
+            onPressed: onSubmit,
+          ),
         ],
       ),
     );

@@ -55,29 +55,30 @@ Status of the client's features across the Rust core and the Flutter UI.
 - [x] Lightning invoice handling (add / pay hold invoice)
 - [x] Rate counterpart
 - [x] User ↔ user chat
+- [x] User ↔ user file attachments (encrypted images and PDFs)
+- [x] User ↔ admin chat
+- [x] User ↔ admin file attachments
 - [x] Mnemonic identity & key management (BIP-39 / BIP-32, NIP-06)
 - [x] Secure storage (OS keystore)
+- [x] Session restore from mnemonic
 - [x] NWC (Nostr Wallet Connect)
 - [x] Relay management (manual add / toggle)
+- [x] Relay auto-discovery (kind 10002)
 - [x] Proof-of-Work (NIP-13)
 - [x] About / Mostro info
-- [~] Mostro node switching — single-node switch works; multi-node management pending
-- [~] Range orders — created / taken, but shown as a single amount in the order book
-- [~] Cooperative cancellation — works; context-aware UX pending
-- [~] Disputes — opening works; inbound list / admin chat not wired
-- [~] In-app notifications — screen works; trade/message events not yet wired to feed it
-- [~] Lightning address — not synced to the Rust store, so invoice auto-fill does not trigger
-- [~] Push notifications — client wired (FCM); push server not yet deployed
-- [~] Multi-language — missing translations / inconsistent switching
-- [~] Log report — UI present but capture not working
-- [~] Reputation / privacy mode — toggle wired, effect not confirmed
-- [ ] User ↔ user file attachments
-- [ ] User ↔ admin chat
-- [ ] User ↔ admin file attachments
+- [x] Mostro node management (add / remove / switch)
+- [x] Range orders (create / take a slice / remainder republished)
+- [x] Cooperative cancellation (request / accept, with a notice for each side)
+- [x] In-app notifications (trade, dispute and chat events)
+- [x] Anti-abuse bond
+- [x] Multi-language (en, de, es, fr, it, nl)
+- [x] Log report (Rust core logs, shared as a sanitized text report)
+- [~] Disputes — open, solver chat and evidence work; the disputes list only fills after a resume or once the dispute is opened, not at cold start nor live when the peer opens one
+- [~] Lightning address — pre-fills the add-invoice screen, but is not synced to the Rust store, so Mostro never pays it directly on take
+- [~] Push notifications — Android / iOS client complete; web push built but disabled until the push server supports it
+- [~] Reputation / privacy mode — works within a session, but the setting does not persist across restarts
+- [~] Cashu escrow — embedded wallet and seller escrow lock (phases C0–C5); pending: release / redeem, cooperative cancel, disputes / expiry, web, and the release-blocking resilience work — wallet backup / restore, proof-state reconciliation, in-flight escrows on restore, seller refund path (C6–C10, see `docs/cashu/README.md`)
 - [ ] Configurable session retention
-- [ ] Session restore from mnemonic
-- [ ] Relay auto-discovery (kind 10002)
-- [ ] Anti-abuse bond
 - [ ] Deep link `mostro:` URI
 - [ ] Tor / anonymous relays
 
@@ -394,8 +395,8 @@ flutter build web --release --base-href "/app/" --pwa-strategy=none
 It then verifies the bundle and smoke-tests it in headless Chrome
 ([`test/web/smoke/smoke.mjs`](test/web/smoke/smoke.mjs)): the release bundle is served
 cross-origin isolated under `/app/`, and the test asserts the page is isolated, the Flutter
-view mounted, a Rust bridge call returned, and nothing errored. Static checks alone cannot
-catch that — every blank-page cause below greps perfectly clean.
+view mounted, startup finished (so the Rust bridge answered), and nothing errored. Static
+checks alone cannot catch that — every blank-page cause below greps perfectly clean.
 
 Three things make it work on a static host that cannot set HTTP headers:
 
@@ -409,7 +410,10 @@ Three things make it work on a static host that cannot set HTTP headers:
   asset 404s and the page is blank.
 - **`--pwa-strategy=none`** — Flutter's own (deprecated) service worker would register over
   the same scope and evict the isolation shim, silently un-isolating the page. Offline
-  caching is the trade-off.
+  caching is the trade-off. The app is still installable from the browser (Install app,
+  or Add to Home Screen on iOS): that comes from `web/manifest.json` and its icons, not
+  from that worker. The icons are generated from the Mostro art by `flutter_launcher_icons`
+  (see its `web` block in `pubspec.yaml`).
 
 The shim registers a service worker, which browsers only allow in a **secure context** — the
 site has to be reachable over HTTPS (Pages: *Settings → Pages → Enforce HTTPS*), or the page
@@ -611,9 +615,8 @@ To add a new language:
    - `lib/features/settings/widgets/language_selector.dart`: the English and native name in `languageNames` (the picker already lists every `.arb` file; without a name it shows the bare code)
    - `rust/src/api/settings.rs`: the code in `SUPPORTED_LOCALES`, then `./scripts/frb-generate.sh`
    - `web/push_worker_logic.js`: the locale's `pushNewMessageBody` in `CHAT_WAKE_BODIES` (a service worker cannot read `.arb` files)
-   - `lib/features/walkthrough/utils/highlight_config.dart`: the locale's wording of each highlighted onboarding phrase
    - `specs/006-announcement-channel/spec.md`: the locales every announcement must carry, in the rule and in the JSON example
-5. Run `flutter test` and `cargo test`: `test/l10n/locale_lists_test.dart` checks the picker names, the Rust list, the push worker and spec 006 against the `.arb` files, and `highlight_config_test.dart` checks the walkthrough phrases per locale, so a place missed in step 4 fails there
+5. Run `flutter test` and `cargo test`: `test/l10n/locale_lists_test.dart` checks the picker names, the Rust list, the push worker and spec 006 against the `.arb` files, so a place missed in step 4 fails there
 6. Open a PR — translation contributions are always welcome
 
 ---

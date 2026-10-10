@@ -6,19 +6,18 @@
 import 'api.dart';
 import 'api/bond.dart';
 import 'api/cashu.dart';
-import 'api/community.dart';
 import 'api/disputes.dart';
 import 'api/escrow.dart';
 import 'api/identity.dart';
 import 'api/invoice.dart';
 import 'api/logging.dart';
 import 'api/messages.dart';
+import 'api/my_reputation.dart';
 import 'api/node_stats.dart';
 import 'api/nodes.dart';
 import 'api/nostr.dart';
 import 'api/nwc.dart';
 import 'api/orders.dart';
-import 'api/payment_details.dart';
 import 'api/push.dart';
 import 'api/reputation.dart';
 import 'api/restore_progress.dart';
@@ -29,7 +28,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
 import 'frb_generated.dart';
-import 'lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
@@ -79,6 +77,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_MessageStreamPtr =>
       wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageStreamPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_MessageUpdateStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStreamPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_MyReputationStreamPtr =>
+      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStreamPtr;
 
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_OrderBookPtr =>
       wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrderBookPtr;
@@ -195,6 +201,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   MessageStream
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageStream(
+    dynamic raw,
+  );
+
+  @protected
+  MessageUpdateStream
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStream(
+    dynamic raw,
+  );
+
+  @protected
+  MyReputationStream
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStream(
     dynamic raw,
   );
 
@@ -343,6 +361,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  MessageUpdateStream
+  dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStream(
+    dynamic raw,
+  );
+
+  @protected
+  MyReputationStream
+  dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStream(
+    dynamic raw,
+  );
+
+  @protected
   OrderDeltaStream
   dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrderDeltaStream(
     dynamic raw,
@@ -483,6 +513,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   MessageStream
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageStream(
+    dynamic raw,
+  );
+
+  @protected
+  MessageUpdateStream
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStream(
+    dynamic raw,
+  );
+
+  @protected
+  MyReputationStream
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStream(
     dynamic raw,
   );
 
@@ -643,9 +685,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChatMessage dco_decode_box_autoadd_chat_message(dynamic raw);
 
   @protected
-  CommunityProfile dco_decode_box_autoadd_community_profile(dynamic raw);
-
-  @protected
   ConnectionState dco_decode_box_autoadd_connection_state(dynamic raw);
 
   @protected
@@ -673,6 +712,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LogEntry dco_decode_box_autoadd_log_entry(dynamic raw);
+
+  @protected
+  MyReputation dco_decode_box_autoadd_my_reputation(dynamic raw);
 
   @protected
   NewOrderParams dco_decode_box_autoadd_new_order_params(dynamic raw);
@@ -738,7 +780,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChatMessage dco_decode_chat_message(dynamic raw);
 
   @protected
-  CommunityProfile dco_decode_community_profile(dynamic raw);
+  ChatReaction dco_decode_chat_reaction(dynamic raw);
 
   @protected
   ConnectionState dco_decode_connection_state(dynamic raw);
@@ -804,6 +846,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ChatMessage> dco_decode_list_chat_message(dynamic raw);
 
   @protected
+  List<ChatReaction> dco_decode_list_chat_reaction(dynamic raw);
+
+  @protected
   List<FiatOrderCount> dco_decode_list_fiat_order_count(dynamic raw);
 
   @protected
@@ -823,9 +868,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<OrderInfo> dco_decode_list_order_info(dynamic raw);
-
-  @protected
-  List<PaymentDetails> dco_decode_list_payment_details(dynamic raw);
 
   @protected
   List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
@@ -853,6 +895,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MostroNodeStats dco_decode_mostro_node_stats(dynamic raw);
+
+  @protected
+  MyReputation dco_decode_my_reputation(dynamic raw);
 
   @protected
   NewOrderParams dco_decode_new_order_params(dynamic raw);
@@ -894,9 +939,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChatMessage? dco_decode_opt_box_autoadd_chat_message(dynamic raw);
 
   @protected
-  CommunityProfile? dco_decode_opt_box_autoadd_community_profile(dynamic raw);
-
-  @protected
   ConnectionState? dco_decode_opt_box_autoadd_connection_state(dynamic raw);
 
   @protected
@@ -924,6 +966,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LogEntry? dco_decode_opt_box_autoadd_log_entry(dynamic raw);
+
+  @protected
+  MyReputation? dco_decode_opt_box_autoadd_my_reputation(dynamic raw);
 
   @protected
   NwcWalletInfo? dco_decode_opt_box_autoadd_nwc_wallet_info(dynamic raw);
@@ -1006,9 +1051,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PaymentDestination dco_decode_payment_destination(dynamic raw);
 
   @protected
-  PaymentDetails dco_decode_payment_details(dynamic raw);
-
-  @protected
   PaymentResult dco_decode_payment_result(dynamic raw);
 
   @protected
@@ -1043,6 +1085,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SlashCause dco_decode_slash_cause(dynamic raw);
+
+  @protected
+  SolverRole dco_decode_solver_role(dynamic raw);
 
   @protected
   ThemeMode dco_decode_theme_mode(dynamic raw);
@@ -1082,9 +1127,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int dco_decode_u_8(dynamic raw);
-
-  @protected
-  U8Array32 dco_decode_u_8_array_32(dynamic raw);
 
   @protected
   void dco_decode_unit(dynamic raw);
@@ -1155,6 +1197,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   MessageStream
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageStream(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MessageUpdateStream
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStream(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MyReputationStream
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStream(
     SseDeserializer deserializer,
   );
 
@@ -1303,6 +1357,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  MessageUpdateStream
+  sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStream(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MyReputationStream
+  sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStream(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   OrderDeltaStream
   sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrderDeltaStream(
     SseDeserializer deserializer,
@@ -1443,6 +1509,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   MessageStream
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageStream(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MessageUpdateStream
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStream(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MyReputationStream
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStream(
     SseDeserializer deserializer,
   );
 
@@ -1611,11 +1689,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChatMessage sse_decode_box_autoadd_chat_message(SseDeserializer deserializer);
 
   @protected
-  CommunityProfile sse_decode_box_autoadd_community_profile(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   ConnectionState sse_decode_box_autoadd_connection_state(
     SseDeserializer deserializer,
   );
@@ -1651,6 +1724,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LogEntry sse_decode_box_autoadd_log_entry(SseDeserializer deserializer);
+
+  @protected
+  MyReputation sse_decode_box_autoadd_my_reputation(
+    SseDeserializer deserializer,
+  );
 
   @protected
   NewOrderParams sse_decode_box_autoadd_new_order_params(
@@ -1732,7 +1810,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChatMessage sse_decode_chat_message(SseDeserializer deserializer);
 
   @protected
-  CommunityProfile sse_decode_community_profile(SseDeserializer deserializer);
+  ChatReaction sse_decode_chat_reaction(SseDeserializer deserializer);
 
   @protected
   ConnectionState sse_decode_connection_state(SseDeserializer deserializer);
@@ -1804,6 +1882,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ChatMessage> sse_decode_list_chat_message(SseDeserializer deserializer);
 
   @protected
+  List<ChatReaction> sse_decode_list_chat_reaction(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<FiatOrderCount> sse_decode_list_fiat_order_count(
     SseDeserializer deserializer,
   );
@@ -1831,11 +1914,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<OrderInfo> sse_decode_list_order_info(SseDeserializer deserializer);
 
   @protected
-  List<PaymentDetails> sse_decode_list_payment_details(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
 
   @protected
@@ -1861,6 +1939,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MostroNodeStats sse_decode_mostro_node_stats(SseDeserializer deserializer);
+
+  @protected
+  MyReputation sse_decode_my_reputation(SseDeserializer deserializer);
 
   @protected
   NewOrderParams sse_decode_new_order_params(SseDeserializer deserializer);
@@ -1914,11 +1995,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  CommunityProfile? sse_decode_opt_box_autoadd_community_profile(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   ConnectionState? sse_decode_opt_box_autoadd_connection_state(
     SseDeserializer deserializer,
   );
@@ -1954,6 +2030,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LogEntry? sse_decode_opt_box_autoadd_log_entry(SseDeserializer deserializer);
+
+  @protected
+  MyReputation? sse_decode_opt_box_autoadd_my_reputation(
+    SseDeserializer deserializer,
+  );
 
   @protected
   NwcWalletInfo? sse_decode_opt_box_autoadd_nwc_wallet_info(
@@ -2068,9 +2149,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  PaymentDetails sse_decode_payment_details(SseDeserializer deserializer);
-
-  @protected
   PaymentResult sse_decode_payment_result(SseDeserializer deserializer);
 
   @protected
@@ -2107,6 +2185,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SlashCause sse_decode_slash_cause(SseDeserializer deserializer);
+
+  @protected
+  SolverRole sse_decode_solver_role(SseDeserializer deserializer);
 
   @protected
   ThemeMode sse_decode_theme_mode(SseDeserializer deserializer);
@@ -2148,9 +2229,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_u_8(SseDeserializer deserializer);
-
-  @protected
-  U8Array32 sse_decode_u_8_array_32(SseDeserializer deserializer);
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
@@ -2234,6 +2312,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageStream(
     MessageStream self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStream(
+    MessageUpdateStream self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStream(
+    MyReputationStream self,
     SseSerializer serializer,
   );
 
@@ -2407,6 +2499,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStream(
+    MessageUpdateStream self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStream(
+    MyReputationStream self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerOrderDeltaStream(
     OrderDeltaStream self,
     SseSerializer serializer,
@@ -2570,6 +2676,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageStream(
     MessageStream self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStream(
+    MessageUpdateStream self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStream(
+    MyReputationStream self,
     SseSerializer serializer,
   );
 
@@ -2783,12 +2903,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_box_autoadd_community_profile(
-    CommunityProfile self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_box_autoadd_connection_state(
     ConnectionState self,
     SseSerializer serializer,
@@ -2833,6 +2947,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_log_entry(
     LogEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_my_reputation(
+    MyReputation self,
     SseSerializer serializer,
   );
 
@@ -2951,10 +3071,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_chat_message(ChatMessage self, SseSerializer serializer);
 
   @protected
-  void sse_encode_community_profile(
-    CommunityProfile self,
-    SseSerializer serializer,
-  );
+  void sse_encode_chat_reaction(ChatReaction self, SseSerializer serializer);
 
   @protected
   void sse_encode_connection_state(
@@ -3056,6 +3173,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_chat_reaction(
+    List<ChatReaction> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_fiat_order_count(
     List<FiatOrderCount> self,
     SseSerializer serializer,
@@ -3091,12 +3214,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_order_info(
     List<OrderInfo> self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_list_payment_details(
-    List<PaymentDetails> self,
     SseSerializer serializer,
   );
 
@@ -3141,6 +3258,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     MostroNodeStats self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_my_reputation(MyReputation self, SseSerializer serializer);
 
   @protected
   void sse_encode_new_order_params(
@@ -3206,12 +3326,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_opt_box_autoadd_community_profile(
-    CommunityProfile? self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_opt_box_autoadd_connection_state(
     ConnectionState? self,
     SseSerializer serializer,
@@ -3259,6 +3373,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_log_entry(
     LogEntry? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_my_reputation(
+    MyReputation? self,
     SseSerializer serializer,
   );
 
@@ -3395,12 +3515,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_payment_details(
-    PaymentDetails self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_payment_result(PaymentResult self, SseSerializer serializer);
 
   @protected
@@ -3443,6 +3557,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_slash_cause(SlashCause self, SseSerializer serializer);
 
   @protected
+  void sse_encode_solver_role(SolverRole self, SseSerializer serializer);
+
+  @protected
   void sse_encode_theme_mode(ThemeMode self, SseSerializer serializer);
 
   @protected
@@ -3483,9 +3600,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_u_8(int self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_u_8_array_32(U8Array32 self, SseSerializer serializer);
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
@@ -3849,6 +3963,74 @@ class RustLibWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageStream =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageStreamPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStream(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStream(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStreamPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_mostro_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStream',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStream =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStreamPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStream(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStream(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStreamPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_mostro_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStream',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStream =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMessageUpdateStreamPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStream(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStream(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStreamPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_mostro_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStream',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStream =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStreamPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStream(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStream(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStreamPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_mostro_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStream',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStream =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMyReputationStreamPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void

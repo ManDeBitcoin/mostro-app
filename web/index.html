@@ -46,37 +46,42 @@
       navigator.serviceWorker
         .register('firebase-messaging-sw.js', { scope: 'firebase-cloud-messaging-push-scope' })
         .catch(function (e) { console.warn('messaging worker not registered', e); });
-
-      // Clean up legacy Flutter service worker if previously registered at root scope
-      navigator.serviceWorker.getRegistrations().then(function (registrations) {
-        for (var i = 0; i < registrations.length; i++) {
-          var reg = registrations[i];
-          if (reg.active && reg.active.scriptURL && reg.active.scriptURL.indexOf('flutter_service_worker.js') !== -1) {
-            reg.unregister();
-          }
-        }
-      }).catch(function () {});
     }
+  </script>
 
-    // Clean up legacy Flutter app cache
-    if ('caches' in window) {
-      caches.keys().then(function (names) {
-        for (var i = 0; i < names.length; i++) {
-          if (names[i].indexOf('flutter-app-cache') !== -1) {
-            caches.delete(names[i]);
-          }
-        }
-      }).catch(function () {});
-    }
+  <!--
+    Install offer (#778). The browser fires beforeinstallprompt when it would
+    install the app, often before Flutter has started, and the page can show
+    its install dialog once from that event. Kept here for the order book's
+    card (lib/core/web/pwa_install_web.dart reads these names);
+    preventDefault() also stops Chrome's own mini-infobar, so the app decides
+    when to ask. Chromium only: Safari and Firefox never fire it.
+  -->
+  <script>
+    window.mostroInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      window.mostroInstallPrompt = e;
+      window.dispatchEvent(new Event('mostro-install-change'));
+    });
+    window.addEventListener('appinstalled', function () {
+      window.mostroInstallPrompt = null;
+      window.dispatchEvent(new Event('mostro-install-change'));
+    });
   </script>
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Non-custodial, peer-to-peer Bitcoin and Lightning Network exchange over Nostr.">
-  <meta name="theme-color" content="#121212">
+  <meta name="description" content="Non-custodial, peer-to-peer Bitcoin exchange on Lightning, powered by Nostr.">
+  <meta name="theme-color" content="#1B1E28">
 
-  <!-- iOS meta tags & icons -->
+  <!--
+    iOS reads these, not the manifest, when the page is added to the home
+    screen. An installed (home-screen) app is also the only way Safari allows
+    web push (docs/PUSH_NOTIFICATIONS.md §2.6).
+  -->
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Mostro">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
@@ -84,10 +89,8 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>Mostro P2P</title>
+  <title>Mostro</title>
   <link rel="manifest" href="manifest.json">
-  <!-- ZXing library for mobile_scanner QR decoding on web -->
-  <script id="mobile-scanner-zxing-js" src="zxing.min.js"></script>
 </head>
 <body>
   <!-- locale-sanitizer: must stay between the isolation shim and

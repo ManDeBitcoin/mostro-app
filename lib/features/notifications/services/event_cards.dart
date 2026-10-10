@@ -9,7 +9,9 @@
 ///
 /// Three filters keep the list about news:
 /// - the event predates the current identity (a restore replays history
-///   the user already lived through elsewhere);
+///   the user already lived through elsewhere), or Rust only re-states a
+///   status, dated now ([TradeUpdateReason.replayed]: a restore filing an
+///   old trade, a re-read after the peer's reputation);
 /// - its toggle in Settings → Notifications is off;
 /// - it is the user's own doing (their own messages, their own cancel, the
 ///   maker bond of their own order) or not a trade state at all (the public
@@ -56,7 +58,6 @@ class EventCards {
     required this.identityCreatedAt,
     required this.currentLocation,
     this.disputeIdForTrade = _noDispute,
-    this.onNotificationAlert,
   });
 
   final NotificationsNotifier Function() notifications;
@@ -75,97 +76,27 @@ class EventCards {
   /// solver message is skipped while that chat is on screen (PR #596).
   final String? Function(String tradeId) disputeIdForTrade;
 
-  /// Optional callback to alert the host system (local/web notification)
-  /// when an event arrives and the user is not actively on that screen.
-  final Future<void> Function({
-    required String title,
-    required String body,
-    String? tag,
-    String? orderId,
-  })?
-  onNotificationAlert;
-
   static String? _noDispute(String tradeId) => null;
-
-  /// Avoid duplicate OS alerts for the same order and status transition.
-  final Set<String> _alertedTradeKeys = {};
 
   Future<void> onTradeUpdate(TradeUpdate update) async {
     final event = tradeCardEvent(update.status);
     if (event == null) return;
     if (update.reason == TradeUpdateReason.userCanceled) return;
+    // Dated now, so the identity's date cannot filter it, and on a fresh
+    // install no card exists to dedupe it against (#770).
+    if (update.reason == TradeUpdateReason.replayed) return;
     if (!isEnabled(event)) return;
     final at = _secondsToDate(update.occurredAt);
     if (await _predatesIdentity(at)) return;
-    final model = NotificationModel.tradeStatus(
-      orderId: update.orderId,
-      status: update.status.name,
-      reason: update.reason?.name,
-      at: at,
+    await notifications().addIfNew(
+      NotificationModel.tradeStatus(
+        orderId: update.orderId,
+        status: update.status.name,
+        reason: update.reason?.name,
+        at: at,
+      ),
     );
-    await notifications().addIfNew(model);
-    if (onNotificationAlert != null) {
-      final alertKey = '${update.orderId}:${update.status.name}';
-      if (_alertedTradeKeys.contains(alertKey)) return;
-      _alertedTradeKeys.add(alertKey);
-
-      if (!_isOrderOnScreen(update.orderId)) {
-        final (title, body) = _tradeNotificationCopy(
-          update.status,
-          update.reason,
-        );
-        await onNotificationAlert!(
-          title: title,
-          body: body,
-          tag: 'trade-${update.orderId}',
-          orderId: update.orderId,
-        );
-      }
-    }
   }
-
-  bool _isOrderOnScreen(String orderId) {
-    final location = currentLocation();
-    return location == AppRoute.tradeDetailPath(orderId);
-  }
-
-  static (String, String) _tradeNotificationCopy(
-    OrderStatus status,
-    TradeUpdateReason? reason,
-  ) => switch (status) {
-    OrderStatus.waitingPayment => (
-      'Mostro: Pago requerido',
-      'Se requiere realizar el pago para avanzar con la operación.',
-    ),
-    OrderStatus.waitingBuyerInvoice => (
-      'Mostro: Factura requerida',
-      'Ingresa tu dirección o factura Lightning para recibir los fondos.',
-    ),
-    OrderStatus.fiatSent => (
-      'Mostro: Pago fiat enviado',
-      'La contraparte indicó que ya envió el pago. Por favor verifica tu cuenta.',
-    ),
-    OrderStatus.settledHoldInvoice => (
-      'Mostro: Custodia asegurada',
-      'Los fondos en custodia están confirmados. La operación está activa.',
-    ),
-    OrderStatus.success => (
-      'Mostro: Operación completada',
-      '¡Los satoshis han sido liberados con éxito!',
-    ),
-    OrderStatus.dispute => (
-      'Mostro: Disputa abierta',
-      'Se ha iniciado una disputa en la orden. Un mediador intervendrá.',
-    ),
-    OrderStatus.canceled || OrderStatus.canceledByAdmin => (
-      'Mostro: Orden cancelada',
-      'La operación ha sido cancelada.',
-    ),
-    _ => (
-      'Mostro: Actualización de orden',
-      'Hay una nueva actualización en tu orden de intercambio.',
-    ),
-  };
 
   /// Whether the room a message belongs to is on screen: the P2P chat, or
   /// the dispute chat (under either of its routes) for the solver's.
@@ -206,34 +137,17 @@ class EventCards {
         return NotificationModel.chatMessages(
           tradeId: message.tradeId,
           fromSolver: fromSolver,
-          count: existing == null || existing.isRead
-              ? 1
-              : existing.chatUnreadCount + 1,
-          at: existing != null && existing.timestamp.isAfter(at)
-              ? existing.timestamp
-              : at,
+          count:
+              existing == null || existing.isRead
+                  ? 1
+                  : existing.chatUnreadCount + 1,
+          at:
+              existing != null && existing.timestamp.isAfter(at)
+                  ? existing.timestamp
+                  : at,
         );
       },
     );
-
-    if (!_isOnScreen(message.tradeId, fromSolver) &&
-        onNotificationAlert != null &&
-        isEnabled(NotificationEvent.newMessages) &&
-        !predatesIdentity) {
-      final shortId = message.tradeId.length > 8
-          ? message.tradeId.substring(0, 8)
-          : message.tradeId;
-      final title = fromSolver
-          ? 'Mostro: Mensaje de mediador'
-          : 'Mostro: Nuevo mensaje';
-      final body = 'Tienes un nuevo mensaje en la orden $shortId';
-      await onNotificationAlert!(
-        title: title,
-        body: body,
-        tag: 'chat-${message.tradeId}',
-        orderId: message.tradeId,
-      );
-    }
   }
 
   Future<bool> _predatesIdentity(DateTime at) async {

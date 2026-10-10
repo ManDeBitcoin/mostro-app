@@ -15,31 +15,8 @@ String shortOrderId(String id, {int head = 8, int tail = 4}) {
 }
 
 // ── Countdown ─────────────────────────────────────────────────────────────────
-
-/// `23:12` (h:mm) above an hour; `12:40` (mm:ss) under it. Seconds above an
-/// hour would force a repaint every second for nothing.
-String formatRemaining(Duration remaining) {
-  final d = remaining.isNegative ? Duration.zero : remaining;
-  String two(int n) => n.toString().padLeft(2, '0');
-  if (d.inHours >= 1) return '${d.inHours}:${two(d.inMinutes % 60)}';
-  return '${two(d.inMinutes)}:${two(d.inSeconds % 60)}';
-}
-
-/// How often the countdown should repaint for [remaining].
-Duration countdownTick(Duration remaining) =>
-    remaining.inHours >= 1
-        ? const Duration(minutes: 1)
-        : const Duration(seconds: 1);
-
-/// Urgency of the taker's countdown: calm above an hour, warning under it,
-/// urgent under five minutes (handoff 7a).
-enum CountdownTone { calm, warning, urgent }
-
-CountdownTone countdownTone(Duration remaining) {
-  if (remaining.inHours >= 1) return CountdownTone.calm;
-  if (remaining >= const Duration(minutes: 5)) return CountdownTone.warning;
-  return CountdownTone.urgent;
-}
+// Formatting, ticking and tones live in `lib/shared/utils/countdown.dart`
+// (DS-CMP-21).
 
 /// Share of the order's lifetime already elapsed, in `[0, 1]`. Zero when
 /// the order carries no expiry.
@@ -57,15 +34,8 @@ double orderLifeProgress({
 
 // ── Sats estimate ─────────────────────────────────────────────────────────────
 
-/// Whole sats the node trades [fiat] for at [rate] (fiat per BTC) with an
-/// order [premium] in percent, or null when there is no usable rate or the
-/// result is not a positive amount.
-///
-/// The daemon's own arithmetic, step for step (mostrod `get_market_quote`):
-/// the sats [fiat] is worth at [rate], less [premium] percent of them,
-/// truncated. So a positive premium means fewer sats for the same fiat. It is
-/// not `fiat / (rate × (1 + premium / 100))`: at a 10 % premium the two
-/// differ by about 1 %.
+/// Whole sats [fiat] buys at [rate] (fiat per BTC) once [premium] percent is
+/// applied to the price, or null when there is no usable rate.
 ///
 /// An estimate only: the daemon prices the order when it is taken, from its
 /// own rate at that moment.
@@ -75,10 +45,9 @@ int? estimateSats({
   required double premium,
 }) {
   if (rate == null || !rate.isFinite || rate <= 0) return null;
-  var sats = fiat / rate * 100000000;
-  if (premium != 0) sats -= premium / 100 * sats;
-  if (!sats.isFinite || sats <= 0) return null;
-  return sats.truncate();
+  final price = rate * (1 + premium / 100);
+  if (!price.isFinite || price <= 0) return null;
+  return (fiat / price * 100000000).round();
 }
 
 // ── Payment methods ───────────────────────────────────────────────────────────

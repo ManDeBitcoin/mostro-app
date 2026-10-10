@@ -3,30 +3,41 @@ import 'package:mostro/src/rust/api/types.dart';
 /// Builds a [TradeInfo] exposing only the fields the trades-list mapping reads.
 /// [startedAt] is the newest-first sort key. `currentStep` is unread by the
 /// mapping, so it takes an arbitrary value. The order id is `order-$id`
-/// unless [orderId] names one.
+/// unless [orderId] names one. [fiatAmountMin]/[fiatAmountMax] make it a
+/// range order; [fiatAmount] is then the slice a take priced, if any.
+/// [completedAt] is when Rust recorded the completion (Unix seconds).
+/// [kind] is the order's side, a sell order unless given.
 TradeInfo fakeTrade({
   String id = 'trade-1',
   String? orderId,
   OrderStatus status = OrderStatus.active,
+  OrderKind kind = OrderKind.sell,
   TradeRole role = TradeRole.buyer,
   String fiatCode = 'USD',
   String paymentMethod = 'Wire',
   bool isMine = false,
   int startedAt = 1000,
+  int? completedAt,
   BigInt? amountSats,
+  double? fiatAmount = 100,
+  double? fiatAmountMin,
+  double? fiatAmountMax,
   String? holdInvoice,
   double? peerRating,
   int? peerReviews,
   int? peerDays,
+  int? peerSince,
   BondInfo? bond,
   CooperativeCancelState? cooperativeCancelState,
 }) {
   final order = OrderInfo(
     id: orderId ?? 'order-$id',
-    kind: OrderKind.sell,
+    kind: kind,
     status: status,
     amountSats: amountSats,
-    fiatAmount: 100,
+    fiatAmount: fiatAmount,
+    fiatAmountMin: fiatAmountMin,
+    fiatAmountMax: fiatAmountMax,
     fiatCode: fiatCode,
     paymentMethod: paymentMethod,
     premium: 0,
@@ -47,10 +58,12 @@ TradeInfo fakeTrade({
     tradeKeyIndex: 0,
     cashuRejectedEscrowTokens: const [],
     startedAt: startedAt,
+    completedAt: completedAt,
     holdInvoice: holdInvoice,
     peerRating: peerRating,
     peerReviews: peerReviews,
     peerDays: peerDays,
+    peerSince: peerSince,
     bond: bond,
     cooperativeCancelState: cooperativeCancelState,
   );

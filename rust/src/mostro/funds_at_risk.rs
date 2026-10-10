@@ -95,7 +95,7 @@ fn entry(order_id: &str, reason: FundsAtRiskReason, amount_sats: Option<u64>) ->
 /// The seller's hold invoice is paid and held from `Active` until the trade
 /// ends. Decided on the status, not on `TradeInfo::hold_invoice`: a row
 /// rebuilt by a restore carries no bolt11, and its sats are just as locked.
-pub(crate) fn escrow_is_locked(status: &OrderStatus) -> bool {
+fn escrow_is_locked(status: &OrderStatus) -> bool {
     matches!(
         status,
         OrderStatus::Active | OrderStatus::FiatSent | OrderStatus::Dispute
@@ -123,6 +123,9 @@ fn severity(reason: &FundsAtRiskReason) -> u8 {
         FundsAtRiskReason::PayoutClaimOpen => 2,
         FundsAtRiskReason::TradeInProgress => 3,
         FundsAtRiskReason::BondInvoicePending => 4,
+        // Not a trade risk: `api::identity::funds_at_risk` lists it after
+        // the ones this module ranks.
+        FundsAtRiskReason::CashuWalletBalance => 5,
     }
 }
 
@@ -156,6 +159,8 @@ mod tests {
                 rating: 0.0,
                 total_reviews: 0,
                 days_active: 0,
+                maker_since: None,
+                cashu_mint_url: None,
             },
             role,
             counterparty_pubkey: String::new(),
@@ -171,6 +176,7 @@ mod tests {
             peer_rating: None,
             peer_reviews: None,
             peer_days: None,
+            peer_since: None,
             rated_at: None,
             bond: None,
             buyer_trade_pubkey: None,

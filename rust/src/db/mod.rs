@@ -40,6 +40,12 @@ pub mod settings_keys {
     /// history (#614).
     pub const RESTORE_SNAPSHOT: &str = "restore_snapshot";
 
+    /// The user's own reputation as each node last reported it (`user-info`),
+    /// JSON map of node pubkey (hex) →
+    /// [`crate::api::my_reputation::MyReputation`] with the identity that
+    /// asked. Identity-scoped: it is that identity's reputation.
+    pub const MY_REPUTATION: &str = "my_reputation";
+
     // ── Push notifications (docs/PUSH_NOTIFICATIONS.md §7.1, §8.1) ──────────
 
     /// The master toggle, `"true"` / `"false"`; absent reads as enabled.
@@ -73,17 +79,6 @@ pub mod settings_keys {
     /// startup and by every `fetch_mostro_node_stats`.
     pub const MOSTRO_NODE_INFO: &str = "mostro_node_info";
 
-    /// Active community profile, JSON object of `crate::api::community::CommunityProfile`.
-    pub const ACTIVE_COMMUNITY_PROFILE: &str = "active_community_profile";
-
-    /// Cached accepted payment methods for the active community, JSON array of strings.
-    pub const COMMUNITY_PAYMENT_METHODS: &str = "community_payment_methods";
-
-    /// When the node signed the community card the profile above came from
-    /// (`mostro::community_card`), in seconds: an older card never replaces
-    /// a newer one. Absent for a profile no card produced.
-    pub const COMMUNITY_CARD_AT: &str = "community_card_at";
-
     /// Developer escrow-mode override — `"auto"` or `"force_cashu"`.
     /// See [`crate::mostro::escrow_mode::EscrowModeOverride`].
     pub const ESCROW_MODE_OVERRIDE: &str = "escrow_mode_override";
@@ -91,6 +86,16 @@ pub mod settings_keys {
     /// Developer mint-URL override, pointing Cashu at a local mint instead of
     /// the one the node advertises.
     pub const CASHU_MINT_URL_OVERRIDE: &str = "cashu_mint_url_override";
+
+    /// The mint the Cashu wallet is bound to, chosen by the user. A device
+    /// preference, independent of the active node: a node switch never changes
+    /// it (docs/cashu/README.md §1.2, C2).
+    pub const CASHU_WALLET_MINT_URL: &str = "cashu_wallet_mint_url";
+
+    /// The identity (pubkey hex) an older install's shared Cashu proof store
+    /// belongs to: recorded at the first identity load after the upgrade, so
+    /// only that identity ever adopts it (`api::cashu::claim_legacy_store`).
+    pub const CASHU_LEGACY_STORE_OWNER: &str = "cashu_legacy_store_owner";
 
     /// Per-order chat `since` cursor — the `created_at` (unix seconds, decimal
     /// string) of the newest accepted outer chat event, clamped to the local
@@ -118,6 +123,29 @@ pub mod settings_keys {
         format!("{DISPUTE_ADMIN_PREFIX}{order_id}")
     }
 
+    /// Per-order time the current dispute solver was assigned (the
+    /// `created_at` of its `admin-took-dispute`), stored as
+    /// `<unix seconds>:<solver pubkey hex>`.
+    pub const DISPUTE_ADMIN_AT_PREFIX: &str = "dispute_admin_at:";
+
+    /// Build the settings key holding when the dispute solver of `order_id`
+    /// was assigned. A dispute can change solver (a takeover), and the
+    /// catch-up channel replays every assignment in no guaranteed order, so
+    /// after a restart this is what tells an older one apart.
+    pub fn dispute_admin_at(order_id: &str) -> String {
+        format!("{DISPUTE_ADMIN_AT_PREFIX}{order_id}")
+    }
+
+    /// Per-order prefix for the node a dispute belongs to (hex): the node
+    /// that sent its `admin-took-dispute`. Only that node's Serbero
+    /// announcement labels its solvers (#637).
+    pub const DISPUTE_NODE_PREFIX: &str = "dispute_node:";
+
+    /// Build the settings key holding the node of `order_id`'s dispute.
+    pub fn dispute_node(order_id: &str) -> String {
+        format!("{DISPUTE_NODE_PREFIX}{order_id}")
+    }
+
     /// Per-order marker that *this* side opened the dispute.
     pub const DISPUTE_MINE_PREFIX: &str = "dispute_mine:";
 
@@ -129,24 +157,15 @@ pub mod settings_keys {
         format!("{DISPUTE_MINE_PREFIX}{order_id}")
     }
 
-    /// Per-order id of the dispute, as the node assigned it.
-    pub const DISPUTE_ID_PREFIX: &str = "dispute_id:";
+    /// Per-order marker that this side sent the dispute's solver the chat
+    /// key (#415). The value is the solver's pubkey (hex): a takeover brings
+    /// a solver who never got it, so the marker only counts for that solver.
+    pub const DISPUTE_KEY_SHARED_PREFIX: &str = "dispute_key_shared:";
 
-    /// Build the settings key holding the node's dispute id for `order_id`.
-    ///
-    /// The id arrives in one message per party and in no other —
-    /// `dispute-initiated-by-you` for whoever opened the dispute,
-    /// `dispute-initiated-by-peer` for the other, both with
-    /// `payload: {"dispute": ["<id>", null]}` — and nothing public links a
-    /// dispute to its order: the Kind 38386 event names the dispute, not the
-    /// order. So, like the solver pubkey and the origin marker next to it,
-    /// it is kept here for the record a restart has to rebuild. Before, the
-    /// rebuilt record carried a freshly minted UUID, and the party that did
-    /// not open the dispute had no record at all until a solver took it.
-    ///
-    /// Cleared with the other dispute keys once the trade is over.
-    pub fn dispute_id(order_id: &str) -> String {
-        format!("{DISPUTE_ID_PREFIX}{order_id}")
+    /// Build the settings key marking that `order_id`'s chat key went to its
+    /// dispute solver. Persisted so a restart never offers to send it twice.
+    pub fn dispute_key_shared(order_id: &str) -> String {
+        format!("{DISPUTE_KEY_SHARED_PREFIX}{order_id}")
     }
 
     /// Per-order status replay cursor — the `created_at` (unix seconds,
@@ -219,53 +238,29 @@ pub mod settings_keys {
     /// canceled order can be legitimately re-taken (`persist_trade_row`).
     pub const TRADE_WIPED_PREFIX: &str = "trade_wiped:";
 
-    /// Prefix of [`PAYMENT_DETAILS_SAVED`], the one key under it. A prefix
-    /// for a single key because the prefix is what puts it in
-    /// [`IDENTITY_SCOPED_PREFIXES`], and so in the identity wipe of both
-    /// backends, with no line added to either.
-    pub const PAYMENT_DETAILS_PREFIX: &str = "payment_details:";
-
-    /// How the seller is paid, per payment method, as they typed it: a JSON
-    /// array of `{method, details}` (`mostro::payment_details`).
-    ///
-    /// Account numbers, holder names, phone numbers. They belong to the person
-    /// behind the identity, not to the device, so they go with the identity.
-    /// Never logged, and never sent anywhere but to the buyer of a trade whose
-    /// escrow is locked, inside a chat envelope.
-    pub const PAYMENT_DETAILS_SAVED: &str = "payment_details:saved";
-
-    /// Per-order mark that the seller's payment details went to the buyer:
-    /// the `created_at` (unix seconds, decimal string) of the chat message
-    /// that carried them, which a relay accepted. Full key is
-    /// `payment_details_sent:<order_id>`; build it with
-    /// [`payment_details_sent`].
-    pub const PAYMENT_DETAILS_SENT_PREFIX: &str = "payment_details_sent:";
-
-    /// Build the settings key holding when `order_id`'s payment details were
-    /// sent.
-    pub fn payment_details_sent(order_id: &str) -> String {
-        format!("{PAYMENT_DETAILS_SENT_PREFIX}{order_id}")
-    }
-
-    /// Every key family above that an identity wrote. The single
-    /// identity-scoped keys — [`BOND_CLAIM_RETAINED_NODES`] and
-    /// [`RESTORE_SNAPSHOT`] — are dropped by name next to them.
-    /// All of it describes the identity that wrote it — its trades, and how
-    /// its owner is paid — so [`super::Storage::clear_identity_data`] drops it
-    /// with the rows. What is left in the store is device preference: the
-    /// active node, custom nodes, node caches, push token and toggle,
-    /// developer overrides.
+    /// Every per-order key family above. The single identity-scoped keys
+    /// ([`IDENTITY_SCOPED_KEYS`]) are dropped by name next to them.
+    /// All of it describes trades of the identity that wrote it, so
+    /// [`super::Storage::clear_identity_data`] drops it with the rows. What
+    /// is left in the store is device preference: the active node, custom
+    /// nodes, node caches, push token and toggle, developer overrides.
     pub const IDENTITY_SCOPED_PREFIXES: [&str; 9] = [
         CHAT_CURSOR_PREFIX,
         DISPUTE_ADMIN_PREFIX,
+        DISPUTE_ADMIN_AT_PREFIX,
+        DISPUTE_NODE_PREFIX,
         DISPUTE_MINE_PREFIX,
-        DISPUTE_ID_PREFIX,
+        DISPUTE_KEY_SHARED_PREFIX,
         STATUS_CURSOR_PREFIX,
         INVOICE_STEP_PREFIX,
         TRADE_WIPED_PREFIX,
-        PAYMENT_DETAILS_PREFIX,
-        PAYMENT_DETAILS_SENT_PREFIX,
     ];
+
+    /// The single keys that describe the identity, not the device, dropped
+    /// with [`IDENTITY_SCOPED_PREFIXES`] by
+    /// [`super::Storage::clear_identity_data`].
+    pub const IDENTITY_SCOPED_KEYS: [&str; 3] =
+        [BOND_CLAIM_RETAINED_NODES, RESTORE_SNAPSHOT, MY_REPUTATION];
 
     /// Build the settings key marking `order_id`'s trade row as wiped.
     pub fn trade_wiped(order_id: &str) -> String {
@@ -290,8 +285,15 @@ pub trait Storage: Send + Sync {
     async fn delete_order(&self, id: &str) -> Result<()>;
     async fn list_orders(&self) -> Result<Vec<crate::api::types::OrderInfo>>;
 
+    /// Insert or replace the row keyed by [`TradeInfo::id`] — the row's own
+    /// id, **not** the order's, and sometimes but not always a different
+    /// value (see [`crate::api::types::TradeInfo::id`]). This is the only
+    /// method that keys on it: everything that looks a trade up does so by
+    /// `order.id`, which is correct whether or not the two happen to match.
+    /// Replacing a row therefore requires the same `id` the row was saved
+    /// with, which is why a rebuild carries it forward rather than minting a
+    /// new one.
     async fn save_trade(&self, trade: &crate::api::types::TradeInfo) -> Result<()>;
-    async fn get_trade(&self, id: &str) -> Result<Option<crate::api::types::TradeInfo>>;
     async fn list_trades(&self) -> Result<Vec<crate::api::types::TradeInfo>>;
 
     async fn save_message(&self, msg: &crate::api::types::ChatMessage) -> Result<()>;
@@ -352,8 +354,8 @@ pub trait Storage: Send + Sync {
     /// messages and their cached attachments, payout claims, the outbound
     /// queue, the cached order book
     /// (its `is_mine` marks are the identity's) and the per-order settings
-    /// ([`settings_keys::IDENTITY_SCOPED_PREFIXES`] and the retained-nodes
-    /// map). Used on identity deletion, next to [`Self::clear_trade_keys`]:
+    /// ([`settings_keys::IDENTITY_SCOPED_PREFIXES`] and
+    /// [`settings_keys::IDENTITY_SCOPED_KEYS`]). Used on identity deletion, next to [`Self::clear_trade_keys`]:
     /// a new user must start as on a fresh install (issue #533). Relays,
     /// the node choice and preferences stay — they belong to the device.
     async fn clear_identity_data(&self) -> Result<()>;
@@ -414,16 +416,30 @@ pub trait Storage: Send + Sync {
         amount_sats: Option<u64>,
     ) -> Result<()>;
 
+    /// Write the slice a take priced out of a range order — `fiat_amount`
+    /// and `amount_sats` exactly as given, `None` clearing the field — on the
+    /// trade identified by `order.id`. The range bounds are left alone. No-op
+    /// when no matching trade exists.
+    async fn set_trade_range_slice(
+        &self,
+        order_id: &str,
+        fiat_amount: Option<f64>,
+        amount_sats: Option<u64>,
+    ) -> Result<()>;
+
     /// Persist the counterparty (taker) reputation snapshot on a trade
     /// identified by `order.id` (issue #305). No-op when no matching trade
     /// exists. `days` saturates at `u32::MAX`; a full-privacy taker sends no
-    /// snapshot, so this is only called when one was carried.
+    /// snapshot, so this is only called when one was carried. `since` is the
+    /// Unix timestamp of the taker's first trade (`None` from daemons that
+    /// predate it), stored as `peer_since` next to `peer_days`.
     async fn update_trade_peer_reputation(
         &self,
         order_id: &str,
         rating: f64,
         reviews: u32,
         days: u32,
+        since: Option<i64>,
     ) -> Result<()>;
 
     /// Replace the anti-abuse bond attached to a trade (`$.bond`), keeping
@@ -441,6 +457,13 @@ pub trait Storage: Send + Sync {
     /// duplicate-rating guard survive a restart. No-op when no matching trade
     /// exists.
     async fn mark_trade_rated(&self, order_id: &str, rated_at: i64) -> Result<()>;
+
+    /// Record when the trade identified by `order.id` completed
+    /// (`$.completed_at`, unix seconds), unless it already has a time: the
+    /// first write wins, so a replayed `success` never moves it. It dates the
+    /// peer chat's grace window (issue #642). No-op when no matching trade
+    /// exists.
+    async fn mark_trade_completed(&self, order_id: &str, completed_at: i64) -> Result<()>;
 
     /// Record who asked to cancel an active trade cooperatively
     /// (`$.cooperative_cancel_state`) on the trade identified by `order.id`.
@@ -482,6 +505,33 @@ pub trait Storage: Send + Sync {
 
     /// Remove one claim. No-op when absent.
     async fn delete_bond_claim(&self, node_pubkey: &str, order_id: &str) -> Result<()>;
+
+    // ── Announcements (specs/006-announcement-channel §5.4) ─────────────────
+    //
+    // Device-scoped: [`Self::clear_identity_data`] leaves them alone, since
+    // they are addressed to the install, not to a user. The defaults keep
+    // nothing, for stores with no cache: announcements then show only while
+    // a relay serves them. SQLite and IndexedDB both implement all three.
+
+    /// Insert or replace the announcement at its address.
+    async fn save_announcement(
+        &self,
+        _announcement: &crate::nostr::announcement_reader::StoredAnnouncement,
+    ) -> Result<()> {
+        Ok(())
+    }
+
+    /// Every stored announcement, newest `created_at` first.
+    async fn list_announcements(
+        &self,
+    ) -> Result<Vec<crate::nostr::announcement_reader::StoredAnnouncement>> {
+        Ok(Vec::new())
+    }
+
+    /// Remove the announcement at `address`. No-op when absent.
+    async fn delete_announcement(&self, _address: &str) -> Result<()> {
+        Ok(())
+    }
 
     // ── Chat attachment cache (#589) ──────────────────────────────────────────
 
