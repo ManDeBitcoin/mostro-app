@@ -11,6 +11,7 @@ and edits no upstream file, so merging upstream never conflicts:
 | `docker/nginx.conf` | Cross-origin isolation headers, SPA fallback, cache policy |
 | `docker/README.md` | This file |
 | `test/web/nginx_cache_test.dart` | Holds the cache policy of `docker/nginx.conf` |
+| `.claude/rules/fork.md` | How to work in this fork: upstream vs fork-only changes (Spanish; Claude Code loads it) |
 
 Anything else that differs from `upstream/main` is a mistake. Check with:
 
