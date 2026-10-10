@@ -103,9 +103,9 @@ Archivos de upstream editados en el fork: **ninguno**.
   `lib/core/mostro_defaults.dart`. Upstream no tiene hoy esa opción para builds de producción;
   `MOSTRO_PUB_KEY` existe, pero solo en el entorno de pruebas Mortsom (`lib/core/test_environment.dart`,
   con su banner rojo), así que no sirve aquí.
-- **Ruta:** carril upstream. Proponer en un issue la opción de compilación para el nodo
-  predeterminado (como `PUSH_SERVER_URL`); cuando upstream la fusione, el fork la pasa como
-  argumento de build en `Dockerfile.web`, sin desviaciones.
+- **Ruta: carril fork.** Es solo para nuestro despliegue; por ahora no se propone a upstream.
+  Cómo aplicarlo (argumento de build en `Dockerfile.web`, o desviación en los dos archivos de
+  arriba): pendiente de aprobación.
 
 ## El código personalizado anterior
 
