@@ -8,6 +8,8 @@ import 'package:mostro/features/trades/providers/trades_providers.dart'
     show tradeInfoProvider;
 import 'package:mostro/shared/utils/platform_int64.dart';
 import 'package:mostro/src/rust/api/invoice.dart' as invoice_api;
+import 'package:mostro/src/rust/api/orders.dart' as orders_api;
+import 'package:mostro/src/rust/api/types.dart' show OrderStatus, PayoutSource;
 
 /// mostrod's default `expiration_seconds`, used while the node has not
 /// advertised its own.
@@ -23,6 +25,11 @@ final invoiceStepWindowProvider = Provider.autoDispose<Duration>(
         kDefaultInvoiceStepSeconds,
   ),
 );
+
+/// Whether the app runs in a browser, where Copy leads the invoice actions
+/// ([copyLeadsInvoice]). A provider rather than `kIsWeb` at the use site, so
+/// the screens can be tested both ways.
+final invoiceOnWebProvider = Provider<bool>((ref) => kIsWeb);
 
 /// What the add-invoice screen asks about the buyer's input.
 typedef InvoiceCheckRequest =
@@ -54,6 +61,31 @@ final invoiceCheckerProvider =
                       : BigInt.from(request.minRemainingSecs!),
               now: intToPlatformInt64(request.now),
             ),
+          ),
+    );
+
+/// A buyer invoice on its way to the node: the destination, with how it was
+/// chosen and the NWC wallet that made it, for the payout record (#823).
+typedef InvoiceSubmission =
+    ({
+      String orderId,
+      String invoice,
+      BigInt sats,
+      PayoutSource source,
+      String? walletName,
+    });
+
+/// Sends a buyer invoice through the bridge and waits for the node's
+/// verdict; a seam, so the screen's choice of source is testable.
+final invoiceSenderProvider =
+    Provider<Future<void> Function(InvoiceSubmission)>(
+      (ref) =>
+          (submission) => orders_api.sendInvoice(
+            orderId: submission.orderId,
+            invoiceOrAddress: submission.invoice,
+            amountSats: submission.sats,
+            source: submission.source,
+            walletName: submission.walletName,
           ),
     );
 
@@ -92,6 +124,9 @@ final invoiceDeadlineProvider = FutureProvider.autoDispose.family<int?, String>(
     // step does.
     final tradeFuture = ref.watch(tradeInfoProvider(orderId).future);
     final trade = await tradeFuture;
+    // A replacement invoice on a settled escrow has no window: mostrod's
+    // scheduler times only the waiting steps.
+    if (trade?.order.status == OrderStatus.settledHoldInvoice) return null;
     try {
       final started = await ref.read(invoiceStepStartLookupProvider)(orderId);
       if (started != null) {

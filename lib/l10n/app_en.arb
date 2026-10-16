@@ -388,6 +388,10 @@
   "@nodeCapabilitiesUnknown": {
     "description": "Error shown when a send fails closed because the selected node's capability fetch (PoW, protocol version) has not completed yet — retrying shortly usually succeeds"
   },
+  "tradeOnOtherNode": "This trade belongs to another Mostro node. Switch to that node to act on it",
+  "@tradeOnOtherNode": {
+    "description": "Error shown when a trade action (cancel, dispute, release, rating, invoice...) is refused before sending because the trade belongs to a Mostro node other than the selected one, or its node is unknown"
+  },
   "mostroMaintenanceMode": "The Mostro node you are connected to is under maintenance. Try again later, or connect to a different Mostro node in Settings",
   "@mostroMaintenanceMode": {
     "description": "Error shown when the selected Mostro node answers CantDo(MaintenanceMode): it is draining (for example before a Lightning node migration) and refuses new orders and takes until it is back"
@@ -1251,6 +1255,18 @@
   "@aboutFiatCurrenciesLabel": {
     "description": "About screen — Fiat Currencies row label"
   },
+  "aboutPriceSourceLabel": "Source",
+  "@aboutPriceSourceLabel": {
+    "description": "Technical data row, in the Price group: a price provider behind the exchange rates the Mostro node publishes now (Yadio, CoinGecko, El Toque…), as its rates event names them"
+  },
+  "aboutPriceSection": "Price",
+  "@aboutPriceSection": {
+    "description": "Technical data group title: the node's exchange rates, holding the price source row"
+  },
+  "aboutPriceSourcesFootnote": "Price sources are the providers behind the rates the node publishes now; one that failed or was set aside is not listed.",
+  "@aboutPriceSourcesFootnote": {
+    "description": "Technical data footnote, added when the Price group is shown: the sources are the providers of the rates published now, not every provider the node is configured with"
+  },
   "aboutMostroVersionLabel": "Mostro Version",
   "@aboutMostroVersionLabel": {
     "description": "About screen — Mostro Version row label"
@@ -1455,6 +1471,30 @@
   "failedToGenerateIdentityMessage": "Failed to generate identity. Please try again.",
   "@failedToGenerateIdentityMessage": {
     "description": "Snackbar shown when generating a new identity fails on the Account screen"
+  },
+  "pendingWipeBannerTitle": "Previous user's data is still on this device",
+  "@pendingWipeBannerTitle": {
+    "description": "Title of the Account screen warning shown while a deleted identity's data wipe is pending retry (issue #555)"
+  },
+  "pendingWipeBannerBody": "Deleting the previous identity could not remove its trades and chats from this device. The app will retry the next time a new user is generated or imported.",
+  "@pendingWipeBannerBody": {
+    "description": "Body of the pending-wipe warning on the Account screen"
+  },
+  "pendingWipeBlockedMessage": "The previous user's data could not be removed from this device, so the new user was not set up and your current user was kept. Please try again.",
+  "@pendingWipeBlockedMessage": {
+    "description": "Snackbar shown when generating or importing a user is refused because the previous identity's pending data wipe failed again, and the current user was loaded back (issue #555)"
+  },
+  "wipeNotRecordedMessage": "The current user could not be removed safely, so nothing was changed. Please try again.",
+  "@wipeNotRecordedMessage": {
+    "description": "Snackbar shown when generating or importing a user is refused before the current identity is deleted, because the device could not record that its data wipe is pending (issue #555)"
+  },
+  "identitySwapStorageUnavailableMessage": "This device's storage is not available right now, so the current user was kept and nothing was changed. Restart the app and try again.",
+  "@identitySwapStorageUnavailableMessage": {
+    "description": "Snackbar shown when generating or importing a user is refused because this session has no database, so the current identity cannot be deleted safely until the app restarts (review of #573)"
+  },
+  "identitySwapPreviousNotReloadedMessage": "The new user was not set up, and the current user could not be fully restored. Restart the app to load it again.",
+  "@identitySwapPreviousNotReloadedMessage": {
+    "description": "Snackbar shown when generating or importing a user is refused after the current identity was deleted, and that identity could not be loaded again — or was loaded but its session could not be rebuilt — in this session (review of #573)"
   },
   "invalidMnemonicMessage": "Invalid secret words. Please check your words and try again.",
   "@invalidMnemonicMessage": {
@@ -1874,6 +1914,14 @@
   "@tradeTimerExpiryBackToBook": {"description": "Trade screen countdown note on a waiting step the taker owes: mostrod puts the order back in the book when it runs out"},
   "tradeTimerExpiryCancelled": "If it expires, the order is cancelled.",
   "@tradeTimerExpiryCancelled": {"description": "Trade screen countdown note on a waiting step the maker owes: mostrod cancels the order when it runs out"},
+  "tradeTimerEscrowCancels": "Approximate time. If it runs out, Mostro cancels the trade.",
+  "@tradeTimerEscrowCancels": {"description": "Note under the countdown of an active trade: the time is estimated in Bitcoin blocks, and mostrod's escrow deadline guardian cancels the trade when it runs out"},
+  "tradeTimerEscrowDisputes": "Approximate time. If it runs out, Mostro opens a dispute.",
+  "@tradeTimerEscrowDisputes": {"description": "Note under the countdown of a fiat-sent trade: the time is estimated in Bitcoin blocks, and mostrod's escrow deadline guardian opens a dispute when it runs out"},
+  "tradeTimerEscrowCancelling": "Mostro is about to cancel the trade and return the sats to the seller.",
+  "@tradeTimerEscrowCancelling": {"description": "Note under the countdown of an active trade once it reaches zero: mostrod is about to cancel the trade and refund the seller's sats"},
+  "tradeTimerEscrowDisputing": "A dispute is about to be opened.",
+  "@tradeTimerEscrowDisputing": {"description": "Note under the countdown of a fiat-sent trade once it reaches zero: mostrod is about to open a dispute"},
   "tradeStepOrderTaken": "Order taken",
   "@tradeStepOrderTaken": {
     "description": "Timeline step: order taken"
@@ -2956,13 +3004,38 @@
   "@tradeChatLockedNote": {
     "description": "Line shown in place of the chat card until the trade is active"
   },
-  "tradeChatEncrypted": "End-to-end encrypted chat",
+  "tradeChatEncrypted": "End-to-end encrypted",
   "@tradeChatEncrypted": {
-    "description": "Subtitle of the chat card under the counterpart alias"
+    "description": "Second line of the trade screen's chat card under the role title"
   },
   "tradeChatClosed": "Conversation closed · view messages",
   "@tradeChatClosed": {
     "description": "Subtitle of the trade screen's chat card once the conversation has ended (trade cancelled, or completed more than an hour ago); tapping opens the conversation read-only"
+  },
+  "tradeChatWithBuyer": "Chat with the buyer",
+  "@tradeChatWithBuyer": {
+    "description": "Title of the trade screen's chat card when the counterpart is the buyer (the user sells)"
+  },
+  "tradeChatWithSeller": "Chat with the seller",
+  "@tradeChatWithSeller": {
+    "description": "Title of the trade screen's chat card when the counterpart is the seller (the user buys)"
+  },
+  "tradeChatWithCounterpart": "Chat with your counterpart",
+  "@tradeChatWithCounterpart": {
+    "description": "Title of the trade screen's chat card while the counterpart's role is not known yet"
+  },
+  "tradeChatNewMessages": "{count, plural, =1{1 new message} other{{count} new messages}}",
+  "@tradeChatNewMessages": {
+    "description": "Second line of the trade screen's chat card while it has unread messages; count is the number of unread messages",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tradeChatOpen": "Open",
+  "@tradeChatOpen": {
+    "description": "Trailing action label of the trade screen's chat card; tapping the card opens the conversation"
   },
   "tradeChatClosedAnnouncement": "The conversation is closed. You can still read its messages",
   "@tradeChatClosedAnnouncement": {
@@ -3014,10 +3087,6 @@
   "tradeTimerOrderHas": "Time left",
   "@tradeTimerOrderHas": {
     "description": "Countdown label of a pending order's time in the book"
-  },
-  "tradeTimerNoteCoordinate": "If you need more time, coordinate in the chat before it expires.",
-  "@tradeTimerNoteCoordinate": {
-    "description": "Note under the countdown of an active trade"
   },
   "tradeRoleBuyer": "Buyer",
   "@tradeRoleBuyer": {
@@ -4417,6 +4486,16 @@
   "@cashuErrorNoMnemonic": {"description": "Cashu wallet — permanent: an nsec-imported identity has no seed"},
   "cashuErrorTokenUnverified": "This token could not be verified: it carries no proof of the mint's signature, so it was not accepted.",
   "@cashuErrorTokenUnverified": {"description": "Cashu wallet — a received token has no usable DLEQ proof"},
+  "cashuErrorUnsupportedUnit": "This wallet only holds sats, and this token is in another unit (such as millisats or dollars). It was left untouched: you can redeem it in a wallet that supports its unit.",
+  "@cashuErrorUnsupportedUnit": {"description": "Cashu wallet — a received token is in a unit other than sats (msat, usd, …); refused before any mint was asked"},
+  "cashuErrorUnsupportedUnitNamed": "This wallet only holds sats, and this token is in {unit}. It was left untouched: you can redeem it in a wallet that supports that unit.",
+  "@cashuErrorUnsupportedUnitNamed": {"description": "Cashu wallet — a received token is in a unit the app can name; {unit} is one of cashuUnitMsat/Usd/Eur or an upper-case currency code", "placeholders": {"unit": {"type": "String", "example": "dollars (USD)"}}},
+  "cashuUnitMsat": "millisats",
+  "@cashuUnitMsat": {"description": "Cashu unit name inside cashuErrorUnsupportedUnitNamed — millisatoshis"},
+  "cashuUnitUsd": "dollars (USD)",
+  "@cashuUnitUsd": {"description": "Cashu unit name inside cashuErrorUnsupportedUnitNamed — US dollars"},
+  "cashuUnitEur": "euros (EUR)",
+  "@cashuUnitEur": {"description": "Cashu unit name inside cashuErrorUnsupportedUnitNamed — euros"},
   "cashuErrorSendUnresolved": "The send failed and the wallet could not confirm the funds are back. Sync with the mint before trying again.",
   "@cashuErrorSendUnresolved": {"description": "Cashu wallet — a failed send whose proofs could not be confirmed back"},
   "lockEscrowTitle": "Lock the escrow",
@@ -4611,5 +4690,436 @@
         "type": "String"
       }
     }
+  },
+  "orderLinkTitle": "Order link",
+  "@orderLinkTitle": {
+    "description": "App bar title of the screen that opens a mostro: order link"
+  },
+  "orderLinkLooking": "Looking for the order…",
+  "@orderLinkLooking": {
+    "description": "Order link screen: shown while the relays are asked for the linked order"
+  },
+  "orderLinkSwitching": "Changing to {nodeName}…",
+  "@orderLinkSwitching": {
+    "description": "Order link screen: shown while the app changes to the node that published the linked order",
+    "placeholders": {
+      "nodeName": {
+        "type": "String"
+      }
+    }
+  },
+  "orderLinkInvalidTitle": "This link can't be opened",
+  "@orderLinkInvalidTitle": {
+    "description": "Order link screen: title when the link is not a valid Mostro order link"
+  },
+  "orderLinkInvalidBody": "It isn't a link to a Mostro order, or part of it is missing.",
+  "@orderLinkInvalidBody": {
+    "description": "Order link screen: explanation when the link is not a valid Mostro order link"
+  },
+  "orderLinkNotFoundBody": "No relay answered with this order. Check your connection and try again.",
+  "@orderLinkNotFoundBody": {
+    "description": "Order link screen: explanation when no relay returned the linked order (the title is orderNotFoundTitle)"
+  },
+  "orderLinkUnavailableTitle": "Order no longer available",
+  "@orderLinkUnavailableTitle": {
+    "description": "Order link screen: title when the linked order exists but can no longer be taken"
+  },
+  "orderLinkUnavailableBody": "Someone already took it, or it was canceled or expired.",
+  "@orderLinkUnavailableBody": {
+    "description": "Order link screen: explanation when the linked order was taken, canceled or expired"
+  },
+  "orderLinkFailedTitle": "Couldn't open the order",
+  "@orderLinkFailedTitle": {
+    "description": "Order link screen: title when changing node or reading the trades failed (the body says which)"
+  },
+  "orderLinkOtherNodeTitle": "Order on another node",
+  "@orderLinkOtherNodeTitle": {
+    "description": "Title of the dialog asking to change to the node that published a linked order"
+  },
+  "orderLinkOtherNodeBody": "This order was published on {nodeName}. To see it and take it, change to that node.",
+  "@orderLinkOtherNodeBody": {
+    "description": "Body of the dialog asking to change to the node that published a linked order",
+    "placeholders": {
+      "nodeName": {
+        "type": "String"
+      }
+    }
+  },
+  "orderLinkUnknownNodeWarning": "This node isn't in your list. Change to it only if you trust whoever sent you the link: the node you trade on settles your trades and resolves their disputes.",
+  "@orderLinkUnknownNodeWarning": {
+    "description": "Warning in the change-node dialog when the linked order's node is neither trusted nor added by the user"
+  },
+  "reputationNodeDoesNotExport": "This Mostro does not export reputation.",
+  "reputationNodeDoesNotImport": "This Mostro does not import reputation.",
+  "reputationIdentityRequired": "Reputation can only be moved from an account that keeps its reputation. Turn off full privacy mode and try again.",
+  "reputationNotEligible": "Your account cannot export its reputation yet: it needs at least 10 completed trades and 5 ratings received.",
+  "reputationBoundToOtherIdentity": "Your reputation there is already bound to another identity. Authorize the move from the identity it is bound to.",
+  "reputationInvalidRebind": "The authorization to move your reputation is invalid or has expired. Create a new one.",
+  "reputationExpiredAttestation": "This reputation has expired. Request it again from its source.",
+  "reputationUntrustedIssuer": "This Mostro does not accept reputation from that source.",
+  "reputationIdentityMismatch": "This reputation was issued for another identity than the one you are using.",
+  "reputationAlreadyImported": "This reputation was already imported on this Mostro.",
+  "reputationInvalidAttestation": "This is not a valid reputation. Request it again from its source.",
+  "reputationImportTitle": "Import reputation",
+  "reputationImportIntro": "Bring the reputation you earned on lnp2pBot or on another Mostro to this one. Importing links the two accounts: the source and this Mostro learn they belong to the same person.",
+  "reputationOpenLnp2pbot": "Get it from lnp2pBot",
+  "reputationPasteHint": "Paste the reputation you received",
+  "reputationCheck": "Check",
+  "reputationImported": "Your reputation was imported.",
+  "reputationImportConfirm": "Import into this Mostro",
+  "reputationFigures": "{reviews, plural, =1{1 rating received} other{{reviews} ratings received}}, {rating} on average, {days, plural, =1{trading for 1 day} other{trading for {days} days}}",
+  "@reputationFigures": {
+    "description": "Import reputation screen: the figures of a checked attestation. {rating} is already formatted for the locale",
+    "placeholders": {
+      "reviews": {
+        "type": "int",
+      "format": "decimalPattern"
+      },
+      "rating": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int",
+      "format": "decimalPattern"
+      }
+    }
+  },
+  "reputationFiguresNote": "Imported reputation is added to the one you have here; your counterparties see them merged.",
+  "@reputationNodeDoesNotExport": {
+    "description": "Reputation portability (#674): the active node does not advertise reputation_issuer, so it cannot export"
+  },
+  "@reputationNodeDoesNotImport": {
+    "description": "Import reputation screen, shown up front: the active node does not advertise reputation_import_issuers"
+  },
+  "@reputationIdentityRequired": {
+    "description": "Reputation export/import refused in full privacy mode: both act on the identity key"
+  },
+  "@reputationNotEligible": {
+    "description": "The node refused an export: the account is below its minimum of trades and ratings"
+  },
+  "@reputationBoundToOtherIdentity": {
+    "description": "The node refused an export: the source account is already bound to another identity"
+  },
+  "@reputationInvalidRebind": {
+    "description": "The authorization to move a reputation to a new identity is invalid or expired"
+  },
+  "@reputationExpiredAttestation": {
+    "description": "A reputation attestation past its expiration"
+  },
+  "@reputationUntrustedIssuer": {
+    "description": "The active node does not trust the issuer that signed the attestation"
+  },
+  "@reputationIdentityMismatch": {
+    "description": "The attestation names an identity other than the user's"
+  },
+  "@reputationAlreadyImported": {
+    "description": "The node refused an import: this attestation was imported before"
+  },
+  "@reputationInvalidAttestation": {
+    "description": "Pasted text that is not a valid reputation attestation"
+  },
+  "@reputationImportTitle": {
+    "description": "App bar title of the Import reputation screen"
+  },
+  "@reputationImportIntro": {
+    "description": "Import reputation screen: what importing does, including that it links the two accounts"
+  },
+  "reputationOpenLnp2pbotFailed": "Telegram could not be opened. Open lnp2pBot in Telegram yourself and paste here what it sends you.",
+  "@reputationOpenLnp2pbotFailed": {
+    "description": "Shown when the Telegram link could not be opened: the user can still do it by hand"
+  },
+  "@reputationPasteHint": {
+    "description": "Hint of the field where the user pastes the attestation"
+  },
+  "@reputationCheck": {
+    "description": "Button that verifies the pasted attestation before importing it"
+  },
+  "@reputationImported": {
+    "description": "Shown once the node accepted the import"
+  },
+  "@reputationImportConfirm": {
+    "description": "Button that sends the checked attestation to the active node; the import is irreversible"
+  },
+  "@reputationFiguresNote": {
+    "description": "Under the figures: imported reputation is merged with the one on this node"
+  },
+  "reputationIdentityHint": "Before confirming in lnp2pBot, check that it shows this same public key:",
+  "reputationUnavailable": "Unable to check whether reputation can be imported. Try again.",
+  "reputationIdentityChanged": "Your identity changed. Check the public key shown here before trying again.",
+  "@reputationIdentityHint": {
+    "description": "Explain why the complete npub is shown beside the Telegram action"
+  },
+  "@reputationUnavailable": {
+    "description": "Failure to read the privacy/identity state; actions stay disabled until Retry succeeds"
+  },
+  "@reputationIdentityChanged": {
+    "description": "The bot action found a different identity than the one shown; review it before retrying"
+  },
+  "reputationSettingTitle": "Reputation",
+  "reputationImportCardBody": "Bring the reputation you earned on lnp2pBot or on another Mostro to this one.",
+  "reputationExportTitle": "Export my reputation",
+  "reputationExportCardBody": "Get a signed copy of the reputation you earned on this Mostro, to import it on another one.",
+  "reputationExportConfirmTitle": "Export to this identity?",
+  "reputationExportConfirmBody": "Your reputation on this Mostro will be exported for this identity:\n\n{npub}\n\nOnce exported, it is bound to it: exporting it for another identity later needs an authorization signed with this one.",
+  "@reputationExportConfirmBody": {
+    "placeholders": {
+      "npub": {
+        "type": "String"
+      }
+    }
+  },
+  "reputationExportConfirmButton": "Export",
+  "reputationExported": "Your reputation is ready. Switch to the Mostro where you want it and import it; it is valid for 7 days.",
+  "reputationRebindBody": "Moving to a new identity? Sign an authorization for it here, with the identity your reputation is bound to now. Then, from the new identity, paste it in the authorization field above and export.",
+  "reputationNewIdentityHint": "New identity (npub or hex)",
+  "reputationRebindSign": "Sign authorization",
+  "reputationInvalidIdentity": "That is not a valid npub or hex key.",
+  "reputationRebindInputHint": "Authorization from your previous identity (optional)",
+  "@reputationRebindInputHint": {
+    "description": "Reputation screen: optional field on export for the authorization signed by the identity the reputation is bound to now"
+  },
+  "reputationRebindConfirmTitle": "Authorize this identity?",
+  "@reputationRebindConfirmTitle": {
+    "description": "Title of the dialog confirming the identity a rebind authorization is signed for"
+  },
+  "reputationRebindConfirmBody": "Whoever holds this identity will be able to export your reputation from this Mostro, and your current identity no longer will:\n\n{npub}\n\nSign only for an identity that is yours.",
+  "@reputationRebindConfirmBody": {
+    "description": "Dialog body before signing a rebind authorization: the key that will take the reputation over",
+    "placeholders": {
+      "npub": {
+        "type": "String"
+      }
+    }
+  },
+  "payoutPaidToLabel": "Paid to",
+  "@payoutPaidToLabel": {
+    "description": "Trade detail payout card (#823): row label before the destination the buyer's sats were paid to"
+  },
+  "payoutSendingToLabel": "Sending to",
+  "@payoutSendingToLabel": {
+    "description": "Trade detail payout card (#823): row label before the destination the sats are being sent to, not paid yet"
+  },
+  "payoutNotPaidLabel": "Not paid to",
+  "@payoutNotPaidLabel": {
+    "description": "Trade detail payout card (#823): row label before a destination the node could not pay or refused"
+  },
+  "payoutChosenByLabel": "Chosen by",
+  "@payoutChosenByLabel": {
+    "description": "Trade detail payout card (#823): row label before who chose the destination"
+  },
+  "payoutAmountLabel": "Amount",
+  "@payoutAmountLabel": {
+    "description": "Trade detail payout card (#823): row label before the sats the destination receives"
+  },
+  "payoutHashLabel": "Payment hash",
+  "@payoutHashLabel": {
+    "description": "Trade detail payout card (#823): row label before the invoice's payment hash; the whole row copies it"
+  },
+  "payoutTriedBeforeLabel": "Tried before",
+  "@payoutTriedBeforeLabel": {
+    "description": "Trade detail payout card (#823): row label before an earlier destination of the same trade"
+  },
+  "payoutTriedBeforeValue": "{destination} · {outcome}",
+  "@payoutTriedBeforeValue": {
+    "description": "Trade detail payout card (#823): value of an earlier destination row: where, then what became of it",
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      },
+      "outcome": {
+        "type": "String"
+      }
+    }
+  },
+  "payoutNwcWallet": "Your NWC wallet",
+  "@payoutNwcWallet": {
+    "description": "Payout destination (#823): an invoice the user's NWC wallet generated, when the wallet gives no name"
+  },
+  "payoutNwcWalletNamed": "{name} (NWC)",
+  "@payoutNwcWalletNamed": {
+    "description": "Payout destination (#823): an invoice the user's NWC wallet generated, with the wallet's own name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "payoutInvoice": "Invoice {invoice}",
+  "@payoutInvoice": {
+    "description": "Payout destination (#823): a Lightning invoice the user entered, shortened",
+    "placeholders": {
+      "invoice": {
+        "type": "String"
+      }
+    }
+  },
+  "payoutSourceDefaultAddress": "Your default address",
+  "@payoutSourceDefaultAddress": {
+    "description": "Trade detail payout card (#823): the destination is the default Lightning address saved in Settings"
+  },
+  "payoutSourceNwcWallet": "Your NWC wallet",
+  "@payoutSourceNwcWallet": {
+    "description": "Trade detail payout card (#823): the connected NWC wallet generated the invoice and the app sent it on its own"
+  },
+  "payoutSourceEntered": "You, for this trade",
+  "@payoutSourceEntered": {
+    "description": "Trade detail payout card (#823): the user entered this invoice or address for this trade"
+  },
+  "payoutOutcomeSubmitted": "Waiting",
+  "@payoutOutcomeSubmitted": {
+    "description": "Trade detail payout card (#823): status of a destination sent to the node, not paid yet"
+  },
+  "payoutOutcomeRetrying": "Failed, retrying",
+  "@payoutOutcomeRetrying": {
+    "description": "Trade detail payout card (#823): the node's first payment failed and it is trying again"
+  },
+  "payoutOutcomeFailed": "Failed",
+  "@payoutOutcomeFailed": {
+    "description": "Trade detail payout card (#823): the node gave up paying this destination and asked for another"
+  },
+  "payoutOutcomeFailedAttempts": "{count, plural, =1{Failed after 1 attempt} other{Failed after {count} attempts}}",
+  "@payoutOutcomeFailedAttempts": {
+    "description": "Trade detail payout card (#823): the node gave up after trying count times",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "payoutOutcomeRejected": "Refused by the node",
+  "@payoutOutcomeRejected": {
+    "description": "Trade detail payout card (#823): the node refused this invoice or address when it was sent"
+  },
+  "payoutOutcomePaid": "Paid",
+  "@payoutOutcomePaid": {
+    "description": "Trade detail payout card (#823): the node paid this destination"
+  },
+  "payoutHashCopied": "Payment hash copied",
+  "@payoutHashCopied": {
+    "description": "Snackbar after copying the payout's payment hash (#823)"
+  },
+  "takeOrderPayoutLabel": "Your sats go to",
+  "@takeOrderPayoutLabel": {
+    "description": "Take order screen (#823): row label before where the buyer's sats will be sent"
+  },
+  "takeOrderPayoutInvoice": "An invoice you add",
+  "@takeOrderPayoutInvoice": {
+    "description": "Take order screen (#823): the buyer will add an invoice after taking instead of using an address"
+  },
+  "takeOrderPayoutChangeHint": "Change where your sats go",
+  "@takeOrderPayoutChangeHint": {
+    "description": "Take order screen (#823): accessibility hint of the row that opens the payout choice"
+  },
+  "takeOrderPayoutNoteDefault": "Your sats will be sent to {address}, your default Lightning address.",
+  "@takeOrderPayoutNoteDefault": {
+    "description": "Take order screen (#823): explanatory note when the default Lightning address will receive the sats",
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "takeOrderPayoutNoteAddress": "Your sats will be sent to {address}, for this trade only.",
+  "@takeOrderPayoutNoteAddress": {
+    "description": "Take order screen (#823): explanatory note when another Lightning address, for this trade only, will receive the sats",
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "takeOrderPayoutNoteInvoice": "After you take the order, you will add the invoice your sats are paid to.",
+  "@takeOrderPayoutNoteInvoice": {
+    "description": "Take order screen (#823): explanatory note when the buyer chose to add an invoice after taking"
+  },
+  "takeOrderPayoutSheetTitle": "Where your sats go",
+  "@takeOrderPayoutSheetTitle": {
+    "description": "Take order screen (#823): title of the sheet that chooses where the sats go"
+  },
+  "takeOrderPayoutSheetDefault": "My default Lightning address",
+  "@takeOrderPayoutSheetDefault": {
+    "description": "Take order payout sheet (#823): option for the default Lightning address from Settings"
+  },
+  "takeOrderPayoutSheetOther": "Another Lightning address",
+  "@takeOrderPayoutSheetOther": {
+    "description": "Take order payout sheet (#823): option for another Lightning address, for this trade only"
+  },
+  "takeOrderPayoutSheetInvoice": "An invoice I add after taking",
+  "@takeOrderPayoutSheetInvoice": {
+    "description": "Take order payout sheet (#823): option to add an invoice after taking instead of an address"
+  },
+  "takeOrderPayoutSheetApply": "Use for this trade",
+  "@takeOrderPayoutSheetApply": {
+    "description": "Take order payout sheet (#823): the sheet's answer, applies the choice to this trade"
+  },
+  "invoicePayoutFailed": "The payment to {destination} failed.",
+  "@invoicePayoutFailed": {
+    "description": "Add-invoice screen (#823): the node could not pay the destination the buyer gave earlier",
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "invoicePayoutFailedAttempts": "{count, plural, =1{The payment to {destination} failed after 1 attempt.} other{The payment to {destination} failed after {count} attempts.}}",
+  "@invoicePayoutFailedAttempts": {
+    "description": "Add-invoice screen (#823): the node gave up paying the earlier destination after count attempts",
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "invoicePayoutFailedNwc": "Your NWC wallet is making a new invoice for these sats.",
+  "@invoicePayoutFailedNwc": {
+    "description": "Add-invoice screen (#823): after a failed payout, the connected NWC wallet (no name) makes the new invoice on its own"
+  },
+  "invoicePayoutFailedNwcNamed": "{name} is making a new invoice for these sats.",
+  "@invoicePayoutFailedNwcNamed": {
+    "description": "Add-invoice screen (#823): after a failed payout, the connected NWC wallet, by its name, makes the new invoice on its own",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "invoicePayoutFailedManual": "Add a new invoice to receive your sats.",
+  "@invoicePayoutFailedManual": {
+    "description": "Add-invoice screen (#823): after a failed payout, the buyer must add a new invoice"
+  },
+  "tradeCardPayoutFailedTitle": "Mostro could not send your sats",
+  "@tradeCardPayoutFailedTitle": {
+    "description": "Notifications card title (#823): the node could not send the buyer's sats to the address or invoice they gave, and asks for a new invoice. About the sats the buyer receives, never the fiat they pay"
+  },
+  "tradeCardPayoutFailedMessage": "Mostro could not send your sats to the address or invoice you gave. Open the trade to see which one failed, and add a new invoice if it is still needed.",
+  "@tradeCardPayoutFailedMessage": {
+    "description": "Notifications card body (#823): the node could not send the buyer's sats to the destination they gave; the trade shows which one failed, and a new invoice may be needed (an NWC wallet may already have sent it)"
+  },
+  "payoutInvoiceLabel": "Invoice",
+  "@payoutInvoiceLabel": {
+    "description": "Trade detail payout card (#823): row label before the invoice an NWC wallet generated, shortened; the whole row copies it"
+  },
+  "payoutInvoiceCopied": "Invoice copied",
+  "@payoutInvoiceCopied": {
+    "description": "Snackbar after copying a payout invoice (#823)"
+  },
+  "payoutWillGoToLabel": "Sats will go to",
+  "@payoutWillGoToLabel": {
+    "description": "Trade detail payout card (#823): row label before where the buyer's sats will be sent, before the seller releases them"
+  },
+  "payoutMaybePaidToLabel": "Maybe paid to",
+  "@payoutMaybePaidToLabel": {
+    "description": "Trade detail payout card (#823): row label when the node paid but more than one destination was open and its message does not say which"
+  },
+  "payoutOutcomeReplaced": "Replaced by a later one",
+  "@payoutOutcomeReplaced": {
+    "description": "Trade detail payout card (#823): the node took a later destination in place of this one before paying"
+  },
+  "payoutOutcomeMaybePaid": "Paid to this one or another listed here",
+  "@payoutOutcomeMaybePaid": {
+    "description": "Trade detail payout card (#823): the node paid this destination or another one listed on the card; its message does not say which"
   }
 }

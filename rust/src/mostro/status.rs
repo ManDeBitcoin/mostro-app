@@ -186,6 +186,56 @@ pub(crate) fn cancellation_wipes_history(status: &OrderStatus) -> bool {
     )
 }
 
+/// Whether a daemon message dates the moment the seller's hold invoice was
+/// accepted: the one that moved an order of `kind` out of `waiting-payment`.
+/// The escrow deadline guardian counts from there.
+///
+/// - `buyer-took-order` (seller) and `hold-invoice-payment-accepted` (buyer)
+///   go out when the escrow locks with the buyer's invoice already known.
+///   The daemon sends them again once a late invoice arrives, which is why
+///   the caller keeps the oldest time.
+/// - Without that invoice the order moves to `waiting-buyer-invoice`
+///   instead: `add-invoice` to the buyer, `waiting-buyer-invoice` to the
+///   seller. On a sell order that step comes at the take, before the
+///   payment, so only a buy order counts them. An `add-invoice` asking for a
+///   new invoice after a failed payout reads `settled-hold-invoice` and is
+///   not one either.
+pub(crate) fn dates_escrow_lock(
+    action: &mostro_core::message::Action,
+    payload: &Option<mostro_core::message::Payload>,
+    kind: &crate::api::types::OrderKind,
+) -> bool {
+    use crate::api::types::OrderKind;
+    use mostro_core::message::{Action, Payload};
+    match action {
+        Action::BuyerTookOrder | Action::HoldInvoicePaymentAccepted => true,
+        Action::WaitingBuyerInvoice => matches!(kind, OrderKind::Buy),
+        Action::AddInvoice => {
+            matches!(kind, OrderKind::Buy)
+                && matches!(
+                    payload,
+                    Some(Payload::Order(so))
+                        if so.status == Some(mostro_core::order::Status::WaitingBuyerInvoice)
+                )
+        }
+        _ => false,
+    }
+}
+
+/// Whether an `add-invoice` payload is the node giving up on the buyer's
+/// payout: it reads `settled-hold-invoice` only when mostrod exhausted its
+/// payment retries and wants a new invoice (`check_failure_retries`). A first
+/// request reads `waiting-buyer-invoice` (#823).
+pub(crate) fn add_invoice_after_failed_payout(
+    payload: &Option<mostro_core::message::Payload>,
+) -> bool {
+    matches!(
+        payload,
+        Some(mostro_core::message::Payload::Order(so))
+            if so.status == Some(mostro_core::order::Status::SettledHoldInvoice)
+    )
+}
+
 /// Extracts the status and calculated sats to persist from an inbound
 /// `add-invoice` payload.
 ///
@@ -258,6 +308,58 @@ pub(crate) fn peer_reputation(
 mod tests {
     use super::*;
     use crate::mostro::test_fixtures::small_order_with;
+
+    #[test]
+    fn the_escrow_lock_is_dated_by_the_message_that_leaves_waiting_payment() {
+        use crate::api::types::OrderKind::{Buy, Sell};
+        use mostro_core::message::{Action, Payload};
+        use mostro_core::order::Status;
+
+        let add_invoice = |status| Some(Payload::Order(small_order_with(status, 1_000)));
+        for kind in [Buy, Sell] {
+            assert!(dates_escrow_lock(&Action::BuyerTookOrder, &None, &kind));
+            assert!(dates_escrow_lock(
+                &Action::HoldInvoicePaymentAccepted,
+                &None,
+                &kind
+            ));
+        }
+
+        // Buy order: the escrow locks before the buyer's invoice is known.
+        assert!(dates_escrow_lock(&Action::WaitingBuyerInvoice, &None, &Buy));
+        assert!(dates_escrow_lock(
+            &Action::AddInvoice,
+            &add_invoice(Status::WaitingBuyerInvoice),
+            &Buy
+        ));
+        // A new invoice asked for after a failed payout is not the lock.
+        assert!(!dates_escrow_lock(
+            &Action::AddInvoice,
+            &add_invoice(Status::SettledHoldInvoice),
+            &Buy
+        ));
+
+        // Sell order: the same step comes at the take, before the payment.
+        assert!(!dates_escrow_lock(
+            &Action::WaitingBuyerInvoice,
+            &None,
+            &Sell
+        ));
+        assert!(!dates_escrow_lock(
+            &Action::AddInvoice,
+            &add_invoice(Status::WaitingBuyerInvoice),
+            &Sell
+        ));
+
+        for action in [
+            Action::PayInvoice,
+            Action::WaitingSellerToPay,
+            Action::FiatSentOk,
+            Action::CashuEscrowLocked,
+        ] {
+            assert!(!dates_escrow_lock(&action, &None, &Buy), "{action:?}");
+        }
+    }
 
     #[test]
     fn only_completed_payout_actions_imply_success() {
@@ -471,6 +573,30 @@ mod tests {
 
         // No payload → nothing to sync.
         assert!(add_invoice_sync(&None).is_none());
+    }
+
+    /// Only the request that follows a failed payout reads settled (#823):
+    /// a first request, a Peer follow-up and no payload are not one.
+    #[test]
+    fn only_a_settled_add_invoice_follows_a_failed_payout() {
+        use mostro_core::message::Payload;
+        use mostro_core::order::Status;
+
+        let retry = small_order_with(Status::SettledHoldInvoice, 1_677);
+        assert!(add_invoice_after_failed_payout(&Some(Payload::Order(
+            retry
+        ))));
+
+        let first = small_order_with(Status::WaitingBuyerInvoice, 1_677);
+        assert!(!add_invoice_after_failed_payout(&Some(Payload::Order(
+            first
+        ))));
+        let peer = Payload::Peer(mostro_core::message::Peer {
+            pubkey: String::new(),
+            reputation: None,
+        });
+        assert!(!add_invoice_after_failed_payout(&Some(peer)));
+        assert!(!add_invoice_after_failed_payout(&None));
     }
 
     /// The follow-up Peer payload that `add_invoice_sync` ignores is exactly

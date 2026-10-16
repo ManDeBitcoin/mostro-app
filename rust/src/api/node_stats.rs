@@ -27,7 +27,9 @@ use serde::{Deserialize, Serialize};
 use crate::api::types::{BondPolicy, BondPolicyInfo, OrderInfo, OrderStatus};
 use crate::db::{settings_keys, Storage};
 use crate::mostro::{bond_policy, escrow_mode};
-use crate::nostr::order_events::{parse_order_event, KIND_ORDER, RECENT_ORDERS_WINDOW_SECS};
+use crate::nostr::order_events::{
+    is_past_take_window, parse_order_event, KIND_ORDER, RECENT_ORDERS_WINDOW_SECS,
+};
 
 /// Kind 38385 — Mostro instance status (NIP-33 addressable, `d` = pubkey).
 const KIND_INSTANCE: u16 = 38385;
@@ -194,7 +196,7 @@ impl Revision {
     /// second the **lowest** id — the one relays retain. Without the id a tie
     /// went to whichever relay answered first. Same rule as
     /// [`CachedNodeInfo::supersedes`].
-    fn supersedes(&self, held: &Self) -> bool {
+    pub(crate) fn supersedes(&self, held: &Self) -> bool {
         // Ids are lowercase hex of equal length: string order is byte order.
         (self.at, std::cmp::Reverse(&self.event_id)) > (held.at, std::cmp::Reverse(&held.event_id))
     }
@@ -208,7 +210,7 @@ fn dedup_latest(orders: Vec<Revision>) -> Vec<OrderInfo> {
     let mut latest: HashMap<(String, String), Revision> = HashMap::new();
     for revision in orders {
         let key = (
-            revision.order.creator_pubkey.clone(),
+            revision.order.node_pubkey.clone(),
             revision.order.id.clone(),
         );
         if latest
@@ -224,9 +226,9 @@ fn dedup_latest(orders: Vec<Revision>) -> Vec<OrderInfo> {
         .collect()
 }
 
-/// Is this order open right now? `pending` and not past its `expiration`.
+/// Is this order open right now? `pending` and not past its take window.
 fn is_open(order: &OrderInfo, now: i64) -> bool {
-    order.status == OrderStatus::Pending && order.expires_at.is_none_or(|exp| exp > now)
+    order.status == OrderStatus::Pending && !is_past_take_window(order, now)
 }
 
 /// Per-node fold of [`count_open_orders`]: orders per fiat code plus the
@@ -241,7 +243,7 @@ fn count_open_orders(orders: Vec<Revision>, now: i64) -> HashMap<String, NodeLiq
         if !is_open(&order, now) {
             continue;
         }
-        let (by_fiat, latest) = per_node.entry(order.creator_pubkey.clone()).or_default();
+        let (by_fiat, latest) = per_node.entry(order.node_pubkey.clone()).or_default();
         *by_fiat
             .entry(order.fiat_code.to_ascii_uppercase())
             .or_default() += 1;
@@ -285,7 +287,7 @@ impl CachedNodeInfo {
     ///
     /// An entry without an id cannot claim to be the lowest: it yields a tie
     /// to a known id and never wins one.
-    fn supersedes(&self, held: &Self) -> bool {
+    pub(crate) fn supersedes(&self, held: &Self) -> bool {
         match self.created_at.cmp(&held.created_at) {
             std::cmp::Ordering::Greater => true,
             std::cmp::Ordering::Less => false,
@@ -317,7 +319,10 @@ fn newest_info(pubkeys: &[String], info_events: &[Event]) -> HashMap<String, Cac
             event_id: Some(event.id.to_hex()),
             tags,
         };
-        if newest.get(&author).is_some_and(|prev| !info.supersedes(prev)) {
+        if newest
+            .get(&author)
+            .is_some_and(|prev| !info.supersedes(prev))
+        {
             continue;
         }
         newest.insert(author, info);
@@ -415,15 +420,15 @@ async fn load_info_cache(db: &impl Storage) -> Result<HashMap<String, CachedNode
     }
 }
 
-/// Every registry node's cached kind 38385 tags, keyed by node pubkey (hex).
+/// Every registry node's cached kind 38385, keyed by node pubkey (hex).
 /// Empty without a store or when the cache cannot be read: a reader of one
 /// tag (the Serbero announcement) then falls back to what it knows live.
-pub(crate) async fn cached_info_tags() -> HashMap<String, Vec<Vec<String>>> {
+pub(crate) async fn cached_info() -> HashMap<String, CachedNodeInfo> {
     let Some(db) = crate::db::app_db::db() else {
         return HashMap::new();
     };
     match load_info_cache(db).await {
-        Ok(cache) => cache.into_iter().map(|(node, info)| (node, info.tags)).collect(),
+        Ok(cache) => cache,
         Err(e) => {
             log::warn!("[node_stats] kind 38385 cache unreadable: {e}");
             HashMap::new()
@@ -678,7 +683,7 @@ mod tests {
             fiat_code: fiat.into(),
             payment_method: String::new(),
             premium: 0.0,
-            creator_pubkey: node.into(),
+            node_pubkey: node.into(),
             created_at,
             expires_at: None,
             is_mine: false,
@@ -999,9 +1004,17 @@ mod tests {
             info_event(&node, &pk, "0.006", 100),
             info_event(&node, &pk, "0.01", 100),
         );
-        let lowest = if a.id.to_hex() < b.id.to_hex() { &a } else { &b };
+        let lowest = if a.id.to_hex() < b.id.to_hex() {
+            &a
+        } else {
+            &b
+        };
         let expected_fee = tag_value(
-            &lowest.tags.iter().map(|t| t.as_slice().to_vec()).collect::<Vec<_>>(),
+            &lowest
+                .tags
+                .iter()
+                .map(|t| t.as_slice().to_vec())
+                .collect::<Vec<_>>(),
             "fee",
         )
         .map(str::to_string);

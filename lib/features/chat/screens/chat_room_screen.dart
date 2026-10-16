@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mostro/core/app_theme.dart';
+import 'package:mostro/core/daemon_errors.dart';
 import 'package:mostro/features/chat/attachments/attachment_flow.dart';
 import 'package:mostro/features/chat/attachments/upload_controller.dart';
 import 'package:mostro/features/chat/models/chat_list_rules.dart';
@@ -110,6 +111,10 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
   /// runs the list lags behind the extent it is heading for, so the position
   /// alone would misreport a reader who never left the bottom.
   int _followAnimations = 0;
+
+  /// The list's height at its last metrics change, to tell a list that got
+  /// shorter (see [_onListMetricsChanged]) from one that grew.
+  double? _listViewportExtent;
 
   bool _historyLoaded = false;
 
@@ -254,7 +259,10 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(l10n.messageSendFailed),
+          content: Text(
+            localizedDaemonError(l10n, e, fallback: l10n.messageSendFailed),
+          ),
+          // design-check: ignore DS-COL-1 — the v1 send-failure snackbar (§14), unchanged; the chat has no palette yet
           backgroundColor: Colors.red,
         ),
       );
@@ -378,7 +386,10 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     } catch (e) {
       debugPrint('[chat] sendReaction failed: $e');
       if (!mounted) return;
-      showOrderDetailSnackBar(context, l10n.reactionSendFailed);
+      showOrderDetailSnackBar(
+        context,
+        localizedDaemonError(l10n, e, fallback: l10n.reactionSendFailed),
+      );
     }
   }
 
@@ -438,6 +449,31 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     });
   }
 
+  /// Keeps a reader who was at the bottom there when the list gets shorter.
+  ///
+  /// The composer takes the cursor as the room opens, so on a phone the
+  /// keyboard rises on every visit. A list keeps its offset when it shrinks,
+  /// which would slide the newest messages under the composer.
+  bool _onListMetricsChanged(ScrollMetricsNotification notification) {
+    if (notification.depth != 0) return false;
+    final metrics = notification.metrics;
+    final previous = _listViewportExtent;
+    _listViewportExtent = metrics.viewportDimension;
+    if (previous == null || metrics.viewportDimension >= previous) {
+      return false;
+    }
+    // The offset did not move, so the end was this much closer before.
+    final shrunkBy = previous - metrics.viewportDimension;
+    final wasPinned =
+        _followAnimations > 0 ||
+        isPinnedToBottom(
+          offset: metrics.pixels,
+          maxScrollExtent: metrics.maxScrollExtent - shrunkBy,
+        );
+    if (wasPinned) _scrollController.jumpTo(metrics.maxScrollExtent);
+    return false;
+  }
+
   void _toggleTradeInfo() => setState(() {
     _showTradeInfo = !_showTradeInfo;
     if (_showTradeInfo) _showUserInfo = false;
@@ -494,7 +530,9 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
   @override
   Widget build(BuildContext context) {
     if (widget.orderId.isEmpty) {
+      // design-check: ignore DS-CMP-18 — the v1 chat room (§14), unchanged; the chat has no palette yet
       return Scaffold(
+        // design-check: ignore DS-CMP-12 — the v1 chat room (§14), unchanged; the chat has no palette yet
         appBar: AppBar(title: Text(AppLocalizations.of(context).navChat)),
         body: Center(child: Text(AppLocalizations.of(context).invalidTradeId)),
         bottomNavigationBar: const BottomNavBar(),
@@ -529,6 +567,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     final l10n = AppLocalizations.of(context);
     final room = _resolveRoom(ref.watch(chatRoomsNotifierProvider));
     final displayHandle = room.displayHandle(l10n);
+    // design-check: ignore DS-COL-11 — the v1 chat colours (§14), unchanged; the chat has no palette yet
     final colors = Theme.of(context).extension<AppColors>();
     if (colors == null) {
       throw StateError('AppColors theme extension must be registered');
@@ -605,47 +644,50 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
                 ),
               ),
             )
-            : ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-              itemCount: _messages.length + uploads.length,
-              itemBuilder: (context, index) {
-                // Files still on their way out follow the history.
-                if (index >= _messages.length) {
-                  final upload = uploads[index - _messages.length];
-                  return UploadBubble(
-                    key: ValueKey(upload.id),
-                    upload: upload,
-                    onRetry: () => _retryUpload(upload.id),
-                    onDiscard:
-                        () => ref
-                            .read(chatUploadsProvider(widget.orderId).notifier)
-                            .discard(upload.id),
+            : NotificationListener<ScrollMetricsNotification>(
+              onNotification: _onListMetricsChanged,
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                itemCount: _messages.length + uploads.length,
+                itemBuilder: (context, index) {
+                  // Files still on their way out follow the history.
+                  if (index >= _messages.length) {
+                    final upload = uploads[index - _messages.length];
+                    return UploadBubble(
+                      key: ValueKey(upload.id),
+                      upload: upload,
+                      onRetry: () => _retryUpload(upload.id),
+                      onDiscard:
+                          () => ref
+                              .read(chatUploadsProvider(widget.orderId).notifier)
+                              .discard(upload.id),
+                    );
+                  }
+                  final msg = _messages[index];
+                  return MessageBubble(
+                    // Adapt the FRB-generated ChatMessage to the
+                    // Dart-side ChatMessage used by MessageBubble.
+                    message: ChatMessage(
+                      id: msg.id,
+                      tradeId: msg.tradeId,
+                      content: msg.content,
+                      isMine: msg.isMine,
+                      isRead: msg.isRead,
+                      hasAttachment: msg.hasAttachment,
+                      createdAt: msg.createdAt.toInt(),
+                      messageType: _msgTypeStr(msg.messageType),
+                      attachment: msg.attachment,
+                      reaction: shownReaction(msg),
+                    ),
+                    peerColorHue: room.peerColorHue,
+                    onReact:
+                        msg.isMine || !canReact
+                            ? null
+                            : (emoji) => _onReact(msg, emoji),
                   );
-                }
-                final msg = _messages[index];
-                return MessageBubble(
-                  // Adapt the FRB-generated ChatMessage to the
-                  // Dart-side ChatMessage used by MessageBubble.
-                  message: ChatMessage(
-                    id: msg.id,
-                    tradeId: msg.tradeId,
-                    content: msg.content,
-                    isMine: msg.isMine,
-                    isRead: msg.isRead,
-                    hasAttachment: msg.hasAttachment,
-                    createdAt: msg.createdAt.toInt(),
-                    messageType: _msgTypeStr(msg.messageType),
-                    attachment: msg.attachment,
-                    reaction: shownReaction(msg),
-                  ),
-                  peerColorHue: room.peerColorHue,
-                  onReact:
-                      msg.isMine || !canReact
-                          ? null
-                          : (emoji) => _onReact(msg, emoji),
-                );
-              },
+                },
+              ),
             );
 
     final chatColumn = Column(
@@ -700,10 +742,12 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
       ],
     );
 
+    // design-check: ignore DS-CMP-18 — the v1 chat room (§14), unchanged; the chat has no palette yet
     return Scaffold(
       // The Scaffold owns keyboard avoidance: the body ends at the taller of
       // the keyboard and the BottomNavBar, never their sum, so the composer
       // must not add viewInsets itself.
+      // design-check: ignore DS-CMP-12 — the v1 chat room (§14), unchanged; the chat has no palette yet
       appBar: AppBar(
         leading: const BackButton(),
         title: _AppBarTitle(room: room),
@@ -795,6 +839,7 @@ class _AppBarTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // design-check: ignore DS-COL-11 — the v1 chat colours (§14), unchanged; the chat has no palette yet
     final colors = Theme.of(context).extension<AppColors>();
     if (colors == null) {
       throw StateError('AppColors theme extension must be registered');
@@ -822,6 +867,7 @@ class _AppBarTitle extends StatelessWidget {
             Flexible(
               child: Text(
                 handle,
+                // design-check: ignore DS-TYP-4 — the v1 app bar title (§14), unchanged; the chat has no palette yet
                 style: textTheme.headlineSmall,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

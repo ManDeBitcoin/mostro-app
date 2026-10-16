@@ -196,6 +196,10 @@ class AutomationIds {
   static const String orderTakeAmountConfirm = 'order.take.amount.confirm';
   static const String orderTakeConfirm = 'order.take.confirm';
 
+  /// Where a buyer's sats go (#823), shown when a default Lightning address
+  /// is set: opens the choice for this trade.
+  static const String orderTakePayout = 'order.take.payout';
+
   // Trade detail
   static const String orderId = 'order.id';
   static const String orderStatus = 'order.status';
@@ -211,6 +215,12 @@ class AutomationIds {
   /// slashed.
   static const String tradeBondSlashed = 'trade.bondSlashed';
   static const String tradeCancelRequest = 'trade.cancelRequest';
+
+  /// Readout: where this device sent the buyer's sats (#823), labelled with
+  /// what became of the destination shown first (`submitted`, `retrying`,
+  /// `failed`, `rejected`, `replaced`, `paid`, `maybe-paid`), or `scheduled`
+  /// before the payout starts; absent when it sent none.
+  static const String tradePayout = 'trade.payout';
   static const String bondSlashedViewPolicy = 'bond.slashed.viewPolicy';
 
   /// Present only while the slashed trade's row still exists (a timeout
@@ -273,6 +283,10 @@ class AutomationIds {
   /// answered yet (#615). Present until the screen leaves for the trade, or
   /// the invoice field is edited, or a new submission starts.
   static const String invoiceAwaiting = 'invoice.awaiting';
+
+  /// Readout: the node could not pay the destination given earlier and asks
+  /// for a new invoice (#823). Translated prose: assert that it exists.
+  static const String invoicePayoutFailed = 'invoice.payoutFailed';
   static const String invoiceCancel = 'invoice.cancel';
   static const String payInvoiceText = 'pay.invoice.text';
 
@@ -302,4 +316,22 @@ class AutomationIds {
   static const String payOrderId = 'pay.order_id';
   static const String payNwc = 'pay.nwc';
   static const String payCancel = 'pay.cancel';
+
+  // Reputation portability (#674)
+  static const String settingsReputation = 'settings.reputation';
+  static const String reputationOpenImport = 'reputation.open_import';
+  static const String reputationExport = 'reputation.export';
+  static const String reputationExportConfirm = 'reputation.export.confirm';
+  static const String reputationExported = 'reputation.export.result';
+  static const String reputationRebindInput = 'reputation.export.rebind';
+  static const String reputationRebindIdentity = 'reputation.rebind.identity';
+  static const String reputationRebindSign = 'reputation.rebind.sign';
+  static const String reputationRebindConfirm = 'reputation.rebind.confirm';
+  static const String reputationRebindResult = 'reputation.rebind.result';
+  static const String reputationImportIdentity = 'reputation.import.identity';
+  static const String reputationImportOpenBot = 'reputation.import.open_bot';
+  static const String reputationImportInput = 'reputation.import.input';
+  static const String reputationImportCheck = 'reputation.import.check';
+  static const String reputationImportFigures = 'reputation.import.figures';
+  static const String reputationImportConfirm = 'reputation.import.confirm';
 }

@@ -102,6 +102,26 @@ pub(crate) fn mark_completed(trade: &mut Value, completed_at: i64) -> Result<()>
     Ok(())
 }
 
+/// `$.escrow_locked_at = locked_at` as a JSON number and `$.escrow_node =
+/// node`, unless the trade already holds an older time: the oldest wins, so a
+/// replayed or re-sent message never moves the escrow deadline.
+pub(crate) fn mark_escrow_locked(trade: &mut Value, locked_at: i64, node: &str) -> Result<()> {
+    let slot = field(trade, &["escrow_locked_at"])?;
+    if slot.as_i64().is_some_and(|held| held <= locked_at) {
+        return Ok(());
+    }
+    *slot = Value::from(locked_at);
+    *field(trade, &["escrow_node"])? = Value::String(node.to_owned());
+    Ok(())
+}
+
+/// `$.escrow_locked_at` and `$.escrow_node` back to null.
+pub(crate) fn clear_escrow_lock(trade: &mut Value) -> Result<()> {
+    *field(trade, &["escrow_locked_at"])? = Value::Null;
+    *field(trade, &["escrow_node"])? = Value::Null;
+    Ok(())
+}
+
 /// `$.cooperative_cancel_state = state`, as serde spells the variant.
 pub(crate) fn set_cooperative_cancel_state(
     trade: &mut Value,
@@ -121,6 +141,27 @@ pub(crate) fn set_counterparty(trade: &mut Value, pubkey: &str) -> Result<()> {
     }
     *field(trade, &["counterparty_pubkey"])? = Value::String(pubkey.to_owned());
     Ok(())
+}
+
+/// When the trade's node is `node` (ignoring case) — `$.order.node_pubkey`,
+/// else the legacy `$.order.creator_pubkey` — set `$.order.node_pubkey` to
+/// `""` and drop the legacy name, which serde would read as a duplicate of
+/// the new one. Returns whether it changed the document; an empty `node`
+/// matches nothing.
+pub(crate) fn forget_node(trade: &mut Value, node: &str) -> Result<bool> {
+    let order = trade.get("order");
+    let current = order
+        .and_then(|o| o.get("node_pubkey"))
+        .or_else(|| order.and_then(|o| o.get("creator_pubkey")))
+        .and_then(Value::as_str);
+    if node.is_empty() || !current.is_some_and(|c| c.eq_ignore_ascii_case(node)) {
+        return Ok(false);
+    }
+    *field(trade, &["order", "node_pubkey"])? = Value::String(String::new());
+    if let Some(order) = trade.get_mut("order").and_then(Value::as_object_mut) {
+        order.remove("creator_pubkey");
+    }
+    Ok(true)
 }
 
 /// The mutable slot at `path`, creating missing intermediate objects the way
@@ -228,6 +269,38 @@ mod tests {
     }
 
     #[test]
+    fn the_oldest_escrow_lock_wins_and_keeps_its_node() {
+        let mut t = trade();
+        mark_escrow_locked(&mut t, 1700000500, "node-a").unwrap();
+        assert!(t["escrow_locked_at"].is_i64());
+        assert_eq!(t["escrow_node"], "node-a");
+
+        // A later message (a re-send, a replay) does not move it.
+        mark_escrow_locked(&mut t, 1700009999, "node-b").unwrap();
+        assert_eq!(t["escrow_locked_at"], 1700000500);
+        assert_eq!(t["escrow_node"], "node-a");
+
+        // An older one, arriving after a newer one, replaces it.
+        mark_escrow_locked(&mut t, 1700000100, "node-c").unwrap();
+        assert_eq!(t["escrow_locked_at"], 1700000100);
+        assert_eq!(t["escrow_node"], "node-c");
+    }
+
+    #[test]
+    fn a_cleared_escrow_lock_takes_a_later_one() {
+        let mut t = trade();
+        mark_escrow_locked(&mut t, 1700000100, "node-a").unwrap();
+
+        clear_escrow_lock(&mut t).unwrap();
+        assert!(t["escrow_locked_at"].is_null());
+        assert!(t["escrow_node"].is_null());
+
+        mark_escrow_locked(&mut t, 1700009999, "node-b").unwrap();
+        assert_eq!(t["escrow_locked_at"], 1700009999);
+        assert_eq!(t["escrow_node"], "node-b");
+    }
+
+    #[test]
     fn the_bond_is_replaced_whole_and_reads_back() {
         let mut t = trade();
         let bond = crate::api::types::BondInfo {
@@ -271,5 +344,43 @@ mod tests {
         );
         let mut bad = json!({"order": "not an object"});
         assert!(rename_order_id(&mut bad, "x").is_err());
+    }
+
+    #[test]
+    fn forget_node_clears_a_matching_node_and_nothing_else() {
+        let mut t = trade();
+        t["order"]["node_pubkey"] = json!("ABCD");
+        t["rated_at"] = json!(1234);
+        assert!(forget_node(&mut t, "abcd").unwrap());
+        assert_eq!(t["order"]["node_pubkey"], json!(""));
+        assert_eq!(t["rated_at"], json!(1234));
+        assert_eq!(t["order"]["status"], json!("Pending"));
+    }
+
+    #[test]
+    fn forget_node_moves_a_legacy_node_to_the_new_name() {
+        let mut t = trade();
+        t["order"]["creator_pubkey"] = json!("abcd");
+        assert!(forget_node(&mut t, "abcd").unwrap());
+        assert_eq!(t["order"]["node_pubkey"], json!(""));
+        assert!(t["order"].get("creator_pubkey").is_none(), "one name only");
+    }
+
+    #[test]
+    fn forget_node_leaves_a_real_or_an_unknown_node_alone() {
+        let mut real = trade();
+        real["order"]["node_pubkey"] = json!("node");
+        let before = real.clone();
+        assert!(!forget_node(&mut real, "abcd").unwrap());
+        assert_eq!(real, before);
+
+        let mut unknown = trade();
+        unknown["order"]["node_pubkey"] = json!("");
+        let before = unknown.clone();
+        assert!(
+            !forget_node(&mut unknown, "").unwrap(),
+            "an empty node matches nothing"
+        );
+        assert_eq!(unknown, before);
     }
 }

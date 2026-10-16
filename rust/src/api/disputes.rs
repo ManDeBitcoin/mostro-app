@@ -302,6 +302,7 @@ pub async fn open_dispute(trade_id: String, reason: Option<String>) -> Result<Di
     let trade_index = crate::api::orders::trade_key_for_order(&trade_id)
         .await
         .ok_or_else(|| anyhow!("TradeNotDisputable: no trade key for trade {trade_id}"))?;
+    let mostro_pubkey = crate::mostro::trade_node::trade_action_node(&trade_id).await?;
 
     // Correlation nonce for this request. The daemon echoes it in its reply —
     // DisputeInitiatedByYou on acceptance, CantDo on rejection — and only a
@@ -316,9 +317,6 @@ pub async fn open_dispute(trade_id: String, reason: Option<String>) -> Result<Di
             crate::api::identity::get_active_trade_keys(trade_index).await?;
         let identity_keys =
             crate::api::identity::get_transport_identity_keys(&sender_keys).await?;
-        let mostro_pubkey =
-            nostr_sdk::prelude::PublicKey::from_hex(&crate::config::active_mostro_pubkey())
-                .map_err(|e| anyhow!("invalid mostro pubkey: {e}"))?;
         let event_json = crate::mostro::actions::dispute(
             &identity_keys,
             &sender_keys,
@@ -414,7 +412,7 @@ pub async fn open_dispute(trade_id: String, reason: Option<String>) -> Result<Di
 /// Delivered as an admin-type message in the dispute chat.
 ///
 /// **Errors**: `EvidenceEmpty`, `NoOpenDispute`, `AdminNotAssigned`,
-/// `TradeNotFound`.
+/// `TradeNotFound`, `TradeOnOtherNode`.
 pub async fn submit_evidence(
     trade_id: String,
     text: String,
@@ -422,6 +420,7 @@ pub async fn submit_evidence(
     if text.trim().is_empty() {
         bail!("EvidenceEmpty: text must not be empty");
     }
+    crate::mostro::trade_node::refuse_other_node(&trade_id).await?;
     let (trade_index, admin_pubkey) = solver_conversation(&trade_id).await?;
 
     // Same envelope as the peer chat, keyed to the solver instead of the
@@ -471,10 +470,12 @@ const CHAT_KEY_PREFIX: &str = "Shared key: ";
 /// simply want it sent again. The record only tells the screen.
 ///
 /// **Errors**: `NoOpenDispute`, `AdminNotAssigned`, `TradeNotFound`,
-/// `NoSharedKey` (the counterparty is not known), `SendFailed`.
+/// `NoSharedKey` (the counterparty is not known), `SendFailed`,
+/// `TradeOnOtherNode`.
 pub async fn share_chat_key_with_solver(
     trade_id: String,
 ) -> Result<crate::api::types::ChatMessage> {
+    crate::mostro::trade_node::refuse_other_node(&trade_id).await?;
     let admin_pubkey = current_solver(&trade_id).await?;
     let trade_index = trade_key_index(&trade_id).await?;
     let peer = counterparty_pubkey(&trade_id)
@@ -612,13 +613,14 @@ async fn record_chat_key_share(trade_id: &str, solver: &nostr_sdk::prelude::Publ
 ///
 /// **Errors**: `FileTooLarge`, `UnsupportedFileType`, `InvalidImage`,
 /// `NoOpenDispute`, `AdminNotAssigned`, `TradeNotFound`, `UploadFailed`,
-/// `SendFailed`.
+/// `SendFailed`, `TradeOnOtherNode`.
 pub async fn send_dispute_file(
     trade_id: String,
     file_bytes: Vec<u8>,
     file_name: String,
     upload_id: String,
 ) -> Result<crate::api::types::ChatMessage> {
+    crate::mostro::trade_node::refuse_other_node(&trade_id).await?;
     let target = async {
         let (trade_key_index, admin_pubkey) = solver_conversation(&trade_id).await?;
         Ok(crate::api::messages::AttachmentTarget {
@@ -1751,8 +1753,8 @@ mod tests {
         let announce = |serbero: &str| vec![vec!["serbero".to_string(), serbero.to_string()]];
 
         // Act
-        crate::mostro::serbero::set_from_tags(&active, &announce(&active_serbero));
-        crate::mostro::serbero::set_from_tags(&other, &announce(&other_serbero));
+        crate::mostro::node_info::set_from_tags(&active, &announce(&active_serbero));
+        crate::mostro::node_info::set_from_tags(&other, &announce(&other_serbero));
 
         // Assert
         let role =
@@ -1775,10 +1777,10 @@ mod tests {
             "no recorded node vouches for anyone"
         );
 
-        crate::mostro::serbero::set_from_tags(&other, &[]);
+        crate::mostro::node_info::set_from_tags(&other, &[]);
         assert_eq!(role(&on_other, &other_serbero).await, SolverRole::Human);
 
-        crate::mostro::serbero::set_from_tags(&active, &[]);
+        crate::mostro::node_info::set_from_tags(&active, &[]);
         for order_id in [&on_active, &on_other] {
             clear_dispute_keys(order_id).await;
         }
@@ -1862,6 +1864,38 @@ mod tests {
             err.to_string().contains("TradeNotDisputable"),
             "expected TradeNotDisputable, got: {err}"
         );
+    }
+
+    /// #810: a dispute goes to the trade's own node, which must be the active
+    /// one. On another node nothing is published and no dispute is recorded.
+    #[tokio::test]
+    async fn a_dispute_on_another_node_is_refused() {
+        use crate::mostro::test_fixtures::{
+            forget_trade_row, nodes_other_than_the_active_one, store_trade_row, trade,
+        };
+        for node in nodes_other_than_the_active_one() {
+            // Arrange
+            let order_id = uuid::Uuid::new_v4().to_string();
+            store_trade_row(&trade(
+                &order_id,
+                7,
+                crate::api::types::OrderStatus::FiatSent,
+                &node,
+            ))
+            .await;
+
+            // Act
+            let err = open_dispute(order_id.clone(), None).await.unwrap_err();
+
+            // Assert
+            assert!(
+                err.to_string().contains("TradeOnOtherNode"),
+                "node {node:?}: got {err}"
+            );
+            assert!(dispute_store().get(&order_id).await.is_none());
+            assert!(!pending_opens().lock().unwrap().contains(&order_id));
+            forget_trade_row(&order_id).await;
+        }
     }
 
     #[tokio::test]
@@ -1959,7 +1993,7 @@ mod tests {
                 fiat_code: "VES".into(),
                 payment_method: "bank".into(),
                 premium: 0.0,
-                creator_pubkey: "maker".into(),
+                node_pubkey: "node".into(),
                 created_at: 1,
                 expires_at: None,
                 is_mine: true,
@@ -1979,6 +2013,8 @@ mod tests {
             timeout_at: None,
             started_at: 1,
             completed_at: None,
+            escrow_locked_at: None,
+            escrow_node: None,
             outcome: None,
             peer_rating: None,
             peer_reviews: None,
@@ -3354,7 +3390,7 @@ mod tests {
         let sound = format!("sound-{}", uuid::Uuid::new_v4());
         for (order_id, counterparty) in [(&poisoned, node.clone()), (&sound, peer.to_hex())] {
             let mut trade = persisted_trade(order_id, OrderStatus::Dispute);
-            trade.order.creator_pubkey = node.clone();
+            trade.order.node_pubkey = node.clone();
             trade.counterparty_pubkey = counterparty;
             db.save_trade(&trade).await.unwrap();
         }
@@ -3411,5 +3447,54 @@ mod tests {
             None,
             "the share must be cleared with the other dispute keys"
         );
+    }
+
+    /// #811: a dispute's chat with the solver stays on the trade's node.
+    /// On another node's trade nothing is sent and the caller is told why.
+    #[tokio::test]
+    async fn dispute_chat_on_a_trade_of_another_node_is_refused() {
+        use crate::mostro::test_fixtures::{
+            forget_trade_row, nodes_other_than_the_active_one, store_trade_row, trade,
+        };
+        let mut outcomes = Vec::new();
+        for node in nodes_other_than_the_active_one() {
+            // Arrange
+            let order_id = uuid::Uuid::new_v4().to_string();
+            store_trade_row(&trade(
+                &order_id,
+                7,
+                crate::api::types::OrderStatus::Dispute,
+                &node,
+            ))
+            .await;
+
+            // Act
+            let sends = [
+                (
+                    "submit_evidence",
+                    submit_evidence(order_id.clone(), "proof".into())
+                        .await
+                        .err(),
+                ),
+                (
+                    "share_chat_key_with_solver",
+                    share_chat_key_with_solver(order_id.clone()).await.err(),
+                ),
+                (
+                    "send_dispute_file",
+                    send_dispute_file(order_id.clone(), vec![1, 2, 3], "a.txt".into(), "u1".into())
+                        .await
+                        .err(),
+                ),
+            ];
+            forget_trade_row(&order_id).await;
+            outcomes.push(sends.map(|(name, err)| (name, err.map(|e| e.to_string()))));
+        }
+
+        // Assert
+        for (name, err) in outcomes.into_iter().flatten() {
+            let err = err.unwrap_or_else(|| format!("{name} was not refused"));
+            assert!(err.contains("TradeOnOtherNode"), "{name}: got {err}");
+        }
     }
 }

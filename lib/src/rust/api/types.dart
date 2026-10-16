@@ -10,7 +10,7 @@ part 'types.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `default_expiration_hours`, `default_expiration_seconds`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `AppState`, `MostroNodeInfo`, `QueuedMessageStatus`, `TradeHistoryEntry`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// The `bond_claims` key for a node / order pair.
 Future<String> bondClaimKey({
@@ -1484,7 +1484,11 @@ class OrderInfo {
   /// Market premium as a percentage, e.g. `1.5` means 1.5% above market.
   /// For display only — same `f64` precision caveat applies.
   final double premium;
-  final String creatorPubkey;
+
+  /// The Mostro node that issued the order: the Kind 38383 author on a book
+  /// order, the node that answered on a trade row. Empty when unknown.
+  /// Rows persisted before the rename carry it as `creator_pubkey`.
+  final String nodePubkey;
 
   /// Unix timestamp (seconds).
   final PlatformInt64 createdAt;
@@ -1531,7 +1535,7 @@ class OrderInfo {
     required this.fiatCode,
     required this.paymentMethod,
     required this.premium,
-    required this.creatorPubkey,
+    required this.nodePubkey,
     required this.createdAt,
     this.expiresAt,
     required this.isMine,
@@ -1554,7 +1558,7 @@ class OrderInfo {
       fiatCode.hashCode ^
       paymentMethod.hashCode ^
       premium.hashCode ^
-      creatorPubkey.hashCode ^
+      nodePubkey.hashCode ^
       createdAt.hashCode ^
       expiresAt.hashCode ^
       isMine.hashCode ^
@@ -1579,7 +1583,7 @@ class OrderInfo {
           fiatCode == other.fiatCode &&
           paymentMethod == other.paymentMethod &&
           premium == other.premium &&
-          creatorPubkey == other.creatorPubkey &&
+          nodePubkey == other.nodePubkey &&
           createdAt == other.createdAt &&
           expiresAt == other.expiresAt &&
           isMine == other.isMine &&
@@ -1682,6 +1686,122 @@ class PaymentResult {
           success == other.success &&
           preimage == other.preimage &&
           error == other.error;
+}
+
+/// One destination the buyer's payout was sent to, as this device submitted
+/// it (#823). Read with `orders::payout_destinations`, oldest first.
+///
+/// Recorded locally, so a trade restored on another device has none: the
+/// node does not say where it paid.
+class PayoutDestination {
+  /// The Lightning address or the BOLT11 invoice, as sent.
+  final String destination;
+  final bool isLightningAddress;
+  final PayoutSource source;
+
+  /// The NWC wallet's name, when the wallet gave one and made the invoice.
+  final String? walletName;
+
+  /// Unix seconds, local clock, when the destination was sent.
+  final PlatformInt64 submittedAt;
+
+  /// The sats the destination receives: the invoice's amount, or the
+  /// payout amount once the node said it. `None` while unknown.
+  final BigInt? amountSats;
+
+  /// Hex payment hash of an invoice; `None` for a Lightning address,
+  /// whose invoice only the node sees.
+  final String? paymentHash;
+  final PayoutOutcome outcome;
+
+  /// Unix seconds of the node message that set [`Self::outcome`] (node
+  /// clock), or of the rejection (local clock). `None` while submitted.
+  final PlatformInt64? outcomeAt;
+
+  /// How many times the node tries to pay before it gives up, from its
+  /// `payment-failed` notice. `None` until one arrives.
+  final int? attempts;
+
+  const PayoutDestination({
+    required this.destination,
+    required this.isLightningAddress,
+    required this.source,
+    this.walletName,
+    required this.submittedAt,
+    this.amountSats,
+    this.paymentHash,
+    required this.outcome,
+    this.outcomeAt,
+    this.attempts,
+  });
+
+  @override
+  int get hashCode =>
+      destination.hashCode ^
+      isLightningAddress.hashCode ^
+      source.hashCode ^
+      walletName.hashCode ^
+      submittedAt.hashCode ^
+      amountSats.hashCode ^
+      paymentHash.hashCode ^
+      outcome.hashCode ^
+      outcomeAt.hashCode ^
+      attempts.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PayoutDestination &&
+          runtimeType == other.runtimeType &&
+          destination == other.destination &&
+          isLightningAddress == other.isLightningAddress &&
+          source == other.source &&
+          walletName == other.walletName &&
+          submittedAt == other.submittedAt &&
+          amountSats == other.amountSats &&
+          paymentHash == other.paymentHash &&
+          outcome == other.outcome &&
+          outcomeAt == other.outcomeAt &&
+          attempts == other.attempts;
+}
+
+/// What became of one payout destination (#823).
+enum PayoutOutcome {
+  /// Sent to the node; no news of the payout yet.
+  submitted,
+
+  /// The node's first payment failed and it is retrying.
+  retrying,
+
+  /// The node gave up on it and asked for a new invoice.
+  failed,
+
+  /// The node refused it when it was submitted.
+  rejected,
+
+  /// The node acknowledged a later destination in its place, before
+  /// paying anything.
+  replaced,
+
+  /// The node paid it: the trade completed.
+  paid,
+
+  /// The node paid, but more than one destination was still open and its
+  /// message does not say which one: this one or another marked the same.
+  maybePaid,
+}
+
+/// How a payout destination was chosen (#823).
+enum PayoutSource {
+  /// The default Lightning address from Settings, sent with the take.
+  defaultLightningAddress,
+
+  /// An invoice the connected NWC wallet generated and the app submitted
+  /// on its own.
+  nwcWallet,
+
+  /// An invoice or Lightning address the buyer entered for this trade.
+  entered,
 }
 
 /// The device token's platform, as the push server wants it
@@ -1964,6 +2084,21 @@ enum SolverRole {
   human,
 }
 
+@freezed
+sealed class TakePayout with _$TakePayout {
+  const TakePayout._();
+
+  /// The default Lightning address from Settings, when one is set.
+  const factory TakePayout.defaultAddress() = TakePayout_DefaultAddress;
+
+  /// Another Lightning address, for this trade only.
+  const factory TakePayout.address({required String address}) =
+      TakePayout_Address;
+
+  /// No address: the node asks for an invoice once the trade starts.
+  const factory TakePayout.askForInvoice() = TakePayout_AskForInvoice;
+}
+
 enum ThemeMode { system, dark, light }
 
 class TradeInfo {
@@ -1996,6 +2131,19 @@ class TradeInfo {
   final PlatformInt64? timeoutAt;
   final PlatformInt64 startedAt;
   final PlatformInt64? completedAt;
+
+  /// Unix seconds (the node's clock) when the seller's hold invoice was
+  /// accepted: the `created_at` of the daemon message that moved the order
+  /// out of `waiting-payment`. The escrow deadline guardian counts from
+  /// there. The oldest candidate is kept, so a replayed or re-sent message
+  /// never moves it. `None` until recorded, and on rows written before the
+  /// field existed (`#[serde(default)]`).
+  final PlatformInt64? escrowLockedAt;
+
+  /// The node (hex pubkey) that sent the message [`Self::escrow_locked_at`]
+  /// was taken from: its info event says how far the deadline is, whichever
+  /// node is active now.
+  final String? escrowNode;
   final TradeOutcome? outcome;
 
   /// Counterparty (taker) reputation snapshot from the daemon's follow-up
@@ -2081,6 +2229,8 @@ class TradeInfo {
     this.timeoutAt,
     required this.startedAt,
     this.completedAt,
+    this.escrowLockedAt,
+    this.escrowNode,
     this.outcome,
     this.peerRating,
     this.peerReviews,
@@ -2110,6 +2260,8 @@ class TradeInfo {
       timeoutAt.hashCode ^
       startedAt.hashCode ^
       completedAt.hashCode ^
+      escrowLockedAt.hashCode ^
+      escrowNode.hashCode ^
       outcome.hashCode ^
       peerRating.hashCode ^
       peerReviews.hashCode ^
@@ -2141,6 +2293,8 @@ class TradeInfo {
           timeoutAt == other.timeoutAt &&
           startedAt == other.startedAt &&
           completedAt == other.completedAt &&
+          escrowLockedAt == other.escrowLockedAt &&
+          escrowNode == other.escrowNode &&
           outcome == other.outcome &&
           peerRating == other.peerRating &&
           peerReviews == other.peerReviews &&
@@ -2279,6 +2433,12 @@ enum TradeUpdateReason {
   /// does (#770). Not the startup sweep's cancel: that is the daemon's
   /// `Canceled` learned late, news like the message it stands in for.
   replayed,
+
+  /// The node could not pay the buyer and asks for a new invoice: an
+  /// `add-invoice` on a settled escrow (mostrod `check_failure_retries`).
+  /// Rides on `WaitingBuyerInvoice`, like the first request, so the card
+  /// and the screens can tell the two apart (#823).
+  payoutFailed,
 }
 
 enum WalletStatus { connected, disconnected, connecting, error }

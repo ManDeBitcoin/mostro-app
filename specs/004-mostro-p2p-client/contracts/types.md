@@ -150,7 +150,7 @@ fiat_amount_max: f64?
 fiat_code: String
 payment_method: String
 premium: f64
-creator_pubkey: String
+node_pubkey: String
 created_at: i64 (unix timestamp)
 expires_at: i64?
 is_mine: bool
@@ -182,6 +182,8 @@ cooperative_cancel_state: CooperativeCancelState?
 timeout_at: i64?
 started_at: i64
 completed_at: i64?
+escrow_locked_at: i64?
+escrow_node: String?
 outcome: TradeOutcome?
 peer_rating: f64?
 peer_reviews: u32?
@@ -198,11 +200,17 @@ predate it and for a value Dart's `DateTime` cannot hold. Like
 from it at display time and falls back to `peer_days`, a count frozen when
 the daemon sent it.
 
+`escrow_locked_at` is when the seller's hold invoice was accepted (the
+node's clock, the oldest daemon message that moved the order out of
+`waiting-payment`) and `escrow_node` the node that sent it; both `None`
+until recorded. See `data-model.md` and `trade_escrow_deadline`
+(`contracts/orders.md`).
+
 `bond` is set when the node required an anti-abuse bond for this trade, and
 `None` otherwise (and on rows written before the field existed).
 
 `counterparty_pubkey` is the **peer's trade pubkey**, never the Mostro
-node's (`order.creator_pubkey` on a book order is the node — the 38383
+node's (`order.node_pubkey` on a book order is the node — the 38383
 event author). It starts **empty** for both roles and is populated when a
 daemon message names both trade pubkeys (the peer-reveal capture, #334 —
 see `orders.md`). On backends with a trades store the trade row is the

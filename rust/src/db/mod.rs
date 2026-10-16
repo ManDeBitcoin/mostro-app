@@ -46,6 +46,15 @@ pub mod settings_keys {
     /// asked. Identity-scoped: it is that identity's reputation.
     pub const MY_REPUTATION: &str = "my_reputation";
 
+    /// The reputation attestation the identity exported last and has not
+    /// imported yet, as the event JSON it came in
+    /// (`api::reputation_transfer`). One slot for all nodes. It names the
+    /// requested destination — the identity itself, or another one the user
+    /// carries it to. Identity-scoped: the export bound the source account to
+    /// that destination on this identity's request, so it is of no use to
+    /// the next identity.
+    pub const PENDING_REPUTATION_ATTESTATION: &str = "pending_reputation_attestation";
+
     // ── Push notifications (docs/PUSH_NOTIFICATIONS.md §7.1, §8.1) ──────────
 
     /// The master toggle, `"true"` / `"false"`; absent reads as enabled.
@@ -216,6 +225,38 @@ pub mod settings_keys {
         format!("{INVOICE_STEP_PREFIX}{order_id}")
     }
 
+    /// Prefix of [`payout_amount`] keys.
+    pub const PAYOUT_AMOUNT_PREFIX: &str = "payout_amount:";
+
+    /// Per-order sats the node pays the buyer (`<sats>:<unix secs>:<trade_index>`),
+    /// the amount the payout invoice must carry: `amount - fee`. Written only
+    /// from the two messages that carry it, `add-invoice` and
+    /// `hold-invoice-payment-accepted`; the order's Kind 38383 events and a
+    /// restore's `orders` reply carry the order amount instead, so neither
+    /// touches it.
+    ///
+    /// Kept out of the status machinery on purpose: an `add-invoice` replayed
+    /// after a restore is older than the status the restore wrote and its
+    /// status is refused, but its amount is still the only one there is.
+    /// `trade_index` is the generation, as in [`invoice_step_start`], and the
+    /// key is deleted with it.
+    pub fn payout_amount(order_id: &str) -> String {
+        format!("{PAYOUT_AMOUNT_PREFIX}{order_id}")
+    }
+
+    /// Prefix of [`payout_route`] keys.
+    pub const PAYOUT_ROUTE_PREFIX: &str = "payout_route:";
+
+    /// Per-order record of every destination the buyer's payout was sent to
+    /// from this device, and what became of each (#823): JSON written by
+    /// `mostro::payout_route`. `trade_index` inside it is the generation, as
+    /// in [`invoice_step_start`]: a later take starts a new record, and the
+    /// key is deleted with the row and when a maker's order goes back to the
+    /// book.
+    pub fn payout_route(order_id: &str) -> String {
+        format!("{PAYOUT_ROUTE_PREFIX}{order_id}")
+    }
+
     /// Per-order tombstone marking the trade row as deleted **on purpose** —
     /// by the pre-active cancel wipe (`cancellation_wipes_history`) or by the
     /// stale sweeper — so a daemon message for an order with no row can tell
@@ -244,7 +285,7 @@ pub mod settings_keys {
     /// [`super::Storage::clear_identity_data`] drops it with the rows. What
     /// is left in the store is device preference: the active node, custom
     /// nodes, node caches, push token and toggle, developer overrides.
-    pub const IDENTITY_SCOPED_PREFIXES: [&str; 9] = [
+    pub const IDENTITY_SCOPED_PREFIXES: [&str; 11] = [
         CHAT_CURSOR_PREFIX,
         DISPUTE_ADMIN_PREFIX,
         DISPUTE_ADMIN_AT_PREFIX,
@@ -253,19 +294,41 @@ pub mod settings_keys {
         DISPUTE_KEY_SHARED_PREFIX,
         STATUS_CURSOR_PREFIX,
         INVOICE_STEP_PREFIX,
+        PAYOUT_AMOUNT_PREFIX,
+        PAYOUT_ROUTE_PREFIX,
         TRADE_WIPED_PREFIX,
     ];
 
     /// The single keys that describe the identity, not the device, dropped
     /// with [`IDENTITY_SCOPED_PREFIXES`] by
     /// [`super::Storage::clear_identity_data`].
-    pub const IDENTITY_SCOPED_KEYS: [&str; 3] =
-        [BOND_CLAIM_RETAINED_NODES, RESTORE_SNAPSHOT, MY_REPUTATION];
+    pub const IDENTITY_SCOPED_KEYS: [&str; 4] = [
+        BOND_CLAIM_RETAINED_NODES,
+        RESTORE_SNAPSHOT,
+        MY_REPUTATION,
+        PENDING_REPUTATION_ATTESTATION,
+    ];
 
     /// Build the settings key marking `order_id`'s trade row as wiped.
     pub fn trade_wiped(order_id: &str) -> String {
         format!("{TRADE_WIPED_PREFIX}{order_id}")
     }
+
+    /// A deleted identity's data wipe has not succeeded yet (issue #555):
+    /// recorded before the deletion gives anything up
+    /// (`api::identity::record_wipe_intent`) and cleared by the wipe that
+    /// succeeds. While it holds, the previous identity's rows may still be
+    /// on disk: the next identity creation or import retries the wipe and
+    /// clears it (`api::identity::retry_pending_wipe`). The value is the
+    /// deleted identity's public key: reloading that identity means the rows
+    /// are its own, and the marker goes without a wipe
+    /// (`api::identity::release_own_wipe_marker`).
+    ///
+    /// Device-scoped, deliberately absent from [`IDENTITY_SCOPED_PREFIXES`]
+    /// and [`IDENTITY_SCOPED_KEYS`]: the wipe that would drop it is the wipe
+    /// that may fail, and the marker must outlive the identity swap to drive
+    /// the retry.
+    pub const IDENTITY_WIPE_PENDING: &str = "identity_wipe_pending";
 }
 
 /// Storage trait — implemented by both SQLite (native) and IndexedDB (WASM).
@@ -319,10 +382,6 @@ pub trait Storage: Send + Sync {
     async fn save_identity(&self, identity: &crate::api::types::IdentityInfo) -> Result<()>;
     async fn get_identity(&self) -> Result<Option<crate::api::types::IdentityInfo>>;
 
-    /// Delete the persisted identity row, so a subsequently created or
-    /// imported identity starts with a fresh trade key counter.
-    async fn delete_identity(&self) -> Result<()>;
-
     async fn save_queued_message(&self, msg: &crate::queue::outbox::QueuedMessage) -> Result<()>;
     async fn list_queued_messages(&self) -> Result<Vec<crate::queue::outbox::QueuedMessage>>;
     async fn update_queued_message_status(
@@ -346,18 +405,18 @@ pub trait Storage: Send + Sync {
     /// Delete the trade key entry for `order_id`.
     async fn delete_trade_key(&self, order_id: &str) -> Result<()>;
 
-    /// Delete ALL trade key entries. Used on identity deletion — the
-    /// order→index mappings belong to the removed identity's derivation tree.
-    async fn clear_trade_keys(&self) -> Result<()>;
-
-    /// Delete everything the current identity produced: trades, chat
-    /// messages and their cached attachments, payout claims, the outbound
-    /// queue, the cached order book
+    /// Delete the current identity and everything it produced: its row, its
+    /// trade-key mappings, trades, chat messages and their cached
+    /// attachments, payout claims, the outbound queue, the cached order book
     /// (its `is_mine` marks are the identity's) and the per-order settings
     /// ([`settings_keys::IDENTITY_SCOPED_PREFIXES`] and
-    /// [`settings_keys::IDENTITY_SCOPED_KEYS`]). Used on identity deletion, next to [`Self::clear_trade_keys`]:
+    /// [`settings_keys::IDENTITY_SCOPED_KEYS`]). Used on identity deletion:
     /// a new user must start as on a fresh install (issue #533). Relays,
     /// the node choice and preferences stay — they belong to the device.
+    ///
+    /// All of it or none of it: the identity row and the mappings go in the
+    /// same transaction as the rows, so a wipe that fails leaves the identity
+    /// able to act on the trades it kept (review of #573).
     async fn clear_identity_data(&self) -> Result<()>;
 
     // ── Settings / Mostro node ────────────────────────────────────────────────
@@ -397,6 +456,21 @@ pub trait Storage: Send + Sync {
     /// order id, no FK) and are deliberately NOT touched here. No-op when
     /// no matching trade exists.
     async fn delete_trade_by_order_id(&self, order_id: &str) -> Result<()>;
+
+    /// Replace every persisted trade of `order_id` with `trade`, in ONE
+    /// transaction: either the order ends up with exactly `trade`, or it
+    /// keeps the rows it had — never neither, whatever fails and even if the
+    /// process dies halfway. For a new take that supersedes a row an earlier
+    /// take of the same order left behind (#566).
+    ///
+    /// May refuse with an `Err` and change nothing when it cannot isolate the
+    /// replacement from other writers — on the web, when the browser grants
+    /// no origin-wide lock. Callers retry.
+    async fn replace_trades_for_order(
+        &self,
+        order_id: &str,
+        trade: &crate::api::types::TradeInfo,
+    ) -> Result<()>;
 
     /// Update the order ID inside a persisted trade (e.g. local UUID → daemon UUID).
     ///
@@ -465,6 +539,19 @@ pub trait Storage: Send + Sync {
     /// exists.
     async fn mark_trade_completed(&self, order_id: &str, completed_at: i64) -> Result<()>;
 
+    /// Record when the escrow of the trade identified by `order.id` locked
+    /// (`$.escrow_locked_at`, unix seconds) and the node that said so
+    /// (`$.escrow_node`), unless the row already holds an older time: the
+    /// oldest wins, so a replayed or re-sent message never moves it. No-op
+    /// when no matching trade exists.
+    async fn mark_escrow_locked(&self, order_id: &str, locked_at: i64, node: &str) -> Result<()>;
+
+    /// Forget the escrow lock of the trade identified by `order.id`
+    /// (`$.escrow_locked_at` and `$.escrow_node` back to null), so the next
+    /// take of a republished maker order records its own. No-op when no
+    /// matching trade exists.
+    async fn clear_escrow_lock(&self, order_id: &str) -> Result<()>;
+
     /// Record who asked to cancel an active trade cooperatively
     /// (`$.cooperative_cancel_state`) on the trade identified by `order.id`.
     /// The status is left alone: the protocol has no cancel-requested status,
@@ -475,6 +562,14 @@ pub trait Storage: Send + Sync {
         order_id: &str,
         state: crate::api::types::CooperativeCancelState,
     ) -> Result<()>;
+
+    /// Reset to unknown (`""`) the node of the trade row `row_id` when its
+    /// node is still `node` (ignoring case) — read from `order.node_pubkey`,
+    /// else from the legacy `order.creator_pubkey`, which the same write
+    /// drops. Every other field stays as stored, so a write that landed
+    /// since the caller's read survives. A missing row stays missing, and an
+    /// empty `node` matches nothing. Returns whether it changed the row.
+    async fn forget_trade_node(&self, row_id: &str, node: &str) -> Result<bool>;
 
     /// Persist the counterparty's trade pubkey on the trade identified by
     /// `order.id` (issue #334). Written when a daemon message reveals it, for

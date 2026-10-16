@@ -598,6 +598,12 @@ abstract class AppLocalizations {
   /// **'Still checking what the selected Mostro node supports. Try again in a moment'**
   String get nodeCapabilitiesUnknown;
 
+  /// Error shown when a trade action (cancel, dispute, release, rating, invoice...) is refused before sending because the trade belongs to a Mostro node other than the selected one, or its node is unknown
+  ///
+  /// In en, this message translates to:
+  /// **'This trade belongs to another Mostro node. Switch to that node to act on it'**
+  String get tradeOnOtherNode;
+
   /// Error shown when the selected Mostro node answers CantDo(MaintenanceMode): it is draining (for example before a Lightning node migration) and refuses new orders and takes until it is back
   ///
   /// In en, this message translates to:
@@ -1804,6 +1810,24 @@ abstract class AppLocalizations {
   /// **'Fiat Currencies'**
   String get aboutFiatCurrenciesLabel;
 
+  /// Technical data row, in the Price group: a price provider behind the exchange rates the Mostro node publishes now (Yadio, CoinGecko, El Toque…), as its rates event names them
+  ///
+  /// In en, this message translates to:
+  /// **'Source'**
+  String get aboutPriceSourceLabel;
+
+  /// Technical data group title: the node's exchange rates, holding the price source row
+  ///
+  /// In en, this message translates to:
+  /// **'Price'**
+  String get aboutPriceSection;
+
+  /// Technical data footnote, added when the Price group is shown: the sources are the providers of the rates published now, not every provider the node is configured with
+  ///
+  /// In en, this message translates to:
+  /// **'Price sources are the providers behind the rates the node publishes now; one that failed or was set aside is not listed.'**
+  String get aboutPriceSourcesFootnote;
+
   /// About screen — Mostro Version row label
   ///
   /// In en, this message translates to:
@@ -2103,6 +2127,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to generate identity. Please try again.'**
   String get failedToGenerateIdentityMessage;
+
+  /// Title of the Account screen warning shown while a deleted identity's data wipe is pending retry (issue #555)
+  ///
+  /// In en, this message translates to:
+  /// **'Previous user\'s data is still on this device'**
+  String get pendingWipeBannerTitle;
+
+  /// Body of the pending-wipe warning on the Account screen
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting the previous identity could not remove its trades and chats from this device. The app will retry the next time a new user is generated or imported.'**
+  String get pendingWipeBannerBody;
+
+  /// Snackbar shown when generating or importing a user is refused because the previous identity's pending data wipe failed again, and the current user was loaded back (issue #555)
+  ///
+  /// In en, this message translates to:
+  /// **'The previous user\'s data could not be removed from this device, so the new user was not set up and your current user was kept. Please try again.'**
+  String get pendingWipeBlockedMessage;
+
+  /// Snackbar shown when generating or importing a user is refused before the current identity is deleted, because the device could not record that its data wipe is pending (issue #555)
+  ///
+  /// In en, this message translates to:
+  /// **'The current user could not be removed safely, so nothing was changed. Please try again.'**
+  String get wipeNotRecordedMessage;
+
+  /// Snackbar shown when generating or importing a user is refused because this session has no database, so the current identity cannot be deleted safely until the app restarts (review of #573)
+  ///
+  /// In en, this message translates to:
+  /// **'This device\'s storage is not available right now, so the current user was kept and nothing was changed. Restart the app and try again.'**
+  String get identitySwapStorageUnavailableMessage;
+
+  /// Snackbar shown when generating or importing a user is refused after the current identity was deleted, and that identity could not be loaded again — or was loaded but its session could not be rebuilt — in this session (review of #573)
+  ///
+  /// In en, this message translates to:
+  /// **'The new user was not set up, and the current user could not be fully restored. Restart the app to load it again.'**
+  String get identitySwapPreviousNotReloadedMessage;
 
   /// Snackbar shown when an imported mnemonic is invalid on the Account screen
   ///
@@ -2691,6 +2751,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'If it expires, the order is cancelled.'**
   String get tradeTimerExpiryCancelled;
+
+  /// Note under the countdown of an active trade: the time is estimated in Bitcoin blocks, and mostrod's escrow deadline guardian cancels the trade when it runs out
+  ///
+  /// In en, this message translates to:
+  /// **'Approximate time. If it runs out, Mostro cancels the trade.'**
+  String get tradeTimerEscrowCancels;
+
+  /// Note under the countdown of a fiat-sent trade: the time is estimated in Bitcoin blocks, and mostrod's escrow deadline guardian opens a dispute when it runs out
+  ///
+  /// In en, this message translates to:
+  /// **'Approximate time. If it runs out, Mostro opens a dispute.'**
+  String get tradeTimerEscrowDisputes;
+
+  /// Note under the countdown of an active trade once it reaches zero: mostrod is about to cancel the trade and refund the seller's sats
+  ///
+  /// In en, this message translates to:
+  /// **'Mostro is about to cancel the trade and return the sats to the seller.'**
+  String get tradeTimerEscrowCancelling;
+
+  /// Note under the countdown of a fiat-sent trade once it reaches zero: mostrod is about to open a dispute
+  ///
+  /// In en, this message translates to:
+  /// **'A dispute is about to be opened.'**
+  String get tradeTimerEscrowDisputing;
 
   /// Timeline step: order taken
   ///
@@ -3928,10 +4012,10 @@ abstract class AppLocalizations {
   /// **'No chat yet: until the trade is active, neither party knows who the other is.'**
   String get tradeChatLockedNote;
 
-  /// Subtitle of the chat card under the counterpart alias
+  /// Second line of the trade screen's chat card under the role title
   ///
   /// In en, this message translates to:
-  /// **'End-to-end encrypted chat'**
+  /// **'End-to-end encrypted'**
   String get tradeChatEncrypted;
 
   /// Subtitle of the trade screen's chat card once the conversation has ended (trade cancelled, or completed more than an hour ago); tapping opens the conversation read-only
@@ -3939,6 +4023,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Conversation closed · view messages'**
   String get tradeChatClosed;
+
+  /// Title of the trade screen's chat card when the counterpart is the buyer (the user sells)
+  ///
+  /// In en, this message translates to:
+  /// **'Chat with the buyer'**
+  String get tradeChatWithBuyer;
+
+  /// Title of the trade screen's chat card when the counterpart is the seller (the user buys)
+  ///
+  /// In en, this message translates to:
+  /// **'Chat with the seller'**
+  String get tradeChatWithSeller;
+
+  /// Title of the trade screen's chat card while the counterpart's role is not known yet
+  ///
+  /// In en, this message translates to:
+  /// **'Chat with your counterpart'**
+  String get tradeChatWithCounterpart;
+
+  /// Second line of the trade screen's chat card while it has unread messages; count is the number of unread messages
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 new message} other{{count} new messages}}'**
+  String tradeChatNewMessages(int count);
+
+  /// Trailing action label of the trade screen's chat card; tapping the card opens the conversation
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get tradeChatOpen;
 
   /// Screen-reader announcement when the trade screen's chat card turns closed while the user is on it (the completed trade's hour ran out); the messages stay readable
   ///
@@ -3993,12 +4107,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Time left'**
   String get tradeTimerOrderHas;
-
-  /// Note under the countdown of an active trade
-  ///
-  /// In en, this message translates to:
-  /// **'If you need more time, coordinate in the chat before it expires.'**
-  String get tradeTimerNoteCoordinate;
 
   /// Counterpart role on the reputation row
   ///
@@ -6964,6 +7072,36 @@ abstract class AppLocalizations {
   /// **'This token could not be verified: it carries no proof of the mint\'s signature, so it was not accepted.'**
   String get cashuErrorTokenUnverified;
 
+  /// Cashu wallet — a received token is in a unit other than sats (msat, usd, …); refused before any mint was asked
+  ///
+  /// In en, this message translates to:
+  /// **'This wallet only holds sats, and this token is in another unit (such as millisats or dollars). It was left untouched: you can redeem it in a wallet that supports its unit.'**
+  String get cashuErrorUnsupportedUnit;
+
+  /// Cashu wallet — a received token is in a unit the app can name; {unit} is one of cashuUnitMsat/Usd/Eur or an upper-case currency code
+  ///
+  /// In en, this message translates to:
+  /// **'This wallet only holds sats, and this token is in {unit}. It was left untouched: you can redeem it in a wallet that supports that unit.'**
+  String cashuErrorUnsupportedUnitNamed(String unit);
+
+  /// Cashu unit name inside cashuErrorUnsupportedUnitNamed — millisatoshis
+  ///
+  /// In en, this message translates to:
+  /// **'millisats'**
+  String get cashuUnitMsat;
+
+  /// Cashu unit name inside cashuErrorUnsupportedUnitNamed — US dollars
+  ///
+  /// In en, this message translates to:
+  /// **'dollars (USD)'**
+  String get cashuUnitUsd;
+
+  /// Cashu unit name inside cashuErrorUnsupportedUnitNamed — euros
+  ///
+  /// In en, this message translates to:
+  /// **'euros (EUR)'**
+  String get cashuUnitEur;
+
   /// Cashu wallet — a failed send whose proofs could not be confirmed back
   ///
   /// In en, this message translates to:
@@ -7341,6 +7479,582 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'On {node}'**
   String myReputationOnNode(String node);
+
+  /// App bar title of the screen that opens a mostro: order link
+  ///
+  /// In en, this message translates to:
+  /// **'Order link'**
+  String get orderLinkTitle;
+
+  /// Order link screen: shown while the relays are asked for the linked order
+  ///
+  /// In en, this message translates to:
+  /// **'Looking for the order…'**
+  String get orderLinkLooking;
+
+  /// Order link screen: shown while the app changes to the node that published the linked order
+  ///
+  /// In en, this message translates to:
+  /// **'Changing to {nodeName}…'**
+  String orderLinkSwitching(String nodeName);
+
+  /// Order link screen: title when the link is not a valid Mostro order link
+  ///
+  /// In en, this message translates to:
+  /// **'This link can\'t be opened'**
+  String get orderLinkInvalidTitle;
+
+  /// Order link screen: explanation when the link is not a valid Mostro order link
+  ///
+  /// In en, this message translates to:
+  /// **'It isn\'t a link to a Mostro order, or part of it is missing.'**
+  String get orderLinkInvalidBody;
+
+  /// Order link screen: explanation when no relay returned the linked order (the title is orderNotFoundTitle)
+  ///
+  /// In en, this message translates to:
+  /// **'No relay answered with this order. Check your connection and try again.'**
+  String get orderLinkNotFoundBody;
+
+  /// Order link screen: title when the linked order exists but can no longer be taken
+  ///
+  /// In en, this message translates to:
+  /// **'Order no longer available'**
+  String get orderLinkUnavailableTitle;
+
+  /// Order link screen: explanation when the linked order was taken, canceled or expired
+  ///
+  /// In en, this message translates to:
+  /// **'Someone already took it, or it was canceled or expired.'**
+  String get orderLinkUnavailableBody;
+
+  /// Order link screen: title when changing node or reading the trades failed (the body says which)
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open the order'**
+  String get orderLinkFailedTitle;
+
+  /// Title of the dialog asking to change to the node that published a linked order
+  ///
+  /// In en, this message translates to:
+  /// **'Order on another node'**
+  String get orderLinkOtherNodeTitle;
+
+  /// Body of the dialog asking to change to the node that published a linked order
+  ///
+  /// In en, this message translates to:
+  /// **'This order was published on {nodeName}. To see it and take it, change to that node.'**
+  String orderLinkOtherNodeBody(String nodeName);
+
+  /// Warning in the change-node dialog when the linked order's node is neither trusted nor added by the user
+  ///
+  /// In en, this message translates to:
+  /// **'This node isn\'t in your list. Change to it only if you trust whoever sent you the link: the node you trade on settles your trades and resolves their disputes.'**
+  String get orderLinkUnknownNodeWarning;
+
+  /// Reputation portability (#674): the active node does not advertise reputation_issuer, so it cannot export
+  ///
+  /// In en, this message translates to:
+  /// **'This Mostro does not export reputation.'**
+  String get reputationNodeDoesNotExport;
+
+  /// Import reputation screen, shown up front: the active node does not advertise reputation_import_issuers
+  ///
+  /// In en, this message translates to:
+  /// **'This Mostro does not import reputation.'**
+  String get reputationNodeDoesNotImport;
+
+  /// Reputation export/import refused in full privacy mode: both act on the identity key
+  ///
+  /// In en, this message translates to:
+  /// **'Reputation can only be moved from an account that keeps its reputation. Turn off full privacy mode and try again.'**
+  String get reputationIdentityRequired;
+
+  /// The node refused an export: the account is below its minimum of trades and ratings
+  ///
+  /// In en, this message translates to:
+  /// **'Your account cannot export its reputation yet: it needs at least 10 completed trades and 5 ratings received.'**
+  String get reputationNotEligible;
+
+  /// The node refused an export: the source account is already bound to another identity
+  ///
+  /// In en, this message translates to:
+  /// **'Your reputation there is already bound to another identity. Authorize the move from the identity it is bound to.'**
+  String get reputationBoundToOtherIdentity;
+
+  /// The authorization to move a reputation to a new identity is invalid or expired
+  ///
+  /// In en, this message translates to:
+  /// **'The authorization to move your reputation is invalid or has expired. Create a new one.'**
+  String get reputationInvalidRebind;
+
+  /// A reputation attestation past its expiration
+  ///
+  /// In en, this message translates to:
+  /// **'This reputation has expired. Request it again from its source.'**
+  String get reputationExpiredAttestation;
+
+  /// The active node does not trust the issuer that signed the attestation
+  ///
+  /// In en, this message translates to:
+  /// **'This Mostro does not accept reputation from that source.'**
+  String get reputationUntrustedIssuer;
+
+  /// The attestation names an identity other than the user's
+  ///
+  /// In en, this message translates to:
+  /// **'This reputation was issued for another identity than the one you are using.'**
+  String get reputationIdentityMismatch;
+
+  /// The node refused an import: this attestation was imported before
+  ///
+  /// In en, this message translates to:
+  /// **'This reputation was already imported on this Mostro.'**
+  String get reputationAlreadyImported;
+
+  /// Pasted text that is not a valid reputation attestation
+  ///
+  /// In en, this message translates to:
+  /// **'This is not a valid reputation. Request it again from its source.'**
+  String get reputationInvalidAttestation;
+
+  /// App bar title of the Import reputation screen
+  ///
+  /// In en, this message translates to:
+  /// **'Import reputation'**
+  String get reputationImportTitle;
+
+  /// Import reputation screen: what importing does, including that it links the two accounts
+  ///
+  /// In en, this message translates to:
+  /// **'Bring the reputation you earned on lnp2pBot or on another Mostro to this one. Importing links the two accounts: the source and this Mostro learn they belong to the same person.'**
+  String get reputationImportIntro;
+
+  /// No description provided for @reputationOpenLnp2pbot.
+  ///
+  /// In en, this message translates to:
+  /// **'Get it from lnp2pBot'**
+  String get reputationOpenLnp2pbot;
+
+  /// Hint of the field where the user pastes the attestation
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the reputation you received'**
+  String get reputationPasteHint;
+
+  /// Button that verifies the pasted attestation before importing it
+  ///
+  /// In en, this message translates to:
+  /// **'Check'**
+  String get reputationCheck;
+
+  /// Shown once the node accepted the import
+  ///
+  /// In en, this message translates to:
+  /// **'Your reputation was imported.'**
+  String get reputationImported;
+
+  /// Button that sends the checked attestation to the active node; the import is irreversible
+  ///
+  /// In en, this message translates to:
+  /// **'Import into this Mostro'**
+  String get reputationImportConfirm;
+
+  /// Import reputation screen: the figures of a checked attestation. {rating} is already formatted for the locale
+  ///
+  /// In en, this message translates to:
+  /// **'{reviews, plural, =1{1 rating received} other{{reviews} ratings received}}, {rating} on average, {days, plural, =1{trading for 1 day} other{trading for {days} days}}'**
+  String reputationFigures(int reviews, String rating, int days);
+
+  /// Under the figures: imported reputation is merged with the one on this node
+  ///
+  /// In en, this message translates to:
+  /// **'Imported reputation is added to the one you have here; your counterparties see them merged.'**
+  String get reputationFiguresNote;
+
+  /// Shown when the Telegram link could not be opened: the user can still do it by hand
+  ///
+  /// In en, this message translates to:
+  /// **'Telegram could not be opened. Open lnp2pBot in Telegram yourself and paste here what it sends you.'**
+  String get reputationOpenLnp2pbotFailed;
+
+  /// Explain why the complete npub is shown beside the Telegram action
+  ///
+  /// In en, this message translates to:
+  /// **'Before confirming in lnp2pBot, check that it shows this same public key:'**
+  String get reputationIdentityHint;
+
+  /// Failure to read the privacy/identity state; actions stay disabled until Retry succeeds
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to check whether reputation can be imported. Try again.'**
+  String get reputationUnavailable;
+
+  /// The bot action found a different identity than the one shown; review it before retrying
+  ///
+  /// In en, this message translates to:
+  /// **'Your identity changed. Check the public key shown here before trying again.'**
+  String get reputationIdentityChanged;
+
+  /// No description provided for @reputationSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reputation'**
+  String get reputationSettingTitle;
+
+  /// No description provided for @reputationImportCardBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Bring the reputation you earned on lnp2pBot or on another Mostro to this one.'**
+  String get reputationImportCardBody;
+
+  /// No description provided for @reputationExportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export my reputation'**
+  String get reputationExportTitle;
+
+  /// No description provided for @reputationExportCardBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Get a signed copy of the reputation you earned on this Mostro, to import it on another one.'**
+  String get reputationExportCardBody;
+
+  /// No description provided for @reputationExportConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export to this identity?'**
+  String get reputationExportConfirmTitle;
+
+  /// No description provided for @reputationExportConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your reputation on this Mostro will be exported for this identity:\n\n{npub}\n\nOnce exported, it is bound to it: exporting it for another identity later needs an authorization signed with this one.'**
+  String reputationExportConfirmBody(String npub);
+
+  /// No description provided for @reputationExportConfirmButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get reputationExportConfirmButton;
+
+  /// No description provided for @reputationExported.
+  ///
+  /// In en, this message translates to:
+  /// **'Your reputation is ready. Switch to the Mostro where you want it and import it; it is valid for 7 days.'**
+  String get reputationExported;
+
+  /// No description provided for @reputationRebindBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Moving to a new identity? Sign an authorization for it here, with the identity your reputation is bound to now. Then, from the new identity, paste it in the authorization field above and export.'**
+  String get reputationRebindBody;
+
+  /// No description provided for @reputationNewIdentityHint.
+  ///
+  /// In en, this message translates to:
+  /// **'New identity (npub or hex)'**
+  String get reputationNewIdentityHint;
+
+  /// No description provided for @reputationRebindSign.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign authorization'**
+  String get reputationRebindSign;
+
+  /// No description provided for @reputationInvalidIdentity.
+  ///
+  /// In en, this message translates to:
+  /// **'That is not a valid npub or hex key.'**
+  String get reputationInvalidIdentity;
+
+  /// Reputation screen: optional field on export for the authorization signed by the identity the reputation is bound to now
+  ///
+  /// In en, this message translates to:
+  /// **'Authorization from your previous identity (optional)'**
+  String get reputationRebindInputHint;
+
+  /// Title of the dialog confirming the identity a rebind authorization is signed for
+  ///
+  /// In en, this message translates to:
+  /// **'Authorize this identity?'**
+  String get reputationRebindConfirmTitle;
+
+  /// Dialog body before signing a rebind authorization: the key that will take the reputation over
+  ///
+  /// In en, this message translates to:
+  /// **'Whoever holds this identity will be able to export your reputation from this Mostro, and your current identity no longer will:\n\n{npub}\n\nSign only for an identity that is yours.'**
+  String reputationRebindConfirmBody(String npub);
+
+  /// Trade detail payout card (#823): row label before the destination the buyer's sats were paid to
+  ///
+  /// In en, this message translates to:
+  /// **'Paid to'**
+  String get payoutPaidToLabel;
+
+  /// Trade detail payout card (#823): row label before the destination the sats are being sent to, not paid yet
+  ///
+  /// In en, this message translates to:
+  /// **'Sending to'**
+  String get payoutSendingToLabel;
+
+  /// Trade detail payout card (#823): row label before a destination the node could not pay or refused
+  ///
+  /// In en, this message translates to:
+  /// **'Not paid to'**
+  String get payoutNotPaidLabel;
+
+  /// Trade detail payout card (#823): row label before who chose the destination
+  ///
+  /// In en, this message translates to:
+  /// **'Chosen by'**
+  String get payoutChosenByLabel;
+
+  /// Trade detail payout card (#823): row label before the sats the destination receives
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get payoutAmountLabel;
+
+  /// Trade detail payout card (#823): row label before the invoice's payment hash; the whole row copies it
+  ///
+  /// In en, this message translates to:
+  /// **'Payment hash'**
+  String get payoutHashLabel;
+
+  /// Trade detail payout card (#823): row label before an earlier destination of the same trade
+  ///
+  /// In en, this message translates to:
+  /// **'Tried before'**
+  String get payoutTriedBeforeLabel;
+
+  /// Trade detail payout card (#823): value of an earlier destination row: where, then what became of it
+  ///
+  /// In en, this message translates to:
+  /// **'{destination} · {outcome}'**
+  String payoutTriedBeforeValue(String destination, String outcome);
+
+  /// Payout destination (#823): an invoice the user's NWC wallet generated, when the wallet gives no name
+  ///
+  /// In en, this message translates to:
+  /// **'Your NWC wallet'**
+  String get payoutNwcWallet;
+
+  /// Payout destination (#823): an invoice the user's NWC wallet generated, with the wallet's own name
+  ///
+  /// In en, this message translates to:
+  /// **'{name} (NWC)'**
+  String payoutNwcWalletNamed(String name);
+
+  /// Payout destination (#823): a Lightning invoice the user entered, shortened
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice {invoice}'**
+  String payoutInvoice(String invoice);
+
+  /// Trade detail payout card (#823): the destination is the default Lightning address saved in Settings
+  ///
+  /// In en, this message translates to:
+  /// **'Your default address'**
+  String get payoutSourceDefaultAddress;
+
+  /// Trade detail payout card (#823): the connected NWC wallet generated the invoice and the app sent it on its own
+  ///
+  /// In en, this message translates to:
+  /// **'Your NWC wallet'**
+  String get payoutSourceNwcWallet;
+
+  /// Trade detail payout card (#823): the user entered this invoice or address for this trade
+  ///
+  /// In en, this message translates to:
+  /// **'You, for this trade'**
+  String get payoutSourceEntered;
+
+  /// Trade detail payout card (#823): status of a destination sent to the node, not paid yet
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting'**
+  String get payoutOutcomeSubmitted;
+
+  /// Trade detail payout card (#823): the node's first payment failed and it is trying again
+  ///
+  /// In en, this message translates to:
+  /// **'Failed, retrying'**
+  String get payoutOutcomeRetrying;
+
+  /// Trade detail payout card (#823): the node gave up paying this destination and asked for another
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get payoutOutcomeFailed;
+
+  /// Trade detail payout card (#823): the node gave up after trying count times
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Failed after 1 attempt} other{Failed after {count} attempts}}'**
+  String payoutOutcomeFailedAttempts(int count);
+
+  /// Trade detail payout card (#823): the node refused this invoice or address when it was sent
+  ///
+  /// In en, this message translates to:
+  /// **'Refused by the node'**
+  String get payoutOutcomeRejected;
+
+  /// Trade detail payout card (#823): the node paid this destination
+  ///
+  /// In en, this message translates to:
+  /// **'Paid'**
+  String get payoutOutcomePaid;
+
+  /// Snackbar after copying the payout's payment hash (#823)
+  ///
+  /// In en, this message translates to:
+  /// **'Payment hash copied'**
+  String get payoutHashCopied;
+
+  /// Take order screen (#823): row label before where the buyer's sats will be sent
+  ///
+  /// In en, this message translates to:
+  /// **'Your sats go to'**
+  String get takeOrderPayoutLabel;
+
+  /// Take order screen (#823): the buyer will add an invoice after taking instead of using an address
+  ///
+  /// In en, this message translates to:
+  /// **'An invoice you add'**
+  String get takeOrderPayoutInvoice;
+
+  /// Take order screen (#823): accessibility hint of the row that opens the payout choice
+  ///
+  /// In en, this message translates to:
+  /// **'Change where your sats go'**
+  String get takeOrderPayoutChangeHint;
+
+  /// Take order screen (#823): explanatory note when the default Lightning address will receive the sats
+  ///
+  /// In en, this message translates to:
+  /// **'Your sats will be sent to {address}, your default Lightning address.'**
+  String takeOrderPayoutNoteDefault(String address);
+
+  /// Take order screen (#823): explanatory note when another Lightning address, for this trade only, will receive the sats
+  ///
+  /// In en, this message translates to:
+  /// **'Your sats will be sent to {address}, for this trade only.'**
+  String takeOrderPayoutNoteAddress(String address);
+
+  /// Take order screen (#823): explanatory note when the buyer chose to add an invoice after taking
+  ///
+  /// In en, this message translates to:
+  /// **'After you take the order, you will add the invoice your sats are paid to.'**
+  String get takeOrderPayoutNoteInvoice;
+
+  /// Take order screen (#823): title of the sheet that chooses where the sats go
+  ///
+  /// In en, this message translates to:
+  /// **'Where your sats go'**
+  String get takeOrderPayoutSheetTitle;
+
+  /// Take order payout sheet (#823): option for the default Lightning address from Settings
+  ///
+  /// In en, this message translates to:
+  /// **'My default Lightning address'**
+  String get takeOrderPayoutSheetDefault;
+
+  /// Take order payout sheet (#823): option for another Lightning address, for this trade only
+  ///
+  /// In en, this message translates to:
+  /// **'Another Lightning address'**
+  String get takeOrderPayoutSheetOther;
+
+  /// Take order payout sheet (#823): option to add an invoice after taking instead of an address
+  ///
+  /// In en, this message translates to:
+  /// **'An invoice I add after taking'**
+  String get takeOrderPayoutSheetInvoice;
+
+  /// Take order payout sheet (#823): the sheet's answer, applies the choice to this trade
+  ///
+  /// In en, this message translates to:
+  /// **'Use for this trade'**
+  String get takeOrderPayoutSheetApply;
+
+  /// Add-invoice screen (#823): the node could not pay the destination the buyer gave earlier
+  ///
+  /// In en, this message translates to:
+  /// **'The payment to {destination} failed.'**
+  String invoicePayoutFailed(String destination);
+
+  /// Add-invoice screen (#823): the node gave up paying the earlier destination after count attempts
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{The payment to {destination} failed after 1 attempt.} other{The payment to {destination} failed after {count} attempts.}}'**
+  String invoicePayoutFailedAttempts(String destination, int count);
+
+  /// Add-invoice screen (#823): after a failed payout, the connected NWC wallet (no name) makes the new invoice on its own
+  ///
+  /// In en, this message translates to:
+  /// **'Your NWC wallet is making a new invoice for these sats.'**
+  String get invoicePayoutFailedNwc;
+
+  /// Add-invoice screen (#823): after a failed payout, the connected NWC wallet, by its name, makes the new invoice on its own
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is making a new invoice for these sats.'**
+  String invoicePayoutFailedNwcNamed(String name);
+
+  /// Add-invoice screen (#823): after a failed payout, the buyer must add a new invoice
+  ///
+  /// In en, this message translates to:
+  /// **'Add a new invoice to receive your sats.'**
+  String get invoicePayoutFailedManual;
+
+  /// Notifications card title (#823): the node could not send the buyer's sats to the address or invoice they gave, and asks for a new invoice. About the sats the buyer receives, never the fiat they pay
+  ///
+  /// In en, this message translates to:
+  /// **'Mostro could not send your sats'**
+  String get tradeCardPayoutFailedTitle;
+
+  /// Notifications card body (#823): the node could not send the buyer's sats to the destination they gave; the trade shows which one failed, and a new invoice may be needed (an NWC wallet may already have sent it)
+  ///
+  /// In en, this message translates to:
+  /// **'Mostro could not send your sats to the address or invoice you gave. Open the trade to see which one failed, and add a new invoice if it is still needed.'**
+  String get tradeCardPayoutFailedMessage;
+
+  /// Trade detail payout card (#823): row label before the invoice an NWC wallet generated, shortened; the whole row copies it
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice'**
+  String get payoutInvoiceLabel;
+
+  /// Snackbar after copying a payout invoice (#823)
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice copied'**
+  String get payoutInvoiceCopied;
+
+  /// Trade detail payout card (#823): row label before where the buyer's sats will be sent, before the seller releases them
+  ///
+  /// In en, this message translates to:
+  /// **'Sats will go to'**
+  String get payoutWillGoToLabel;
+
+  /// Trade detail payout card (#823): row label when the node paid but more than one destination was open and its message does not say which
+  ///
+  /// In en, this message translates to:
+  /// **'Maybe paid to'**
+  String get payoutMaybePaidToLabel;
+
+  /// Trade detail payout card (#823): the node took a later destination in place of this one before paying
+  ///
+  /// In en, this message translates to:
+  /// **'Replaced by a later one'**
+  String get payoutOutcomeReplaced;
+
+  /// Trade detail payout card (#823): the node paid this destination or another one listed on the card; its message does not say which
+  ///
+  /// In en, this message translates to:
+  /// **'Paid to this one or another listed here'**
+  String get payoutOutcomeMaybePaid;
 }
 
 class _AppLocalizationsDelegate
