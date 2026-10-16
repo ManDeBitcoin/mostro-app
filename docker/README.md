@@ -15,6 +15,7 @@ are applied inside the image, at build time:
 | `.claude/rules/fork.md` | How to work in this fork: upstream vs fork-only changes (Spanish; Claude Code loads it) |
 | `docker/fork_overlay.py` | Applies the fork's defaults to the image's copy of upstream's source |
 | `docker/payment_methods.json` | Payment methods the fork suggests first, per currency |
+| `.github/workflows/fork-sync-upstream.yml` | Weekly pull request that brings upstream's `main` (below) |
 
 Anything else that differs from `upstream/main` is a mistake. Check with:
 
@@ -83,7 +84,13 @@ must show `Cross-Origin-Opener-Policy: same-origin` and
 
 ## Following upstream
 
-`main` of this fork is upstream's `main` plus the files above. To take a new upstream version:
+`.github/workflows/fork-sync-upstream.yml` does this every Monday (or on demand, from Actions):
+it merges upstream's `main` into the branch `sync/upstream`, takes the toolchain of
+`web-build.yml` into `Dockerfile.web`, runs `fork_overlay.py --check`, builds `Dockerfile.web`
+and opens or refreshes the pull request to `main`. It needs "Allow GitHub Actions to create and
+approve pull requests" in the repository's Actions settings.
+
+`main` of this fork is upstream's `main` plus the files above. To take a new upstream version by hand:
 
 ```bash
 git fetch upstream

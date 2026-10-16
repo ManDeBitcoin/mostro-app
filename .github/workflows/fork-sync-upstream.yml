@@ -1,0 +1,117 @@
+# Fork only (.claude/rules/fork.md): once a week, bring upstream's main into
+# the branch `sync/upstream` and open (or refresh) a pull request to this
+# fork's main. Merging it is the whole update: Coolify deploys main.
+#
+# Before pushing, it does what docker/README.md "Following upstream" asks for:
+# takes the toolchain of upstream's web build into Dockerfile.web, checks that
+# the fork's build-time defaults still apply, and builds the production image.
+# A pull request opened with GITHUB_TOKEN does not trigger CI, so that build is
+# this pull request's check.
+name: Sync upstream (fork)
+
+on:
+  schedule:
+    - cron: '0 12 * * 1' # Mondays, 12:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: fork-sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'ManDeBitcoin/mostro-app'
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BRANCH: sync/upstream
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Merge upstream's main
+        id: merge
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git remote add upstream https://github.com/MostroP2P/app.git
+          git fetch --no-tags upstream main
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "main already has upstream's main ($(git rev-parse --short upstream/main))."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git switch -c "$BRANCH"
+          # This fork edits no upstream file, so the merge never conflicts.
+          git merge --no-edit upstream/main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "upstream=$(git rev-parse --short upstream/main)" >> "$GITHUB_OUTPUT"
+
+      - name: Toolchain of upstream's web build
+        if: steps.merge.outputs.changed == 'true'
+        run: |
+          python3 - <<'PY'
+          import re, sys
+          build = open(".github/workflows/web-build.yml").read()
+          docker = open("Dockerfile.web").read()
+          for name in ("FLUTTER_VERSION", "RUST_VERSION", "WASM_PACK_VERSION"):
+              found = re.search(rf'^\s*{name}:\s*"([^"]+)"', build, re.M)
+              if not found:
+                  sys.exit(f"{name} is no longer in web-build.yml: update Dockerfile.web by hand")
+              docker, count = re.subn(rf"^ARG {name}=.*$", f"ARG {name}={found.group(1)}", docker, flags=re.M)
+              if count != 1:
+                  sys.exit(f"ARG {name} not found in Dockerfile.web")
+          open("Dockerfile.web", "w").write(docker)
+          PY
+          if ! git diff --quiet Dockerfile.web; then
+            git diff Dockerfile.web
+            git commit -m "chore(fork): build with upstream's web toolchain" Dockerfile.web
+          fi
+
+      - name: Fork defaults still apply
+        if: steps.merge.outputs.changed == 'true'
+        run: python3 docker/fork_overlay.py --check "$(sed -n 's/^ARG MOSTRO_DEFAULT_NODE=//p' Dockerfile.web)"
+
+      - name: Only fork files differ from upstream
+        if: steps.merge.outputs.changed == 'true'
+        run: git diff --stat upstream/main...HEAD
+
+      - name: Free disk space for the image build
+        if: steps.merge.outputs.changed == 'true'
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+
+      - name: Build the production image
+        if: steps.merge.outputs.changed == 'true'
+        run: docker build -f Dockerfile.web -t mostro-app:sync .
+
+      - name: Push and open the pull request
+        if: steps.merge.outputs.changed == 'true'
+        run: |
+          git push --force origin "HEAD:refs/heads/$BRANCH"
+          body="$(cat <<EOF
+          Weekly sync of upstream's \`main\` (MostroP2P/app @ ${{ steps.merge.outputs.upstream }}), opened by \`.github/workflows/fork-sync-upstream.yml\`.
+
+          Done by the workflow before opening it:
+          - merged upstream's \`main\` (no upstream file is edited in this fork, so it cannot conflict);
+          - took the toolchain of upstream's \`web-build.yml\` into \`Dockerfile.web\` (a separate commit when it changed);
+          - \`python3 docker/fork_overlay.py --check\`: BitMaxis as default node and Ecuador's payment methods still apply;
+          - built \`Dockerfile.web\` completely.
+
+          Merging deploys it through Coolify. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EOF
+          )"
+          # --repo: in a fork, gh would otherwise target the community's repository.
+          if [ "$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json number --jq length)" = 0 ]; then
+            gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" \
+              --title "chore(sync): upstream main @ ${{ steps.merge.outputs.upstream }}" --body "$body"
+          else
+            gh pr edit "$BRANCH" --repo "$GITHUB_REPOSITORY" \
+              --title "chore(sync): upstream main @ ${{ steps.merge.outputs.upstream }}" --body "$body"
+          fi
