@@ -312,6 +312,10 @@ class AppLocalizationsFr extends AppLocalizations {
       'Vérification en cours des capacités du nœud Mostro sélectionné. Réessayez dans un instant';
 
   @override
+  String get tradeOnOtherNode =>
+      'Cette opération appartient à un autre nœud Mostro. Passez sur ce nœud pour la poursuivre';
+
+  @override
   String get mostroMaintenanceMode =>
       'Le nœud Mostro auquel vous êtes connecté est en maintenance. Réessayez plus tard ou connectez-vous à un autre nœud Mostro dans les Paramètres';
 
@@ -834,7 +838,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tradeCardCancelRequestedByMeMessage =>
-      'Vous avez demandé l\'annulation de cet échange. Il reste ouvert jusqu\'à ce que l\'autre partie annule aussi. Sans réponse de sa part, vous pouvez ouvrir un litige.';
+      'Vous avez demandé l\'annulation de cette transaction. Elle reste ouverte jusqu\'à ce que l\'autre partie annule aussi. Sans réponse de sa part, vous pouvez ouvrir un litige.';
 
   @override
   String get tradeCardCancelRequestedByPeerTitle =>
@@ -842,7 +846,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tradeCardCancelRequestedByPeerMessage =>
-      'Elle a demandé l\'annulation de cet échange. Acceptez pour y mettre fin sans mouvement de fonds, ou poursuivez l\'échange.';
+      'Elle a demandé l\'annulation de cette transaction. Acceptez pour y mettre fin sans mouvement de fonds, ou poursuivez la transaction.';
 
   @override
   String get tradeCancelRequestedByMeNotice =>
@@ -980,6 +984,16 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get aboutFiatCurrenciesLabel => 'Devises fiat';
+
+  @override
+  String get aboutPriceSourceLabel => 'Source';
+
+  @override
+  String get aboutPriceSection => 'Prix';
+
+  @override
+  String get aboutPriceSourcesFootnote =>
+      'Les sources de prix sont les fournisseurs des taux que le nœud publie en ce moment ; un fournisseur en panne ou écarté n\'apparaît pas.';
 
   @override
   String get aboutMostroVersionLabel => 'Version Mostro';
@@ -1125,7 +1139,8 @@ class AppLocalizationsFr extends AppLocalizations {
   String get orderNoLongerActive => 'Cet ordre n\'est plus actif';
 
   @override
-  String get tradeNoLongerYours => 'Vous ne participez plus à cet échange';
+  String get tradeNoLongerYours =>
+      'Vous ne participez plus à cette transaction';
 
   @override
   String get sessionTimeoutMessage =>
@@ -1153,6 +1168,30 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get failedToGenerateIdentityMessage =>
       'Échec de la génération de l\'identité. Veuillez réessayer.';
+
+  @override
+  String get pendingWipeBannerTitle =>
+      'Les données de l\'utilisateur précédent sont toujours sur cet appareil';
+
+  @override
+  String get pendingWipeBannerBody =>
+      'La suppression de l\'identité précédente n\'a pas pu effacer ses échanges et ses discussions de cet appareil. L\'application réessaiera à la prochaine création ou importation d\'un nouvel utilisateur.';
+
+  @override
+  String get pendingWipeBlockedMessage =>
+      'Les données de l\'utilisateur précédent n\'ont pas pu être effacées de cet appareil : le nouvel utilisateur n\'a donc pas été configuré et votre utilisateur actuel a été conservé. Veuillez réessayer.';
+
+  @override
+  String get wipeNotRecordedMessage =>
+      'L\'utilisateur actuel n\'a pas pu être supprimé en toute sécurité : rien n\'a donc été modifié. Veuillez réessayer.';
+
+  @override
+  String get identitySwapStorageUnavailableMessage =>
+      'Le stockage de l\'appareil n\'est pas disponible pour le moment : l\'utilisateur actuel a donc été conservé et rien n\'a été modifié. Redémarrez l\'application et réessayez.';
+
+  @override
+  String get identitySwapPreviousNotReloadedMessage =>
+      'Le nouvel utilisateur n\'a pas été configuré, et l\'utilisateur actuel n\'a pas pu être entièrement restauré. Redémarrez l\'application pour le recharger.';
 
   @override
   String get invalidMnemonicMessage =>
@@ -1493,6 +1532,22 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tradeTimerExpiryCancelled => 'S\'il expire, l\'ordre est annulé.';
+
+  @override
+  String get tradeTimerEscrowCancels =>
+      'Temps approximatif. S\'il s\'écoule, Mostro annule l\'échange.';
+
+  @override
+  String get tradeTimerEscrowDisputes =>
+      'Temps approximatif. S\'il s\'écoule, Mostro ouvre un litige.';
+
+  @override
+  String get tradeTimerEscrowCancelling =>
+      'Mostro est sur le point d\'annuler l\'échange et de retourner les sats au vendeur.';
+
+  @override
+  String get tradeTimerEscrowDisputing =>
+      'Un litige est sur le point d\'être ouvert.';
 
   @override
   String get tradeStepOrderTaken => 'Ordre pris';
@@ -2293,10 +2348,33 @@ class AppLocalizationsFr extends AppLocalizations {
       'Pas encore de chat : tant que l\'opération n\'est pas active, aucune des deux parties ne sait qui est l\'autre.';
 
   @override
-  String get tradeChatEncrypted => 'Chat chiffré de bout en bout';
+  String get tradeChatEncrypted => 'Chiffré de bout en bout';
 
   @override
   String get tradeChatClosed => 'Conversation fermée · voir les messages';
+
+  @override
+  String get tradeChatWithBuyer => 'Discuter avec l\'acheteur';
+
+  @override
+  String get tradeChatWithSeller => 'Discuter avec le vendeur';
+
+  @override
+  String get tradeChatWithCounterpart => 'Discuter avec votre contrepartie';
+
+  @override
+  String tradeChatNewMessages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nouveaux messages',
+      one: '1 nouveau message',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get tradeChatOpen => 'Ouvrir';
 
   @override
   String get tradeChatClosedAnnouncement =>
@@ -2333,10 +2411,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tradeTimerOrderHas => 'Temps restant';
-
-  @override
-  String get tradeTimerNoteCoordinate =>
-      'S\'il vous faut plus de temps, convenez-en dans le chat avant l\'expiration.';
 
   @override
   String get tradeRoleBuyer => 'Acheteur';
@@ -3598,7 +3672,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tradeCardWaitingBuyerInvoiceMessage =>
-      'L\'échange reprend dès que l\'acheteur ajoute une facture Lightning.';
+      'La transaction reprend dès que l\'acheteur ajoute une facture Lightning.';
 
   @override
   String get tradeCardWaitingPaymentTitle =>
@@ -3606,17 +3680,17 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tradeCardWaitingPaymentMessage =>
-      'L\'échange reprend dès que le vendeur paie la facture hold.';
+      'La transaction reprend dès que le vendeur paie la facture hold.';
 
   @override
   String get tradeCardWaitingTakerBondTitle => 'Paiement de caution en attente';
 
   @override
   String get tradeCardWaitingTakerBondMessage =>
-      'La caution anti-abus du preneur doit être payée avant le début de l\'échange.';
+      'La caution anti-abus du preneur doit être payée avant le début de la transaction.';
 
   @override
-  String get tradeCardActiveTitle => 'Échange actif';
+  String get tradeCardActiveTitle => 'Transaction active';
 
   @override
   String get tradeCardActiveMessage =>
@@ -3637,46 +3711,46 @@ class AppLocalizationsFr extends AppLocalizations {
       'Le vendeur a libéré les sats. Le paiement de l\'acheteur est en route.';
 
   @override
-  String get tradeCardSuccessTitle => 'Échange terminé';
+  String get tradeCardSuccessTitle => 'Transaction terminée';
 
   @override
   String get tradeCardSuccessMessage =>
-      'L\'échange s\'est terminé avec succès.';
+      'La transaction s\'est terminée avec succès.';
 
   @override
-  String get tradeCardCanceledTitle => 'Échange annulé';
+  String get tradeCardCanceledTitle => 'Transaction annulée';
 
   @override
-  String get tradeCardCanceledMessage => 'L\'échange a été annulé.';
+  String get tradeCardCanceledMessage => 'La transaction a été annulée.';
 
   @override
   String get tradeCardExpiredTitle => 'Ordre expiré';
 
   @override
   String get tradeCardExpiredMessage =>
-      'L\'ordre a expiré avant que l\'échange puisse continuer.';
+      'L\'ordre a expiré avant que la transaction puisse continuer.';
 
   @override
   String get tradeCardCooperativelyCanceledTitle =>
-      'Échange annulé d\'un commun accord';
+      'Transaction annulée d\'un commun accord';
 
   @override
   String get tradeCardCooperativelyCanceledMessage =>
-      'Les deux parties ont accepté d\'annuler l\'échange.';
+      'Les deux parties ont accepté d\'annuler la transaction.';
 
   @override
   String get tradeCardDisputeTitle => 'Litige ouvert';
 
   @override
   String get tradeCardDisputeMessage =>
-      'Un litige a été ouvert sur cet échange.';
+      'Un litige a été ouvert sur cette transaction.';
 
   @override
   String get tradeCardCanceledByAdminTitle => 'Annulé par le médiateur';
 
   @override
   String get tradeCardCanceledByAdminMessage =>
-      'Le médiateur du litige a annulé l\'échange.';
+      'Le médiateur du litige a annulé la transaction.';
 
   @override
   String get tradeCardSettledByAdminTitle => 'Réglé par le médiateur';
@@ -3690,13 +3764,14 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get tradeCardCompletedByAdminMessage =>
-      'Le médiateur du litige a terminé l\'échange.';
+      'Le médiateur du litige a terminé la transaction.';
 
   @override
-  String get tradeCardUpdatedTitle => 'Échange mis à jour';
+  String get tradeCardUpdatedTitle => 'Transaction mise à jour';
 
   @override
-  String get tradeCardUpdatedMessage => 'Le statut de cet échange a changé.';
+  String get tradeCardUpdatedMessage =>
+      'Le statut de cette transaction a changé.';
 
   @override
   String get tradeCardCanceledByMakerMessage =>
@@ -4223,6 +4298,24 @@ class AppLocalizationsFr extends AppLocalizations {
       'Ce token n\'a pas pu être vérifié : il ne contient aucune preuve de la signature de la mint, il n\'a donc pas été accepté.';
 
   @override
+  String get cashuErrorUnsupportedUnit =>
+      'Ce portefeuille ne contient que des sats, et ce token est dans une autre unité (par exemple des millisats ou des dollars). Il n\'a pas été touché : vous pouvez l\'encaisser dans un portefeuille qui accepte son unité.';
+
+  @override
+  String cashuErrorUnsupportedUnitNamed(String unit) {
+    return 'Ce portefeuille ne contient que des sats, et ce token est en $unit. Il n\'a pas été touché : vous pouvez l\'encaisser dans un portefeuille qui accepte cette unité.';
+  }
+
+  @override
+  String get cashuUnitMsat => 'millisats';
+
+  @override
+  String get cashuUnitUsd => 'dollars (USD)';
+
+  @override
+  String get cashuUnitEur => 'euros (EUR)';
+
+  @override
   String get cashuErrorSendUnresolved =>
       'L\'envoi a échoué et le portefeuille n\'a pas pu confirmer le retour des fonds. Synchronisez avec la mint avant de réessayer.';
 
@@ -4456,4 +4549,386 @@ class AppLocalizationsFr extends AppLocalizations {
   String myReputationOnNode(String node) {
     return 'Sur $node';
   }
+
+  @override
+  String get orderLinkTitle => 'Lien vers un ordre';
+
+  @override
+  String get orderLinkLooking => 'Recherche de l\'ordre…';
+
+  @override
+  String orderLinkSwitching(String nodeName) {
+    return 'Passage à $nodeName…';
+  }
+
+  @override
+  String get orderLinkInvalidTitle => 'Impossible d\'ouvrir ce lien';
+
+  @override
+  String get orderLinkInvalidBody =>
+      'Ce n\'est pas un lien vers un ordre Mostro, ou il en manque une partie.';
+
+  @override
+  String get orderLinkNotFoundBody =>
+      'Aucun relais n\'a répondu avec cet ordre. Vérifiez votre connexion et réessayez.';
+
+  @override
+  String get orderLinkUnavailableTitle => 'Ordre plus disponible';
+
+  @override
+  String get orderLinkUnavailableBody =>
+      'Quelqu\'un l\'a déjà pris, ou il a été annulé ou a expiré.';
+
+  @override
+  String get orderLinkFailedTitle => 'Impossible d\'ouvrir l\'ordre';
+
+  @override
+  String get orderLinkOtherNodeTitle => 'Ordre sur un autre nœud';
+
+  @override
+  String orderLinkOtherNodeBody(String nodeName) {
+    return 'Cet ordre a été publié sur $nodeName. Pour le voir et le prendre, passez à ce nœud.';
+  }
+
+  @override
+  String get orderLinkUnknownNodeWarning =>
+      'Ce nœud n\'est pas dans votre liste. N\'y passez que si vous faites confiance à la personne qui vous a envoyé le lien : le nœud sur lequel vous échangez règle vos échanges et tranche leurs litiges.';
+
+  @override
+  String get reputationNodeDoesNotExport =>
+      'Ce Mostro n\'exporte pas la réputation.';
+
+  @override
+  String get reputationNodeDoesNotImport =>
+      'Ce Mostro n\'importe pas la réputation.';
+
+  @override
+  String get reputationIdentityRequired =>
+      'La réputation ne peut être transférée que depuis un compte qui la conserve. Désactivez le mode confidentialité totale et réessayez.';
+
+  @override
+  String get reputationNotEligible =>
+      'Votre compte ne peut pas encore exporter sa réputation : il lui faut au moins 10 échanges terminés et 5 évaluations reçues.';
+
+  @override
+  String get reputationBoundToOtherIdentity =>
+      'Votre réputation là-bas est déjà liée à une autre identité. Autorisez le transfert depuis l\'identité à laquelle elle est liée.';
+
+  @override
+  String get reputationInvalidRebind =>
+      'L\'autorisation de transférer votre réputation n\'est pas valide ou a expiré. Créez-en une nouvelle.';
+
+  @override
+  String get reputationExpiredAttestation =>
+      'Cette réputation a expiré. Redemandez-la à sa source.';
+
+  @override
+  String get reputationUntrustedIssuer =>
+      'Ce Mostro n\'accepte pas la réputation de cette source.';
+
+  @override
+  String get reputationIdentityMismatch =>
+      'Cette réputation a été émise pour une autre identité que celle que vous utilisez.';
+
+  @override
+  String get reputationAlreadyImported =>
+      'Cette réputation a déjà été importée sur ce Mostro.';
+
+  @override
+  String get reputationInvalidAttestation =>
+      'Ce n\'est pas une réputation valide. Redemandez-la à sa source.';
+
+  @override
+  String get reputationImportTitle => 'Importer la réputation';
+
+  @override
+  String get reputationImportIntro =>
+      'Apportez sur ce Mostro la réputation gagnée sur lnp2pBot ou sur un autre Mostro. L\'import relie les deux comptes : la source et ce Mostro savent qu\'ils appartiennent à la même personne.';
+
+  @override
+  String get reputationOpenLnp2pbot => 'L\'obtenir de lnp2pBot';
+
+  @override
+  String get reputationPasteHint => 'Collez la réputation reçue';
+
+  @override
+  String get reputationCheck => 'Vérifier';
+
+  @override
+  String get reputationImported => 'Votre réputation a été importée.';
+
+  @override
+  String get reputationImportConfirm => 'Importer sur ce Mostro';
+
+  @override
+  String reputationFigures(int reviews, String rating, int days) {
+    final intl.NumberFormat reviewsNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String reviewsString = reviewsNumberFormat.format(reviews);
+    final intl.NumberFormat daysNumberFormat = intl.NumberFormat.decimalPattern(
+      localeName,
+    );
+    final String daysString = daysNumberFormat.format(days);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      reviews,
+      locale: localeName,
+      other: '$reviewsString évaluations reçues',
+      one: '1 évaluation reçue',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'échange depuis $daysString jours',
+      one: 'échange depuis 1 jour',
+    );
+    return '$_temp0, $rating en moyenne, $_temp1';
+  }
+
+  @override
+  String get reputationFiguresNote =>
+      'La réputation importée s\'ajoute à celle que vous avez ici ; vos contreparties les voient fusionnées.';
+
+  @override
+  String get reputationOpenLnp2pbotFailed =>
+      'Impossible d\'ouvrir Telegram. Ouvrez lnp2pBot vous-même dans Telegram et collez ici ce qu\'il vous envoie.';
+
+  @override
+  String get reputationIdentityHint =>
+      'Avant de confirmer dans lnp2pBot, vérifiez que cette même clé publique s’affiche :';
+
+  @override
+  String get reputationUnavailable =>
+      'Impossible de vérifier si la réputation peut être importée. Réessayez.';
+
+  @override
+  String get reputationIdentityChanged =>
+      'Votre identité a changé. Vérifiez la clé publique affichée ici avant de réessayer.';
+
+  @override
+  String get reputationSettingTitle => 'Réputation';
+
+  @override
+  String get reputationImportCardBody =>
+      'Apportez sur ce Mostro la réputation gagnée sur lnp2pBot ou sur un autre Mostro.';
+
+  @override
+  String get reputationExportTitle => 'Exporter ma réputation';
+
+  @override
+  String get reputationExportCardBody =>
+      'Obtenez une copie signée de la réputation gagnée sur ce Mostro pour l\'importer sur un autre.';
+
+  @override
+  String get reputationExportConfirmTitle => 'Exporter vers cette identité ?';
+
+  @override
+  String reputationExportConfirmBody(String npub) {
+    return 'Votre réputation sur ce Mostro sera exportée pour cette identité :\n\n$npub\n\nUne fois exportée, elle y est liée : l\'exporter plus tard pour une autre identité exige une autorisation signée avec celle-ci.';
+  }
+
+  @override
+  String get reputationExportConfirmButton => 'Exporter';
+
+  @override
+  String get reputationExported =>
+      'Votre réputation est prête. Passez au Mostro où vous la voulez et importez-la ; elle est valable 7 jours.';
+
+  @override
+  String get reputationRebindBody =>
+      'Vous changez d\'identité ? Signez ici une autorisation pour la nouvelle, avec l\'identité à laquelle votre réputation est liée maintenant. Puis, depuis la nouvelle identité, collez-la dans le champ d\'autorisation ci-dessus et exportez.';
+
+  @override
+  String get reputationNewIdentityHint => 'Nouvelle identité (npub ou hex)';
+
+  @override
+  String get reputationRebindSign => 'Signer l\'autorisation';
+
+  @override
+  String get reputationInvalidIdentity =>
+      'Ce n\'est pas un npub ni une clé hex valide.';
+
+  @override
+  String get reputationRebindInputHint =>
+      'Autorisation de votre identité précédente (facultatif)';
+
+  @override
+  String get reputationRebindConfirmTitle => 'Autoriser cette identité ?';
+
+  @override
+  String reputationRebindConfirmBody(String npub) {
+    return 'Qui détient cette identité pourra exporter votre réputation depuis ce Mostro, et votre identité actuelle ne le pourra plus :\n\n$npub\n\nNe signez que pour une identité qui vous appartient.';
+  }
+
+  @override
+  String get payoutPaidToLabel => 'Payé à';
+
+  @override
+  String get payoutSendingToLabel => 'Envoi à';
+
+  @override
+  String get payoutNotPaidLabel => 'Non payé à';
+
+  @override
+  String get payoutChosenByLabel => 'Choisi par';
+
+  @override
+  String get payoutAmountLabel => 'Montant';
+
+  @override
+  String get payoutHashLabel => 'Hash du paiement';
+
+  @override
+  String get payoutTriedBeforeLabel => 'Tentative précédente';
+
+  @override
+  String payoutTriedBeforeValue(String destination, String outcome) {
+    return '$destination · $outcome';
+  }
+
+  @override
+  String get payoutNwcWallet => 'Ton portefeuille NWC';
+
+  @override
+  String payoutNwcWalletNamed(String name) {
+    return '$name (NWC)';
+  }
+
+  @override
+  String payoutInvoice(String invoice) {
+    return 'Facture $invoice';
+  }
+
+  @override
+  String get payoutSourceDefaultAddress => 'Ton adresse par défaut';
+
+  @override
+  String get payoutSourceNwcWallet => 'Ton portefeuille NWC';
+
+  @override
+  String get payoutSourceEntered => 'Toi, pour cette transaction';
+
+  @override
+  String get payoutOutcomeSubmitted => 'En attente';
+
+  @override
+  String get payoutOutcomeRetrying => 'Échec, nouvel essai';
+
+  @override
+  String get payoutOutcomeFailed => 'Échec';
+
+  @override
+  String payoutOutcomeFailedAttempts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Échec après $count essais',
+      one: 'Échec après 1 essai',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get payoutOutcomeRejected => 'Refusé par le nœud';
+
+  @override
+  String get payoutOutcomePaid => 'Payé';
+
+  @override
+  String get payoutHashCopied => 'Hash du paiement copié';
+
+  @override
+  String get takeOrderPayoutLabel => 'Tes sats vont à';
+
+  @override
+  String get takeOrderPayoutInvoice => 'Une facture que tu ajoutes';
+
+  @override
+  String get takeOrderPayoutChangeHint => 'Changer où vont tes sats';
+
+  @override
+  String takeOrderPayoutNoteDefault(String address) {
+    return 'Tes sats seront envoyés à $address, ton adresse Lightning par défaut.';
+  }
+
+  @override
+  String takeOrderPayoutNoteAddress(String address) {
+    return 'Tes sats seront envoyés à $address, pour cette transaction seulement.';
+  }
+
+  @override
+  String get takeOrderPayoutNoteInvoice =>
+      'Après avoir pris l\'ordre, tu ajouteras la facture qui recevra tes sats.';
+
+  @override
+  String get takeOrderPayoutSheetTitle => 'Où vont tes sats';
+
+  @override
+  String get takeOrderPayoutSheetDefault => 'Mon adresse Lightning par défaut';
+
+  @override
+  String get takeOrderPayoutSheetOther => 'Une autre adresse Lightning';
+
+  @override
+  String get takeOrderPayoutSheetInvoice =>
+      'Une facture que j\'ajoute après avoir pris';
+
+  @override
+  String get takeOrderPayoutSheetApply => 'Utiliser pour cette transaction';
+
+  @override
+  String invoicePayoutFailed(String destination) {
+    return 'Le paiement à $destination a échoué.';
+  }
+
+  @override
+  String invoicePayoutFailedAttempts(String destination, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Le paiement à $destination a échoué après $count essais.',
+      one: 'Le paiement à $destination a échoué après 1 essai.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get invoicePayoutFailedNwc =>
+      'Ton portefeuille NWC crée une nouvelle facture pour ces sats.';
+
+  @override
+  String invoicePayoutFailedNwcNamed(String name) {
+    return '$name crée une nouvelle facture pour ces sats.';
+  }
+
+  @override
+  String get invoicePayoutFailedManual =>
+      'Ajoute une nouvelle facture pour recevoir tes sats.';
+
+  @override
+  String get tradeCardPayoutFailedTitle =>
+      'Mostro n\'a pas pu t\'envoyer tes sats';
+
+  @override
+  String get tradeCardPayoutFailedMessage =>
+      'Mostro n\'a pas pu envoyer tes sats à l\'adresse ou à la facture que tu as donnée. Ouvre la transaction pour voir laquelle a échoué, et ajoute une nouvelle facture si c\'est encore nécessaire.';
+
+  @override
+  String get payoutInvoiceLabel => 'Facture';
+
+  @override
+  String get payoutInvoiceCopied => 'Facture copiée';
+
+  @override
+  String get payoutWillGoToLabel => 'Les sats iront à';
+
+  @override
+  String get payoutMaybePaidToLabel => 'Peut-être payé à';
+
+  @override
+  String get payoutOutcomeReplaced => 'Remplacé par un suivant';
+
+  @override
+  String get payoutOutcomeMaybePaid =>
+      'Payé à celui-ci ou à un autre listé ici';
 }

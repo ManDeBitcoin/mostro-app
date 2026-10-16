@@ -742,7 +742,8 @@ async fn publish_wrapped(
 /// (kind 14 signed with `K_sign`, inner kind 1 signed with the trade key) and
 /// publishes it. If the session, peer, or relay pool is not available the
 /// message is stored locally with a warning — same graceful degradation as
-/// before, chat never throws for transport reasons.
+/// before, chat never throws for transport reasons. A trade of another node
+/// is refused with `TradeOnOtherNode`: its chat stays on its node (#811).
 ///
 /// Returns the sent `ChatMessage` (with `is_mine: true`).
 pub async fn send_message(trade_id: String, content: String) -> Result<ChatMessage> {
@@ -752,6 +753,7 @@ pub async fn send_message(trade_id: String, content: String) -> Result<ChatMessa
     if trade_id.trim().is_empty() {
         bail!("TradeNotFound: trade_id must not be empty");
     }
+    crate::mostro::trade_node::refuse_other_node(&trade_id).await?;
 
     // Cheap upper bound before any crypto: the NIP-44 ciphertext of a
     // payload this size can never fit under MAX_CONTENT_BYTES, so no
@@ -834,7 +836,7 @@ pub async fn send_message(trade_id: String, content: String) -> Result<ChatMessa
 ///
 /// Returns the message with the reaction applied; the same value reaches
 /// `on_message_updated`. Errors carry a stable marker: `ReactionTooLarge`,
-/// `MessageNotFound`, `ReactionNotAllowed` or `SendFailed`.
+/// `MessageNotFound`, `ReactionNotAllowed`, `TradeOnOtherNode` or `SendFailed`.
 pub async fn send_reaction(
     trade_id: String,
     message_id: String,
@@ -843,6 +845,7 @@ pub async fn send_reaction(
     if emoji.len() > crate::nostr::transport::MAX_REACTION_BYTES {
         bail!("ReactionTooLarge: {} bytes", emoji.len());
     }
+    crate::mostro::trade_node::refuse_other_node(&trade_id).await?;
     // One send at a time: each is dated after the reaction it replaces,
     // which only holds if the next one reads that reaction once applied.
     // Two taps in one second would otherwise share a date and be settled by
@@ -977,7 +980,8 @@ pub async fn get_unread_count() -> Result<u32> {
 /// reports 0.1 prepared, 0.3 encrypted, 0.9 uploaded, 1.0 sent.
 ///
 /// Errors are markers: `FileTooLarge`, `UnsupportedFileType`, `InvalidImage`,
-/// `SessionNotFound`, `PeerUnknown`, `UploadFailed`, `SendFailed`.
+/// `SessionNotFound`, `PeerUnknown`, `UploadFailed`, `SendFailed`,
+/// `TradeOnOtherNode`.
 pub async fn send_file(
     trade_id: String,
     file_bytes: Vec<u8>,
@@ -987,6 +991,7 @@ pub async fn send_file(
     if trade_id.trim().is_empty() {
         bail!("TradeNotFound: trade_id must not be empty");
     }
+    crate::mostro::trade_node::refuse_other_node(&trade_id).await?;
     // The session — rebuilt from the trade row when absent (#381).
     let target = async {
         let session = session_or_rebuild(&trade_id)
@@ -2795,10 +2800,10 @@ pub(crate) fn chat_grace_ends_at(trade: &crate::api::types::TradeInfo) -> Option
 ///
 /// The pubkey checks are an invariant guard (#334): a row whose
 /// "counterparty" is the Mostro node itself (rows written before the fix
-/// seeded `creator_pubkey` = the 38383 event author) would derive garbage
+/// copied it from `node_pubkey`, the 38383 event author) would derive garbage
 /// chat keys AND claim the single-owner subscription guard with them,
 /// silently blocking the correct subscription when a replayed reveal
-/// arrives. The `creator_pubkey` comparison is the load-bearing one: it is
+/// arrives. The `node_pubkey` comparison is the load-bearing one: it is
 /// the exact field the pre-fix seed copied from, on the same row, so it
 /// catches the poison whichever node published the event — the trades table
 /// is not scoped per node, and this iterates rows from every node the user
@@ -2812,7 +2817,7 @@ pub(crate) fn chat_still_relevant(trade: &crate::api::types::TradeInfo) -> bool 
 /// derived with the node would open no conversation of this trade.
 pub(crate) fn plausible_counterparty(trade: &crate::api::types::TradeInfo, peer: &str) -> bool {
     !peer.is_empty()
-        && peer != trade.order.creator_pubkey
+        && peer != trade.order.node_pubkey
         && peer != crate::config::active_mostro_pubkey()
 }
 
@@ -3786,7 +3791,7 @@ mod tests {
                 fiat_code: "VES".into(),
                 payment_method: "bank".into(),
                 premium: 0.0,
-                creator_pubkey: "maker".into(),
+                node_pubkey: "node".into(),
                 created_at: 1,
                 expires_at: None,
                 is_mine: false,
@@ -3806,6 +3811,8 @@ mod tests {
             timeout_at: None,
             started_at: 1,
             completed_at: None,
+            escrow_locked_at: None,
+            escrow_node: None,
             outcome: None,
             peer_rating: None,
             peer_reviews: None,
@@ -3830,7 +3837,7 @@ mod tests {
         no_peer.counterparty_pubkey = String::new();
         assert!(!chat_still_relevant(&no_peer));
 
-        // A pre-#334 row seeded with `creator_pubkey` holds the Mostro node
+        // A pre-#334 row seeded from `node_pubkey` holds the Mostro node
         // itself as "counterparty" — deriving chat keys from it would claim
         // the subscription guard with garbage and block the real reveal.
         let mut daemon_peer = base.clone();
@@ -3840,9 +3847,9 @@ mod tests {
         // Same poison, different node: the trades table is not scoped per
         // node, so a row seeded while ANOTHER node was active carries that
         // node's pubkey — which never equals the currently-active one. The
-        // row-local `creator_pubkey` comparison is what catches it.
+        // row-local `node_pubkey` comparison is what catches it.
         let mut other_node_peer = base.clone();
-        other_node_peer.counterparty_pubkey = "maker".into(); // == creator_pubkey
+        other_node_peer.counterparty_pubkey = "node".into(); // == node_pubkey
         assert!(!chat_still_relevant(&other_node_peer));
 
         let mut canceled = base;
@@ -4033,7 +4040,7 @@ mod tests {
                 fiat_code: "VES".into(),
                 payment_method: "bank".into(),
                 premium: 0.0,
-                creator_pubkey: "maker".into(),
+                node_pubkey: "node".into(),
                 created_at: 1,
                 expires_at: None,
                 is_mine: false,
@@ -4053,6 +4060,8 @@ mod tests {
             timeout_at: None,
             started_at: 1,
             completed_at: None,
+            escrow_locked_at: None,
+            escrow_node: None,
             outcome: None,
             peer_rating: None,
             peer_reviews: None,
@@ -4307,7 +4316,7 @@ mod tests {
         let node_hex = nostr_sdk::prelude::Keys::generate().public_key().to_hex();
         let poisoned_id = uuid::Uuid::new_v4().to_string();
         let mut poisoned = live_trade(&poisoned_id, &node_hex, trade_index);
-        poisoned.order.creator_pubkey = node_hex.clone();
+        poisoned.order.node_pubkey = node_hex.clone();
         crate::db::app_db::db()
             .expect("db still initialized")
             .save_trade(&poisoned)
@@ -5073,5 +5082,55 @@ mod tests {
             .unwrap_err()
             .to_string()
             .starts_with("ReactionTooLarge"));
+    }
+
+    /// #811: a trade's chat stays on its node. On another node's trade,
+    /// nothing is sent and the caller is told why; on a row that does not
+    /// know its node, the chat goes on as before.
+    #[tokio::test]
+    async fn chat_on_a_trade_of_another_node_is_refused() {
+        use crate::mostro::test_fixtures::{
+            forget_trade_row, nodes_other_than_the_active_one, store_trade_row, trade,
+        };
+        let mut outcomes = Vec::new();
+        for node in nodes_other_than_the_active_one() {
+            // Arrange
+            let order_id = uuid::Uuid::new_v4().to_string();
+            store_trade_row(&trade(
+                &order_id,
+                7,
+                crate::api::types::OrderStatus::Active,
+                &node,
+            ))
+            .await;
+
+            // Act
+            let sends = [
+                (
+                    "send_message",
+                    send_message(order_id.clone(), "hi".into()).await.err(),
+                ),
+                (
+                    "send_reaction",
+                    send_reaction(order_id.clone(), "m1".into(), "👍".into())
+                        .await
+                        .err(),
+                ),
+                (
+                    "send_file",
+                    send_file(order_id.clone(), vec![1, 2, 3], "a.txt".into(), "u1".into())
+                        .await
+                        .err(),
+                ),
+            ];
+            forget_trade_row(&order_id).await;
+            outcomes.push(sends.map(|(name, err)| (name, err.map(|e| e.to_string()))));
+        }
+
+        // Assert
+        for (name, err) in outcomes.into_iter().flatten() {
+            let err = err.unwrap_or_else(|| format!("{name} was not refused"));
+            assert!(err.contains("TradeOnOtherNode"), "{name}: got {err}");
+        }
     }
 }

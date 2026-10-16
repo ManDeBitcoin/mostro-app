@@ -525,9 +525,14 @@ pub async fn cashu_get_balance() -> Result<u64> {
 /// is adopted only by a receive that succeeds: a token that turns out spent or
 /// worthless leaves the wallet unbound and nothing remembered.
 ///
-/// **Errors**: `CashuReceiveFailed` (wrong mint, already spent, malformed),
-/// `CashuTokenUnverified`, plus the markers from [`cashu_connect`].
+/// A token in any unit but sats is refused from the token alone, before a
+/// mint is asked or a wallet opened for it.
+///
+/// **Errors**: `CashuUnsupportedUnit`, `CashuReceiveFailed` (wrong mint,
+/// already spent, malformed), `CashuTokenUnverified`, plus the markers from
+/// [`cashu_connect`].
 pub async fn cashu_receive_token(encoded: String) -> Result<u64> {
+    crate::cashu::ensure_receivable(&encoded)?;
     let amount = match live_wallet().await {
         Some(wallet) => wallet.receive_token(&encoded).await?,
         None => receive_unbound(&encoded).await?,
@@ -827,6 +832,11 @@ const RECORD_ATTEMPTS: usize = 3;
 /// `CashuEscrowNotPersisted`, `CashuEscrowRejected: <reason>`,
 /// `NoDaemonResponse`, plus the `CashuLockFailed` markers from construction.
 pub async fn lock_escrow(order_id: String) -> Result<()> {
+    // The mode checked next is the active node's: a trade of another node is
+    // refused as such before it (#810).
+    if load_trade(&order_id).await.is_ok() {
+        crate::mostro::trade_node::trade_action_node(&order_id).await?;
+    }
     ensure_enabled()?;
     let op = escrow_op_lock(&order_id);
     let _op = op.lock().await;
@@ -842,10 +852,10 @@ pub async fn lock_escrow(order_id: String) -> Result<()> {
     let trade_index = crate::api::orders::trade_key_for_order(&order_id)
         .await
         .ok_or_else(|| anyhow::anyhow!("no persisted trade key for order {order_id}"))?;
+    let mostro_pubkey = crate::mostro::trade_node::trade_action_node(&order_id).await?;
+    let mostro_hex = mostro_pubkey.to_hex();
     let seller_keys = crate::api::identity::get_active_trade_keys(trade_index).await?;
     let identity_keys = crate::api::identity::get_transport_identity_keys(&seller_keys).await?;
-    let mostro_hex = crate::config::active_mostro_pubkey();
-    let mostro_pubkey = nostr_sdk::prelude::PublicKey::from_hex(&mostro_hex)?;
 
     let seller_hex = seller_keys.public_key().to_hex();
 
@@ -1265,6 +1275,48 @@ mod tests {
         }
     }
 
+    /// #810: an escrow goes to the trade's own node, which must be the active
+    /// one. On another node it is refused before any ecash is swapped.
+    #[tokio::test]
+    // The globals lock must span the calls it guards.
+    #[allow(clippy::await_holding_lock)]
+    async fn an_escrow_for_a_trade_on_another_node_is_refused() {
+        use crate::mostro::test_fixtures::{
+            forget_trade_row, nodes_other_than_the_active_one, store_trade_row,
+        };
+        // Arrange — the active node is a single-mint Cashu node, then a
+        // Lightning one: its escrow mode is not the trade's.
+        let _g = escrow_lock();
+        for mode in [
+            escrow_mode::EscrowMode::Cashu,
+            escrow_mode::EscrowMode::Lightning,
+        ] {
+            escrow_mode::set_from_tags(
+                mode,
+                escrow_mode::CashuNodeConfig {
+                    mint_urls: vec!["https://mint.a.com".to_string()],
+                    ..Default::default()
+                },
+            );
+            for node in nodes_other_than_the_active_one() {
+                let order_id = uuid::Uuid::new_v4().to_string();
+                let mut row = seller_trade(&order_id, Some("02"), "");
+                row.order.node_pubkey = node.clone();
+                store_trade_row(&row).await;
+
+                // Act
+                let err = lock_escrow(order_id.clone()).await.unwrap_err();
+
+                // Assert
+                assert!(
+                    err.to_string().contains("TradeOnOtherNode"),
+                    "{mode:?} node {node:?}: got {err}"
+                );
+                forget_trade_row(&order_id).await;
+            }
+        }
+    }
+
     #[tokio::test]
     // The globals lock must span the calls it guards.
     #[allow(clippy::await_holding_lock)]
@@ -1346,6 +1398,49 @@ mod tests {
                 .to_string()
                 .contains("InvalidMintUrl")
         );
+    }
+
+    #[tokio::test]
+    // The globals lock must span the calls it guards.
+    #[allow(clippy::await_holding_lock)]
+    async fn a_token_in_another_unit_is_refused_before_any_mint_is_asked() {
+        // Arrange — an unbound wallet and a dollar token. No identity is loaded
+        // and the mint does not resolve, so any answer that got as far as
+        // opening a wallet would be `NoIdentity` or "unreachable".
+        let _g = escrow_lock();
+        forget_wallet_mint().await;
+        let usd_token = cdk::nuts::Token::new(
+            "https://mint.invalid"
+                .parse::<cdk::mint_url::MintUrl>()
+                .unwrap(),
+            Vec::new(),
+            None,
+            cdk::nuts::CurrencyUnit::Usd,
+        )
+        .to_string();
+
+        // Act / Assert — with no mint set, the token's mint would be adopted;
+        // on a node that pins one, that mint would be opened. Either way the
+        // unit is the answer, and nothing is bound.
+        let no_mint = cashu_receive_token(usd_token.clone()).await.unwrap_err();
+        assert!(
+            no_mint.to_string().starts_with("CashuUnsupportedUnit"),
+            "with no mint set: got {no_mint}"
+        );
+
+        escrow_mode::set_from_tags(
+            escrow_mode::EscrowMode::Cashu,
+            escrow_mode::CashuNodeConfig {
+                mint_urls: vec!["https://mint.invalid".to_string()],
+                ..Default::default()
+            },
+        );
+        let node_mint = cashu_receive_token(usd_token).await.unwrap_err();
+        assert!(
+            node_mint.to_string().starts_with("CashuUnsupportedUnit"),
+            "with the node's mint: got {node_mint}"
+        );
+        assert!(!cashu_status().await.unwrap().connected);
     }
 
     #[test]
@@ -1571,7 +1666,7 @@ mod tests {
                 fiat_code: "USD".to_string(),
                 payment_method: "cash".to_string(),
                 premium: 0.0,
-                creator_pubkey: counterparty_pubkey.to_string(),
+                node_pubkey: "ee".repeat(32),
                 created_at: 0,
                 expires_at: None,
                 is_mine: false,
@@ -1591,6 +1686,8 @@ mod tests {
             timeout_at: None,
             started_at: 0,
             completed_at: None,
+            escrow_locked_at: None,
+            escrow_node: None,
             outcome: None,
             buyer_trade_pubkey: buyer_trade_pubkey.map(str::to_string),
             seller_trade_pubkey: None,

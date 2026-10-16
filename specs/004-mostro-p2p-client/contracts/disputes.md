@@ -87,8 +87,10 @@ dispute or a daemon-side DB failure is an internal error it merely logs, so
 those surface as `NoDaemonResponse` rather than a precise reason.
 
 **Errors**: `TradeNotDisputable`, `DisputeAlreadyOpen`, `ProtocolError`,
-`NoDaemonResponse`, plus daemon `CantDo` reasons passed through as errors, in the
-form `contracts/orders.md` describes ("How a `CantDo` reason reaches the caller").
+`NoDaemonResponse`, `TradeOnOtherNode` (the trade is not on the active node,
+nothing is sent: `contracts/orders.md`, "Where a trade action goes"), plus
+daemon `CantDo` reasons passed through as errors, in the form
+`contracts/orders.md` describes ("How a `CantDo` reason reaches the caller").
 `DisputeAlreadyOpen` covers both refusals — a record already exists, or an open
 for this trade is still in flight — and Dart maps the marker to one localized
 message (`localizedDaemonError`).
@@ -105,7 +107,8 @@ against it. This is the dispute chat's text send path (#143).
 resolved, and have a solver (`admin-took-dispute`).
 
 **Errors**: `EvidenceEmpty`, `NoOpenDispute`, `AdminNotAssigned`,
-`TradeNotFound`.
+`TradeNotFound`, `TradeOnOtherNode` (the trade is on another node: its chat
+stays there, see [messages](messages.md); #811).
 
 ---
 
@@ -142,7 +145,7 @@ one as our own message in the dispute chat; when it is the key and the
 solver is the one on record, it is recorded the same way.
 
 **Errors**: `NoOpenDispute`, `AdminNotAssigned`, `TradeNotFound`, `NoSharedKey` (the counterparty is not known, or is the
-node), `SendFailed`.
+node), `SendFailed`, `TradeOnOtherNode`.
 
 ---
 
@@ -159,7 +162,7 @@ open these files; the solver cannot open the P2P chat's (FR-036).
 
 **Errors**: `FileTooLarge`, `UnsupportedFileType`, `InvalidImage`,
 `NoOpenDispute`, `AdminNotAssigned`, `TradeNotFound`, `UploadFailed`,
-`SendFailed`.
+`SendFailed`, `TradeOnOtherNode` (checked first, before the file).
 
 ---
 
@@ -179,12 +182,16 @@ person on another node's dispute.
 The dispute's node is the authenticated author of its `admin-took-dispute`,
 recorded under `dispute_node:<order_id>` (see Persistence and restart). A
 dispute with no node recorded — assigned before the app recorded it, until
-a replay does — shows `Human`. That node's announcement comes from its
-latest capability fetch, which wins (a fetch without the tag, or without an
-info event, retracts an older one), or else from its cached info event, so
-a dispute of a node the user switched away from keeps its label. A node
-outside the registry and not active (a removed custom node) vouches for
-nobody. The solver's own profile never counts.
+a replay does — shows `Human`. That node's announcement is read from the
+newest revision of its info event the app holds, by NIP-01's order, whether
+that is its cached info event (so a dispute of a node the user switched
+away from keeps its label) or the event its latest capability fetch brought
+(so a revision the best-effort cache could not keep still counts). A fetch
+that ends without an event (every relay slow) or with a stale copy from a
+relay that is behind does not retract the announcement. A retraction is a
+newer info event without the tag. A node outside the registry and not
+active (a removed custom node) vouches for nobody. The solver's own profile
+never counts.
 
 Read at display time rather than stored with a message: a history replay
 can land before the capability fetch, and the label corrects itself on the

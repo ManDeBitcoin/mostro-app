@@ -265,13 +265,35 @@ bridged by flutter_rust_bridge.
   `delete_identity` (generate *and* import go through it) wipes what the identity produced:
   rows via `Storage::clear_identity_data`, Rust's in-memory stores via `forget_identity_state`,
   relay subscriptions via `release_identity_subscriptions`, and the Dart caches via
-  `resetIdentityScopedState` (issue #533). Device preferences stay (relays, node choice,
+  `resetIdentityScopedState` (issue #533). A task that can still write for the old identity is
+  stopped **first**, and awaited, before anything is cleared — today the late-take retries
+  (#566), by `forget_late_take_retries` at the head of `release_identity_subscriptions`. A new
+  one goes there too, or what it writes after the clears leaks into the next user's session.
+  Device preferences stay (relays, node choice,
   push token, overrides). Anything new that holds per-trade or per-identity data — a table, a
   `settings` key family (add its prefix to `IDENTITY_SCOPED_PREFIXES`), a process-wide store,
   a non-`autoDispose` provider — must be added to the matching one, or it leaks into the next
   user's session. The stores are process-wide and tests run in parallel, which is why the
   identity lifecycle test exercises `delete_identity_inner` with a throwaway store and effect
-  doubles (#553).
+  doubles (#553). `clear_identity_data` wipes the identity row and the trade-key mappings in
+  the same transaction as the rows, on both stores: all or nothing. Before giving anything up
+  the deletion records the device-scoped `identity_wipe_pending` key (value: the identity's
+  pubkey; an earlier marker stays) and is refused — identity untouched — with `WipeNotRecorded`
+  when it cannot, or `StorageUnavailable` when there is no database (a deliberate lockout until
+  the store is back: rotating would leave the old rows with no trace). A successful wipe clears
+  it; a failed one is reported *after* the log clear and leaves it, and creation and both
+  imports retry the wipe off it while the slot is empty, refusing the new identity
+  (`PendingWipeFailed`) if it fails again or the marker is unreadable. The launch reload never
+  wipes — with a live identity that would take its payout claims, which no restore brings
+  back — it only drops a marker that names the identity it reloaded, whose rows are its own
+  (issue #555). Every slot transition (create, load, both imports, delete) takes
+  `IdentitySlot::lifecycle` first and holds it to its last write — a deletion through its
+  wipe — so none interleaves with another; a new one must too (a source scan checks). The
+  Account screen validates an imported phrase (`validate_mnemonic`) before the deletion. A
+  replacement refused after the deletion went through reloads the previous identity in the
+  same session (`IdentityService`), and `restore_identity_session` rebuilds what the deletion
+  gave up, as a cold start would: a new teardown step needs its rebuild there, or a note on
+  why a restart leaves it empty too (`every_identity_teardown_has_its_restore`).
 - **`OrderInfo::created_at` is when the order was created, not the event's time.** It comes from
   the NIP-69 `published_at` tag (mostro#1000), then the legacy `created_at` tag (daemon builds
   between mostro#971 and #1000), then the event's time on older nodes; a tag value is capped at
@@ -286,6 +308,21 @@ bridged by flutter_rust_bridge.
   means "taken, real state unknown", and a trade's status comes from daemon messages only
   (`wire_status_applies` guards both ingest paths). Treating it as `Active` offers actions the
   daemon rejects with `CantDo` (#203).
+- **The Active / fiat-sent countdown is mostrod's escrow deadline, an estimate.** It counts
+  from `TradeInfo::escrow_locked_at`: the `created_at` of the daemon message that moved the
+  order out of `waiting-payment`, **the oldest one**, never the first to arrive (a replay comes
+  newest-first, and on a buy order `hold-invoice-payment-accepted` is re-sent once the buyer's
+  invoice arrives) — oldest within one take: a maker order's republish clears it, since a buy
+  order's lock comes in `waiting-buyer-invoice`, which a taker can still leave. It adds the window of the node that sent it (`escrow_node`, not the active
+  node): `hold_invoice_cltv_delta − escrow_deadline_margin_blocks` blocks of ten minutes, the
+  margin assumed 24 on mostrod ≥ 0.18.3 without the tag. Never the 38383 `expires_at`, which
+  after the take is the event's retention (~15 days). No lock time, a Cashu node or a node
+  without the guardian means no countdown, never an invented one.
+- **The payout amount is not the order amount.** The node pays the buyer `amount - fee` and says
+  so only in `add-invoice` and the buyer's `hold-invoice-payment-accepted`; Kind 38383 and a
+  restore's `orders` reply carry the order amount. The payout screen reads `payout_amount`,
+  recorded from those two messages before their status gate. Never feed it from `amount_sats`,
+  whose meaning depends on who wrote it last.
 - **A `success` keeps its peer chat for one hour, dated by the completion itself (#642).**
   `completed_at` is written for `success` alone, before that status reaches the trade row, from
   the `created_at` of what carried it — the buyer's `purchase-completed`, the
@@ -296,6 +333,14 @@ bridged by flutter_rust_bridge.
   (`wire_status_applies`), and a verdict refines a replayed `success` in either order
   (`status_write_blocked`). Dart decides the room on the persisted row (`TradeRow.rowStatus` +
   `completedAt`), like `chat_still_relevant_at`, not on the live book status.
+- **An order's take window ends at the Kind 38383 `expires_at` tag, never NIP-40 `expiration`.**
+  `expiration` is how long relays keep the event: the same value on a pending order from a
+  current mostrod, 180 days of retention on an older one. A node that no longer holds an order
+  never publishes its expiry, so a `pending` revision can outlive its window on the relays for
+  months; the node refuses to take it (`CantDo:NotFound` / `InvalidOrderStatus`).
+  `order_events::is_past_take_window` is the one rule: such a stranger's order leaves the book —
+  at ingest, or within a minute of its window closing (`OrderBook::drop_past_take_window`).
+  A taker's own pending order stays: ownership comes from its trade-key binding.
 - **Bond statuses never reach the wire book.** `WaitingTakerBond` publishes as `pending` (the
   order stays takeable by others until a bond locks) and `WaitingMakerBond` publishes nothing
   (the order is invisible until the maker's bond locks). Both exist only on the local trade row,
@@ -325,6 +370,13 @@ bridged by flutter_rust_bridge.
   the Rust core, the database or protocol state (a test reads its imports); it sets
   `push_wake_pending` and may show the content-free chat-wake notice. Every write happens on
   resume, once, in the foreground core.
+- **Every screen route nests under `/` (Book), through `_onHome` in `app_routes.dart`.**
+  Only the first-run pair stays top level. Nested under `/`, a route keeps its URL, and a
+  `go` to it (or a link from outside) builds Book underneath, so back ends on Book before
+  it leaves the app. A new top-level route would bring back Android's back closing the app
+  from a detail screen; `test/core/back_navigation_test.dart` walks every route and fails.
+  An OS notification tap is a `go`, never a `push`: it starts a fresh stack. The bottom bar
+  reads its lit tab from the screen's route, not from state.
 - **Trade screens are pushed, not polled — so every trade write must ring.** Rust's
   `api::trade_touch::touch_trade(order_id)` is the doorbell behind `tradeStatusProvider`, the
   invoice providers (`trade_state_provider.dart`) and the trade list (`rawTradesProvider`, which
@@ -341,5 +393,12 @@ bridged by flutter_rust_bridge.
   `/api/notify`. For a solver's message the sender is mostrix, which does not yet
   (mostrix#177). Don't make `wake_peer` ring the solver (not a push client), and don't register
   `pub(K_conv)` with the push server as a workaround (§7.3 says why).
+- **A `mostro:` order link changes nothing on its own** (`docs/DEEP_LINKS.md`). The format is
+  the daemon's Kind 38383 `source` tag. Its relays are asked through a throwaway client and
+  never join the pool — no persisted relay, no `live_subs` REQ on them — and the node switch it
+  may ask for waits for the user's yes, then takes the Settings path (`selectNode`). `app_links`
+  stays on 6.x until the app builds with Flutter 3.44 (7.1+). Release Linux and Windows builds
+  are single-instance on purpose — that is how a link reaches the window already open — and
+  debug builds are not, so `flutter run` still works next to an open release.
 
 <!-- MANUAL ADDITIONS END -->

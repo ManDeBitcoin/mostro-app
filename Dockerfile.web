@@ -24,6 +24,9 @@ ARG BASE_HREF=/
 # are compiled in and public; empty leaves web push off.
 ARG FCM_VAPID_KEY=
 ARG PUSH_WEB_ENABLED=
+# The node a new user starts on (BitMaxis); users can still switch, as upstream.
+# It must be one of upstream's trusted nodes. Empty keeps upstream's default.
+ARG MOSTRO_DEFAULT_NODE=001bd4747d7d265edfe3bd3b7299886146ad850d51095fe77b763c32015685b9
 
 # clang: C dependencies (secp256k1) compiled to wasm32. python3: the shared
 # memory check in build-web.sh.
@@ -52,6 +55,10 @@ RUN git clone --depth 1 --branch "${FLUTTER_VERSION}" https://github.com/flutter
 WORKDIR /app
 
 COPY . .
+
+# This fork's defaults, applied to the image's copy of upstream's source: the
+# default node and docker/payment_methods.json. Fails if upstream moved them.
+RUN python3 docker/fork_overlay.py "${MOSTRO_DEFAULT_NODE}"
 
 # lib/src/rust/ and rust/src/frb_generated.rs are committed and checked by
 # upstream CI, so they are used as they are: no codegen here.

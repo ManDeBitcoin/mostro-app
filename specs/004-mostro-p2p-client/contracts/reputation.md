@@ -15,7 +15,11 @@ Identity MUST NOT be in privacy mode.
 **Side effects**: Sends `rate` action to Mostro daemon via NIP-44 (Kind 14).
 
 **Errors**: `TradeNotComplete`, `PrivacyModeEnabled`, `AlreadyRated`,
-`ProtocolError`.
+`ProtocolError`, `RateUserDispatchFailed: TradeOnOtherNode` (the trade is not
+on the active node: nothing is sent and the rating is not kept, see
+`contracts/orders.md`, "Where a trade action goes"). The check is on the send:
+a trade with no persisted trade key sends nothing to any node, and its rating
+is kept in memory only, as before.
 
 ---
 
@@ -61,3 +65,11 @@ trade_id: String
 score: u8
 from_pubkey: String
 ```
+
+## Reputation portability UI
+
+The `/reputation` screen reached from Settings (export, rebind) is specified in
+[Reputation Transfer](reputation_transfer.md#reputation-screen). The
+`/import_reputation` route and its local validation, Telegram handoff,
+confirmation, and failure behavior are specified in
+[Reputation Transfer](reputation_transfer.md#import-screen).

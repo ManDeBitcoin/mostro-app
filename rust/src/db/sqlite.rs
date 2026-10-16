@@ -406,13 +406,6 @@ impl Storage for SqliteStorage {
         Ok(row.map(|(data,)| serde_json::from_str(&data)).transpose()?)
     }
 
-    async fn delete_identity(&self) -> Result<()> {
-        sqlx::query("DELETE FROM identity")
-            .execute(&self.pool)
-            .await?;
-        Ok(())
-    }
-
     async fn save_queued_message(&self, msg: &QueuedMessage) -> Result<()> {
         let data = serde_json::to_string(msg)?;
         let status = format!("{:?}", msg.status);
@@ -524,18 +517,13 @@ impl Storage for SqliteStorage {
         Ok(())
     }
 
-    async fn clear_trade_keys(&self) -> Result<()> {
-        sqlx::query("DELETE FROM trade_keys")
-            .execute(&self.pool)
-            .await?;
-        Ok(())
-    }
-
     async fn clear_identity_data(&self) -> Result<()> {
         // One transaction: a half-wiped database would show the new user
         // some of the old one's rows, which is the bug this exists to close.
         let mut tx = self.pool.begin().await?;
         for delete in [
+            "DELETE FROM identity",
+            "DELETE FROM trade_keys",
             "DELETE FROM trades",
             "DELETE FROM messages",
             "DELETE FROM bond_claims",
@@ -627,6 +615,31 @@ impl Storage for SqliteStorage {
         .bind(order_id)
         .execute(&self.pool)
         .await?;
+        Ok(())
+    }
+
+    async fn replace_trades_for_order(&self, order_id: &str, trade: &TradeInfo) -> Result<()> {
+        let data = serde_json::to_string(trade)?;
+        let status = format!("{:?}", trade.order.status);
+        // One transaction: a failure (or a crash) between the delete and the
+        // insert rolls the delete back, so the order keeps its rows.
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("DELETE FROM trades WHERE json_extract(data, '$.order.id') = ?")
+            .bind(order_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query(
+            "INSERT OR REPLACE INTO trades (id, data, status, started_at, completed_at)
+             VALUES (?, ?, ?, ?, ?)",
+        )
+        .bind(&trade.id)
+        .bind(&data)
+        .bind(&status)
+        .bind(trade.started_at)
+        .bind(trade.completed_at)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
         Ok(())
     }
 
@@ -941,6 +954,32 @@ impl Storage for SqliteStorage {
         Ok(())
     }
 
+    async fn mark_escrow_locked(&self, order_id: &str, locked_at: i64, node: &str) -> Result<()> {
+        // Oldest wins: a row that already holds an earlier time keeps it, and
+        // the node travels with the time it came from.
+        let sql = "UPDATE trades SET data = json_set(\
+             data, '$.escrow_locked_at', json(?), '$.escrow_node', ?) \
+             WHERE json_extract(data, '$.order.id') = ? \
+             AND (json_extract(data, '$.escrow_locked_at') IS NULL \
+             OR json_extract(data, '$.escrow_locked_at') > ?)";
+        sqlx::query(sql)
+            .bind(locked_at.to_string())
+            .bind(node)
+            .bind(order_id)
+            .bind(locked_at)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn clear_escrow_lock(&self, order_id: &str) -> Result<()> {
+        let sql = "UPDATE trades SET data = json_set(\
+             data, '$.escrow_locked_at', json('null'), '$.escrow_node', json('null')) \
+             WHERE json_extract(data, '$.order.id') = ?";
+        sqlx::query(sql).bind(order_id).execute(&self.pool).await?;
+        Ok(())
+    }
+
     async fn set_cooperative_cancel_state(
         &self,
         order_id: &str,
@@ -957,6 +996,26 @@ impl Storage for SqliteStorage {
             .execute(&self.pool)
             .await?;
         Ok(())
+    }
+
+    async fn forget_trade_node(&self, row_id: &str, node: &str) -> Result<bool> {
+        if node.is_empty() {
+            return Ok(false);
+        }
+        // One statement: the check and the write cannot be split by another
+        // writer, and only the node changes. The legacy name goes in the same
+        // write — serde would read both names as a duplicate field.
+        let sql = "UPDATE trades SET data = json_set(\
+             json_remove(data, '$.order.creator_pubkey'), '$.order.node_pubkey', '') \
+             WHERE id = ? AND lower(coalesce(\
+             json_extract(data, '$.order.node_pubkey'), \
+             json_extract(data, '$.order.creator_pubkey'))) = lower(?)";
+        let done = sqlx::query(sql)
+            .bind(row_id)
+            .bind(node)
+            .execute(&self.pool)
+            .await?;
+        Ok(done.rows_affected() > 0)
     }
 
     async fn update_trade_counterparty(
@@ -1321,7 +1380,7 @@ mod tests {
                 fiat_code: "CUP".into(),
                 payment_method: "bank".into(),
                 premium: 0.0,
-                creator_pubkey: "maker".into(),
+                node_pubkey: "node".into(),
                 created_at: 1,
                 expires_at: None,
                 is_mine: false,
@@ -1341,6 +1400,8 @@ mod tests {
             timeout_at: None,
             started_at: 1,
             completed_at: None,
+            escrow_locked_at: None,
+            escrow_node: None,
             outcome: None,
             peer_rating: None,
             peer_reviews: None,
@@ -1377,6 +1438,128 @@ mod tests {
         let _ = std::fs::remove_file(&path);
     }
 
+    /// A taker-shaped row (fresh row id, distinct from the order id) for the
+    /// replace tests.
+    fn replace_test_trade(row_id: &str, order_id: &str) -> crate::api::types::TradeInfo {
+        use crate::api::types::*;
+        TradeInfo {
+            id: row_id.into(),
+            order: OrderInfo {
+                id: order_id.into(),
+                kind: OrderKind::Sell,
+                status: OrderStatus::WaitingBuyerInvoice,
+                amount_sats: None,
+                fiat_amount: Some(100.0),
+                fiat_amount_min: None,
+                fiat_amount_max: None,
+                fiat_code: "CUP".into(),
+                payment_method: "bank".into(),
+                premium: 0.0,
+                node_pubkey: "node".into(),
+                created_at: 1,
+                expires_at: None,
+                is_mine: false,
+                rating: 0.0,
+                total_reviews: 0,
+                days_active: 0,
+                maker_since: None,
+                cashu_mint_url: None,
+            },
+            role: TradeRole::Buyer,
+            counterparty_pubkey: String::new(),
+            current_step: TradeStep::Buyer(BuyerStep::OrderTaken),
+            hold_invoice: None,
+            buyer_invoice: None,
+            trade_key_index: 1,
+            cooperative_cancel_state: None,
+            timeout_at: None,
+            started_at: 1,
+            completed_at: None,
+            escrow_locked_at: None,
+            escrow_node: None,
+            outcome: None,
+            peer_rating: None,
+            peer_reviews: None,
+            peer_days: None,
+            peer_since: None,
+            rated_at: None,
+            bond: None,
+            buyer_trade_pubkey: None,
+            seller_trade_pubkey: None,
+            cashu_mint_url: None,
+            cashu_escrow_token: None,
+            cashu_locked_at: None,
+            cashu_rejected_escrow_tokens: Vec::new(),
+        }
+    }
+
+    /// #566: a new take's row replaces every row of its order — and only of
+    /// its order.
+    #[tokio::test]
+    async fn replace_trades_for_order_leaves_exactly_the_new_row() {
+        let path = temp_db_path();
+        let storage = SqliteStorage::open(path.to_str().unwrap()).await.unwrap();
+        storage.save_trade(&replace_test_trade("old-1", "order-a")).await.unwrap();
+        storage.save_trade(&replace_test_trade("old-2", "order-a")).await.unwrap();
+        storage.save_trade(&replace_test_trade("other", "order-b")).await.unwrap();
+
+        storage
+            .replace_trades_for_order("order-a", &replace_test_trade("new", "order-a"))
+            .await
+            .unwrap();
+
+        let mut ids: Vec<String> = storage
+            .list_trades()
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|t| t.id)
+            .collect();
+        ids.sort();
+        assert_eq!(ids, vec!["new".to_string(), "other".to_string()]);
+
+        drop(storage);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// #566 review round 5: the replacement is one transaction. When the
+    /// insert fails, the delete is rolled back with it — the order keeps the
+    /// row it had, also once the store is reopened, i.e. what a process that
+    /// died halfway finds.
+    #[tokio::test]
+    async fn a_failed_replacement_keeps_the_orders_rows_across_a_reopen() {
+        let path = temp_db_path();
+        let storage = SqliteStorage::open(path.to_str().unwrap()).await.unwrap();
+        storage.save_trade(&replace_test_trade("old", "order-a")).await.unwrap();
+        // A schema trigger (not TEMP: the pool has several connections) that
+        // aborts exactly the replacement's insert.
+        sqlx::query(
+            "CREATE TRIGGER fail_replacement BEFORE INSERT ON trades
+             WHEN NEW.id = 'new'
+             BEGIN SELECT RAISE(ABORT, 'injected insert failure'); END",
+        )
+        .execute(&storage.pool)
+        .await
+        .unwrap();
+
+        let err = storage
+            .replace_trades_for_order("order-a", &replace_test_trade("new", "order-a"))
+            .await;
+        assert!(err.is_err(), "the injected insert failure surfaces");
+
+        drop(storage);
+        let storage = SqliteStorage::open(path.to_str().unwrap()).await.unwrap();
+        let row = storage
+            .get_trade_by_order_id("order-a")
+            .await
+            .unwrap()
+            .expect("the delete was rolled back with the failed insert");
+        assert_eq!(row.id, "old");
+
+        drop(storage);
+        let _ = std::fs::remove_file(&path);
+    }
+
     /// The taker reputation snapshot (issue #305) round-trips through the
     /// nested-JSON update: written by order id, read back as numbers on
     /// `TradeInfo`, and stored on a row whose `trades.id` differs from the
@@ -1401,7 +1584,7 @@ mod tests {
                 fiat_code: "CUP".into(),
                 payment_method: "bank".into(),
                 premium: 0.0,
-                creator_pubkey: "maker".into(),
+                node_pubkey: "node".into(),
                 created_at: 1,
                 expires_at: None,
                 is_mine: false,
@@ -1421,6 +1604,8 @@ mod tests {
             timeout_at: None,
             started_at: 1,
             completed_at: None,
+            escrow_locked_at: None,
+            escrow_node: None,
             outcome: None,
             peer_rating: None,
             peer_reviews: None,
@@ -1525,7 +1710,7 @@ mod tests {
                 fiat_code: "CUP".into(),
                 payment_method: "bank".into(),
                 premium: 0.0,
-                creator_pubkey: "maker".into(),
+                node_pubkey: "node".into(),
                 created_at: 1,
                 expires_at: None,
                 is_mine: false,
@@ -1545,6 +1730,8 @@ mod tests {
             timeout_at: None,
             started_at: 1,
             completed_at: None,
+            escrow_locked_at: None,
+            escrow_node: None,
             outcome: None,
             peer_rating: None,
             peer_reviews: None,
@@ -1642,6 +1829,118 @@ mod tests {
         let _ = std::fs::remove_file(&path);
     }
 
+    /// The escrow lock time is a JSON number scoped to one order, and the
+    /// oldest one recorded wins together with its node: a later re-send keeps
+    /// it, an older replay arriving afterwards replaces it.
+    #[tokio::test]
+    async fn mark_escrow_locked_keeps_the_oldest_time_and_its_node() {
+        let path = temp_db_path();
+        let storage = SqliteStorage::open(path.to_str().unwrap()).await.unwrap();
+        storage
+            .save_trade(&trade_row("row-a", "order-a"))
+            .await
+            .unwrap();
+        storage
+            .save_trade(&trade_row("row-b", "order-b"))
+            .await
+            .unwrap();
+
+        storage
+            .mark_escrow_locked("order-a", 1_700_000_500, "node-a")
+            .await
+            .unwrap();
+        storage
+            .mark_escrow_locked("order-a", 1_700_009_999, "node-b")
+            .await
+            .unwrap();
+        let a = storage
+            .get_trade_by_order_id("order-a")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(a.escrow_locked_at, Some(1_700_000_500));
+        assert_eq!(a.escrow_node.as_deref(), Some("node-a"));
+
+        storage
+            .mark_escrow_locked("order-a", 1_700_000_100, "node-c")
+            .await
+            .unwrap();
+        let a = storage
+            .get_trade_by_order_id("order-a")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(a.escrow_locked_at, Some(1_700_000_100));
+        assert_eq!(a.escrow_node.as_deref(), Some("node-c"));
+
+        let b = storage
+            .get_trade_by_order_id("order-b")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(b.escrow_locked_at, None);
+        assert_eq!(b.escrow_node, None);
+
+        // No row, no write: the lock never creates a trade.
+        storage
+            .mark_escrow_locked("order-missing", 1_700_000_000, "node-a")
+            .await
+            .unwrap();
+        assert!(storage
+            .get_trade_by_order_id("order-missing")
+            .await
+            .unwrap()
+            .is_none());
+
+        drop(storage);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// A cleared lock reads back as none, on that order only, and the next
+    /// lock recorded is taken even though it is later than the cleared one.
+    #[tokio::test]
+    async fn clear_escrow_lock_lets_a_later_lock_in() {
+        let path = temp_db_path();
+        let storage = SqliteStorage::open(path.to_str().unwrap()).await.unwrap();
+        for (row, order) in [("row-a", "order-a"), ("row-b", "order-b")] {
+            storage.save_trade(&trade_row(row, order)).await.unwrap();
+            storage
+                .mark_escrow_locked(order, 1_700_000_100, "node-a")
+                .await
+                .unwrap();
+        }
+
+        storage.clear_escrow_lock("order-a").await.unwrap();
+        let a = storage
+            .get_trade_by_order_id("order-a")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(a.escrow_locked_at, None);
+        assert_eq!(a.escrow_node, None);
+        let b = storage
+            .get_trade_by_order_id("order-b")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(b.escrow_locked_at, Some(1_700_000_100));
+
+        storage
+            .mark_escrow_locked("order-a", 1_700_009_999, "node-b")
+            .await
+            .unwrap();
+        let a = storage
+            .get_trade_by_order_id("order-a")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(a.escrow_locked_at, Some(1_700_009_999));
+        assert_eq!(a.escrow_node.as_deref(), Some("node-b"));
+
+        drop(storage);
+        let _ = std::fs::remove_file(&path);
+    }
+
     /// The cooperative-cancel request lives inside the JSON document: written
     /// with `json_set`, read back through serde, scoped to one order.
     #[tokio::test]
@@ -1663,7 +1962,7 @@ mod tests {
                 fiat_code: "CUP".into(),
                 payment_method: "bank".into(),
                 premium: 0.0,
-                creator_pubkey: "maker".into(),
+                node_pubkey: "node".into(),
                 created_at: 1,
                 expires_at: None,
                 is_mine: false,
@@ -1683,6 +1982,8 @@ mod tests {
             timeout_at: None,
             started_at: 1,
             completed_at: None,
+            escrow_locked_at: None,
+            escrow_node: None,
             outcome: None,
             peer_rating: None,
             peer_reviews: None,
@@ -1725,6 +2026,93 @@ mod tests {
         let _ = std::fs::remove_file(&path);
     }
 
+    /// Forgetting a node (the own-key cleanup, PR #817) is a node-only,
+    /// conditional write: it keeps every other field — a rating committed
+    /// after the caller's read included — moves a legacy `creator_pubkey`
+    /// row to the new name so it still loads, leaves real and unknown nodes
+    /// alone, and never brings a deleted row back.
+    #[tokio::test]
+    async fn forget_trade_node_changes_the_node_and_nothing_else() {
+        use crate::api::types::OrderStatus;
+        use crate::mostro::test_fixtures::trade;
+
+        let path = temp_db_path();
+        let storage = SqliteStorage::open(path.to_str().unwrap()).await.unwrap();
+
+        // A matching node goes; a rating written after the caller read stays.
+        storage
+            .save_trade(&trade("own", 1, OrderStatus::Success, "abcd"))
+            .await
+            .unwrap();
+        storage.mark_trade_rated("own", 1234).await.unwrap();
+        assert!(storage.forget_trade_node("own", "ABCD").await.unwrap());
+        let own = storage.get_trade_by_order_id("own").await.unwrap().unwrap();
+        assert_eq!(own.order.node_pubkey, "");
+        assert_eq!(own.rated_at, Some(1234));
+        assert_eq!(own.order.status, OrderStatus::Success);
+        assert!(
+            !storage.forget_trade_node("own", "abcd").await.unwrap(),
+            "done once"
+        );
+
+        // A row stored under the legacy name: one name left, and it loads.
+        storage
+            .save_trade(&trade("legacy", 2, OrderStatus::Active, "abcd"))
+            .await
+            .unwrap();
+        sqlx::query(
+            "UPDATE trades SET data = json_set(json_remove(data, '$.order.node_pubkey'), \
+             '$.order.creator_pubkey', 'abcd') WHERE id = 'legacy'",
+        )
+        .execute(&storage.pool)
+        .await
+        .unwrap();
+        assert!(storage.forget_trade_node("legacy", "abcd").await.unwrap());
+        let legacy = storage.get_trade_by_order_id("legacy").await.unwrap();
+        assert_eq!(legacy.expect("the row still loads").order.node_pubkey, "");
+        let old_name: Option<String> = sqlx::query_scalar(
+            "SELECT json_type(data, '$.order.creator_pubkey') FROM trades WHERE id = 'legacy'",
+        )
+        .fetch_one(&storage.pool)
+        .await
+        .unwrap();
+        assert_eq!(old_name, None, "the legacy name is gone");
+
+        // Real and unknown nodes are not touched.
+        for (id, node) in [("real", "node"), ("unknown", "")] {
+            storage
+                .save_trade(&trade(id, 3, OrderStatus::Active, node))
+                .await
+                .unwrap();
+        }
+        assert!(!storage.forget_trade_node("real", "abcd").await.unwrap());
+        assert!(!storage.forget_trade_node("unknown", "").await.unwrap());
+        let real = storage
+            .get_trade_by_order_id("real")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(real.order.node_pubkey, "node");
+
+        // A deleted row stays deleted.
+        storage.delete_trade_by_order_id("own").await.unwrap();
+        assert!(!storage.forget_trade_node("own", "").await.unwrap());
+        storage
+            .save_trade(&trade("gone", 4, OrderStatus::Active, "abcd"))
+            .await
+            .unwrap();
+        storage.delete_trade_by_order_id("gone").await.unwrap();
+        assert!(!storage.forget_trade_node("gone", "abcd").await.unwrap());
+        assert!(storage
+            .get_trade_by_order_id("gone")
+            .await
+            .unwrap()
+            .is_none());
+
+        drop(storage);
+        let _ = std::fs::remove_file(&path);
+    }
+
     /// The durable peer record (issue #334): the counterparty pubkey lands on
     /// the row matched by `order.id` for both roles (the taker's row id is a
     /// random UUID), overwrites a poisoned pre-fix value, survives reopen, and
@@ -1749,7 +2137,7 @@ mod tests {
                 fiat_code: "CUP".into(),
                 payment_method: "bank".into(),
                 premium: 0.0,
-                creator_pubkey: "daemon".into(),
+                node_pubkey: "node".into(),
                 created_at: 1,
                 expires_at: None,
                 is_mine: false,
@@ -1769,6 +2157,8 @@ mod tests {
             timeout_at: None,
             started_at: 1,
             completed_at: None,
+            escrow_locked_at: None,
+            escrow_node: None,
             outcome: None,
             peer_rating: None,
             peer_reviews: None,
@@ -1790,7 +2180,7 @@ mod tests {
             .await
             .unwrap();
         storage
-            .save_trade(&trade("row-uuid-b", "order-b", "daemon"))
+            .save_trade(&trade("row-uuid-b", "order-b", "node"))
             .await
             .unwrap();
 
@@ -2279,38 +2669,6 @@ mod tests {
         let _ = std::fs::remove_file(&path);
     }
 
-    #[tokio::test]
-    async fn delete_identity_clears_row_and_trade_keys() {
-        let path = temp_db_path();
-        let path_str = path.to_str().unwrap().to_string();
-        let storage = SqliteStorage::open(&path_str).await.unwrap();
-
-        let identity = IdentityInfo {
-            public_key: "abc123".to_string(),
-            display_name: None,
-            privacy_mode: false,
-            trade_key_index: 7,
-            created_at: 1_700_000_000,
-        };
-        storage.save_identity(&identity).await.unwrap();
-        storage.save_trade_key("order-1", 5).await.unwrap();
-        storage.save_trade_key("order-2", 6).await.unwrap();
-
-        storage.delete_identity().await.unwrap();
-        storage.clear_trade_keys().await.unwrap();
-
-        assert!(storage.get_identity().await.unwrap().is_none());
-        assert_eq!(storage.get_trade_key("order-1").await.unwrap(), None);
-        assert_eq!(storage.get_trade_key("order-2").await.unwrap(), None);
-
-        // Deleting again on empty tables is a no-op, not an error.
-        storage.delete_identity().await.unwrap();
-        storage.clear_trade_keys().await.unwrap();
-
-        drop(storage);
-        let _ = std::fs::remove_file(&path);
-    }
-
     /// Issue #533: a new user must find the app as a fresh install leaves it.
     /// The attachment cache (#589): blobs come back as stored, the newest
     /// survive the size cap, and a new identity starts with none.
@@ -2358,7 +2716,7 @@ mod tests {
             fiat_code: "CUP".into(),
             payment_method: "bank".into(),
             premium: 0.0,
-            creator_pubkey: "maker".into(),
+            node_pubkey: "node".into(),
             created_at: 1,
             expires_at: None,
             is_mine: true,
@@ -2383,6 +2741,8 @@ mod tests {
                 timeout_at: None,
                 started_at: 1,
                 completed_at: None,
+                escrow_locked_at: None,
+                escrow_node: None,
                 outcome: None,
                 peer_rating: None,
                 peer_reviews: None,
@@ -2438,9 +2798,21 @@ mod tests {
             settings_keys::BOND_CLAIM_RETAINED_NODES.to_string(),
             settings_keys::RESTORE_SNAPSHOT.to_string(),
             settings_keys::MY_REPUTATION.to_string(),
+            settings_keys::PENDING_REPUTATION_ATTESTATION.to_string(),
         ] {
             storage.set_setting(&key, "1").await.unwrap();
         }
+        storage
+            .save_identity(&IdentityInfo {
+                public_key: "abc123".to_string(),
+                display_name: None,
+                privacy_mode: false,
+                trade_key_index: 7,
+                created_at: 1_700_000_000,
+            })
+            .await
+            .unwrap();
+        storage.save_trade_key("order-a", 1).await.unwrap();
         // The device's own.
         storage
             .save_active_mostro_pubkey("node-pubkey")
@@ -2457,6 +2829,8 @@ mod tests {
 
         storage.clear_identity_data().await.unwrap();
 
+        assert!(storage.get_identity().await.unwrap().is_none());
+        assert_eq!(storage.get_trade_key("order-a").await.unwrap(), None);
         assert!(storage.list_trades().await.unwrap().is_empty());
         assert!(storage.list_orders().await.unwrap().is_empty());
         assert!(storage.list_messages("order-a").await.unwrap().is_empty());
@@ -2472,6 +2846,7 @@ mod tests {
             settings_keys::BOND_CLAIM_RETAINED_NODES.to_string(),
             settings_keys::RESTORE_SNAPSHOT.to_string(),
             settings_keys::MY_REPUTATION.to_string(),
+            settings_keys::PENDING_REPUTATION_ATTESTATION.to_string(),
         ] {
             assert_eq!(
                 storage.get_setting(&key).await.unwrap(),
@@ -2503,6 +2878,58 @@ mod tests {
 
         // Wiping an already empty database is a no-op, not an error.
         storage.clear_identity_data().await.unwrap();
+
+        drop(storage);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// A wipe that fails part way is rolled back whole: the identity row and
+    /// its trade-key mappings stay with the trades they name (review of
+    /// #573). The failure is a trigger aborting the last delete the
+    /// transaction runs, so every earlier one has already happened in it.
+    #[tokio::test]
+    async fn a_failed_identity_wipe_rolls_back_whole() {
+        let path = temp_db_path();
+        let storage = SqliteStorage::open(path.to_str().unwrap()).await.unwrap();
+        storage
+            .save_identity(&IdentityInfo {
+                public_key: "abc123".to_string(),
+                display_name: None,
+                privacy_mode: false,
+                trade_key_index: 7,
+                created_at: 1_700_000_000,
+            })
+            .await
+            .unwrap();
+        storage.save_trade_key("order-a", 5).await.unwrap();
+        storage
+            .set_setting(settings_keys::MY_REPUTATION, "1")
+            .await
+            .unwrap();
+        sqlx::query(&format!(
+            "CREATE TRIGGER wipe_fails BEFORE DELETE ON settings \
+             WHEN old.key = '{}' BEGIN SELECT RAISE(ABORT, 'wipe fails'); END",
+            settings_keys::MY_REPUTATION
+        ))
+        .execute(&storage.pool)
+        .await
+        .unwrap();
+
+        assert!(storage.clear_identity_data().await.is_err());
+
+        assert_eq!(
+            storage.get_identity().await.unwrap().map(|i| i.public_key),
+            Some("abc123".to_string())
+        );
+        assert_eq!(storage.get_trade_key("order-a").await.unwrap(), Some(5));
+        assert_eq!(
+            storage
+                .get_setting(settings_keys::MY_REPUTATION)
+                .await
+                .unwrap()
+                .as_deref(),
+            Some("1")
+        );
 
         drop(storage);
         let _ = std::fs::remove_file(&path);

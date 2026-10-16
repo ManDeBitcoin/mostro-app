@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -17,9 +18,11 @@ import 'package:mostro/features/notifications/models/notification_model.dart';
 import 'package:mostro/features/notifications/providers/notifications_provider.dart';
 import 'package:mostro/features/order/providers/invoice_providers.dart';
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
+import 'package:mostro/features/trades/widgets/payout_destination_card.dart';
 import 'package:mostro/features/rate/providers/rating_providers.dart';
 import 'package:mostro/features/rate/screens/rate_counterpart_screen.dart';
 import 'package:mostro/features/rate/widgets/star_rating.dart';
+import 'package:mostro/features/trades/providers/escrow_deadline_provider.dart';
 import 'package:mostro/features/trades/providers/release_pending_provider.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart';
 import 'package:mostro/features/trades/screens/trade_detail_screen.dart';
@@ -37,6 +40,7 @@ import 'package:mostro/shared/utils/platform_int64.dart';
 import 'package:mostro/src/rust/api/types.dart';
 
 import '../../support/fake_orders.dart';
+import '../../support/fake_payout.dart';
 import '../../support/fake_trades.dart';
 import '../../support/provider_harness.dart';
 
@@ -71,6 +75,7 @@ Future<ProviderContainer> _pumpTradeDetail(
   NotificationsNotifier? notifications,
   ChatRowState? chatState,
   List<Override> extraOverrides = const [],
+  Duration? escrowDeadlineIn = const Duration(hours: 20),
 }) async {
   final container = createContainer(
     overrides: [
@@ -101,6 +106,15 @@ Future<ProviderContainer> _pumpTradeDetail(
       // harness stands in for the daemon message that opened the step.
       invoiceDeadlineProvider(orderId).overrideWith(
         (ref) async => DateTime.now().millisecondsSinceEpoch ~/ 1000 + 600,
+      ),
+      // The fiat leg counts down to the escrow deadline, which without a
+      // bridge is unknown too; [escrowDeadlineIn] null keeps it unknown.
+      escrowDeadlineProvider(orderId).overrideWith(
+        (ref) async =>
+            escrowDeadlineIn == null
+                ? null
+                : clock.now().millisecondsSinceEpoch ~/ 1000 +
+                    escrowDeadlineIn.inSeconds,
       ),
       tradeRatingProvider(orderId).overrideWith((ref) {
         // A pending Completer future keeps the rating lookup in its first
@@ -187,6 +201,13 @@ Future<void> _pumpRoutedTradeDetail(
         builder:
             (_, state) => Scaffold(
               body: Text('dispute ${state.pathParameters['disputeId']}'),
+            ),
+      ),
+      GoRoute(
+        path: AppRoute.addInvoice,
+        builder:
+            (_, state) => Scaffold(
+              body: Text('add invoice ${state.pathParameters['orderId']}'),
             ),
       ),
     ],
@@ -411,7 +432,7 @@ void main() {
       expect(_outlinedButtonWithText(_en.cancel), findsOneWidget);
       expect(_outlinedButtonWithText(_en.openDisputeButton), findsOneWidget);
       expect(find.text(_en.tradeTimerTheyHave), findsOneWidget);
-      expect(find.text(_en.tradeTimerNoteCoordinate), findsOneWidget);
+      expect(find.text(_en.tradeTimerEscrowCancels), findsOneWidget);
       expect(_anyPopupMenuButton(), findsOneWidget);
     });
 
@@ -540,6 +561,86 @@ void main() {
     });
   });
 
+  group('fiat leg · escrow deadline countdown', () {
+    testWidgets('active: the buyer counts down to the cancellation', (
+      tester,
+    ) async {
+      await _pumpTradeDetail(
+        tester,
+        orderId: 'order-escrow-active',
+        isBuyer: true,
+        status: OrderStatus.active,
+      );
+
+      expect(find.text(_en.tradeTimerYouHave), findsOneWidget);
+      expect(find.text(_en.tradeTimerEscrowCancels), findsOneWidget);
+      // About 20 h, in the hours format: not the 15:00 fallback of old.
+      expect(find.textContaining(RegExp(r'^\d+ h \d{2}$')), findsOneWidget);
+    });
+
+    testWidgets('fiat sent: the seller counts down to the dispute', (
+      tester,
+    ) async {
+      await _pumpTradeDetail(
+        tester,
+        orderId: 'order-escrow-fiat-sent',
+        isBuyer: false,
+        status: OrderStatus.fiatSent,
+      );
+
+      expect(find.text(_en.tradeTimerYouHave), findsOneWidget);
+      expect(find.text(_en.tradeTimerEscrowDisputes), findsOneWidget);
+      expect(find.text(_en.tradeTimerEscrowCancels), findsNothing);
+    });
+
+    testWidgets('at zero, active says the trade is about to be cancelled', (
+      tester,
+    ) async {
+      await _pumpTradeDetail(
+        tester,
+        orderId: 'order-escrow-active-zero',
+        isBuyer: true,
+        status: OrderStatus.active,
+        escrowDeadlineIn: const Duration(seconds: -30),
+      );
+
+      expect(find.text(_en.tradeTimerEscrowCancelling), findsOneWidget);
+      expect(find.text(_en.tradeTimerEscrowCancels), findsNothing);
+    });
+
+    testWidgets('at zero, fiat sent says a dispute is about to be opened', (
+      tester,
+    ) async {
+      await _pumpTradeDetail(
+        tester,
+        orderId: 'order-escrow-fiat-sent-zero',
+        isBuyer: true,
+        status: OrderStatus.fiatSent,
+        escrowDeadlineIn: const Duration(seconds: -30),
+      );
+
+      expect(find.text(_en.tradeTimerEscrowDisputing), findsOneWidget);
+      expect(find.text(_en.tradeTimerEscrowDisputes), findsNothing);
+    });
+
+    testWidgets('without a known deadline there is no countdown', (
+      tester,
+    ) async {
+      await _pumpTradeDetail(
+        tester,
+        orderId: 'order-escrow-unknown',
+        isBuyer: true,
+        status: OrderStatus.active,
+        escrowDeadlineIn: null,
+      );
+
+      expect(find.text(_en.tradeTimerYouHave), findsNothing);
+      expect(find.text(_en.tradeTimerEscrowCancels), findsNothing);
+      // The fiat-leg action is still there: only the clock is missing.
+      expect(_filledButtonWithText(_en.tradeFiatSentAction), findsOneWidget);
+    });
+  });
+
   group('8d · fiat sent', () {
     testWidgets(
       'seller: release action with the irreversibility warning, Cancel + Dispute',
@@ -579,6 +680,50 @@ void main() {
       expect(find.byWidgetPredicate((w) => w is FilledButton), findsNothing);
       expect(_outlinedButtonWithText(_en.cancel), findsOneWidget);
       expect(_outlinedButtonWithText(_en.openDisputeButton), findsOneWidget);
+    });
+
+    // mostrod takes a replacement invoice while the escrow is settled and no
+    // payout is in flight. The buyer still waits, so it is not lime.
+    testWidgets('payout pending: the buyer can give a new invoice, outlined', (
+      tester,
+    ) async {
+      await _pumpTradeDetail(
+        tester,
+        orderId: 'order-8d-payout',
+        isBuyer: true,
+        status: OrderStatus.settledHoldInvoice,
+      );
+
+      expect(find.text(_en.tradeChipWaiting), findsOneWidget);
+      expect(find.byWidgetPredicate((w) => w is FilledButton), findsNothing);
+      expect(
+        _outlinedButtonWithText(_en.addLightningInvoiceButton),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('payout pending: the new invoice opens the payout screen', (
+      tester,
+    ) async {
+      const orderId = 'order-8d-payout-route';
+      await _pumpRoutedTradeDetail(
+        tester,
+        orderId: orderId,
+        status: OrderStatus.settledHoldInvoice,
+        loadTrades:
+            () async => [
+              fakeTrade(
+                id: 'payout-route',
+                orderId: orderId,
+                status: OrderStatus.settledHoldInvoice,
+              ),
+            ],
+      );
+
+      await tester.tap(_outlinedButtonWithText(_en.addLightningInvoiceButton));
+      await _finishPageTransition(tester);
+
+      expect(find.text('add invoice $orderId'), findsOneWidget);
     });
 
     /// Releasing is the one action of the screen that asks first: the sheet
@@ -994,11 +1139,11 @@ void main() {
       orderId: 'countdown-order',
       isBuyer: true,
       status: OrderStatus.active,
+      escrowDeadlineIn: const Duration(minutes: 15),
     );
 
     final before = tester.widget(find.byType(AppBar));
-    // No order reaches the screen here, so the countdown starts from the
-    // 15-minute default — under an hour, so mm:ss.
+    // Fifteen minutes to the escrow deadline — under an hour, so mm:ss.
     expect(find.text('15:00'), findsOneWidget);
 
     await tester.pump(const Duration(seconds: 1));
@@ -1449,6 +1594,54 @@ void main() {
       }
     });
 
+    // The Linux build opens a 1280 × 720 window
+    // (linux/runner/my_application.cc), and the accessibility bridge only
+    // exposes what is on screen. The buyer's payout card (#823) sits under
+    // the step block, so the id row must come before it, not at the end of
+    // the scroll where the card pushed it out of the window.
+    testWidgets(
+      'order.id is on screen above the buyer payout card in a 1280 × 720 window',
+      (tester) async {
+        tester.view.physicalSize = const Size(1280, 720);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final semantics = tester.ensureSemantics();
+        try {
+          // Arrange + Act
+          await _pumpTradeDetail(
+            tester,
+            orderId: 'a-very-long-order-identifier-0123',
+            isBuyer: true,
+            status: OrderStatus.active,
+            extraOverrides: [
+              payoutDestinationsReaderProvider.overrideWithValue(
+                // A paid destination is final, so the payout stream ends
+                // instead of arming its safety poll.
+                (orderId) async => [
+                  fakePayoutDestination(outcome: PayoutOutcome.paid),
+                ],
+              ),
+              tradeTouchProvider.overrideWith(
+                (ref) => const Stream<TradeTouch>.empty(),
+              ),
+            ],
+          );
+
+          // Assert: the card is shown, as in the run that failed...
+          final card = find.byType(PayoutDestinationCard);
+          expect(card, findsOneWidget);
+          // ...and the id is in the window, above it, found on screen.
+          final id = find.bySemanticsIdentifier(AutomationIds.orderId);
+          expect(id, findsOneWidget);
+          final idRect = tester.getRect(id);
+          expect(idRect.bottom, lessThanOrEqualTo(720));
+          expect(idRect.top, lessThan(tester.getRect(card).top));
+        } finally {
+          semantics.dispose();
+        }
+      },
+    );
+
     testWidgets('the completed card keeps the stars addressable', (
       tester,
     ) async {
@@ -1534,6 +1727,39 @@ void main() {
         });
       }
     }
+
+    // DS-A11Y-4: payout pending gained the buyer's Add invoice, a full-width
+    // secondary action that must stay on screen and tappable.
+    testWidgets('the payout-pending bar in German, 320dp, 2x text', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 760);
+      tester.view.devicePixelRatio = 1.0;
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      await _pumpTradeDetail(
+        tester,
+        orderId: 'order-de-payout',
+        isBuyer: true,
+        status: OrderStatus.settledHoldInvoice,
+        locale: const Locale('de'),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(
+        find
+            .text(
+              lookupAppLocalizations(
+                const Locale('de'),
+              ).addLightningInvoiceButton,
+            )
+            .hitTestable(),
+        findsOneWidget,
+      );
+    });
 
     // DS-A11Y-4: the disputed bar gained the buyer's Cancel; the seller's
     // carries Release and Cancel side by side under View dispute.
@@ -1654,6 +1880,63 @@ void main() {
       expect(find.byType(TradeDetailScreen), findsOneWidget);
       expect(find.text(AppLocalizationsEn().tradeNoLongerYours), findsNothing);
     });
+
+    // A maker's order canceled before anyone took it loses its trade row
+    // (Rust's `wipe_never_active_trade`), while the book keeps it as theirs
+    // with its `canceled`. Nothing else holds a maker's role, so the screen,
+    // opened from the "Trade canceled" notice, stayed on "Loading trade…".
+    testWidgets('a maker\'s canceled order without a trade row shows the '
+        'cancellation', (tester) async {
+      await _pumpTradeDetail(
+        tester,
+        orderId: orderId,
+        isBuyer: false,
+        roleKnown: false,
+        status: OrderStatus.canceled,
+        trades: const [],
+        book: [
+          fakeOrder(id: orderId, status: OrderStatus.canceled, isMine: true),
+        ],
+      );
+
+      expect(find.text(_en.tradeHeadlineLoading), findsNothing);
+      expect(find.text(_en.tradeHeadlineCancelled), findsOneWidget);
+    });
+
+    // "Cancelled" reads the same on both sides, so the role the order gives
+    // is checked where it shows: a step whose headline is one side's.
+    for (final (kind, status, mine, theirs) in [
+      (
+        'buy',
+        OrderStatus.waitingBuyerInvoice,
+        _en.tradeHeadlineWaitingInvoiceBuyer,
+        _en.tradeHeadlineWaitingInvoiceSeller,
+      ),
+      (
+        'sell',
+        OrderStatus.waitingPayment,
+        _en.tradeHeadlineWaitingPaymentSeller,
+        _en.tradeHeadlineWaitingPaymentBuyer,
+      ),
+    ]) {
+      testWidgets('without a trade row, the maker of a $kind order takes '
+          'its side', (tester) async {
+        await _pumpTradeDetail(
+          tester,
+          orderId: orderId,
+          isBuyer: kind == 'sell',
+          roleKnown: false,
+          status: status,
+          trades: const [],
+          book: [
+            fakeOrder(id: orderId, kind: kind, status: status, isMine: true),
+          ],
+        );
+
+        expect(find.text(mine), findsOneWidget);
+        expect(find.text(theirs), findsNothing);
+      });
+    }
 
     testWidgets('a take is not judged before its trade row has loaded', (
       tester,
@@ -2297,13 +2580,14 @@ void main() {
       );
       container.read(chatRoomsNotifierProvider.notifier).upsertRoom(room);
       await _settle(tester);
-      expect(find.text(_en.tradeChatEncrypted), findsOneWidget);
+      expect(find.text(_en.tradeChatOpen), findsOneWidget);
 
       container.read(chatState.notifier).state = const ChatRowState(
         group: ChatGroup.closed,
         tone: ChatAvatarTone.closed,
       );
       await _settle(tester);
+      expect(find.text(_en.tradeChatOpen), findsNothing);
       expect(find.text(_en.tradeChatClosed), findsOneWidget);
     });
 
@@ -2498,6 +2782,9 @@ void main() {
 
       updates.add(OrderStatus.success);
       await _settle(tester);
+      // The outgoing step block keeps its height until its crossfade ends;
+      // the line follows the shrink on the next frame.
+      await tester.pump();
 
       expect(find.byType(TradeChatCard), findsOneWidget);
       expect(chatLine(), Colors.transparent);

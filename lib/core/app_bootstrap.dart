@@ -15,6 +15,7 @@ import 'package:mostro/core/mostro_defaults.dart';
 import 'package:mostro/core/startup_sequence.dart';
 import 'package:mostro/core/services/identity_service.dart';
 import 'package:mostro/core/test_environment.dart';
+import 'package:mostro/core/trade_node.dart';
 import 'package:mostro/core/lifecycle/app_lifecycle_service.dart';
 import 'package:mostro/core/lifecycle/resume_resync.dart';
 import 'package:mostro/core/web/attachment_probe.dart';
@@ -235,9 +236,10 @@ Future<void> _startup(
   try {
     await IdentityService.initialize();
   } catch (e, st) {
-    debugPrint(
-      '[main] Identity init failed — secure storage unavailable: $e\n$st',
-    );
+    // Not only secure storage: a first launch over a database that still
+    // holds a deleted identity's rows is refused (`PendingWipeFailed`) until
+    // the wipe can be retried from the Account screen (issue #555).
+    debugPrint('[main] Identity init failed: $e\n$st');
   }
 
   // Subscribe to bond-slashed notices BEFORE relay delivery starts, so the
@@ -359,6 +361,11 @@ Future<void> _startup(
       currentLocation: _currentLocation,
       disputeIdForTrade:
           (tradeId) => container.read(disputeByTradeIdProvider(tradeId))?.id,
+      isOnOtherNode:
+          (orderId) async => isOnOtherNode(
+            tradeNode: await orders_api.tradeNodeOf(orderId: orderId),
+            activeNode: container.read(mostroPubkeyProvider),
+          ),
     );
     final trades = tradeUpdateStream;
     if (trades != null) {

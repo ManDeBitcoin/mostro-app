@@ -309,6 +309,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Still checking what the selected Mostro node supports. Try again in a moment';
 
   @override
+  String get tradeOnOtherNode =>
+      'This trade belongs to another Mostro node. Switch to that node to act on it';
+
+  @override
   String get mostroMaintenanceMode =>
       'The Mostro node you are connected to is under maintenance. Try again later, or connect to a different Mostro node in Settings';
 
@@ -971,6 +975,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutFiatCurrenciesLabel => 'Fiat Currencies';
 
   @override
+  String get aboutPriceSourceLabel => 'Source';
+
+  @override
+  String get aboutPriceSection => 'Price';
+
+  @override
+  String get aboutPriceSourcesFootnote =>
+      'Price sources are the providers behind the rates the node publishes now; one that failed or was set aside is not listed.';
+
+  @override
   String get aboutMostroVersionLabel => 'Mostro Version';
 
   @override
@@ -1139,6 +1153,30 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get failedToGenerateIdentityMessage =>
       'Failed to generate identity. Please try again.';
+
+  @override
+  String get pendingWipeBannerTitle =>
+      'Previous user\'s data is still on this device';
+
+  @override
+  String get pendingWipeBannerBody =>
+      'Deleting the previous identity could not remove its trades and chats from this device. The app will retry the next time a new user is generated or imported.';
+
+  @override
+  String get pendingWipeBlockedMessage =>
+      'The previous user\'s data could not be removed from this device, so the new user was not set up and your current user was kept. Please try again.';
+
+  @override
+  String get wipeNotRecordedMessage =>
+      'The current user could not be removed safely, so nothing was changed. Please try again.';
+
+  @override
+  String get identitySwapStorageUnavailableMessage =>
+      'This device\'s storage is not available right now, so the current user was kept and nothing was changed. Restart the app and try again.';
+
+  @override
+  String get identitySwapPreviousNotReloadedMessage =>
+      'The new user was not set up, and the current user could not be fully restored. Restart the app to load it again.';
 
   @override
   String get invalidMnemonicMessage =>
@@ -1476,6 +1514,21 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get tradeTimerExpiryCancelled =>
       'If it expires, the order is cancelled.';
+
+  @override
+  String get tradeTimerEscrowCancels =>
+      'Approximate time. If it runs out, Mostro cancels the trade.';
+
+  @override
+  String get tradeTimerEscrowDisputes =>
+      'Approximate time. If it runs out, Mostro opens a dispute.';
+
+  @override
+  String get tradeTimerEscrowCancelling =>
+      'Mostro is about to cancel the trade and return the sats to the seller.';
+
+  @override
+  String get tradeTimerEscrowDisputing => 'A dispute is about to be opened.';
 
   @override
   String get tradeStepOrderTaken => 'Order taken';
@@ -2270,10 +2323,33 @@ class AppLocalizationsEn extends AppLocalizations {
       'No chat yet: until the trade is active, neither party knows who the other is.';
 
   @override
-  String get tradeChatEncrypted => 'End-to-end encrypted chat';
+  String get tradeChatEncrypted => 'End-to-end encrypted';
 
   @override
   String get tradeChatClosed => 'Conversation closed · view messages';
+
+  @override
+  String get tradeChatWithBuyer => 'Chat with the buyer';
+
+  @override
+  String get tradeChatWithSeller => 'Chat with the seller';
+
+  @override
+  String get tradeChatWithCounterpart => 'Chat with your counterpart';
+
+  @override
+  String tradeChatNewMessages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count new messages',
+      one: '1 new message',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get tradeChatOpen => 'Open';
 
   @override
   String get tradeChatClosedAnnouncement =>
@@ -2309,10 +2385,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tradeTimerOrderHas => 'Time left';
-
-  @override
-  String get tradeTimerNoteCoordinate =>
-      'If you need more time, coordinate in the chat before it expires.';
 
   @override
   String get tradeRoleBuyer => 'Buyer';
@@ -4158,6 +4230,24 @@ class AppLocalizationsEn extends AppLocalizations {
       'This token could not be verified: it carries no proof of the mint\'s signature, so it was not accepted.';
 
   @override
+  String get cashuErrorUnsupportedUnit =>
+      'This wallet only holds sats, and this token is in another unit (such as millisats or dollars). It was left untouched: you can redeem it in a wallet that supports its unit.';
+
+  @override
+  String cashuErrorUnsupportedUnitNamed(String unit) {
+    return 'This wallet only holds sats, and this token is in $unit. It was left untouched: you can redeem it in a wallet that supports that unit.';
+  }
+
+  @override
+  String get cashuUnitMsat => 'millisats';
+
+  @override
+  String get cashuUnitUsd => 'dollars (USD)';
+
+  @override
+  String get cashuUnitEur => 'euros (EUR)';
+
+  @override
   String get cashuErrorSendUnresolved =>
       'The send failed and the wallet could not confirm the funds are back. Sync with the mint before trying again.';
 
@@ -4391,4 +4481,384 @@ class AppLocalizationsEn extends AppLocalizations {
   String myReputationOnNode(String node) {
     return 'On $node';
   }
+
+  @override
+  String get orderLinkTitle => 'Order link';
+
+  @override
+  String get orderLinkLooking => 'Looking for the order…';
+
+  @override
+  String orderLinkSwitching(String nodeName) {
+    return 'Changing to $nodeName…';
+  }
+
+  @override
+  String get orderLinkInvalidTitle => 'This link can\'t be opened';
+
+  @override
+  String get orderLinkInvalidBody =>
+      'It isn\'t a link to a Mostro order, or part of it is missing.';
+
+  @override
+  String get orderLinkNotFoundBody =>
+      'No relay answered with this order. Check your connection and try again.';
+
+  @override
+  String get orderLinkUnavailableTitle => 'Order no longer available';
+
+  @override
+  String get orderLinkUnavailableBody =>
+      'Someone already took it, or it was canceled or expired.';
+
+  @override
+  String get orderLinkFailedTitle => 'Couldn\'t open the order';
+
+  @override
+  String get orderLinkOtherNodeTitle => 'Order on another node';
+
+  @override
+  String orderLinkOtherNodeBody(String nodeName) {
+    return 'This order was published on $nodeName. To see it and take it, change to that node.';
+  }
+
+  @override
+  String get orderLinkUnknownNodeWarning =>
+      'This node isn\'t in your list. Change to it only if you trust whoever sent you the link: the node you trade on settles your trades and resolves their disputes.';
+
+  @override
+  String get reputationNodeDoesNotExport =>
+      'This Mostro does not export reputation.';
+
+  @override
+  String get reputationNodeDoesNotImport =>
+      'This Mostro does not import reputation.';
+
+  @override
+  String get reputationIdentityRequired =>
+      'Reputation can only be moved from an account that keeps its reputation. Turn off full privacy mode and try again.';
+
+  @override
+  String get reputationNotEligible =>
+      'Your account cannot export its reputation yet: it needs at least 10 completed trades and 5 ratings received.';
+
+  @override
+  String get reputationBoundToOtherIdentity =>
+      'Your reputation there is already bound to another identity. Authorize the move from the identity it is bound to.';
+
+  @override
+  String get reputationInvalidRebind =>
+      'The authorization to move your reputation is invalid or has expired. Create a new one.';
+
+  @override
+  String get reputationExpiredAttestation =>
+      'This reputation has expired. Request it again from its source.';
+
+  @override
+  String get reputationUntrustedIssuer =>
+      'This Mostro does not accept reputation from that source.';
+
+  @override
+  String get reputationIdentityMismatch =>
+      'This reputation was issued for another identity than the one you are using.';
+
+  @override
+  String get reputationAlreadyImported =>
+      'This reputation was already imported on this Mostro.';
+
+  @override
+  String get reputationInvalidAttestation =>
+      'This is not a valid reputation. Request it again from its source.';
+
+  @override
+  String get reputationImportTitle => 'Import reputation';
+
+  @override
+  String get reputationImportIntro =>
+      'Bring the reputation you earned on lnp2pBot or on another Mostro to this one. Importing links the two accounts: the source and this Mostro learn they belong to the same person.';
+
+  @override
+  String get reputationOpenLnp2pbot => 'Get it from lnp2pBot';
+
+  @override
+  String get reputationPasteHint => 'Paste the reputation you received';
+
+  @override
+  String get reputationCheck => 'Check';
+
+  @override
+  String get reputationImported => 'Your reputation was imported.';
+
+  @override
+  String get reputationImportConfirm => 'Import into this Mostro';
+
+  @override
+  String reputationFigures(int reviews, String rating, int days) {
+    final intl.NumberFormat reviewsNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String reviewsString = reviewsNumberFormat.format(reviews);
+    final intl.NumberFormat daysNumberFormat = intl.NumberFormat.decimalPattern(
+      localeName,
+    );
+    final String daysString = daysNumberFormat.format(days);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      reviews,
+      locale: localeName,
+      other: '$reviewsString ratings received',
+      one: '1 rating received',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'trading for $daysString days',
+      one: 'trading for 1 day',
+    );
+    return '$_temp0, $rating on average, $_temp1';
+  }
+
+  @override
+  String get reputationFiguresNote =>
+      'Imported reputation is added to the one you have here; your counterparties see them merged.';
+
+  @override
+  String get reputationOpenLnp2pbotFailed =>
+      'Telegram could not be opened. Open lnp2pBot in Telegram yourself and paste here what it sends you.';
+
+  @override
+  String get reputationIdentityHint =>
+      'Before confirming in lnp2pBot, check that it shows this same public key:';
+
+  @override
+  String get reputationUnavailable =>
+      'Unable to check whether reputation can be imported. Try again.';
+
+  @override
+  String get reputationIdentityChanged =>
+      'Your identity changed. Check the public key shown here before trying again.';
+
+  @override
+  String get reputationSettingTitle => 'Reputation';
+
+  @override
+  String get reputationImportCardBody =>
+      'Bring the reputation you earned on lnp2pBot or on another Mostro to this one.';
+
+  @override
+  String get reputationExportTitle => 'Export my reputation';
+
+  @override
+  String get reputationExportCardBody =>
+      'Get a signed copy of the reputation you earned on this Mostro, to import it on another one.';
+
+  @override
+  String get reputationExportConfirmTitle => 'Export to this identity?';
+
+  @override
+  String reputationExportConfirmBody(String npub) {
+    return 'Your reputation on this Mostro will be exported for this identity:\n\n$npub\n\nOnce exported, it is bound to it: exporting it for another identity later needs an authorization signed with this one.';
+  }
+
+  @override
+  String get reputationExportConfirmButton => 'Export';
+
+  @override
+  String get reputationExported =>
+      'Your reputation is ready. Switch to the Mostro where you want it and import it; it is valid for 7 days.';
+
+  @override
+  String get reputationRebindBody =>
+      'Moving to a new identity? Sign an authorization for it here, with the identity your reputation is bound to now. Then, from the new identity, paste it in the authorization field above and export.';
+
+  @override
+  String get reputationNewIdentityHint => 'New identity (npub or hex)';
+
+  @override
+  String get reputationRebindSign => 'Sign authorization';
+
+  @override
+  String get reputationInvalidIdentity =>
+      'That is not a valid npub or hex key.';
+
+  @override
+  String get reputationRebindInputHint =>
+      'Authorization from your previous identity (optional)';
+
+  @override
+  String get reputationRebindConfirmTitle => 'Authorize this identity?';
+
+  @override
+  String reputationRebindConfirmBody(String npub) {
+    return 'Whoever holds this identity will be able to export your reputation from this Mostro, and your current identity no longer will:\n\n$npub\n\nSign only for an identity that is yours.';
+  }
+
+  @override
+  String get payoutPaidToLabel => 'Paid to';
+
+  @override
+  String get payoutSendingToLabel => 'Sending to';
+
+  @override
+  String get payoutNotPaidLabel => 'Not paid to';
+
+  @override
+  String get payoutChosenByLabel => 'Chosen by';
+
+  @override
+  String get payoutAmountLabel => 'Amount';
+
+  @override
+  String get payoutHashLabel => 'Payment hash';
+
+  @override
+  String get payoutTriedBeforeLabel => 'Tried before';
+
+  @override
+  String payoutTriedBeforeValue(String destination, String outcome) {
+    return '$destination · $outcome';
+  }
+
+  @override
+  String get payoutNwcWallet => 'Your NWC wallet';
+
+  @override
+  String payoutNwcWalletNamed(String name) {
+    return '$name (NWC)';
+  }
+
+  @override
+  String payoutInvoice(String invoice) {
+    return 'Invoice $invoice';
+  }
+
+  @override
+  String get payoutSourceDefaultAddress => 'Your default address';
+
+  @override
+  String get payoutSourceNwcWallet => 'Your NWC wallet';
+
+  @override
+  String get payoutSourceEntered => 'You, for this trade';
+
+  @override
+  String get payoutOutcomeSubmitted => 'Waiting';
+
+  @override
+  String get payoutOutcomeRetrying => 'Failed, retrying';
+
+  @override
+  String get payoutOutcomeFailed => 'Failed';
+
+  @override
+  String payoutOutcomeFailedAttempts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Failed after $count attempts',
+      one: 'Failed after 1 attempt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get payoutOutcomeRejected => 'Refused by the node';
+
+  @override
+  String get payoutOutcomePaid => 'Paid';
+
+  @override
+  String get payoutHashCopied => 'Payment hash copied';
+
+  @override
+  String get takeOrderPayoutLabel => 'Your sats go to';
+
+  @override
+  String get takeOrderPayoutInvoice => 'An invoice you add';
+
+  @override
+  String get takeOrderPayoutChangeHint => 'Change where your sats go';
+
+  @override
+  String takeOrderPayoutNoteDefault(String address) {
+    return 'Your sats will be sent to $address, your default Lightning address.';
+  }
+
+  @override
+  String takeOrderPayoutNoteAddress(String address) {
+    return 'Your sats will be sent to $address, for this trade only.';
+  }
+
+  @override
+  String get takeOrderPayoutNoteInvoice =>
+      'After you take the order, you will add the invoice your sats are paid to.';
+
+  @override
+  String get takeOrderPayoutSheetTitle => 'Where your sats go';
+
+  @override
+  String get takeOrderPayoutSheetDefault => 'My default Lightning address';
+
+  @override
+  String get takeOrderPayoutSheetOther => 'Another Lightning address';
+
+  @override
+  String get takeOrderPayoutSheetInvoice => 'An invoice I add after taking';
+
+  @override
+  String get takeOrderPayoutSheetApply => 'Use for this trade';
+
+  @override
+  String invoicePayoutFailed(String destination) {
+    return 'The payment to $destination failed.';
+  }
+
+  @override
+  String invoicePayoutFailedAttempts(String destination, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'The payment to $destination failed after $count attempts.',
+      one: 'The payment to $destination failed after 1 attempt.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get invoicePayoutFailedNwc =>
+      'Your NWC wallet is making a new invoice for these sats.';
+
+  @override
+  String invoicePayoutFailedNwcNamed(String name) {
+    return '$name is making a new invoice for these sats.';
+  }
+
+  @override
+  String get invoicePayoutFailedManual =>
+      'Add a new invoice to receive your sats.';
+
+  @override
+  String get tradeCardPayoutFailedTitle => 'Mostro could not send your sats';
+
+  @override
+  String get tradeCardPayoutFailedMessage =>
+      'Mostro could not send your sats to the address or invoice you gave. Open the trade to see which one failed, and add a new invoice if it is still needed.';
+
+  @override
+  String get payoutInvoiceLabel => 'Invoice';
+
+  @override
+  String get payoutInvoiceCopied => 'Invoice copied';
+
+  @override
+  String get payoutWillGoToLabel => 'Sats will go to';
+
+  @override
+  String get payoutMaybePaidToLabel => 'Maybe paid to';
+
+  @override
+  String get payoutOutcomeReplaced => 'Replaced by a later one';
+
+  @override
+  String get payoutOutcomeMaybePaid =>
+      'Paid to this one or another listed here';
 }
