@@ -70,9 +70,17 @@ git switch -c feat/descripcion-corta upstream/main
 
 ## Carril sync
 
-El procedimiento está en `docker/README.md` § Following upstream: merge de `upstream/main` en una
-rama `sync/upstream-AAAAMMDD`, revisar el toolchain de `Dockerfile.web` contra
-`.github/workflows/web-build.yml`, PR a `main`, staging antes de producción.
+Automático: `.github/workflows/fork-sync-upstream.yml` corre los lunes a las 12:00 UTC (y a mano
+desde Actions, "Sync upstream (fork)"). Fusiona `upstream/main` en la rama fija `sync/upstream`,
+copia a `Dockerfile.web` el toolchain de `.github/workflows/web-build.yml`, comprueba
+`docker/fork_overlay.py --check`, construye `Dockerfile.web` entero y abre (o actualiza) el PR a
+`main`. Fusionarlo despliega en Coolify. Si upstream ya está en `main`, no hace nada.
+
+Ese PR lo abre `GITHUB_TOKEN`, así que el CI de upstream no corre en él: su comprobación es el
+build de la imagen dentro del mismo workflow. Requiere en Settings → Actions → General "Allow
+GitHub Actions to create and approve pull requests".
+
+A mano, si hace falta: `docker/README.md` § Following upstream.
 
 ## Inventario del fork
 
@@ -86,6 +94,7 @@ rama `sync/upstream-AAAAMMDD`, revisar el toolchain de `Dockerfile.web` contra
 | `test/web/nginx_cache_test.dart` | Fija la política de caché de `docker/nginx.conf` |
 | `docker/fork_overlay.py` | Aplica los ajustes del fork a la copia del código dentro de la imagen |
 | `docker/payment_methods.json` | Métodos de pago que el fork pone primero, por moneda |
+| `.github/workflows/fork-sync-upstream.yml` | PR semanal con la versión nueva de upstream (carril sync) |
 
 ### Desviaciones
 
