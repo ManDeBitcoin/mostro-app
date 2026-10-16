@@ -84,28 +84,51 @@ rama `sync/upstream-AAAAMMDD`, revisar el toolchain de `Dockerfile.web` contra
 | `docker/nginx.conf` | Cabeceras de aislamiento cross-origin, fallback SPA, política de caché |
 | `docker/README.md` | Despliegue en Coolify y cómo seguir a upstream |
 | `test/web/nginx_cache_test.dart` | Fija la política de caché de `docker/nginx.conf` |
+| `docker/fork_overlay.py` | Aplica los ajustes del fork a la copia del código dentro de la imagen |
+| `docker/payment_methods.json` | Métodos de pago que el fork pone primero, por moneda |
 
 ### Desviaciones
 
-Archivos de upstream editados en el fork: **ninguno**.
+Archivos de upstream editados en git: **ninguno**.
+
+Ajustes al compilar: `docker/fork_overlay.py` edita, solo dentro de la imagen y antes de compilar,
+tres archivos de upstream. Git no los ve, así que un sync nunca choca con ellos; si upstream
+mueve lo que el script espera, el script falla y el build de Coolify se detiene (sigue la imagen
+anterior). Antes de abrir un PR de sync:
+`python3 docker/fork_overlay.py --check 001bd4747d7d265edfe3bd3b7299886146ad850d51095fe77b763c32015685b9` (la clave de `MOSTRO_DEFAULT_NODE`).
+
+| Archivo de upstream | Qué cambia | Se retira cuando |
+| --- | --- | --- |
+| `rust/src/config.rs` | `DEFAULT_MOSTRO_PUBKEY` = BitMaxis; el nodo de upstream queda en `TRUSTED_MOSTRO_NODES` con su clave literal | Upstream acepte un nodo por defecto configurable al compilar |
+| `lib/core/mostro_defaults.dart` | `defaultMostroPubkey` = BitMaxis | Igual que arriba |
+| `assets/data/payment_methods.json` | Las monedas de `docker/payment_methods.json` llevan esos métodos primero y luego los de upstream | Upstream incluya los métodos de Ecuador |
 
 ## Nodo BitMaxis
 
 - Pubkey `001bd4747d7d265edfe3bd3b7299886146ad850d51095fe77b763c32015685b9`
-  (<https://mostro.bitmaxis.com/>). Relays según el commit `f690237` (5 oct 2026):
-  `wss://relay.mostro.network`, `wss://mostro-p2p.tech`, `wss://relay.shadowbip.com`; verificarlos
-  contra la lista kind 10002 del nodo antes de usarlos.
-- **Decidido: BitMaxis como nodo predeterminado, no fijo.** Un usuario nuevo empieza en BitMaxis y
-  puede cambiar de nodo como en upstream. Se fija con una opción de compilación (la clave del
-  nodo), no editando código.
-- **Estado: no aplicado.** `main` usa el nodo por defecto de upstream, compilado en dos copias:
-  `DEFAULT_MOSTRO_PUBKEY` en `rust/src/config.rs` y `defaultMostroPubkey` en
-  `lib/core/mostro_defaults.dart`. Upstream no tiene hoy esa opción para builds de producción;
-  `MOSTRO_PUB_KEY` existe, pero solo en el entorno de pruebas Mortsom (`lib/core/test_environment.dart`,
-  con su banner rojo), así que no sirve aquí.
-- **Ruta: carril fork.** Es solo para nuestro despliegue; por ahora no se propone a upstream.
-  Cómo aplicarlo (argumento de build en `Dockerfile.web`, o desviación en los dos archivos de
-  arriba): pendiente de aprobación.
+  (<https://mostro.bitmaxis.com/>). Ya está en `TRUSTED_MOSTRO_NODES` de upstream ("Ecuador").
+  Su lista kind 10002 (verificada el 16 oct 2026): `wss://relay.mostro.network`,
+  `wss://mostro-p2p.tech`, `wss://relay.shadowbip.com`, `wss://relay.bitmaxis.com`. Los tres primeros
+  ya son relays por defecto de upstream y la app suma el cuarto sola al leer esa lista, así que los
+  relays no se tocan.
+- **BitMaxis es el nodo predeterminado, no fijo.** Un usuario nuevo empieza en BitMaxis y puede
+  cambiar de nodo como en upstream. Lo fija el argumento de build `MOSTRO_DEFAULT_NODE` de
+  `Dockerfile.web` (vacío = el de upstream), vía `docker/fork_overlay.py`. El nodo debe estar en
+  `TRUSTED_MOSTRO_NODES`; si no, el build falla.
+- `MOSTRO_PUB_KEY` de upstream no sirve para esto: es solo del entorno de pruebas Mortsom
+  (`lib/core/test_environment.dart`, con su banner rojo).
+- Propuesta a upstream (carril upstream, pendiente): un nodo por defecto configurable al compilar,
+  como ya hacen "para forks" con `PUSH_SERVER_URL` en `rust/src/config.rs`.
+
+## Métodos de pago
+
+- El desarrollador principal de Mostro no aprobó que el nodo publique los métodos de pago (la
+  "tarjeta de comunidad" de mostro-community-umbrel 1.0.13), así que van en la app.
+- Upstream los sugiere por moneda desde `assets/data/payment_methods.json`; Ecuador usa USD, cuya
+  lista ya mezcla EE.UU. y El Salvador (N1CO, Transfer365).
+- `docker/payment_methods.json` tiene los 14 de la comunidad (los de `/data/config/community.json`
+  del nodo, agrupados por categoría). En el build van primero en USD, seguidos de los de upstream.
+- Propuesta a upstream (carril upstream, pendiente): agregar los de Ecuador a USD.
 
 ## El código personalizado anterior
 

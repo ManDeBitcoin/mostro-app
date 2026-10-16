@@ -2,7 +2,8 @@
 
 This fork runs **upstream [`MostroP2P/app`](https://github.com/MostroP2P/app) as it is**, built
 for the web and served by nginx from a Docker image that Coolify builds. It adds only new files
-and edits no upstream file, so merging upstream never conflicts:
+and edits no upstream file in git, so merging upstream never conflicts. Its two defaults (below)
+are applied inside the image, at build time:
 
 | File | Purpose |
 | --- | --- |
@@ -12,6 +13,8 @@ and edits no upstream file, so merging upstream never conflicts:
 | `docker/README.md` | This file |
 | `test/web/nginx_cache_test.dart` | Holds the cache policy of `docker/nginx.conf` |
 | `.claude/rules/fork.md` | How to work in this fork: upstream vs fork-only changes (Spanish; Claude Code loads it) |
+| `docker/fork_overlay.py` | Applies the fork's defaults to the image's copy of upstream's source |
+| `docker/payment_methods.json` | Payment methods the fork suggests first, per currency |
 
 Anything else that differs from `upstream/main` is a mistake. Check with:
 
@@ -37,11 +40,26 @@ Build arguments (all optional, all compiled into the public bundle):
 | `BASE_HREF` | `/` | Path the app is served under. Keep `/` on a dedicated (sub)domain |
 | `FCM_VAPID_KEY` | empty | Web Push public key, as upstream's build takes it |
 | `PUSH_WEB_ENABLED` | empty | `true` turns web push on (docs/PUSH_NOTIFICATIONS.md) |
+| `MOSTRO_DEFAULT_NODE` | BitMaxis | Hex pubkey of the node a new user starts on; must be in upstream's `TRUSTED_MOSTRO_NODES`. Empty keeps upstream's |
 | `FLUTTER_VERSION`, `RUST_VERSION`, `WASM_PACK_VERSION` | upstream's | Toolchain; keep equal to `.github/workflows/web-build.yml` |
 
 A runtime environment variable on the container changes nothing: the app is static files, and
-everything it knows was compiled in. That includes the Mostro node and relays, which are
-upstream's defaults (`rust/src/config.rs`) — users choose their node in the app.
+everything it knows was compiled in. That includes the Mostro node and relays.
+
+## The fork's defaults
+
+`Dockerfile.web` runs `docker/fork_overlay.py` right after copying the source in. It edits that
+copy, never the repository:
+
+- **Default node:** `MOSTRO_DEFAULT_NODE` (BitMaxis) replaces `DEFAULT_MOSTRO_PUBKEY` in
+  `rust/src/config.rs` and `defaultMostroPubkey` in `lib/core/mostro_defaults.dart`. Upstream's
+  node stays in the trusted list, and users switch nodes in the app as in upstream. Relays are
+  upstream's: the app adds the ones the node lists in its kind 10002 event.
+- **Payment methods:** each currency in `docker/payment_methods.json` gets those methods first in
+  `assets/data/payment_methods.json`, followed by upstream's (Ecuador's, under `USD`).
+
+If upstream moves what the script expects, it exits non-zero and the build fails, so Coolify
+keeps the previous image instead of shipping one without the defaults.
 
 The image needs no volume. A user's identity, trades and settings live in **their browser**
 (IndexedDB and local storage of the app's origin), not on the server. Two consequences:
@@ -72,6 +90,7 @@ git fetch upstream
 git switch -c sync/upstream-YYYYMMDD origin/main
 git merge upstream/main          # never conflicts while no upstream file is edited here
 git diff --stat upstream/main...HEAD
+python3 docker/fork_overlay.py --check 001bd4747d7d265edfe3bd3b7299886146ad850d51095fe77b763c32015685b9   # the defaults still apply
 ```
 
 Then compare the toolchain in upstream's `.github/workflows/web-build.yml` (`env:` block) and its
