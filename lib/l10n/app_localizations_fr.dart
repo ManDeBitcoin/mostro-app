@@ -2057,6 +2057,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get orderCardPremiumCaption => 'prime';
 
   @override
+  String get orderCardPriceCaption => 'prix';
+
+  @override
   String orderFixedAmount(String sats) {
     return 'Montant fixe · pour $sats';
   }
@@ -4931,4 +4934,17 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get payoutOutcomeMaybePaid =>
       'Payé à celui-ci ou à un autre listé ici';
+
+  @override
+  String otherNodeCardLine(String nodeName) {
+    return 'Opération sur le nœud : $nodeName';
+  }
+
+  @override
+  String get otherNodeCardDialogTitle => 'Opération sur un autre nœud';
+
+  @override
+  String otherNodeCardOpenHint(String nodeName) {
+    return 'Cette opération est sur le nœud $nodeName. Pour agir dessus, passez à ce nœud dans les Paramètres.';
+  }
 }
