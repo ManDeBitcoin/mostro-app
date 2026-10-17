@@ -2049,6 +2049,9 @@ class AppLocalizationsNl extends AppLocalizations {
   String get orderCardPremiumCaption => 'premie';
 
   @override
+  String get orderCardPriceCaption => 'prijs';
+
+  @override
   String orderFixedAmount(String sats) {
     return 'Vast bedrag · voor $sats';
   }
@@ -4901,4 +4904,17 @@ class AppLocalizationsNl extends AppLocalizations {
   @override
   String get payoutOutcomeMaybePaid =>
       'Betaald aan deze of een andere die hier staat';
+
+  @override
+  String otherNodeCardLine(String nodeName) {
+    return 'Trade op node: $nodeName';
+  }
+
+  @override
+  String get otherNodeCardDialogTitle => 'Trade op een andere node';
+
+  @override
+  String otherNodeCardOpenHint(String nodeName) {
+    return 'Deze trade staat op node $nodeName. Schakel in Instellingen over naar die node om ermee verder te gaan.';
+  }
 }

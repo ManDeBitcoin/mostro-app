@@ -2036,6 +2036,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get orderCardPremiumCaption => 'premium';
 
   @override
+  String get orderCardPriceCaption => 'price';
+
+  @override
   String orderFixedAmount(String sats) {
     return 'Fixed amount · for $sats';
   }
@@ -4861,4 +4864,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get payoutOutcomeMaybePaid =>
       'Paid to this one or another listed here';
+
+  @override
+  String otherNodeCardLine(String nodeName) {
+    return 'Trade on node: $nodeName';
+  }
+
+  @override
+  String get otherNodeCardDialogTitle => 'Trade on another node';
+
+  @override
+  String otherNodeCardOpenHint(String nodeName) {
+    return 'This trade is on node $nodeName. To act on it, switch to that node in Settings.';
+  }
 }

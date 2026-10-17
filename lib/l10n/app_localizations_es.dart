@@ -2053,6 +2053,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get orderCardPremiumCaption => 'prima';
 
   @override
+  String get orderCardPriceCaption => 'precio';
+
+  @override
   String orderFixedAmount(String sats) {
     return 'Monto fijo · por $sats';
   }
@@ -4897,4 +4900,17 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get payoutOutcomeMaybePaid =>
       'Pagado a este o a otro de los listados aquí';
+
+  @override
+  String otherNodeCardLine(String nodeName) {
+    return 'Operación en el nodo: $nodeName';
+  }
+
+  @override
+  String get otherNodeCardDialogTitle => 'Operación en otro nodo';
+
+  @override
+  String otherNodeCardOpenHint(String nodeName) {
+    return 'Esta operación es del nodo $nodeName. Para operarla, cambia a ese nodo en Configuración.';
+  }
 }

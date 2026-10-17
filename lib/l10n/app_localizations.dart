@@ -3568,6 +3568,12 @@ abstract class AppLocalizations {
   /// **'premium'**
   String get orderCardPremiumCaption;
 
+  /// Small caption under the price per BTC of a fixed-sats order on an order-book card, where a market-price order shows its premium
+  ///
+  /// In en, this message translates to:
+  /// **'price'**
+  String get orderCardPriceCaption;
+
   /// Caption under a fixed-sats order amount. {sats} is the already formatted figure with its unit (satsAmount); place it wherever the language needs it
   ///
   /// In en, this message translates to:
@@ -8055,6 +8061,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Paid to this one or another listed here'**
   String get payoutOutcomeMaybePaid;
+
+  /// Notifications (#811): amber line on a card whose trade is on a node other than the active one
+  ///
+  /// In en, this message translates to:
+  /// **'Trade on node: {nodeName}'**
+  String otherNodeCardLine(String nodeName);
+
+  /// Notifications (#811): title of the dialog shown when the user taps a card whose trade is on another node
+  ///
+  /// In en, this message translates to:
+  /// **'Trade on another node'**
+  String get otherNodeCardDialogTitle;
+
+  /// Notifications (#811): body of the dialog shown when the user taps a card whose trade is on another node; informational only, nodes are switched in Settings
+  ///
+  /// In en, this message translates to:
+  /// **'This trade is on node {nodeName}. To act on it, switch to that node in Settings.'**
+  String otherNodeCardOpenHint(String nodeName);
 }
 
 class _AppLocalizationsDelegate

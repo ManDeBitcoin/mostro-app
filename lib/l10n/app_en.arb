@@ -2668,6 +2668,10 @@
   "@orderCardPremiumCaption": {
     "description": "Small caption under the premium percentage on an order-book card"
   },
+  "orderCardPriceCaption": "price",
+  "@orderCardPriceCaption": {
+    "description": "Small caption under the price per BTC of a fixed-sats order on an order-book card, where a market-price order shows its premium"
+  },
   "orderFixedAmount": "Fixed amount · for {sats}",
   "@orderFixedAmount": {
     "description": "Caption under a fixed-sats order amount. {sats} is the already formatted figure with its unit (satsAmount); place it wherever the language needs it",
@@ -5121,5 +5125,27 @@
   "payoutOutcomeMaybePaid": "Paid to this one or another listed here",
   "@payoutOutcomeMaybePaid": {
     "description": "Trade detail payout card (#823): the node paid this destination or another one listed on the card; its message does not say which"
+  },
+  "otherNodeCardLine": "Trade on node: {nodeName}",
+  "@otherNodeCardLine": {
+    "description": "Notifications (#811): amber line on a card whose trade is on a node other than the active one",
+    "placeholders": {
+      "nodeName": {
+        "type": "String"
+      }
+    }
+  },
+  "otherNodeCardDialogTitle": "Trade on another node",
+  "@otherNodeCardDialogTitle": {
+    "description": "Notifications (#811): title of the dialog shown when the user taps a card whose trade is on another node"
+  },
+  "otherNodeCardOpenHint": "This trade is on node {nodeName}. To act on it, switch to that node in Settings.",
+  "@otherNodeCardOpenHint": {
+    "description": "Notifications (#811): body of the dialog shown when the user taps a card whose trade is on another node; informational only, nodes are switched in Settings",
+    "placeholders": {
+      "nodeName": {
+        "type": "String"
+      }
+    }
   }
 }
