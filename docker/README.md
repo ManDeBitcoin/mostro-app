@@ -2,7 +2,7 @@
 
 This fork runs **upstream [`MostroP2P/app`](https://github.com/MostroP2P/app) as it is**, built
 for the web and served by nginx from a Docker image that Coolify builds. It adds only new files
-and edits no upstream file in git, so merging upstream never conflicts. Its two defaults (below)
+and edits no upstream file in git, so merging upstream never conflicts. Its defaults (below)
 are applied inside the image, at build time:
 
 | File | Purpose |
@@ -15,6 +15,8 @@ are applied inside the image, at build time:
 | `.claude/rules/fork.md` | How to work in this fork: upstream vs fork-only changes (Spanish; Claude Code loads it) |
 | `docker/fork_overlay.py` | Applies the fork's defaults to the image's copy of upstream's source |
 | `docker/payment_methods.json` | Payment methods the fork suggests first, per currency |
+| `docker/share_preview.html` | Link preview (Open Graph) tags added to `web/index.html` |
+| `docker/og.jpg` | Link preview image, served at `/og.jpg` |
 | `.github/workflows/fork-sync-upstream.yml` | Weekly pull request that brings upstream's `main` (below) |
 
 Anything else that differs from `upstream/main` is a mistake. Check with:
@@ -58,6 +60,9 @@ copy, never the repository:
   upstream's: the app adds the ones the node lists in its kind 10002 event.
 - **Payment methods:** each currency in `docker/payment_methods.json` gets those methods first in
   `assets/data/payment_methods.json`, followed by upstream's (Ecuador's, under `USD`).
+- **Link preview:** the Open Graph tags of `docker/share_preview.html` go just before `</head>`
+  in `web/index.html`, so a shared link shows `docker/og.jpg` (served at `/og.jpg`). They name
+  `app.bitmaxis.com`: another deployment edits that file.
 
 If upstream moves what the script expects, it exits non-zero and the build fails, so Coolify
 keeps the previous image instead of shipping one without the defaults.

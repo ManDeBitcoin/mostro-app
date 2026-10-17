@@ -94,6 +94,8 @@ A mano, si hace falta: `docker/README.md` § Following upstream.
 | `test/web/nginx_cache_test.dart` | Fija la política de caché de `docker/nginx.conf` |
 | `docker/fork_overlay.py` | Aplica los ajustes del fork a la copia del código dentro de la imagen |
 | `docker/payment_methods.json` | Métodos de pago que el fork pone primero, por moneda |
+| `docker/share_preview.html` | Etiquetas de vista previa (Open Graph) que se agregan a `web/index.html` |
+| `docker/og.jpg` | Imagen de vista previa al compartir el enlace, servida en `/og.jpg` |
 | `.github/workflows/fork-sync-upstream.yml` | PR semanal con la versión nueva de upstream (carril sync) |
 
 ### Desviaciones
@@ -101,7 +103,7 @@ A mano, si hace falta: `docker/README.md` § Following upstream.
 Archivos de upstream editados en git: **ninguno**.
 
 Ajustes al compilar: `docker/fork_overlay.py` edita, solo dentro de la imagen y antes de compilar,
-tres archivos de upstream. Git no los ve, así que un sync nunca choca con ellos; si upstream
+cuatro archivos de upstream. Git no los ve, así que un sync nunca choca con ellos; si upstream
 mueve lo que el script espera, el script falla y el build de Coolify se detiene (sigue la imagen
 anterior). Antes de abrir un PR de sync:
 `python3 docker/fork_overlay.py --check 001bd4747d7d265edfe3bd3b7299886146ad850d51095fe77b763c32015685b9` (la clave de `MOSTRO_DEFAULT_NODE`).
@@ -111,6 +113,7 @@ anterior). Antes de abrir un PR de sync:
 | `rust/src/config.rs` | `DEFAULT_MOSTRO_PUBKEY` = BitMaxis; el nodo de upstream queda en `TRUSTED_MOSTRO_NODES` con su clave literal | Upstream acepte un nodo por defecto configurable al compilar |
 | `lib/core/mostro_defaults.dart` | `defaultMostroPubkey` = BitMaxis | Igual que arriba |
 | `assets/data/payment_methods.json` | Las monedas de `docker/payment_methods.json` llevan esos métodos primero y luego los de upstream | Upstream incluya los métodos de Ecuador |
+| `web/index.html` | Antes de `</head>` se insertan las etiquetas de `docker/share_preview.html` (vista previa del enlace de app.bitmaxis.com) | Nunca: son propias del despliegue de BitMaxis |
 
 ## Nodo BitMaxis
 

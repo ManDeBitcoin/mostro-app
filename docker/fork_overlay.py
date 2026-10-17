@@ -22,6 +22,8 @@ CONFIG_RS = Path("rust/src/config.rs")
 DEFAULTS_DART = Path("lib/core/mostro_defaults.dart")
 METHODS_JSON = Path("assets/data/payment_methods.json")
 FORK_METHODS_JSON = Path("docker/payment_methods.json")
+INDEX_HTML = Path("web/index.html")
+FORK_SHARE_HTML = Path("docker/share_preview.html")
 
 RS_DEFAULT = re.compile(r'(pub const DEFAULT_MOSTRO_PUBKEY: &str =\s*")([0-9a-f]{64})(";)')
 
@@ -90,12 +92,24 @@ def payment_method_edits():
     return {METHODS_JSON: json.dumps(methods, ensure_ascii=False, indent=2) + "\n"}
 
 
+def share_preview_edits():
+    """The link preview tags of docker/share_preview.html, just before </head>."""
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    tags = FORK_SHARE_HTML.read_text(encoding="utf-8")
+    html = replace_once(r"</head>", lambda _: tags + "</head>", html, f"</head> in {INDEX_HTML}")
+    return {INDEX_HTML: html}
+
+
 def main(args):
     check = "--check" in args
     rest = [a for a in args if a != "--check"]
     if len(rest) > 1:
         sys.exit(__doc__)
-    edits = {**default_node_edits(rest[0] if rest else ""), **payment_method_edits()}
+    edits = {
+        **default_node_edits(rest[0] if rest else ""),
+        **payment_method_edits(),
+        **share_preview_edits(),
+    }
     for path, contents in edits.items():
         if not check:
             path.write_text(contents, encoding="utf-8")
