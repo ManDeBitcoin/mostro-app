@@ -17,4 +17,12 @@ void main() {
     // As Rust treats it (#810): refusing it would strand the trade.
     expect(isOnOtherNode(tradeNode: '', activeNode: active), isFalse);
   });
+
+  test("a trade's node is the one its row names", () {
+    expect(tradeNodeOf(tradeNode: 'bb22', activeNode: active), 'bb22');
+  });
+
+  test('a row that does not know its node lives on the active one', () {
+    expect(tradeNodeOf(tradeNode: '', activeNode: active), active);
+  });
 }

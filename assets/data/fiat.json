@@ -220,6 +220,11 @@
     "flag": "🇫🇯"
   },
   {
+    "code": "FKP",
+    "name": "Falkland Islands Pound",
+    "flag": "🇫🇰"
+  },
+  {
     "code": "GBP",
     "name": "British Pound",
     "flag": "🇬🇧"
@@ -230,9 +235,19 @@
     "flag": "🇬🇪"
   },
   {
+    "code": "GGP",
+    "name": "Guernsey Pound",
+    "flag": "🇬🇬"
+  },
+  {
     "code": "GHS",
     "name": "Ghanaian Cedi",
     "flag": "🇬🇭"
+  },
+  {
+    "code": "GIP",
+    "name": "Gibraltar Pound",
+    "flag": "🇬🇮"
   },
   {
     "code": "GMD",
@@ -285,6 +300,11 @@
     "flag": "🇮🇱"
   },
   {
+    "code": "IMP",
+    "name": "Manx Pound",
+    "flag": "🇮🇲"
+  },
+  {
     "code": "INR",
     "name": "Indian Rupee",
     "flag": "🇮🇳"
@@ -300,9 +320,19 @@
     "flag": "🇮🇷"
   },
   {
+    "code": "IRT",
+    "name": "Iranian Toman",
+    "flag": "🇮🇷"
+  },
+  {
     "code": "ISK",
     "name": "Icelandic Króna",
     "flag": "🇮🇸"
+  },
+  {
+    "code": "JEP",
+    "name": "Jersey Pound",
+    "flag": "🇯🇪"
   },
   {
     "code": "JMD",
@@ -413,6 +443,11 @@
     "code": "MKD",
     "name": "Macedonian Denar",
     "flag": "🇲🇰"
+  },
+  {
+    "code": "MLC",
+    "name": "Cuban MLC",
+    "flag": "🇨🇺"
   },
   {
     "code": "MMK",
@@ -590,6 +625,16 @@
     "flag": "🇸🇬"
   },
   {
+    "code": "SHP",
+    "name": "Saint Helena Pound",
+    "flag": "🇸🇭"
+  },
+  {
+    "code": "SLE",
+    "name": "Sierra Leonean Leone",
+    "flag": "🇸🇱"
+  },
+  {
     "code": "SOS",
     "name": "Somali Shilling",
     "flag": "🇸🇴"
@@ -715,9 +760,24 @@
     "flag": "🌍"
   },
   {
+    "code": "XCD",
+    "name": "East Caribbean Dollar",
+    "flag": "🇦🇬"
+  },
+  {
+    "code": "XCG",
+    "name": "Caribbean Guilder",
+    "flag": "🇨🇼"
+  },
+  {
     "code": "XOF",
     "name": "West African CFA Franc",
     "flag": "🌍"
+  },
+  {
+    "code": "XPF",
+    "name": "CFP Franc",
+    "flag": "🇵🇫"
   },
   {
     "code": "YER",

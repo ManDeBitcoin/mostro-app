@@ -42,6 +42,26 @@ String nodeNameOf(String pubkey, Iterable<MostroNodeEntry> nodes) {
   return truncatePubkey(pubkey);
 }
 
+/// The registry entry of the node with [pubkey], or one that only knows the
+/// pubkey when [nodes] — the registry — does not hold it, which
+/// [nodeDisplayName] then names by it.
+MostroNodeEntry nodeEntryOf(String pubkey, Iterable<MostroNodeEntry> nodes) {
+  final key = pubkey.toLowerCase();
+  for (final node in nodes) {
+    if (node.pubkey.toLowerCase() == key) return node;
+  }
+  return MostroNodeEntry(
+    pubkey: pubkey,
+    region: null,
+    isTrusted: false,
+    isActive: false,
+    name: null,
+    picture: null,
+    about: null,
+    website: null,
+  );
+}
+
 /// Map a Rust marker error to a localized message. Markers are stable codes —
 /// see `rust/src/api/nodes.rs`; prose never crosses the bridge.
 String localizedNodeError(AppLocalizations l10n, Object error) {

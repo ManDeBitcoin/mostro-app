@@ -15,7 +15,10 @@
 /// - its toggle in Settings → Notifications is off;
 /// - it is the user's own doing (their own messages, their own cancel, the
 ///   maker bond of their own order) or not a trade state at all (the public
-///   book's `pending` / `in-progress`).
+///   book's `pending` / `in-progress`). A `pending` that says the node
+///   published the user's order ([TradeUpdateReason.orderPublished]) is
+///   news: it comes once the maker's bond locked, often while the app was
+///   closed, and its push opens Notifications.
 ///
 /// A card records the node of its trade (#811), whichever node is active,
 /// so the card can say later that it is another node's. A trade on another
@@ -134,7 +137,10 @@ class EventCards {
   }
 
   Future<void> onTradeUpdate(TradeUpdate update) async {
-    final event = tradeCardEvent(update.status);
+    final event =
+        update.reason == TradeUpdateReason.orderPublished
+            ? NotificationEvent.tradeUpdates
+            : tradeCardEvent(update.status);
     if (event == null) return;
     if (update.reason == TradeUpdateReason.userCanceled) return;
     // Dated now, so the identity's date cannot filter it, and on a fresh

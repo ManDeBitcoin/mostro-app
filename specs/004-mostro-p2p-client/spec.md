@@ -126,7 +126,7 @@ A buyer (taker of a sell order) completes a trade. Without NWC, they manually en
 2. **Given** a buyer has taken a sell order and NWC IS configured, **When** the order is accepted, **Then** the invoice step is skipped entirely and the buyer proceeds to the active trade view.
 3. **Given** the trade is in "active" status, **When** the buyer views Trade Detail, **Then** they see: trade summary, payment method, order ID, instructions to contact the seller, a "Fiat Sent" primary CTA, a secondary row with outlined Cancel and Dispute buttons, and a persistent chat chip for Contact.
 4. **Given** the buyer has sent fiat payment, **When** they tap "Fiat Sent", **Then** the order status changes to "Fiat sent" and the seller sees instructions to verify and release.
-5. **Given** the seller releases sats, **When** the daemon settles the hold invoice, **Then** the seller is prompted to rate the buyer right away; the buyer sees the payout as pending and is prompted to rate the seller once the Lightning payment completes (#586).
+5. **Given** the seller releases sats, **When** the daemon settles the hold invoice, **Then** the seller is prompted to rate the buyer right away, on the last of their five timeline steps; the buyer sees the payout as pending and is prompted to rate the seller once the Lightning payment completes (#586). The buyer's timeline has six steps: while the payout is pending the release is done and "Mostro sends you your sats" is current, and it is done at `success`, when rating opens (#844).
 
 ---
 
@@ -372,7 +372,7 @@ Users manage their cryptographic identity from the Account screen: view their 12
 
 - **FR-027**: When a buyer takes a sell order and NWC is NOT configured, the system MUST prompt them to manually enter a Lightning invoice or Lightning address.
 - **FR-028**: When NWC is configured, the system MUST automatically generate and submit a Lightning invoice on the buyer's behalf, bypassing the manual entry screen.
-- **FR-029**: When a seller takes a buy order and NWC is NOT configured, the system MUST display the hold invoice as a QR code with Copy, Share, and "Pay with Lightning wallet" actions. The "Pay with Lightning wallet" action MUST launch the bolt11 via the `lightning:<bolt11>` URI (using `url_launcher` with `LaunchMode.externalApplication`), and MUST surface a "no Lightning wallet found" SnackBar if no handler is available. Android builds MUST declare a `<queries>` intent for the `lightning` scheme so the launcher can resolve it on Android 11+.
+- **FR-029**: When a seller takes a buy order and NWC is NOT configured, the system MUST display the hold invoice as a QR code with Copy, Share, and "Pay with Lightning wallet" actions. The "Pay with Lightning wallet" action MUST launch the bolt11 via the `lightning:<bolt11>` URI (using `url_launcher` with `LaunchMode.externalApplication`), and MUST surface a "no Lightning wallet found" SnackBar if no handler is available. Android builds MUST declare a `<queries>` intent for the `lightning` scheme so the launcher can resolve it on Android 11+. The QR, like the anti-abuse bond's, MUST show the face of the order's node in its centre: its kind 0 picture, or its initial as the node selector shows it, and the active node's when the order does not know its node. A user who trades on more than one node can then tell which one they pay (#851). The code MUST still scan with the centre cleared: it is encoded at error-correction level Q, with the invoice upper-cased in alphanumeric mode, as BIP-173 allows for QR codes.
 - **FR-030**: When NWC is configured for a seller, the system MUST present a "Pay with Wallet" button that auto-pays the hold invoice. On NWC failure, the system MUST fall back to the manual QR flow defined in FR-029.
 - **FR-030a**: The pay-invoice screen MUST subscribe to the live order-status stream (`tradeStatusProvider`) and auto-navigate to Trade Detail on `Active` (or any later non-cancel status) regardless of the local wallet's success callback. This guarantees that the navigation is driven by mostrod's confirmation of the HTLC, not by the seller's wallet reporting a local send, so both QR and NWC paths converge on the same source of truth.
 - **FR-030b**: While the seller remains on the pay-invoice screen, terminal cancellation statuses (`canceled`, `cooperativelyCanceled`, `canceledByAdmin`, `expired`) MUST trigger navigation away from the dead invoice with a user-visible cancellation notice.
@@ -434,7 +434,7 @@ Users manage their cryptographic identity from the Account screen: view their 12
 
 **Settings & Preferences**
 
-- **FR-058**: Users MUST be able to configure: app language (6 languages: EN, ES, IT, FR, DE, NL), default fiat currency, default Lightning address, relay list (add/toggle), push notification preferences, and Mostro node.
+- **FR-058**: Users MUST be able to configure: app language (7 languages: EN, ES, IT, FR, DE, NL, PT), default fiat currency, default Lightning address, relay list (add/toggle), push notification preferences, and Mostro node.
 - **FR-058a**: Lightning, NWC and the Cashu wallet MUST always be active in the app. Settings MUST always show the default Lightning address, the NWC wallet and the Cashu wallet, whatever the active node's `escrow_mode` (`lightning`, `cashu` or not advertised). Lightning flows MUST keep working as they always have. The active node's escrow mode selects only the settlement flow of a trade on that node (hold invoice or Cashu escrow); it MUST NOT hide or disable any payment method.
 
 ### Key Entities
@@ -460,7 +460,7 @@ Users manage their cryptographic identity from the Account screen: view their 12
 - **SC-005**: Account recovery via 12 secret words succeeds 100% of the time on a new device — users never permanently lose access to their identity.
 - **SC-006**: Chat messages are delivered to the counterparty within 5 seconds under normal network conditions.
 - **SC-007**: The order book loads and displays available orders within 3 seconds of opening the app on a standard mobile connection.
-- **SC-008**: The app is fully localized in all 6 supported languages (EN, ES, IT, FR, DE, NL) with no untranslated strings visible to users.
+- **SC-008**: The app is fully localized in all 7 supported languages (EN, ES, IT, FR, DE, NL, PT) with no untranslated strings visible to users.
 - **SC-009**: Dispute resolution is reachable within 2 taps from the Trade Detail screen for any active trade.
 - **SC-010**: When NWC is connected and responsive, the manual invoice steps are eliminated for 100% of trades.
 
@@ -471,7 +471,7 @@ Users manage their cryptographic identity from the Account screen: view their 12
 - The app supports dark mode (default on first launch) and light mode. Both themes must be fully implemented and switchable from Settings.
 - The Mostro protocol over Nostr is the sole backend transport; no centralized server or REST API is used.
 - Hold invoices are a protocol-level constraint for securing seller funds during a trade; the app cannot change this mechanism.
-- The original 5 languages (EN, ES, IT, FR, DE) are covered by the existing v1 localization files; new strings follow the same format. Dutch (NL) was added later.
+- The original 5 languages (EN, ES, IT, FR, DE) are covered by the existing v1 localization files; new strings follow the same format. Dutch (NL) and Brazilian Portuguese (PT) were added later.
 - "Days active" in reputation refers to days since the user's first recorded rating, not account creation date.
 - The app targets mobile (iOS and Android), web (PWA), and desktop (macOS, Windows, Linux) as per Constitution Principle V. Web is not optional — it must be a fully functional target from day one. Mobile is the primary design reference.
 - Push notifications use a background delivery mechanism; in-app notifications handle foreground delivery.

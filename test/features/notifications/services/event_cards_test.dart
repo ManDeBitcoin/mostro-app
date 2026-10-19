@@ -135,6 +135,41 @@ void main() {
       expect(stateOf(notifier), hasLength(1));
     });
 
+    test('the node publishing the order raises a card', () async {
+      // The book's `pending` is no news; the node's `new-order` once the
+      // maker's bond locked is, and it is what woke the maker: a tap on
+      // that push opens Notifications, which must say what it was about.
+      await cards.onTradeUpdate(update(OrderStatus.pending));
+      expect(stateOf(notifier), isEmpty);
+
+      await cards.onTradeUpdate(
+        update(
+          OrderStatus.pending,
+          reason: TradeUpdateReason.orderPublished,
+          at: 1757860000,
+        ),
+      );
+
+      final card = stateOf(notifier).single;
+      expect(card.id, 'trade-order-1-pending-orderPublished');
+      expect(card.tradeStatus, 'pending');
+      expect(card.tradeReason, 'orderPublished');
+      expect(
+        card.timestamp,
+        DateTime.fromMillisecondsSinceEpoch(1757860000 * 1000),
+      );
+    });
+
+    test('the publication answers to the trade updates toggle', () async {
+      disabled = {NotificationEvent.tradeUpdates};
+
+      await cards.onTradeUpdate(
+        update(OrderStatus.pending, reason: TradeUpdateReason.orderPublished),
+      );
+
+      expect(stateOf(notifier), isEmpty);
+    });
+
     test('a re-stated status raises nothing, even with no card yet', () async {
       // A restore and a reputation re-read re-state a status as `replayed`,
       // dated now (#770): on a fresh install no card exists to dedupe it

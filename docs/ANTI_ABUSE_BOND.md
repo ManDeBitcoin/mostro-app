@@ -422,7 +422,32 @@ Rules:
   and the screen counts down to it. **Local expiry sweep** (T1.2): when `expires_at`
   elapses without a lock, the row is set to `Expired`, a `TradeUpdate { status:
   Expired, reason: BondExpired }` is emitted **before** the row is wiped, and the order
-  is restored to the local book only if the wire still reports it `pending`. If the
+  is restored to the local book only if the wire still reports it `pending`. For a
+  taker that runs **at the deadline, whatever screen is open** (#849), while the app
+  process runs; a suspended app closes it when it resumes. Every write of a
+  taker's window whose deadline is still ahead arms a one-shot wake-up for it
+  (`watch_bond_window`), and so does the stale sweep for a window it finds open, as after a
+  restart. Past the deadline the wake-up closes the window only on the daemon's public proof:
+  - The take never moved the order off `pending` on the book (§2.7: others can still take
+    it). When its node cancels the last unpaid taker bond on the order, the daemon
+    republishes the order: a new `pending` revision. A revision newer than the bond
+    invoice itself (its bolt11 timestamp, on the same node's clock) is the proof. One no
+    newer is the order as it was taken, however short the window. While another taker's bond
+    is still unpaid there is no republish, and the wake-up waits for it.
+  - A take published (`in-progress`) means a bond locked: the wake-up leaves the row to the
+    daemon's messages.
+  - The revision is read from the book while the node the window was armed on is the
+    active one and the book holds the order, under the order's revision guard. Otherwise
+    it is read from the relays: after a node switch, or a restart before the order's feed
+    replayed.
+  - With no proof yet it looks again every few seconds, for up to ten minutes. Then it
+    stops, and the window is the stale sweep's, as on a node that never republished.
+
+  The row's own "unpaid" cannot be trusted there: a bond paid just before the deadline
+  reads unpaid until the daemon's next message, and a wipe would drop that message. The
+  pay-bond screen also closes the window when its own countdown ends. A window written
+  already past its deadline (a replay), and a maker's window, are left to the sweep and
+  the daemon's messages. If the
   bolt11 cannot be decoded, `expires_at` is `None`, **no local cleanup runs**, and the
   screen shows no countdown — the user can still cancel. The existing
   `timeout_at = now + 900` seeding is not applied to a trade at `WaitingTakerBond`.
@@ -447,7 +472,9 @@ maker pays the bond HTLC
   ▼
 daemon → new-order (id = order, request_id R, Order{status = Pending})
   │  correlates with the still-pending Create record → status WaitingMakerBond → Pending,
-  │  bond → Locked, emit TradeUpdate → the pay-bond screen navigates to /my_order/:orderId
+  │  bond → Locked, emit TradeUpdate{Pending, OrderPublished}, dated by the new-order
+  │  → the pay-bond screen navigates to /my_order/:orderId, and Notifications shows
+  │    "Order published" (this message is the push that woke a closed app)
 ```
 
 Rules:

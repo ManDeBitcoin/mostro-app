@@ -104,6 +104,22 @@ void main() {
       expect(first.resolvedTitle(en), en.tradeCardWaitingBuyerInvoiceTitle);
     });
 
+    test('a publication says the order is in the book', () {
+      final n = NotificationModel.tradeStatus(
+        orderId: 'order-1',
+        status: 'pending',
+        reason: 'orderPublished',
+        at: at,
+      );
+
+      expect(n.resolvedTitle(en), 'Order published');
+      expect(
+        n.resolvedMessage(en),
+        'Your order is in the order book now, and other users can take it.',
+      );
+      expect(n.resolvedTitle(es), 'Orden publicada');
+    });
+
     test('a status this build does not know still renders', () {
       final n = NotificationModel.tradeStatus(
         orderId: 'order-1',
@@ -177,11 +193,11 @@ void main() {
       expect(card(1).resolvedTitle(en), en.chatCardTitle);
       expect(
         card(1).resolvedMessage(en),
-        '1 new message from your trade partner',
+        '1 new message from your counterpart',
       );
       expect(
         card(3).resolvedMessage(en),
-        '3 new messages from your trade partner',
+        '3 new messages from your counterpart',
       );
       expect(card(3).chatUnreadCount, 3);
       expect(card(3).resolvedDetail(en), isEmpty);

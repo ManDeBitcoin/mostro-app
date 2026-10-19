@@ -61,5 +61,32 @@ void main() {
       expect((shipped['MWK'] as List).cast<String>(), contains('Airtel Money'));
       expect((shipped['KES'] as List).cast<String>(), contains('M-PESA'));
     });
+
+    test('the Cuban USD cards are offered in USD, not in CUP or MLC', () {
+      // Tarjeta Clásica and Tarjeta Tropical hold dollars: neither takes
+      // pesos or MLC, which is a separate denomination.
+      const cards = ['Tarjeta Clásica', 'Tarjeta Tropical'];
+      final usd = (shipped['USD'] as List).cast<String>();
+      for (final card in cards) {
+        expect(usd, contains(card));
+        expect((shipped['CUP'] as List).cast<String>(), isNot(contains(card)));
+        expect((shipped['MLC'] as List).cast<String>(), isNot(contains(card)));
+      }
+    });
+
+    test('every currency with its own methods can be picked', () {
+      // A code missing from fiat.json is never offered, so its methods are
+      // never seen (MLC had both, and only the methods shipped).
+      final catalogue = (jsonDecode(
+                File('assets/data/fiat.json').readAsStringSync(),
+              )
+              as List<dynamic>)
+          .map((c) => (c as Map<String, dynamic>)['code'] as String)
+          .toSet();
+      expect(
+        shipped.keys.where((k) => k != 'default' && !catalogue.contains(k)),
+        isEmpty,
+      );
+    });
   });
 }

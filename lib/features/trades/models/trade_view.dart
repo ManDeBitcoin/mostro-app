@@ -34,8 +34,10 @@ enum TradeTimerOwner { none, user, counterpart, order }
 /// cancel it while `active`, open a dispute once `fiat-sent`.
 enum TradeTimerNote { none, stepOutcome, escrowOutcome, leavesBook }
 
-/// Number of steps on the timeline.
-const kTradeStepCount = 5;
+/// Number of steps on [isBuyer]'s timeline. The buyer's has one more, after
+/// the release: Mostro paying them, done at `success` (#844). The seller
+/// rates at the release and never learns when the payout lands (#586).
+int tradeStepCount({required bool isBuyer}) => isBuyer ? 6 : 5;
 
 /// What the trade screen shows for one (status, role) pair — handoff
 /// `design_handoff_operacion/` maps its five mockups onto this: 8a waiting
@@ -56,7 +58,7 @@ class TradeView {
     this.showsCloseLink = false,
   });
 
-  /// 0-based index of the current timeline step; [kTradeStepCount] once every
+  /// 0-based index of the current timeline step; [tradeStepCount] once every
   /// step is done; -1 when the timeline is hidden (dispute, cancel, loading).
   final int step;
   final TradeChip chip;
@@ -261,9 +263,12 @@ class TradeView {
       // can be swapped before the payout fails, and after a restore it is the
       // way back to a payout that already failed, whose `add-invoice` the
       // restored status hides.
+      //
+      // The release is done: the buyer's next step is Mostro paying them.
+      // The seller never sees this status (`tradeStatusFor`).
       case TradeStatus.payoutPending:
         return TradeView(
-          step: 3,
+          step: 4,
           chip: TradeChip.waiting,
           showsChat: true,
           showsReputation: false,
@@ -297,7 +302,7 @@ class TradeView {
         );
       case TradeStatus.pendingRating:
         return TradeView(
-          step: kTradeStepCount - 1,
+          step: tradeStepCount(isBuyer: isBuyer) - 1,
           chip: TradeChip.none,
           showsChat: false,
           showsReputation: false,
@@ -312,13 +317,13 @@ class TradeView {
           showsCloseLink: canRate,
         );
       case TradeStatus.completed || TradeStatus.rated:
-        return const TradeView(
-          step: kTradeStepCount,
+        return TradeView(
+          step: tradeStepCount(isBuyer: isBuyer),
           chip: TradeChip.none,
           showsChat: false,
           showsReputation: false,
           primary: TradePrimaryAction.close,
-          secondary: [],
+          secondary: const [],
           timer: TradeTimerOwner.none,
           note: TradeTimerNote.none,
           isCompleted: true,
