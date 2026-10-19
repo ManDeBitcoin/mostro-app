@@ -888,7 +888,10 @@ The trade and chat cards come from `lib/features/notifications/services/event_ca
 - **Trade status** — one card per order and status (`trade-<order>-<status>[-<reason>]`,
   through `addIfNew`), dated by `TradeUpdate.occurred_at` (the daemon message's
   `created_at`). None for the book's `pending` / `in-progress`, the maker's own bond or the
-  user's own cancel. Dispute statuses and solver chat cards are included in
+  user's own cancel. A `pending` with `OrderPublished` is not the book's: the node
+  published the user's order once the maker's bond locked (or after a create that timed
+  out), which is what the maker's push was about, and it raises "Order published". Dispute
+  statuses and solver chat cards are included in
   the Disputes filter. Tap → trade detail.
 - **Chat** — one card per trade (`chat-<order>`, the solver's apart as
   `chat-<order>-solver`), counting messages since the card was last read; each message id

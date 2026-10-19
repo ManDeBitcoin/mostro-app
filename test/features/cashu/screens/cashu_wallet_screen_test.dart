@@ -11,9 +11,11 @@ import 'package:mostro/features/cashu/providers/cashu_wallet_provider.dart';
 import 'package:mostro/features/cashu/screens/cashu_wallet_screen.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
+import 'package:mostro/shared/widgets/mostro_qr.dart';
 import 'package:mostro/src/rust/api/types.dart';
 
 import '../../../support/provider_harness.dart';
+import '../../../support/qr_finders.dart';
 
 /// Stands in for the Rust bridge. Every method the screen can reach is
 /// overridden — an un-overridden one would call into Rust and hang the test
@@ -613,11 +615,46 @@ void main() {
       expect(find.text("I've sent it"), findsNothing);
     });
 
+    testWidgets('a token is a Mostro QR without a logo: it is no node\'s',
+        (tester) async {
+      await _pump(tester, status: _status(connected: true, balance: 100));
+
+      await tester.tap(find.text('Send'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '10');
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+
+      final qr = tester.widget<MostroQr>(find.byType(MostroQr));
+      expect(qr.data, 'cashuBtesttoken');
+      expect(qr.logo, isNull);
+    });
+
+    testWidgets('the token QR takes the width of the dialog', (tester) async {
+      // Arrange — a phone's width.
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await _pump(tester, status: _status(connected: true, balance: 100));
+
+      // Act — send 10 sats, which opens the token.
+      await tester.ensureVisible(find.text('Send'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Send'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '10');
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+
+      // Assert
+      expectQrTakesItsWidth(tester);
+    });
+
     testWidgets('a token too large for a QR is shown as text, never as an error',
         (tester) async {
       // A cdk token from many small proofs runs to tens of KB; a QR holds
       // ~2.9 KB. The dialog must degrade to the copyable text, not paint
-      // qr_flutter's exception on the one dialog showing the user's money.
+      // the encoder's exception on the one dialog showing the user's money.
       final huge = 'cashuB${'A' * 4096}';
       await _pump(
         tester,
@@ -1013,5 +1050,44 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Mint-URL'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  // DS-A11Y-4: the token dialog draws the Mostro QR (#851).
+  testWidgets('the token dialog fits a narrow screen at German and 2x text',
+      (tester) async {
+    // Arrange — the longest strings, the smallest width, the largest text.
+    tester.view.physicalSize = const Size(320, 800);
+    tester.view.devicePixelRatio = 1.0;
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final de = await AppLocalizations.delegate.load(const Locale('de'));
+    await _pump(
+      tester,
+      status: _status(connected: true, balance: 100),
+      locale: const Locale('de'),
+    );
+
+    // Act — send 10 sats, which opens the token.
+    await tester.ensureVisible(find.text(de.cashuSendButton));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(de.cashuSendButton));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '10');
+    await tester.tap(find.text(de.confirm));
+    await tester.pumpAndSettle();
+
+    // Assert — the QR, the token and both actions, with nothing overflowing.
+    expect(tester.takeException(), isNull);
+    expect(find.byType(MostroQr), findsOneWidget);
+    expect(find.text('cashuBtesttoken'), findsOneWidget);
+    for (final action in [de.cashuCopyToken, de.done]) {
+      final button = find.descendant(
+        of: find.byType(MostroDialog),
+        matching: find.text(action),
+      );
+      await tester.ensureVisible(button);
+      expect(tester.getRect(button).bottom, lessThanOrEqualTo(800));
+    }
   });
 }

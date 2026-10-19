@@ -299,6 +299,15 @@ Finder _filledButtonWithText(String label) => find.ancestor(
   matching: find.byWidgetPredicate((widget) => widget is FilledButton),
 );
 
+/// Every text on screen that names [role] (`buyer`, `seller`) as a word.
+List<String> _textsNaming(WidgetTester tester, String role) {
+  final word = RegExp('\\b$role\\b', caseSensitive: false);
+  return [
+    for (final text in tester.widgetList<RichText>(find.byType(RichText)))
+      if (word.hasMatch(text.text.toPlainText())) text.text.toPlainText(),
+  ];
+}
+
 /// Matches any `PopupMenuButton`, regardless of its generic type argument.
 Finder _anyPopupMenuButton() =>
     find.byWidgetPredicate((widget) => widget is PopupMenuButton);
@@ -380,7 +389,7 @@ void main() {
         );
 
         expect(find.text(_en.tradeScreenTitle), findsOneWidget);
-        expect(find.text(_en.stepIndicator(2, 5)), findsOneWidget);
+        expect(find.text(_en.stepIndicator(2, 6)), findsOneWidget);
         expect(find.text(_en.tradeChipWaiting), findsOneWidget);
         expect(find.text(_en.tradeHeadlineWaitingPaymentBuyer), findsOneWidget);
         expect(find.byType(TradeChatLockedLine), findsOneWidget);
@@ -604,8 +613,23 @@ void main() {
         escrowDeadlineIn: const Duration(seconds: -30),
       );
 
-      expect(find.text(_en.tradeTimerEscrowCancelling), findsOneWidget);
+      expect(find.text(_en.tradeTimerEscrowCancellingBuyer), findsOneWidget);
       expect(find.text(_en.tradeTimerEscrowCancels), findsNothing);
+    });
+
+    testWidgets('at zero, active tells the seller their sats stay', (
+      tester,
+    ) async {
+      await _pumpTradeDetail(
+        tester,
+        orderId: 'order-escrow-active-zero-seller',
+        isBuyer: false,
+        status: OrderStatus.active,
+        escrowDeadlineIn: const Duration(seconds: -30),
+      );
+
+      expect(find.text(_en.tradeTimerEscrowCancellingSeller), findsOneWidget);
+      expect(find.text(_en.tradeTimerEscrowCancellingBuyer), findsNothing);
     });
 
     testWidgets('at zero, fiat sent says a dispute is about to be opened', (
@@ -998,6 +1022,82 @@ void main() {
 
       expect(find.text(_en.successfulOrder), findsOneWidget);
       expect(find.byType(StarRating), findsOneWidget);
+    });
+
+    // The seller already released: the buyer's current step is Mostro
+    // paying them, until `success` opens the rating (#844).
+    testWidgets('the buyer is past the release, on step 5 of 6', (
+      tester,
+    ) async {
+      // Tall enough for the timeline, the last item of the scroll, to build.
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await _pumpTradeDetail(
+        tester,
+        orderId: 'order-payout-step',
+        isBuyer: true,
+        status: OrderStatus.settledHoldInvoice,
+      );
+
+      expect(find.text(_en.stepIndicator(5, 6)), findsOneWidget);
+      final timeline = tester.widget<TradeTimeline>(find.byType(TradeTimeline));
+      expect(timeline.steps, hasLength(6));
+      expect(timeline.current, 4);
+      expect(timeline.steps[3], _en.tradeStepReleaseBuyer);
+    });
+  });
+
+  /// The screen speaks to the user and names only the counterpart by role:
+  /// the buyer is never "the buyer" on their own screen, nor the seller
+  /// "the seller" on theirs (#844).
+  group('second person', () {
+    const buyerSteps = [
+      OrderStatus.waitingBuyerInvoice,
+      OrderStatus.waitingPayment,
+      OrderStatus.active,
+      OrderStatus.fiatSent,
+      OrderStatus.settledHoldInvoice,
+    ];
+    const sellerSteps = [
+      OrderStatus.waitingBuyerInvoice,
+      OrderStatus.waitingPayment,
+      OrderStatus.active,
+      OrderStatus.fiatSent,
+    ];
+
+    for (final (isBuyer, statuses) in [
+      (true, buyerSteps),
+      (false, sellerSteps),
+    ]) {
+      final role = isBuyer ? 'buyer' : 'seller';
+      for (final status in statuses) {
+        testWidgets('the $role at ${status.name}', (tester) async {
+          tester.view.physicalSize = const Size(800, 2000);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
+          await _pumpTradeDetail(
+            tester,
+            orderId: 'order-voice-$role-${status.name}',
+            isBuyer: isBuyer,
+            status: status,
+          );
+
+          expect(_textsNaming(tester, role), isEmpty);
+        });
+      }
+    }
+
+    testWidgets('the seller whose escrow deadline has passed', (tester) async {
+      await _pumpTradeDetail(
+        tester,
+        orderId: 'order-voice-seller-escrow-zero',
+        isBuyer: false,
+        status: OrderStatus.active,
+        escrowDeadlineIn: const Duration(seconds: -30),
+      );
+
+      expect(_textsNaming(tester, 'seller'), isEmpty);
     });
   });
 

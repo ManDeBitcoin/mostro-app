@@ -1060,8 +1060,11 @@ class _TradeDetailScreenState extends ConsumerState<TradeDetailScreen>
     return TradeStepBlock(
       summary: summary,
       stepLabel:
-          view.step >= 0 && view.step < kTradeStepCount
-              ? l10n.stepIndicator(view.step + 1, kTradeStepCount)
+          view.step >= 0 && view.step < tradeStepCount(isBuyer: isBuyer)
+              ? l10n.stepIndicator(
+                view.step + 1,
+                tradeStepCount(isBuyer: isBuyer),
+              )
               : null,
       chip: view.chip,
       chipLabel: _chipLabel(l10n, view.chip),
@@ -1071,7 +1074,10 @@ class _TradeDetailScreenState extends ConsumerState<TradeDetailScreen>
               ? TextSpan(text: l10n.tradeLoadError)
               : _body(l10n, status, isBuyer, order?.paymentMethod),
       warning: view.showsReleaseWarning ? l10n.tradeReleaseIrreversible : null,
-      countdown: view.showsTimer ? _countdown(l10n, view, status, kind) : null,
+      countdown:
+          view.showsTimer
+              ? _countdown(l10n, view, status, isBuyer, kind)
+              : null,
       statusReadout: status.machineName,
     );
   }
@@ -1196,6 +1202,7 @@ class _TradeDetailScreenState extends ConsumerState<TradeDetailScreen>
     AppLocalizations l10n,
     TradeView view,
     TradeStatus status,
+    bool isBuyer,
     OrderKind? kind,
   ) {
     final label = switch (view.timer) {
@@ -1276,7 +1283,9 @@ class _TradeDetailScreenState extends ConsumerState<TradeDetailScreen>
                           remaining == Duration.zero
                               ? (status == TradeStatus.fiatSent
                                   ? l10n.tradeTimerEscrowDisputing
-                                  : l10n.tradeTimerEscrowCancelling)
+                                  : isBuyer
+                                  ? l10n.tradeTimerEscrowCancellingBuyer
+                                  : l10n.tradeTimerEscrowCancellingSeller)
                               : note,
                     ),
       );
@@ -1322,12 +1331,13 @@ class _TradeDetailScreenState extends ConsumerState<TradeDetailScreen>
 
   // ── Timeline ─────────────────────────────────────────────────────────────
 
-  /// Steps written from the user's side.
+  /// Steps written from the user's side, [tradeStepCount] of them.
   List<String> _steps(AppLocalizations l10n, bool isBuyer) => [
     l10n.tradeStepOrderTaken,
     isBuyer ? l10n.tradeStepInvoiceBuyer : l10n.tradeStepInvoiceSeller,
     isBuyer ? l10n.tradeStepFiatBuyer : l10n.tradeStepFiatSeller,
     isBuyer ? l10n.tradeStepReleaseBuyer : l10n.tradeStepReleaseSeller,
+    if (isBuyer) l10n.tradeStepPayoutBuyer,
     l10n.tradeStepRate,
   ];
 

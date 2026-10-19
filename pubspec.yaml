@@ -39,8 +39,10 @@ dependencies:
   # 2.2.3 needs Dart 3.8; this app still supports Dart 3.7 (environment above).
   flutter_svg: ">=2.2.2 <2.2.3"
 
-  # QR code display and scanning
+  # QR code display and scanning. `qr` encodes the Mostro QR
+  # (lib/shared/widgets/mostro_qr.dart), which draws its own modules.
   qr_flutter: ^4.1.0
+  qr: ^3.0.2
   mobile_scanner: ^7.2.0
 
   # Cross-platform HTTP client (push server registration)
@@ -114,6 +116,9 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.2
   # Parses lib/ in the automation contract test, so only code counts as a use
   analyzer: ^7.7.1
+  # Decodes the rendered Mostro QR in its tests, so a style change that stops
+  # it scanning fails CI
+  zxing2: ^0.2.4
 
 flutter:
   uses-material-design: true

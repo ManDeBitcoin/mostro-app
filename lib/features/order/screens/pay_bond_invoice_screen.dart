@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -25,6 +24,7 @@ import 'package:mostro/features/order/widgets/bond_widgets.dart';
 import 'package:mostro/features/order/widgets/invoice_clock.dart';
 import 'package:mostro/features/order/widgets/invoice_widgets.dart';
 import 'package:mostro/features/order/widgets/order_detail_cards.dart';
+import 'package:mostro/features/order/widgets/order_node_qr.dart';
 import 'package:mostro/features/settings/providers/nwc_provider.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart'
     show refreshTrades, tradeInfoProvider;
@@ -411,7 +411,7 @@ class _PayBondInvoiceScreenState extends ConsumerState<PayBondInvoiceScreen>
         valueListenable: invoiceRemaining,
         // Built outside the countdown's builder, so a tick does not
         // re-encode it: a QR is costly to encode.
-        child: _identifiedQr(l10n, invoice),
+        child: _identifiedQr(l10n, invoice, node: trade.order.nodePubkey),
         builder:
             (context, remaining, qr) =>
                 remaining == Duration.zero && !_waiting
@@ -660,9 +660,13 @@ class _PayBondInvoiceScreenState extends ConsumerState<PayBondInvoiceScreen>
   /// `bond.invoice.text` in both states. A sibling, not a wrapper: a readout
   /// hides what it wraps from screen readers, and the QR keeps its own
   /// description. One pixel, not zero: a zero-size box has no semantics node.
-  Widget _identifiedQr(AppLocalizations l10n, String invoice) => Stack(
+  Widget _identifiedQr(
+    AppLocalizations l10n,
+    String invoice, {
+    required String node,
+  }) => Stack(
     children: [
-      _qr(l10n, invoice),
+      _qr(l10n, invoice, node: node),
       Positioned(
         left: 0,
         top: 0,
@@ -674,27 +678,15 @@ class _PayBondInvoiceScreenState extends ConsumerState<PayBondInvoiceScreen>
     ],
   );
 
-  Widget _qr(AppLocalizations l10n, String invoice) => Center(
-    child: SizedBox.square(
-      dimension: 150 + 2 * 12,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          // design-check: ignore DS-COL-1 — a QR code must be pure black on white to scan
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: QrImageView(
+  /// The bond pays the order's node: its face in the centre (#851).
+  Widget _qr(AppLocalizations l10n, String invoice, {required String node}) =>
+      Center(
+        child: OrderNodeQr(
           data: invoice,
-          size: 150,
-          padding: EdgeInsets.zero,
-          // design-check: ignore DS-COL-1 — a QR code must be pure black on white to scan
-          backgroundColor: Colors.white,
+          nodePubkey: node,
           semanticsLabel: l10n.invoiceQrSemantics(invoice),
         ),
-      ),
-    ),
-  );
+      );
 
   /// The way out of the window: a taker's cancel, a maker's abandon.
   Widget _leaveLink(AppLocalizations l10n, {required bool maker}) =>

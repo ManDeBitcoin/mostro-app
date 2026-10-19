@@ -2439,6 +2439,13 @@ enum TradeUpdateReason {
   /// Rides on `WaitingBuyerInvoice`, like the first request, so the card
   /// and the screens can tell the two apart (#823).
   payoutFailed,
+
+  /// The node published this client's order after `create_order` had
+  /// returned: the maker's bond locked (`WaitingMakerBond → Pending`), or
+  /// the confirmation came after the create timed out. Rides on `Pending`,
+  /// which raises no card on its own (the book's bucket carries it too),
+  /// so the card can tell the publication apart.
+  orderPublished,
 }
 
 enum WalletStatus { connected, disconnected, connecting, error }
