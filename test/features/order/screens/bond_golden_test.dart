@@ -9,6 +9,7 @@ import 'package:mostro/features/order/providers/bond_providers.dart';
 import 'package:mostro/features/order/providers/exchange_rate_provider.dart';
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
 import 'package:mostro/features/order/screens/pay_bond_invoice_screen.dart';
+import 'package:mostro/features/settings/providers/mostro_nodes_provider.dart';
 import 'package:mostro/features/settings/providers/nwc_provider.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart';
 import 'package:mostro/l10n/app_localizations.dart';
@@ -17,6 +18,7 @@ import 'package:mostro/src/rust/api/types.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../support/fake_trades.dart';
+import '../../../support/qr_finders.dart';
 
 /// Handoff 14a (default) and 14b (explanation expanded), 360 x 760, at a
 /// frozen clock so the countdown reads 09:12.
@@ -40,6 +42,26 @@ TradeInfo _trade() => fakeTrade(
   ),
 );
 
+/// The order's node, without a picture: the QR's centre is its initial.
+class _Nodes extends MostroNodesNotifier {
+  @override
+  Future<List<MostroNodeEntry>> build() async => const [
+    MostroNodeEntry(
+      pubkey: 'pubkey-$_id',
+      region: null,
+      isTrusted: true,
+      isActive: true,
+      name: 'Mostro',
+      picture: null,
+      about: null,
+      website: null,
+    ),
+  ];
+
+  @override
+  Future<void> refreshMetadata() async {}
+}
+
 Future<void> _pump(
   WidgetTester tester, {
   required Brightness brightness,
@@ -56,6 +78,7 @@ Future<void> _pump(
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          mostroNodesProvider.overrideWith(_Nodes.new),
           isWalletConnectedProvider.overrideWithValue(false),
           tradeInfoProvider.overrideWith((ref, id) async => _trade()),
           tradeUpdatesProvider.overrideWith(
@@ -110,4 +133,9 @@ void main() {
       );
     });
   }
+
+  testWidgets('14a: the bond QR takes the width of its card', (tester) async {
+    await _pump(tester, brightness: Brightness.dark, explainerOpen: false);
+    expectQrTakesItsWidth(tester);
+  });
 }

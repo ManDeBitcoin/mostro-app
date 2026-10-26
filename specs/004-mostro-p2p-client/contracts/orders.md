@@ -100,7 +100,8 @@ a stale replay:
 
 - **create**: reconciled — the daemon UUID is bound to the attempt's trade
   index, and the maker row is persisted from the echoed order itself (#394;
-  the payload is the published order, min/max included).
+  the payload is the published order, min/max included). Its `TradeUpdate`
+  carries `OrderPublished`: the user last saw the create fail.
 - **take**: reconciled — the nonce-correlated late reply is consumed as the
   take's (so a stale replay still touches nothing) and handed to the
   late-take reconcile (`reconcile_late_take`, in `api/orders/late_take.rs`),
@@ -330,7 +331,8 @@ daemon id but no kind 38383 event until the bond is paid: `create_order`
 returns it at `WaitingMakerBond`, and persists the maker row with `bond` set
 (`role = Maker`, `state = Requested`, the bolt11 and its decoded expiry). The
 later `new-order` for that id is the only sign the bond locked; it moves the
-row to `Pending` with the bond `Locked`. Walking away is `cancel_order`, which
+row to `Pending` with the bond `Locked`, and emits `TradeUpdate` with reason
+`OrderPublished`, dated by that message. Walking away is `cancel_order`, which
 in this window waits for the daemon's answer (see *Maker's bond window* under
 `cancel_order`).
 
@@ -704,6 +706,7 @@ TradeUpdate {
 
 TradeUpdateReason: UserCanceled | MakerCanceled | BondLostRace | BondExpired
                  | CooperativeCancelRequestedByMe | CooperativeCancelRequestedByPeer
+                 | Replayed | PayoutFailed | OrderPublished
 ```
 
 The two `CooperativeCancelRequested*` reasons ride on an emission whose
@@ -712,6 +715,21 @@ they say a cooperative-cancel request was confirmed for this side or made
 by the counterparty. Consumers keyed on status alone (the trade screen's
 status provider) see nothing new; the Notifications cards key on status
 **and** reason, so each request gets its own card, once.
+
+Three more reasons tell a status apart from the same status with another
+meaning:
+
+- `Replayed`: a status Rust only re-states, dated now — a restore filing an
+  old trade, a re-read after the peer's reputation. It raises no card (#770).
+- `PayoutFailed`: rides on `WaitingBuyerInvoice` when the node asks for a new
+  invoice because it could not pay the buyer (#823).
+- `OrderPublished`: rides on `Pending` when the node published this client's
+  order after `create_order` had returned. That is the maker's bond locking:
+  the `new-order`, dated by that message, or the public book carrying the
+  order first, dated now. It is also a confirmation that arrived after the
+  create timed out. It raises the "Order published" card, which is what the
+  maker's push was about. A `Pending` without it (the book's bucket, a
+  republish after a taker left) raises none.
 
 ### on_order_status_changed(order_id: String) → Stream<OrderStatus>
 Emits when a specific order's status changes.

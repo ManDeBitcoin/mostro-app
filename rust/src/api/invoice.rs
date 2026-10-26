@@ -469,6 +469,13 @@ fn parse_step_start(value: &str) -> Option<(&str, i64, Option<u32>)> {
     Some((status, ts, parts.next().and_then(|i| i.parse().ok())))
 }
 
+/// When `invoice` was issued: its bolt11 timestamp, unix seconds on the
+/// issuing node's clock. `None` when it does not decode.
+pub(crate) fn bolt11_issued_at(invoice: &str) -> Option<i64> {
+    let parsed = Bolt11Invoice::from_str(&normalize(invoice).to_ascii_lowercase()).ok()?;
+    i64::try_from(parsed.duration_since_epoch().as_secs()).ok()
+}
+
 fn summarize(input: &str) -> Option<Bolt11Summary> {
     let bare = normalize(input);
     let parsed = Bolt11Invoice::from_str(&bare.to_ascii_lowercase()).ok()?;

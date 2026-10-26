@@ -114,6 +114,8 @@ BondCancelCopy bondCancelCopy(TradeUpdateReason? reason) => switch (reason) {
   TradeUpdateReason.replayed ||
   // A failed payout comes long after the bond window.
   TradeUpdateReason.payoutFailed ||
+  // A publication ends the window without a cancel.
+  TradeUpdateReason.orderPublished ||
   null => BondCancelCopy.neutral,
 };
 

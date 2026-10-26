@@ -10,6 +10,7 @@ import 'package:mostro/features/order/providers/invoice_providers.dart';
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
 import 'package:mostro/features/order/screens/add_lightning_invoice_screen.dart';
 import 'package:mostro/features/order/screens/pay_lightning_invoice_screen.dart';
+import 'package:mostro/features/settings/providers/mostro_nodes_provider.dart';
 import 'package:mostro/features/settings/providers/nwc_provider.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart';
 import 'package:mostro/l10n/app_localizations.dart';
@@ -17,6 +18,7 @@ import 'package:mostro/shared/providers/peer_nym_provider.dart';
 import 'package:mostro/src/rust/api/types.dart';
 
 import '../../../support/fake_trades.dart';
+import '../../../support/qr_finders.dart';
 
 /// Goldens of the invoice redesign (`design_handoff_factura_lightning`) on
 /// the handoff's 360 × 760 dp canvas, in Spanish like the mockups:
@@ -46,6 +48,26 @@ TradeInfo _trade({required BigInt sats, String? holdInvoice}) => fakeTrade(
   peerDays: 120,
 );
 
+/// The order's node, without a picture: the QR's centre is its initial.
+class _Nodes extends MostroNodesNotifier {
+  @override
+  Future<List<MostroNodeEntry>> build() async => const [
+    MostroNodeEntry(
+      pubkey: 'pubkey-$_id',
+      region: null,
+      isTrusted: true,
+      isActive: true,
+      name: 'Bitcoin Bolivia',
+      picture: null,
+      about: null,
+      website: null,
+    ),
+  ];
+
+  @override
+  Future<void> refreshMetadata() async {}
+}
+
 Future<void> _pump(
   WidgetTester tester,
   Widget screen, {
@@ -71,6 +93,7 @@ Future<void> _pump(
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          mostroNodesProvider.overrideWith(_Nodes.new),
           isWalletConnectedProvider.overrideWithValue(false),
           tradeAmountProvider.overrideWith(
             (ref, id) => Stream.value(trade.order.amountSats!),
@@ -181,4 +204,17 @@ void main() {
       );
     });
   }
+
+  testWidgets('13b: the hold invoice QR takes the width of its card', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const PayLightningInvoiceScreen(orderId: _id),
+      trade: _trade(sats: BigInt.from(252), holdInvoice: _holdInvoice),
+      left: const Duration(minutes: 9, seconds: 12),
+      brightness: Brightness.dark,
+    );
+    expectQrTakesItsWidth(tester);
+  });
 }

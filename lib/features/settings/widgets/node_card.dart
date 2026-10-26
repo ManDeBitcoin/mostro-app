@@ -10,6 +10,7 @@ import 'package:mostro/features/settings/models/node_display.dart';
 import 'package:mostro/features/settings/models/node_selector_rules.dart';
 import 'package:mostro/features/settings/models/settings_rows.dart';
 import 'package:mostro/features/settings/providers/mostro_nodes_provider.dart';
+import 'package:mostro/features/settings/widgets/node_avatar.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/src/rust/api/node_stats.dart';
 import 'package:mostro/src/rust/api/types.dart';
@@ -152,11 +153,6 @@ class NodeCard extends StatelessWidget {
   }
 }
 
-/// [color] with its alpha scaled by [dim] — how decorative surfaces fade on a
-/// dimmed card while the text on them stays fully opaque.
-Color dimmed(Color color, double dim) =>
-    dim >= 1 ? color : color.withValues(alpha: color.a * dim);
-
 // ── Row 1 · identity ──────────────────────────────────────────────────────────
 
 class _IdentityRow extends StatelessWidget {
@@ -187,7 +183,7 @@ class _IdentityRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _NodeAvatar(entry: entry, dim: dim),
+        NodeAvatar(entry: entry, dim: dim),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
@@ -263,52 +259,6 @@ class _IdentityRow extends StatelessWidget {
         const SizedBox(width: 10),
         _Radio(selected: selected, dim: dim),
       ],
-    );
-  }
-}
-
-class _NodeAvatar extends StatelessWidget {
-  const _NodeAvatar({required this.entry, required this.dim});
-
-  final MostroNodeEntry entry;
-  final double dim;
-  static const double _size = 32;
-
-  @override
-  Widget build(BuildContext context) {
-    final pal = NodeSelectorPalette.of(context);
-    final name = nodeDisplayName(entry);
-    final initial = name.isEmpty ? '?' : name.characters.first.toUpperCase();
-    // Tint derived from the name, never a generated identicon.
-    final lime = name.codeUnits.fold<int>(0, (a, b) => a + b).isEven;
-    final fallback = Container(
-      width: _size,
-      height: _size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: dimmed(lime ? pal.avatarLimeBg : pal.avatarYellowBg, dim),
-        shape: BoxShape.circle,
-      ),
-      child: Text(
-        initial,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: lime ? pal.avatarLimeInk : pal.avatarYellowInk,
-        ),
-      ),
-    );
-    final picture = entry.picture;
-    if (picture == null) return fallback;
-    return ClipOval(
-      child: Image.network(
-        picture,
-        width: _size,
-        height: _size,
-        fit: BoxFit.cover,
-        cacheWidth: (_size * 3).round(),
-        errorBuilder: (_, __, ___) => fallback,
-      ),
     );
   }
 }

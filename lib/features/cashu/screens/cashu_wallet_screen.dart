@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import 'package:mostro/core/app_routes.dart';
 import 'package:mostro/core/app_theme.dart';
@@ -13,6 +12,7 @@ import 'package:mostro/features/cashu/providers/cashu_wallet_provider.dart';
 import 'package:mostro/features/settings/widgets/settings_section.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
+import 'package:mostro/shared/widgets/mostro_qr.dart';
 import 'package:mostro/shared/widgets/paste_field.dart';
 import 'package:mostro/shared/widgets/platform_aware_qr_scanner.dart';
 import 'package:mostro/shared/widgets/redesign_app_bar.dart';
@@ -312,7 +312,10 @@ class _CashuWalletScreenState extends ConsumerState<CashuWalletScreen> {
                     style: TextStyle(fontSize: 13, color: book.textBody),
                   ),
                   const SizedBox(height: 6),
-                  Row(
+                  // A wrap, not a row: in Spanish or German, or at large
+                  // text, the second link goes under the first instead of
+                  // overflowing a narrow phone.
+                  Wrap(
                     children: [
                       TextButton(
                         onPressed: () => _showToken(_lastToken!),
@@ -865,19 +868,6 @@ class _AmountDialogState extends State<_AmountDialog> {
   }
 }
 
-/// Whether [data] fits a QR at all. Runs the same encode `QrPainter` would,
-/// because that is the only place the size limit is enforced.
-bool _fitsInQr(String data) {
-  try {
-    QrImage(
-      QrCode.fromData(data: data, errorCorrectLevel: QrErrorCorrectLevel.L),
-    );
-    return true;
-  } on InputTooLongException {
-    return false;
-  }
-}
-
 /// The exported token, as a QR and as copyable text.
 ///
 /// The token is bearer money: whoever redeems it first keeps it. The warning is
@@ -902,36 +892,19 @@ class _TokenDialog extends StatelessWidget {
     final book = OrderBookPalette.of(context);
     return MostroDialog(
       title: l10n.cashuTokenTitle,
-      // MostroDialog scrolls its content and never asks it for intrinsic
-      // dimensions, so `QrImageView` (laid out through a `LayoutBuilder`)
-      // needs no fixed width here.
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // A cdk token carries a signature and DLEQ proof per proof, so
           // a wallet funded from many small proofs exports tens of KB —
-          // far past the ~2.9 KB a version-40 QR holds. Checked *here*
-          // rather than through `errorStateBuilder`: `QrCode.fromData`
-          // silently caps at version 40 and only `make()` throws, inside
-          // the painter, where the builder never sees it — so without
-          // this qr_flutter paints its exception on the one dialog that
-          // is showing the user their money.
-          if (_fitsInQr(token))
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                // design-check: ignore DS-COL-1 — a QR code must be pure black on white to scan
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: QrImageView(
-                data: token,
-                size: 200,
-                padding: EdgeInsets.zero,
-                // design-check: ignore DS-COL-1 — a QR code must be pure black on white to scan
-                backgroundColor: Colors.white,
-              ),
-            )
+          // far past the ~2.9 KB a version-40 QR holds. Checked before
+          // drawing, so the one dialog showing the user their money never
+          // paints an encoder's exception.
+          //
+          // No logo: the token belongs to no node (#851), and a cleared
+          // centre would cost the capacity the biggest tokens need.
+          if (MostroQr.fits(token))
+            MostroQr(data: token)
           else
             Text(
               l10n.cashuTokenTooLargeForQr,
