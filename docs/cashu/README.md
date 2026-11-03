@@ -365,6 +365,8 @@ flowchart LR
     C2 --> C4["C4 escrow primitives"]
     C4 --> C5["C5 Track A: lock flow"]
     C3 -.soft.-> C5
+    C2 --> C3b["C3b LN mint/melt"]
+    C3 --> C3b
     C5 --> C6["C6 Track B: release + redeem"]
     C5 --> C7["C7 Track C: coop cancel"]
     C5 --> C8["C8 Track D: disputes + expiry"]
@@ -375,7 +377,7 @@ flowchart LR
 | Wave | Phases | Relationship | Tests against daemon |
 |------|--------|--------------|----------------------|
 | 0 | C0, C1, C2 | **parallel** with each other | daemon not needed |
-| 1 | C3, C4 | **parallel** with each other; each **stacked on C2** (C4 also on C0) | daemon not needed (mint only) |
+| 1 | C3, C4, then C3b | C3 and C4 **parallel** with each other, each **stacked on C2** (C4 also on C0); C3b **stacked on C2 + C3**, required before general availability (§1.1) | daemon not needed (mint only) |
 | 2 | C5 | **stacked** on C0+C1+C2+C4 | daemon Foundation + Track A |
 | 3 | C6, C7, C8 | **parallel** with each other; each **stacked on C5** | daemon Tracks B / C / D |
 | 4 | C9, C10 | **parallel** with each other, after C6. Not optional — required before general availability (§1.1) | — |
@@ -448,7 +450,7 @@ buyer needs somewhere for redeemed ecash to land — so a minimal embedded walle
 hard prerequisite, not a nice-to-have.
 
 - Add `cdk` + `cdk-sqlite` deps (native); wasm gets a typed "not supported yet" stub
-  (NWC-client pattern, `rust/src/nwc/client.rs`). Pinned at `=0.18.1` — what was
+  (NWC-client pattern, `rust/src/nwc/client.rs`). Pinned at `=0.18.2` — what was
   verified against that version, and how to upgrade, is in
   [`cdk-spike.md`](cdk-spike.md).
 - `rust/src/cashu/mod.rs` — `CashuWallet`:
@@ -516,7 +518,7 @@ hard prerequisite, not a nice-to-have.
 
 ---
 
-### Wave 1 — on top of the wallet (2 parallel PRs)
+### Wave 1 — on top of the wallet (C3 and C4 in parallel, then C3b)
 
 #### C3 — minimal wallet UI (Dart)
 
@@ -528,11 +530,195 @@ hard prerequisite, not a nice-to-have.
   to the existing NWC wallet entry, on every node (§1.2). The screen shows the wallet's
   mint and lets the user set or change it (the mint-selection rules are in C2).
 - Riverpod providers over the C2 FRB surface; l10n for every locale.
-- Explicitly out of scope: Lightning↔ecash melt/mint, multi-mint, backup UX (C10).
+- Explicitly out of scope: Lightning↔ecash melt/mint (C3b), multi-mint, backup UX (C10).
 - **Done when:** a tester can fund the wallet from any Cashu wallet (e.g. a nutshell
   faucet token) and see/export balance, on a Cashu node and on a Lightning node alike —
   on a Lightning node after entering a mint URL or by receiving a token.
 - Est. size: S–M (~500–800 lines).
+
+#### C3b — fund and withdraw over Lightning (NUT-04/05)
+
+*Stacked under: C2 + C3. Parallel with every escrow phase. **Required before general
+availability** (§1.1). Two PRs: C3b-1 (send) then C3b-2 (receive).*
+
+Without it the wallet is a dead end on both sides: a seller can only fund it from a
+second Cashu wallet configured against the same mint, and a buyer can only leave it
+by exporting a token to one. Every user already has Lightning, and every mint
+already bridges to it.
+
+This stays inside the non-goal of §Non-goals: mint and melt run against **the wallet's
+own mint** (C2) — the one mint the wallet is bound to — and serve only to get ecash in
+for an escrow and out after a trade. No multi-mint, no on-chain (NUT-30 support among
+mints is inconsistent), no general wallet features.
+
+##### C3b-1 — send to Lightning (melt, NUT-05)
+
+- **Capability, optional.** `MintCapabilities` gains `nut05_bolt11`: the mint lists
+  `bolt11` / `sat` under NUT-05 and NUT-05 is not `disabled`, with its min/max limits
+  kept. It is **not** part of `is_usable()`: a mint without it still trades; the UI
+  hides "to Lightning" instead of refusing the mint.
+- **Recovery.** `CashuWallet::connect` runs `recover_incomplete_sagas()` once the
+  mint has proven usable; it resumes melts in flight as well. Best effort: a failure
+  is logged, never fails the connect. Safe for escrow and exported tokens — cdk
+  compensates only a send still in `ProofsReserved` (no token exists yet) and never
+  revokes one in `TokenCreated` (`wallet/send/saga/resume.rs`, cdk 0.18.2). It also
+  covers the token sends of C2, which until now nothing recovered.
+  - **Only at connect.** cdk documents it as crash recovery ("Call on startup",
+    `wallet/recovery.rs`) and rolls back a send or melt in `ProofsReserved` without
+    checking that it is still running — the state of an escrow lock, a token send or
+    a melt being prepared. At connect the wallet is not installed yet, so nothing
+    runs on it. An earlier wallet for the same mint, left by switching mints and
+    back, may still be melting, though: see *A melt in flight* below. A send or
+    escrow lock still running there is not covered; closing that needs those
+    operations to hold a mark too (a later PR).
+  - Because a bound wallet is reused rather than reconnected,
+    `cashu_sweep_spent_proofs` (the wallet screen's sync) runs
+    `finalize_pending_melts()` — melts in `MeltRequested` / `PaymentPending` only,
+    each claimed before it is changed — so a pending melt resolves without a
+    restart. Both steps run even if one fails, and the balance is broadcast after
+    them.
+  - A quote whose release fails is not offered (`CashuMeltQuoteFailed`): its saga
+    still holds the quote, so paying it would fail. The next connect releases it.
+  - **A melt in flight is left alone (#864).** The payment dialog stops waiting
+    after 40 s, but `cashu_melt` runs to its end, and its saga sits in
+    `MeltRequested` the whole time. cdk resumes such a saga at Sync and at connect
+    with no check that it is still running. A mint that has not processed the
+    request yet calls the quote `Unpaid`, and cdk rolls the melt back: the proofs
+    return to the balance, then the mint pays with them. So `melt_quote` and
+    `melt` hold a mark on their mint for the whole call (`cashu/in_flight.rs`).
+    The mark is process-wide and keyed by the normalized mint URL, because a mint
+    switch and back binds a new wallet. While it is held:
+    - a second quote or payment there is refused with `CashuMeltInFlight` ("…wait
+      for it to finish, then try again"). The message does not suggest a restart:
+      that clears the mark, and recovery could then roll back a request still in
+      transit. A restart stays the way out of a request that hangs;
+    - Sync still sweeps and broadcasts the balance, but leaves the melts for the
+      next sync;
+    - connect skips recovery entirely (`recover_incomplete_sagas` is all or
+      nothing) and leaves it for the next connect.
+
+    **Which path actually breaks.** On native, cdk 0.18.2 reaches a mint through
+    `bitreq` 0.3, one connection per host for each wallet, one request at a time.
+    A Sync status check from the same wallet waits behind the melt's own request
+    and reaches the mint after it, so today Sync cannot roll a melt back. A wallet
+    bound afresh, after a mint switch and back, has a connection of its own: its
+    recovery asks at once, gets `Unpaid` and rolls back. That is the case
+    reproduced by hand against `main` (a slow proxy holding the melt request;
+    the proofs came back, the mint then paid, and after a restart the balance
+    kept the spent amount). The Sync guard stays, against a change of transport
+    in cdk.
+
+    **Known limits.** cdk bounds the request only at a mint that lists the melt
+    under NUT-19, to that cache's TTL. cdk-mintd 0.18.1 always lists it, at 60 s by
+    default; cdk assumes 300 s when a mint states no TTL. When that timeout fires,
+    `execute_async` asks the mint itself and rolls back on `Unpaid`. That happens
+    inside the melt, under its mark, so the same race remains for a request still
+    in transit after the TTL. Without NUT-19 nothing bounds the request, and the
+    mark holds until the app restarts. After a restart, connect resumes the saga.
+    cdk asks the mint first and rolls back only on `Unpaid` with no payment proof.
+    `Pending` or `Paid` are left or finalized, so only a request still in transit
+    is at risk.
+  - **A quote no longer unpaid is refused (#864).** cdk's `initialize_melt` checks
+    only the expiry, and a quote that finalized as paid has its reservation
+    released, so it prepares again. Should the mint then refuse the melt with
+    anything other than `RequestAlreadyPaid`, cdk reads the quote paid and marks
+    the *new* proofs spent. cdk-mintd answers `RequestAlreadyPaid`; other mints
+    are unverified. `cashu_melt` refuses any local state other than `Unpaid` with
+    `CashuMeltFailed` (nothing was sent), after cancelling.
+- **Rust** (`cashu/wallet.rs`, `api/cashu.rs`). cdk's prepared melt borrows the
+  wallet and can only be confirmed or cancelled through that handle
+  (`confirm_prepared_melt` / `cancel_prepared_melt` are `#[doc(hidden)]`), so it is
+  never held across bridge calls:
+  - `cashu_melt_quote(invoice) -> CashuMeltQuote` — validates the invoice locally,
+    asks the mint for a bolt11 melt quote, then `prepare_melt` (the only place cdk
+    computes the input fee: keyset `fee_ppk`, plus a swap when the proofs do not
+    fit) and cancels it at once. Returns the quote id, the amount, the fee reserve,
+    the input fee and their total. No proof stays reserved while the user reads
+    the confirmation. The quote's expiry stays in Rust: `cashu_melt` refuses an
+    expired quote itself, and the screen then asks for a fresh one.
+  - `cashu_melt(quote_id, max_total_sats) -> CashuMeltResult` — prepares again,
+    refuses a quote taken at another mint (`CashuMeltFailed`; cdk does not check),
+    an expired quote (`CashuMeltQuoteExpired`) or a total above what the user
+    confirmed (`CashuMeltFeeChanged`), all after cancelling, then
+    `confirm_prefer_async()`. A mint that honours `Prefer: respond-async`
+    (cdk-mintd always does) answers *pending* before it routes, however fast the
+    payment then settles, so a pending answer is awaited until 30 s after the
+    request left (`MELT_WAIT`, a deadline, so a slow request counts against it).
+    The result is `Paid` (amount and the fee actually charged) or, past that wait,
+    `Pending` (the Lightning payment is in flight: the proofs stay reserved and
+    recovery finalizes them), or a marker. Change from the fee reserve
+    returns through NUT-08, handled by cdk.
+  - **An error from confirming is not a failure by itself.** cdk's
+    `recover_failed_melt_confirm` returns the original error both when it rolled
+    the melt back and when the mint said pending or unknown, or could not be
+    asked (a connection lost after the request left). Only a rollback deletes
+    the saga, so a saga still recorded after the error reads as `Pending`, and
+    `CashuMeltFailed` / `CashuMeltQuoteExpired` always mean nothing was paid.
+    A mint down before the request leaves can read as `Pending` too; it
+    settles on the next sync.
+  - Markers: `CashuInvalidInvoice`, `CashuInvoiceNoAmount` (amountless invoices are
+    out of scope), `CashuInvoiceExpired`, `CashuMeltUnsupported`,
+    `CashuMeltAmountOutOfRange`, `CashuMeltQuoteFailed`, `CashuMeltQuoteExpired`,
+    `CashuMeltFeeChanged`, `CashuMeltInsufficientFunds`, `CashuMeltFailed`,
+    `CashuMeltInFlight` (another melt or quote holds the mint, #864). The wasm
+    stub fails both calls with `CashuUnsupportedOnWeb`.
+  - `on_cashu_wallet_changed` fires after every melt attempt, so the balance updates.
+- **Dart** (`lib/features/cashu/`): Send → *Ecash* / *Lightning* (the second hidden
+  without `nut05_bolt11`); paste or scan a bolt11 (`mobile_scanner`); a confirmation
+  showing amount, "up to X sats" in fees and the total. The confirmation stays
+  open while the payment runs, Pay busy and no way out, since closing would not
+  stop it, and then shows how it ended in the same dialog, with Close: *paid*
+  (with the fee actually charged), *in progress*, or *failed* with the localized
+  reason. A mint that ignores `respond-async` holds the request open, and nothing
+  in cdk times it out, so the dialog stops waiting after 40 s — above `MELT_WAIT`,
+  so a real answer is never cut short — and shows *in progress*. The payment is
+  not cancelled; its late answer is dropped, and the balance follows. An expired
+  quote or a changed fee goes back to a fresh quote, never pays stale. l10n in all
+  locales; the layout follows `DESIGN_SYSTEM.md` (DS-CMP-1, -2, -6, -26; DS-TYP-3;
+  DS-A11Y-2, through `MostroDialog`'s `liveRegion`).
+- **Out of scope:** Lightning addresses / LNURL (who resolves the LNURL, and from
+  which network address, is not yet checked), amountless invoices, warnings about
+  trades that need the balance.
+- **Tests:** unit — invoice validation, marker mapping, the capability gate (hidden,
+  not refused), the confirmed total, the quote's mint; widget — the send choice, the
+  confirmation staying busy while it pays, the refresh of a stale quote. The two
+  rules of #864 run against a wallet seeded in its store, whose mint is a local
+  listener that counts connections and answers `UNPAID`. That listener stands in
+  for HTTP only, not for the mint's cryptography. **Tests against a mint are
+  deferred:** the paths that need one — the balance dropping by
+  at most the confirmed total, a quote leaving no proof reserved, a melt left
+  prepared or in flight settled at the next connect or sync — are checked by hand
+  against a `cdk-mintd` on a regtest Lightning node, until automated mint-backed
+  tests land.
+- **Done when:** Send → "to Lightning" → paste a bolt11 → confirm → the invoice
+  settles and the balance drops by at most the confirmed total.
+- Est. size: M (~800–1200 lines).
+
+##### C3b-2 — receive via Lightning (mint, NUT-04)
+
+- `cashu_mint_quote(amount)` → bolt11 invoice + QR; the quote is persisted by cdk
+  (`add_mint_quote`) **before** the invoice exists, so it survives a kill.
+- **Paid while the app was closed or in the background** — the normal case on a
+  phone, where the user pays from another wallet app: on resume, and at start when the
+  identity's store holds unissued quotes (a local read; no mint is contacted
+  otherwise, so the wallet stays lazy), the wallet runs `mint_unissued_quotes()`. It
+  does this **for every mint with pending quotes**, not only the current one — cdk
+  filters by the wallet's mint, so a quote at a mint the user has since left would
+  otherwise wait until they return to it. cdk does not filter by expiry, so an
+  invoice paid before it expired is collected whenever the app next runs; the quote
+  is NUT-20-locked with a key derived from the seed, so its id alone mints nothing.
+- While the invoice screen is open, `subscribe_mint_quote_state` (or a poll of
+  `check_mint_quote_status`) credits the balance as soon as it is paid.
+- **The quote lives only in the local store.** Lost before minting (reinstall, lost
+  file), the sats stay at the mint with no way back — NUT-13 restore (#854) has nothing
+  signed to find. So: the wallet shows "receiving X sats" while quotes are pending,
+  `identity_balance_at_risk` counts paid-but-unminted quotes, and the backup of C10
+  covers them.
+- Quotes that expired unpaid, as the mint confirms, are forgotten, so they are not
+  re-checked (and linked to each other) at every start.
+- To check before this PR: how long the mints we target keep a paid, unminted quote.
+- **Done when:** Receive → "via Lightning" → pay the QR from any LN wallet with the app
+  closed → reopen → the balance has risen.
 
 #### C4 — escrow primitives (Rust, no UI)
 

@@ -11,6 +11,7 @@ CashuWalletStatus _status({required bool connected, String? mint}) =>
       mintUrl: mint,
       balanceSats: BigInt.from(connected ? 500 : 0),
       missingCapabilities: const [],
+      canSendLightning: false,
     );
 
 void main() {

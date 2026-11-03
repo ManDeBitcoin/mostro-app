@@ -6,8 +6,10 @@
 //! nice-to-have.
 //!
 //! Scope, deliberately small: connect to one mint, hold `sat` proofs, receive a
-//! token, export a token, and re-check proof state. Melting to Lightning,
-//! multi-mint support and NUT-11 locking are later phases.
+//! token, export a token, re-check proof state, and settle at connect what an
+//! interrupted session left half done. Melting to Lightning is phase C3b-1 and
+//! NUT-11 locking lives in [`escrow`]; minting from Lightning (C3b-2) and
+//! multi-mint support are not here.
 //!
 //! **Native only.** Proof storage is `cdk-sqlite`, which is `rusqlite` and does
 //! not build for `wasm32`. The web target gets the typed stub at the bottom of
@@ -19,11 +21,14 @@
 #[cfg(not(target_arch = "wasm32"))]
 pub mod escrow;
 #[cfg(not(target_arch = "wasm32"))]
+mod in_flight;
+#[cfg(not(target_arch = "wasm32"))]
 mod wallet;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use wallet::{
-    ensure_receivable, stored_balance, token_mint_url, CashuWallet, MintCapabilities,
+    ensure_receivable, stored_balance, token_mint_url, CashuWallet, MeltOutcomeInfo, MeltQuoteInfo,
+    MintCapabilities,
 };
 
 // ── WASM stub ────────────────────────────────────────────────────────────────
@@ -37,6 +42,9 @@ pub struct MintCapabilities {
     pub nut11_p2pk: bool,
     pub nut12_dleq: bool,
     pub has_sat_keyset: bool,
+    pub nut05_bolt11: bool,
+    pub melt_min_sats: Option<u64>,
+    pub melt_max_sats: Option<u64>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -48,6 +56,28 @@ impl MintCapabilities {
     pub fn missing(&self) -> Vec<&'static str> {
         vec!["storage"]
     }
+}
+
+/// See the native [`wallet::MeltQuoteInfo`].
+#[cfg(target_arch = "wasm32")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MeltQuoteInfo {
+    pub quote_id: String,
+    pub amount_sats: u64,
+    pub fee_reserve_sats: u64,
+    pub input_fee_sats: u64,
+    pub max_total_sats: u64,
+}
+
+/// See the native [`wallet::MeltOutcomeInfo`].
+#[cfg(target_arch = "wasm32")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MeltOutcomeInfo {
+    Paid {
+        amount_sats: u64,
+        fee_paid_sats: u64,
+    },
+    Pending,
 }
 
 /// No proof store on web, so nothing is held there.
@@ -97,6 +127,9 @@ impl CashuWallet {
             nut11_p2pk: false,
             nut12_dleq: false,
             has_sat_keyset: false,
+            nut05_bolt11: false,
+            melt_min_sats: None,
+            melt_max_sats: None,
         };
         NONE
     }
@@ -114,6 +147,22 @@ impl CashuWallet {
     }
 
     pub async fn sweep_spent_proofs(&self) -> anyhow::Result<()> {
+        anyhow::bail!("CashuUnsupportedOnWeb")
+    }
+
+    pub async fn finalize_pending_melts(&self) -> anyhow::Result<()> {
+        anyhow::bail!("CashuUnsupportedOnWeb")
+    }
+
+    pub async fn melt_quote(&self, _invoice: &str) -> anyhow::Result<MeltQuoteInfo> {
+        anyhow::bail!("CashuUnsupportedOnWeb")
+    }
+
+    pub async fn melt(
+        &self,
+        _quote_id: &str,
+        _max_total_sats: u64,
+    ) -> anyhow::Result<MeltOutcomeInfo> {
         anyhow::bail!("CashuUnsupportedOnWeb")
     }
 

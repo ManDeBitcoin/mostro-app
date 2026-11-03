@@ -1,6 +1,7 @@
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mostro/core/mostro_defaults.dart';
 import 'package:mostro/features/chat/models/chat_list_rules.dart';
 import 'package:mostro/features/chat/providers/chat_list_provider.dart';
 import 'package:mostro/features/chat/providers/chat_providers.dart';
@@ -38,6 +39,7 @@ TradeRow _completed(int completedAt) => TradeRow(
   startedAt: 0,
   peerHandle: null,
   completedAt: completedAt,
+  node: defaultMostroPubkey,
 );
 
 /// A seller's trade whose row is still at the release: the book's `success`

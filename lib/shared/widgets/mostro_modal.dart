@@ -136,6 +136,7 @@ class MostroDialog extends StatelessWidget {
     this.primary,
     this.secondary,
     this.links = const [],
+    this.liveRegion = false,
   }) : assert(
          body == null || content == null,
          'Pass body for prose or content for a custom child, not both.',
@@ -160,6 +161,11 @@ class MostroDialog extends StatelessWidget {
 
   final List<ModalLink> links;
 
+  /// Announce the title and [body] to a screen reader as soon as they show,
+  /// as one message. For a dialog that replaces another in place — an
+  /// outcome after its confirmation — where no route change says anything.
+  final bool liveRegion;
+
   @override
   Widget build(BuildContext context) {
     final book = OrderBookPalette.of(context);
@@ -173,7 +179,7 @@ class MostroDialog extends StatelessWidget {
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 22, 20, 16),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment:
@@ -195,30 +201,36 @@ class MostroDialog extends StatelessWidget {
                       Icon(glyph, size: 44, color: _fillOf(book, iconTone)),
                       const SizedBox(height: 14),
                     ],
-                    Text(
-                      title,
-                      textAlign: centred ? TextAlign.center : TextAlign.start,
-                      style: TextStyle(
-                        fontFamily: AppFonts.ui,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        color: book.textPrimary,
-                      ),
-                    ),
-                    if (body case final prose?) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        prose,
-                        textAlign:
-                            centred ? TextAlign.center : TextAlign.start,
-                        style: TextStyle(
-                          fontFamily: AppFonts.ui,
-                          fontSize: 14,
-                          height: 1.5,
-                          color: book.textSecondary,
+                    _announced(
+                      centred: centred,
+                      children: [
+                        Text(
+                          title,
+                          textAlign:
+                              centred ? TextAlign.center : TextAlign.start,
+                          style: TextStyle(
+                            fontFamily: AppFonts.ui,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: book.textPrimary,
+                          ),
                         ),
-                      ),
-                    ],
+                        if (body case final prose?) ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            prose,
+                            textAlign:
+                                centred ? TextAlign.center : TextAlign.start,
+                            style: TextStyle(
+                              fontFamily: AppFonts.ui,
+                              fontSize: 14,
+                              height: 1.5,
+                              color: book.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                     if (content case final child?) ...[
                       const SizedBox(height: 14),
                       child,
@@ -232,6 +244,20 @@ class MostroDialog extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// The title and body, as one live-region node when [liveRegion] is set:
+  /// the dialog gives each text a node of its own, and a flag on anything
+  /// around them would announce nothing.
+  Widget _announced({required bool centred, required List<Widget> children}) {
+    final column = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment:
+          centred ? CrossAxisAlignment.center : CrossAxisAlignment.stretch,
+      children: children,
+    );
+    if (!liveRegion) return column;
+    return MergeSemantics(child: Semantics(liveRegion: true, child: column));
   }
 }
 

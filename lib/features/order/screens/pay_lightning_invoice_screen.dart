@@ -27,12 +27,12 @@ import 'package:mostro/features/trades/providers/trades_providers.dart'
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/mascot/mascot_cues.dart';
 import 'package:mostro/shared/utils/reputation_age.dart';
+import 'package:mostro/shared/widgets/counterpart_reputation_row.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
 import 'package:mostro/src/rust/api/orders.dart' as orders_api;
 import 'package:mostro/src/rust/api/types.dart'
     show OrderStatus, TradeInfo, TradeUpdate;
 import 'package:mostro/shared/widgets/nwc_payment_widget.dart';
-import 'package:mostro/shared/widgets/peer_reputation_card.dart';
 
 /// 13b · Lock your sats — Route `/pay_invoice/:orderId`.
 ///
@@ -354,10 +354,10 @@ class _PayLightningInvoiceScreenState
                     // auto-pays the hold invoice — the app can settle without a
                     // manual step, so this is where the decision matters (#305).
                     if (peerTrade?.peerRating != null) ...[
-                      PeerReputationCard(
+                      CounterpartReputationRow(
                         rating: peerTrade!.peerRating!,
                         reviews: peerTrade.peerReviews ?? 0,
-                        days: peerTrade.peerDaysOnMostro,
+                        since: peerTrade.peerFirstTrade,
                         counterpartIsBuyer: true,
                       ),
                       const SizedBox(height: AppSpacing.lg),

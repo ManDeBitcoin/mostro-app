@@ -85,6 +85,7 @@ class _FakeWallet extends CashuWalletController {
     mintUrl: 'https://mint.example.com',
     balanceSats: BigInt.from(100000),
     missingCapabilities: const [],
+    canSendLightning: false,
   );
 }
 
@@ -213,6 +214,7 @@ void main() {
           mintUrl: 'https://mint.example.com',
           balanceSats: BigInt.from(100),
           missingCapabilities: const [],
+          canSendLightning: false,
         ),
       );
       await tester.pump();

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mostro/features/home/providers/order_book_feed.dart';
 import 'package:mostro/features/home/providers/order_filters_provider.dart';
+import 'package:mostro/shared/utils/btc_pegged.dart';
 import 'package:mostro/shared/utils/platform_int64.dart';
 import 'package:mostro/shared/utils/reputation_age.dart';
 import 'package:mostro/src/rust/api/orders.dart' as orders_api;
@@ -122,17 +123,16 @@ class OrderItem {
   final int tradeCount;
 
   /// The rating tag's deprecated day count, frozen when the daemon published
-  /// the event. Display [makerDaysOnMostro] instead; this is its fallback.
+  /// the event. Display [makerFirstTrade] instead; this is its fallback.
   final int daysActive;
 
   /// The maker's first trade (the rating tag's `since`, a UTC day start), or
   /// `null` from daemons that predate it.
   final DateTime? makerSince;
 
-  /// Days the maker has been on Mostro, computed now from [makerSince] when
-  /// present, otherwise [daysActive].
-  int get makerDaysOnMostro =>
-      daysOnMostro(makerSince, fallbackDays: daysActive);
+  /// The maker's first trade: [makerSince], else [daysActive] back from now.
+  DateTime get makerFirstTrade =>
+      firstTradeDay(makerSince, fallbackDays: daysActive);
 
   /// Current order status from the Mostro protocol.
   final OrderStatus status;
@@ -164,11 +164,15 @@ class OrderItem {
     for (final label in paymentLabels) label.toLowerCase(),
   };
 
+  /// The amount as `25`, `25.5` or `100 – 500`. A BTC-pegged code counts its
+  /// amount in sats, so it reads in the asset's unit: `0.001` (#907).
   String get displayAmount {
+    String fmt(double v) =>
+        isBtcPeggedCode(fiatCode) ? formatBtcPeggedAmount(v, 'en') : _fmt(v);
     if (isRange) {
-      return '${_fmt(fiatAmountMin!)} – ${_fmt(fiatAmountMax!)}';
+      return '${fmt(fiatAmountMin!)} – ${fmt(fiatAmountMax!)}';
     }
-    return _fmt(fiatAmount!);
+    return fmt(fiatAmount!);
   }
 
   static String _fmt(double v) {

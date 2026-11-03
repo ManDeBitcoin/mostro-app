@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/core/trade_palette.dart';
 import 'package:mostro/l10n/app_localizations.dart';
+import 'package:mostro/shared/utils/rating_format.dart';
+import 'package:mostro/shared/utils/reputation_age.dart';
 
 /// One-row counterpart reputation: the grade on the avatar, the role, and
-/// `2 trades · 1 day on Mostro`. Shared by the trade screen (8b, 8c) and the
+/// `687 ratings · since Mar 2023` (DS-L10N-5). Shared by the trade screen (8b, 8c) and the
 /// take-order detail, so both render identically.
 ///
 /// A counterpart nobody has rated shows `New` in place of the grade. That is
@@ -16,13 +18,15 @@ class CounterpartReputationRow extends StatelessWidget {
     super.key,
     required this.rating,
     required this.reviews,
-    required this.days,
+    required this.since,
     required this.counterpartIsBuyer,
   });
 
   final double rating;
   final int reviews;
-  final int days;
+
+  /// The counterpart's first trade (`peerFirstTrade`, `makerFirstTrade`).
+  final DateTime since;
   final bool counterpartIsBuyer;
 
   @override
@@ -50,6 +54,7 @@ class CounterpartReputationRow extends StatelessWidget {
           Container(
             width: 34,
             height: 34,
+            padding: const EdgeInsets.all(2),
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
@@ -58,27 +63,32 @@ class CounterpartReputationRow extends StatelessWidget {
                 color: isNew ? book.border : trade.avatarBorder,
               ),
             ),
-            child:
-                isNew
-                    ? Text(
-                      l10n.reputationNew,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: book.textNew,
+            // The grade shrinks to the circle at large text rather than
+            // spill out of it (DS-TYP-7).
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child:
+                  isNew
+                      ? Text(
+                        l10n.reputationNew,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: book.textNew,
+                        ),
+                      )
+                      : Text(
+                        formatRating(rating, l10n.localeName),
+                        style: TextStyle(
+                          fontFamily: AppFonts.figures,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: book.limeInk,
+                        ),
                       ),
-                    )
-                    : Text(
-                      rating.toStringAsFixed(1),
-                      style: TextStyle(
-                        fontFamily: AppFonts.figures,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: book.limeInk,
-                      ),
-                    ),
+            ),
           ),
-          const SizedBox(width: 11),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,12 +118,12 @@ class CounterpartReputationRow extends StatelessWidget {
                   TextSpan(
                     children: [
                       ...highlightFigures(
-                        l10n.reputationTradesCount(reviews),
+                        l10n.reputationRatingsCount(reviews),
                         figure,
                       ),
                       const TextSpan(text: ' · '),
                       ...highlightFigures(
-                        l10n.reputationDaysOnMostro(days),
+                        reputationSinceText(l10n, since),
                         figure,
                       ),
                     ],

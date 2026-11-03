@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mostro/core/app_routes.dart';
 import 'package:mostro/core/app_theme.dart';
+import 'package:mostro/features/account/restore/restore_after_switch.dart';
 import 'package:mostro/features/deep_links/providers/order_link_providers.dart';
 import 'package:mostro/features/deep_links/screens/order_link_screen.dart';
 import 'package:mostro/features/home/providers/home_order_providers.dart';
@@ -81,10 +82,14 @@ class _FakeNodes extends MostroNodesNotifier {
   }
 }
 
+/// The restores [_pump]'s screen asked for after a node change.
+int _restores = 0;
+
 /// Opens the link screen over a stand-in home, under a router whose every
 /// destination reads its own name. [answers] are what the core says to each
 /// lookup in turn: an [OrderLinkTarget], or an error to throw. The order is
-/// in the live book unless [inBook] is false.
+/// in the live book unless [inBook] is false. The restore after a node
+/// change is counted in [_restores], and holds until [restoreGate] completes.
 Future<(_FakeNodes, ProviderContainer)> _pump(
   WidgetTester tester, {
   required List<Object> answers,
@@ -96,7 +101,9 @@ Future<(_FakeNodes, ProviderContainer)> _pump(
   Locale locale = const Locale('en'),
   double textScale = 1,
   Size size = const Size(360, 760),
+  Future<void>? restoreGate,
 }) async {
+  _restores = 0;
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
@@ -120,6 +127,10 @@ Future<(_FakeNodes, ProviderContainer)> _pump(
       mostroPubkeyProvider.overrideWith((ref) => _active),
       _book.overrideWith((ref) => inBook ? {_id: fakeOrder(id: _id)} : {}),
       orderBookIndexProvider.overrideWith((ref) => ref.watch(_book)),
+      restoreAfterNodeSwitchProvider.overrideWithValue((_) async {
+        _restores++;
+        await restoreGate;
+      }),
     ],
   );
   final router = GoRouter(
@@ -320,6 +331,30 @@ void main() {
 
       // Assert
       expect(nodes.selected, [_other]);
+      expect(_restores, 1);
+      expect(find.text('take sell'), findsOneWidget);
+    });
+
+    testWidgets('the order opens once the restore on its node is over', (
+      tester,
+    ) async {
+      // Arrange
+      final restored = Completer<void>();
+      await _pump(
+        tester,
+        answers: [_target(node: _other), _target()],
+        restoreGate: restored.future,
+      );
+
+      // Act
+      await tester.tap(find.text(_en.nodeSwitchConfirmAction));
+      await _settle(tester);
+
+      // Assert
+      expect(_restores, 1);
+      expect(find.text('take sell'), findsNothing);
+      restored.complete();
+      await _settle(tester);
       expect(find.text('take sell'), findsOneWidget);
     });
 
@@ -381,6 +416,7 @@ void main() {
       // Assert
       expect(nodes.selected, isEmpty);
       expect(find.text('home'), findsOneWidget);
+      expect(_restores, 0);
     });
 
     testWidgets('unreadable trades stop the change before it is offered', (
@@ -412,6 +448,7 @@ void main() {
       expect(find.text(_en.orderLinkFailedTitle), findsOneWidget);
       expect(find.text(_en.errorSwitchingNode), findsOneWidget);
       expect(find.text(_en.retry), findsOneWidget);
+      expect(_restores, 0);
     });
 
     testWidgets('a change that does not take is not asked again', (

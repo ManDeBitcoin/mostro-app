@@ -12,7 +12,7 @@ import 'package:mostro/features/settings/providers/nwc_provider.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/widgets/nwc_payment_widget.dart';
-import 'package:mostro/shared/widgets/peer_reputation_card.dart';
+import 'package:mostro/shared/widgets/counterpart_reputation_row.dart';
 import 'package:mostro/src/rust/api/types.dart';
 
 import '../../../support/fake_trades.dart';
@@ -62,9 +62,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(NwcPaymentWidget), findsOneWidget);
-    expect(find.byType(PeerReputationCard), findsOneWidget);
+    expect(find.byType(CounterpartReputationRow), findsOneWidget);
     // The maker is the seller here (paying the hold invoice), so the taker is
     // the buyer.
-    expect(find.text('Buyer reputation'), findsOneWidget);
+    expect(find.text('Buyer'), findsOneWidget);
   });
 }

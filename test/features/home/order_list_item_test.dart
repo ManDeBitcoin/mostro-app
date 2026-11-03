@@ -1,5 +1,6 @@
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/features/home/providers/home_order_providers.dart';
@@ -7,6 +8,7 @@ import 'package:mostro/features/home/providers/order_reason_provider.dart';
 import 'package:mostro/features/home/widgets/order_list_item.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 
+import '../../support/catalogue_fixtures.dart';
 import '../../support/fake_orders.dart';
 
 const _dark = OrderBookPalette.dark;
@@ -23,30 +25,31 @@ Future<void> _pumpCard(
   addTearDown(tester.view.reset);
   await withClock(Clock.fixed(kFakeNow), () async {
     await tester.pumpWidget(
-      MaterialApp(
-        theme: buildDarkTheme(),
-        locale: const Locale('en'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        builder:
-            (context, child) => MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(textScaler: TextScaler.linear(textScale)),
-              child: child!,
-            ),
-        home: Scaffold(
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(18),
-            child: OrderListItem(
-              order: order,
-              reason: reason,
-              currencyFlags: const {'USD': '🇺🇸'},
+      ProviderScope(
+        overrides: [catalogueOverride()],
+        child: MaterialApp(
+          theme: buildDarkTheme(),
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          builder:
+              (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(textScale)),
+                child: child!,
+              ),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(18),
+              child: OrderListItem(order: order, reason: reason),
             ),
           ),
         ),
       ),
     );
+    // The catalogue loads asynchronously; the mark lands a frame later.
+    await tester.pump();
   });
 }
 
@@ -152,7 +155,9 @@ void main() {
       expect(methods.overflow, TextOverflow.ellipsis);
     });
 
-    testWidgets('shows rating, trades and days for a maker with history', (
+    // DS-L10N-5: ratings counted as ratings, the age as the first trade's
+    // month, as on every other screen.
+    testWidgets('shows rating, ratings and first trade for a rated maker', (
       tester,
     ) async {
       await _pumpCard(
@@ -161,8 +166,9 @@ void main() {
       );
 
       expect(find.text('4.78'), findsOneWidget);
-      expect(find.text('16 trades', findRichText: true), findsOneWidget);
-      expect(find.text('219 days', findRichText: true), findsOneWidget);
+      expect(find.text('16 ratings', findRichText: true), findsOneWidget);
+      // 219 days before 2026-01-01.
+      expect(find.text('since May 2025', findRichText: true), findsOneWidget);
       expect(
         tester.widget<Icon>(find.byIcon(Icons.star_rounded)).color,
         _dark.yellow,
@@ -170,10 +176,10 @@ void main() {
     });
 
     testWidgets(
-      'counts the days from the maker\'s first trade, not the stale count',
+      'dates the maker\'s first trade from since, not the stale count',
       (tester) async {
         // The event's `days` (10) was frozen when the daemon published it;
-        // `since` puts the first trade 300 days before now.
+        // `since` puts the first trade in March 2025.
         await _pumpCard(
           tester,
           fakeOrder(
@@ -184,10 +190,16 @@ void main() {
           ),
         );
 
-        expect(find.text('300 days', findRichText: true), findsOneWidget);
-        expect(find.text('10 days', findRichText: true), findsNothing);
+        expect(find.text('since Mar 2025', findRichText: true), findsOneWidget);
+        expect(find.text('since Dec 2025', findRichText: true), findsNothing);
       },
     );
+
+    testWidgets('groups a large ratings count for the locale', (tester) async {
+      await _pumpCard(tester, fakeOrder(rating: 4.97, tradeCount: 1323));
+
+      expect(find.text('1,323 ratings', findRichText: true), findsOneWidget);
+    });
 
     testWidgets('marks a maker without trades as new', (tester) async {
       await _pumpCard(
@@ -196,7 +208,7 @@ void main() {
       );
 
       expect(_colorOf(tester, 'New'), _dark.textNew);
-      expect(find.text('no trades'), findsOneWidget);
+      expect(find.text('no ratings', findRichText: true), findsOneWidget);
       expect(
         tester.widget<Icon>(find.byIcon(Icons.star_rounded)).color,
         _dark.starEmpty,

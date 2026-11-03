@@ -273,7 +273,7 @@ void main() {
         expect(find.textContaining('The final figure is set'), findsOneWidget);
         expect(find.text('4.8'), findsOneWidget);
         expect(find.text('Seller'), findsOneWidget);
-        expect(find.text('16 trades · 219 days on Mostro'), findsOneWidget);
+        expect(find.text('16 ratings · since May 2025'), findsOneWidget);
         expect(find.text('You pay with'), findsOneWidget);
         expect(find.text('Mercado Pago'), findsOneWidget);
         expect(find.text('3m ago'), findsOneWidget);
@@ -423,7 +423,7 @@ void main() {
         );
 
         expect(find.text('New'), findsOneWidget);
-        expect(find.text('no trades · 29 days on Mostro'), findsOneWidget);
+        expect(find.text('no ratings · since Dec 2025'), findsOneWidget);
       });
     });
 

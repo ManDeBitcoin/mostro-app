@@ -84,7 +84,7 @@ final groupedChatRowsProvider = Provider<List<ChatRowGroup<ChatListRow>>>((
   final trades = _tradesById(ref);
   final now = _nowSeconds();
   final rows = [
-    for (final room in ref.watch(chatRoomsNotifierProvider))
+    for (final room in ref.watch(activeNodeChatRoomsProvider))
       ChatListRow(
         room: room,
         trade: trades[room.orderId],

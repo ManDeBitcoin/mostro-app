@@ -1368,10 +1368,10 @@ abstract class AppLocalizations {
   /// **'P2P exchange'**
   String get drawerTagline;
 
-  /// Release-stage chip in the drawer header (rendered uppercase). Single source for the stage label — change it here when the app leaves alpha
+  /// Release-stage chip in the drawer header (rendered uppercase). Single source for the stage label — change it here when the app leaves beta
   ///
   /// In en, this message translates to:
-  /// **'Alpha'**
+  /// **'Beta'**
   String get drawerStageBadge;
 
   /// App version line in the drawer footer
@@ -1575,7 +1575,7 @@ abstract class AppLocalizations {
   /// Snackbar shown when the fiat-sent action fails
   ///
   /// In en, this message translates to:
-  /// **'Failed to mark fiat as sent. Please try again.'**
+  /// **'Failed to mark the payment as sent. Please try again.'**
   String get fiatSentFailed;
 
   /// Snackbar shown when the release-sats action fails
@@ -2466,6 +2466,54 @@ abstract class AppLocalizations {
   /// **'Resolver actions and dispute resolutions'**
   String get notifDisputeUpdatesSubtitle;
 
+  /// Title of the Announcements toggle in notification settings (specs/006)
+  ///
+  /// In en, this message translates to:
+  /// **'Announcements'**
+  String get notifAnnouncementsTitle;
+
+  /// Subtitle of the Announcements toggle
+  ///
+  /// In en, this message translates to:
+  /// **'Releases, outages and relay changes, signed by the Mostro project'**
+  String get notifAnnouncementsSubtitle;
+
+  /// Line above the Announcements toggle: the channel is one-way, nothing is reported back
+  ///
+  /// In en, this message translates to:
+  /// **'Announcements are read from the relays and never answered: nothing about you is sent.'**
+  String get announcementsGroupSubtitle;
+
+  /// Label on an info-level announcement card (specs/006 §3.4)
+  ///
+  /// In en, this message translates to:
+  /// **'Announcement'**
+  String get announcementLevelInfo;
+
+  /// Label on a warning-level announcement card
+  ///
+  /// In en, this message translates to:
+  /// **'Notice'**
+  String get announcementLevelWarning;
+
+  /// Label on a critical (security) announcement card
+  ///
+  /// In en, this message translates to:
+  /// **'Security update'**
+  String get announcementLevelCritical;
+
+  /// Button on an announcement card that opens its link externally
+  ///
+  /// In en, this message translates to:
+  /// **'Open link'**
+  String get announcementOpenLink;
+
+  /// Semantic label of the bell while a critical announcement is unread
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications, a security update is unread'**
+  String get notificationsBellCritical;
+
   /// Hint text of the currency search field
   ///
   /// In en, this message translates to:
@@ -2607,7 +2655,7 @@ abstract class AppLocalizations {
   /// Instruction for buyer after marking fiat sent
   ///
   /// In en, this message translates to:
-  /// **'Fiat payment marked as sent. Waiting for the seller to confirm receipt and release your sats.'**
+  /// **'Payment marked as sent. Waiting for the seller to confirm receipt and release your sats.'**
   String get tradeInstructionFiatSentBuyer;
 
   /// Instruction for seller while trade is active
@@ -2619,7 +2667,7 @@ abstract class AppLocalizations {
   /// Instruction for seller after buyer marks fiat sent
   ///
   /// In en, this message translates to:
-  /// **'The buyer has confirmed they sent the fiat payment. Once you verify receipt, release the sats.'**
+  /// **'The buyer has confirmed they sent the payment. Once you verify receipt, release the sats.'**
   String get tradeInstructionFiatSentSeller;
 
   /// Instruction while a dispute is in progress
@@ -2784,6 +2832,12 @@ abstract class AppLocalizations {
   /// **'Order taken'**
   String get tradeStepOrderTaken;
 
+  /// Timeline step 1 while the user's own order is still in the book and nobody has taken it; once taken the same step reads tradeStepOrderTaken
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for a taker'**
+  String get tradeStepWaitingTaker;
+
   /// Trade screen timeline, step 2 for the buyer: the seller locks the sats (the seller's version is tradeStepInvoiceSeller)
   ///
   /// In en, this message translates to:
@@ -2799,13 +2853,13 @@ abstract class AppLocalizations {
   /// Timeline step for buyer: send fiat
   ///
   /// In en, this message translates to:
-  /// **'You send the fiat payment'**
+  /// **'You send the payment'**
   String get tradeStepFiatBuyer;
 
   /// Timeline step for seller: buyer sends fiat
   ///
   /// In en, this message translates to:
-  /// **'The buyer sends the fiat payment'**
+  /// **'The buyer sends the payment'**
   String get tradeStepFiatSeller;
 
   /// Timeline step for buyer: seller releases sats
@@ -3071,36 +3125,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Take order'**
   String get rangeAmountTakeAction;
-
-  /// Title of the counterpart reputation card when the taker is the buyer
-  ///
-  /// In en, this message translates to:
-  /// **'Buyer reputation'**
-  String get buyerReputation;
-
-  /// Title of the counterpart reputation card when the taker is the seller
-  ///
-  /// In en, this message translates to:
-  /// **'Seller reputation'**
-  String get sellerReputation;
-
-  /// Reputation stat label: rating
-  ///
-  /// In en, this message translates to:
-  /// **'rating'**
-  String get ratingStatLabel;
-
-  /// Reputation stat label: trades
-  ///
-  /// In en, this message translates to:
-  /// **'trades'**
-  String get tradesStatLabel;
-
-  /// Reputation stat label: days active
-  ///
-  /// In en, this message translates to:
-  /// **'days active'**
-  String get daysActiveStatLabel;
 
   /// Shown when a fixed-sats order amount is outside the node min/max order amount
   ///
@@ -3528,18 +3552,6 @@ abstract class AppLocalizations {
   /// **'Market price'**
   String get marketPriceCaption;
 
-  /// Unit word after the trade count in the order-book reputation row
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{trade} other{trades}}'**
-  String reputationTradesLabel(int count);
-
-  /// Unit word after the active-days count in the order-book reputation row
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{day} other{days}}'**
-  String reputationDaysLabel(int count);
-
   /// Sort caption on the order-book filter row; must describe the ordering actually applied (newest first)
   ///
   /// In en, this message translates to:
@@ -3593,12 +3605,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New'**
   String get reputationNew;
-
-  /// Replaces the trade count on an order-book card when the maker has no trades yet
-  ///
-  /// In en, this message translates to:
-  /// **'no trades'**
-  String get reputationNoTrades;
 
   /// Bottom navigation label for the order book tab (short)
   ///
@@ -4077,7 +4083,7 @@ abstract class AppLocalizations {
   /// Step body for the buyer while the seller pays the hold invoice
   ///
   /// In en, this message translates to:
-  /// **'The seller is locking the sats. Once they are locked, it\'s your turn to pay the fiat.'**
+  /// **'The seller is locking the sats. Once they are locked, it\'s your turn to pay.'**
   String get tradeBodyWaitingPaymentBuyer;
 
   /// Step body for the seller of an active trade; {method} is the payment method
@@ -4097,6 +4103,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The buyer marked the payment as sent. Check your {method} account before releasing.'**
   String tradeBodyFiatSentSeller(String method);
+
+  /// Step body for the buyer of an active stablecoin trade: send on the network the payment method names, then paste the transaction ID in the chat (app#884); {method} is the payment method
+  ///
+  /// In en, this message translates to:
+  /// **'Send it on {method}, to the address they shared in the chat: on another network it can be lost. Then paste the transaction ID in the chat (it is your proof in a dispute) and mark it below.'**
+  String tradeBodyActiveBuyerStablecoin(String method);
+
+  /// Step body for the seller of an active stablecoin trade: share the receiving address (app#884); {method} is the payment method
+  ///
+  /// In en, this message translates to:
+  /// **'Share your {method} address in the chat above.'**
+  String tradeBodyActiveSellerStablecoin(String method);
+
+  /// Step body for the seller of a stablecoin trade once the buyer marked the payment as sent: check the transfer by its transaction ID (app#884); {method} is the payment method
+  ///
+  /// In en, this message translates to:
+  /// **'The buyer marked the payment as sent. Before releasing, check that it reached your {method} address, with the transaction ID from the chat.'**
+  String tradeBodyFiatSentSellerStablecoin(String method);
+
+  /// Step body for the buyer of an active trade in bitcoin on another network (BTC on-chain or RBTC): pay a fee high enough to confirm well before the escrow deadline, worded for any chain, then paste the transaction ID (app#907); {method} is the payment method
+  ///
+  /// In en, this message translates to:
+  /// **'Send it on {method}, to the address they shared in the chat, with a fee high enough to confirm soon: the seller releases only once it has confirmed. Then paste the transaction ID in the chat (it is your proof in a dispute) and mark it below.'**
+  String tradeBodyActiveBuyerBtcPegged(String method);
+
+  /// Step body for the buyer of an active L-BTC trade: Liquid transactions are confidential, so share the unblinded link that shows the amount (app#907); {method} is the payment method
+  ///
+  /// In en, this message translates to:
+  /// **'Send it on {method}, to the address they shared in the chat. Then paste the unblinded transaction link in the chat: Liquid hides the amount, and the link shows it to the seller and, in a dispute, to the solver. Mark it below.'**
+  String tradeBodyActiveBuyerLiquid(String method);
+
+  /// Step body for the seller of a trade in bitcoin on another network once the buyer marked it sent: release only after the transfer confirms (app#907); {method} is the payment method
+  ///
+  /// In en, this message translates to:
+  /// **'The buyer marked the payment as sent. Release only once it has confirmed on {method}: check it with the transaction ID from the chat.'**
+  String tradeBodyFiatSentSellerBtcPegged(String method);
+
+  /// Step body for the seller of an L-BTC trade once the buyer marked it sent: release only after it confirms, checking the amount with the unblinded link (app#907); {method} is the payment method
+  ///
+  /// In en, this message translates to:
+  /// **'The buyer marked the payment as sent. Release only once it has confirmed on {method}: check the amount with the unblinded link from the chat.'**
+  String tradeBodyFiatSentSellerLiquid(String method);
 
   /// Warning inside the step block before releasing
   ///
@@ -4133,18 +4181,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Seller'**
   String get tradeRoleSeller;
-
-  /// Number of trades on the reputation row
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{1 trade} other{{count} trades}}'**
-  String reputationTradesCount(int count);
-
-  /// Account age on the reputation row
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{1 day on Mostro} other{{count} days on Mostro}}'**
-  String reputationDaysOnMostro(int count);
 
   /// Primary action of the buyer once the fiat is sent
   ///
@@ -4343,18 +4379,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Buyer'**
   String get counterpartyBuyer;
-
-  /// Completed trades of the maker on the counterparty card
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{{count} trade} other{{count} trades}}'**
-  String counterpartyTrades(int count);
-
-  /// Seniority of the maker on the counterparty card
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{{count} day on Mostro} other{{count} days on Mostro}}'**
-  String counterpartyDaysOnMostro(int count);
 
   /// Payment-method row label when the taker buys BTC
   ///
@@ -6030,12 +6054,6 @@ abstract class AppLocalizations {
   /// **'You receive'**
   String get invoiceYouGetLabel;
 
-  /// Counterpart reputation when they have no rated trade (instead of 0.0 stars)
-  ///
-  /// In en, this message translates to:
-  /// **'no trades'**
-  String get invoiceNoTrades;
-
   /// 13a primary action
   ///
   /// In en, this message translates to:
@@ -6159,19 +6177,19 @@ abstract class AppLocalizations {
   /// Notifications card body for a trade status change (issue #474); role-neutral, both sides see it
   ///
   /// In en, this message translates to:
-  /// **'The sats are locked. The buyer can now send the fiat payment.'**
+  /// **'The sats are locked. The buyer can now send the payment.'**
   String get tradeCardActiveMessage;
 
   /// Notifications card title for a trade status change (issue #474); role-neutral, both sides see it
   ///
   /// In en, this message translates to:
-  /// **'Fiat marked as sent'**
+  /// **'Payment marked as sent'**
   String get tradeCardFiatSentTitle;
 
   /// Notifications card body for a trade status change (issue #474); role-neutral, both sides see it
   ///
   /// In en, this message translates to:
-  /// **'The buyer marked the fiat payment as sent.'**
+  /// **'The buyer marked the payment as sent.'**
   String get tradeCardFiatSentMessage;
 
   /// Notifications card title for a trade status change (issue #474); role-neutral, both sides see it
@@ -7110,6 +7128,180 @@ abstract class AppLocalizations {
   /// **'The send failed and the wallet could not confirm the funds are back. Sync with the mint before trying again.'**
   String get cashuErrorSendUnresolved;
 
+  /// Cashu wallet — Send dialog: export ecash as a token
+  ///
+  /// In en, this message translates to:
+  /// **'Ecash'**
+  String get cashuSendEcashOption;
+
+  /// Cashu wallet — Send dialog: pay a Lightning invoice from the wallet
+  ///
+  /// In en, this message translates to:
+  /// **'Lightning'**
+  String get cashuSendLightningOption;
+
+  /// Cashu wallet — title of the dialog that takes a bolt11 invoice to pay
+  ///
+  /// In en, this message translates to:
+  /// **'Pay a Lightning invoice'**
+  String get cashuInvoiceDialogTitle;
+
+  /// Cashu wallet — label above the invoice field; shown in capitals
+  ///
+  /// In en, this message translates to:
+  /// **'Lightning invoice'**
+  String get cashuInvoiceFieldLabel;
+
+  /// Cashu wallet — dimmed placeholder of the invoice field
+  ///
+  /// In en, this message translates to:
+  /// **'Paste a Lightning invoice'**
+  String get cashuPasteInvoiceHint;
+
+  /// Cashu wallet — placeholder in the invoice scanner when the camera cannot start
+  ///
+  /// In en, this message translates to:
+  /// **'Paste or scan a Lightning invoice'**
+  String get cashuInvoiceScanHint;
+
+  /// Cashu wallet — title of the confirmation before paying a Lightning invoice
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm payment'**
+  String get cashuMeltConfirmTitle;
+
+  /// Cashu wallet — payment confirmation: what the invoice asks for
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get cashuMeltAmount;
+
+  /// Cashu wallet — payment confirmation: the most the payment can cost in routing and mint fees
+  ///
+  /// In en, this message translates to:
+  /// **'Fees, up to'**
+  String get cashuMeltFees;
+
+  /// Cashu wallet — payment confirmation: the most the payment can take from the balance
+  ///
+  /// In en, this message translates to:
+  /// **'Total, up to'**
+  String get cashuMeltTotal;
+
+  /// Cashu wallet — payment confirmation: the routing fee reserve is returned when unspent
+  ///
+  /// In en, this message translates to:
+  /// **'Fees the mint does not use come back to your wallet.'**
+  String get cashuMeltFeesNote;
+
+  /// Cashu wallet — payment confirmation shown again because the quote expired or its fees went up
+  ///
+  /// In en, this message translates to:
+  /// **'The price changed. Check the new total before paying.'**
+  String get cashuMeltQuoteRefreshed;
+
+  /// Cashu wallet — confirms paying the Lightning invoice
+  ///
+  /// In en, this message translates to:
+  /// **'Pay'**
+  String get cashuPayButton;
+
+  /// Cashu wallet — payment dialog result: the Lightning invoice was paid
+  ///
+  /// In en, this message translates to:
+  /// **'Paid {sats} sats'**
+  String cashuMeltPaidTitle(String sats);
+
+  /// Cashu wallet — payment dialog result: what the payment actually cost beyond the invoice
+  ///
+  /// In en, this message translates to:
+  /// **'Fee: {fee} sats'**
+  String cashuMeltPaidFee(String fee);
+
+  /// Cashu wallet — payment dialog result: the mint is still routing the Lightning payment
+  ///
+  /// In en, this message translates to:
+  /// **'Payment in progress'**
+  String get cashuMeltPendingTitle;
+
+  /// Cashu wallet — payment dialog result when the outcome is unknown (still routing, or the mint did not answer); names the “Sync with mint” button (cashuSyncButton), which must match it in every locale
+  ///
+  /// In en, this message translates to:
+  /// **'The outcome isn\'t confirmed yet. Those sats stay on hold; tap “Sync with mint” later to settle them.'**
+  String get cashuMeltPendingBody;
+
+  /// Cashu wallet — payment dialog result: the payment did not go through; the reason follows
+  ///
+  /// In en, this message translates to:
+  /// **'Payment failed'**
+  String get cashuMeltFailedTitle;
+
+  /// Cashu error — the text is not a bolt11 invoice, or asks for a fraction of a sat
+  ///
+  /// In en, this message translates to:
+  /// **'That is not a Lightning invoice this wallet can pay.'**
+  String get cashuErrorInvalidInvoice;
+
+  /// Cashu error — amountless invoices are not supported
+  ///
+  /// In en, this message translates to:
+  /// **'This invoice has no amount. Ask for one that states how much to pay.'**
+  String get cashuErrorInvoiceNoAmount;
+
+  /// Cashu error — the invoice to pay has expired
+  ///
+  /// In en, this message translates to:
+  /// **'This invoice has expired. Ask for a new one.'**
+  String get cashuErrorInvoiceExpired;
+
+  /// Cashu error — the mint does not support melting to bolt11 (NUT-05)
+  ///
+  /// In en, this message translates to:
+  /// **'This mint cannot pay Lightning invoices.'**
+  String get cashuErrorMeltUnsupported;
+
+  /// Cashu error — the invoice amount is outside the mint's melt limits
+  ///
+  /// In en, this message translates to:
+  /// **'This mint does not pay invoices of that amount.'**
+  String get cashuErrorMeltAmountOutOfRange;
+
+  /// Cashu error — the mint refused or failed to quote the melt
+  ///
+  /// In en, this message translates to:
+  /// **'The mint could not quote this payment. Try again later.'**
+  String get cashuErrorMeltQuoteFailed;
+
+  /// Cashu error — the melt quote expired before paying; nothing was spent
+  ///
+  /// In en, this message translates to:
+  /// **'The payment quote expired. Nothing was paid; start again.'**
+  String get cashuErrorMeltQuoteExpired;
+
+  /// Cashu error — the melt now costs more than the confirmed total; nothing was spent
+  ///
+  /// In en, this message translates to:
+  /// **'The fees went up since you confirmed. Nothing was paid; start again.'**
+  String get cashuErrorMeltFeeChanged;
+
+  /// Cashu error — another Lightning payment from the wallet is still waiting for the mint; nothing was started
+  ///
+  /// In en, this message translates to:
+  /// **'A Lightning payment from this wallet is still in progress. Wait for it to finish, then try again.'**
+  String get cashuErrorMeltInFlight;
+
+  /// Cashu error — the balance does not cover the invoice plus fees
+  ///
+  /// In en, this message translates to:
+  /// **'You do not have enough in the wallet to pay this invoice and its fees.'**
+  String get cashuErrorMeltInsufficientFunds;
+
+  /// Cashu error — the melt was rolled back: nothing was paid and the proofs are already back in the balance
+  ///
+  /// In en, this message translates to:
+  /// **'The payment did not go through. Nothing was paid; the sats are back in your balance.'**
+  String get cashuErrorMeltFailed;
+
   /// Title of the seller's Cashu escrow funding screen
   ///
   /// In en, this message translates to:
@@ -7299,7 +7491,7 @@ abstract class AppLocalizations {
   /// Trade screen body for the buyer while the seller locks the Cashu escrow
   ///
   /// In en, this message translates to:
-  /// **'They\'re locking the sats in escrow. Once it\'s locked, it\'s your turn to pay the fiat.'**
+  /// **'They\'re locking the sats in escrow. Once it\'s locked, it\'s your turn to pay.'**
   String get tradeBodyWaitingPaymentBuyerCashu;
 
   /// Dispute chat app bar: tooltip of the action that sends the solver the peer chat key (#415)
@@ -7440,17 +7632,17 @@ abstract class AppLocalizations {
   /// **'Your reputation'**
   String get myReputationTitle;
 
-  /// Number of ratings the user has received, on their own reputation card
+  /// How many ratings a user has received, wherever their reputation shows (DS-L10N-5); zero reads as none
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 rating} other{{count} ratings}}'**
-  String myReputationReviews(int count);
+  /// **'{count, plural, =0{no ratings} =1{1 rating} other{{count} ratings}}'**
+  String reputationRatingsCount(int count);
 
-  /// Date of the user's first trade on their reputation card; date is a localized month and year
+  /// Month of a user's first trade, wherever their reputation shows (DS-L10N-5); date is a localized month and year
   ///
   /// In en, this message translates to:
   /// **'since {date}'**
-  String myReputationSince(String date);
+  String reputationSince(String date);
 
   /// Own reputation card when the node has no ratings for the user
   ///
@@ -7662,23 +7854,47 @@ abstract class AppLocalizations {
   /// **'Import into this Mostro'**
   String get reputationImportConfirm;
 
-  /// Import reputation screen: the figures of a checked attestation. {rating} is already formatted for the locale
-  ///
-  /// In en, this message translates to:
-  /// **'{reviews, plural, =1{1 rating received} other{{reviews} ratings received}}, {rating} on average, {days, plural, =1{trading for 1 day} other{trading for {days} days}}'**
-  String reputationFigures(int reviews, String rating, int days);
-
   /// Under the figures: imported reputation is merged with the one on this node
   ///
   /// In en, this message translates to:
   /// **'Imported reputation is added to the one you have here; your counterparts see them merged.'**
   String get reputationFiguresNote;
 
+  /// Reputation screen: an export failed for a reason without a message of its own (#882)
+  ///
+  /// In en, this message translates to:
+  /// **'This Mostro could not export your reputation. Try again later.'**
+  String get reputationExportFailed;
+
+  /// Reputation screen: the export answer is signed by another key than the reputation_issuer the app read for the node, usually a stale info event (#882)
+  ///
+  /// In en, this message translates to:
+  /// **'This Mostro signed the answer with a key other than the one it announced. Switch to another Mostro and back to refresh its info, then try again.'**
+  String get reputationExportUnexpectedIssuer;
+
   /// Shown when the Telegram link could not be opened: the user can still do it by hand
   ///
   /// In en, this message translates to:
   /// **'Telegram could not be opened. Open lnp2pBot in Telegram yourself and paste here what it sends you.'**
   String get reputationOpenLnp2pbotFailed;
+
+  /// Import reputation screen, above the figures of a checked attestation: it was signed with lnp2pBot's issuer key (#881)
+  ///
+  /// In en, this message translates to:
+  /// **'Issued by lnp2pBot'**
+  String get reputationIssuedByLnp2pbot;
+
+  /// Import reputation screen, above the figures: a known Mostro announces the issuer key; name is its cached profile name, or its npub (#881)
+  ///
+  /// In en, this message translates to:
+  /// **'Issued by the Mostro {name}'**
+  String reputationIssuedByMostro(String name);
+
+  /// Import reputation screen, above the figures: neither lnp2pBot nor a known Mostro signs with the issuer key; its npub follows on the next line (#881)
+  ///
+  /// In en, this message translates to:
+  /// **'Issued by a key this app does not know:'**
+  String get reputationIssuedByUnknownKey;
 
   /// Explain why the complete npub is shown beside the Telegram action
   ///
@@ -7746,23 +7962,53 @@ abstract class AppLocalizations {
   /// **'Your reputation is ready. Switch to the Mostro where you want it and import it; it is valid for 7 days.'**
   String get reputationExported;
 
-  /// Reputation screen, export card: how to move the reputation to a new identity; above the new-identity field and the Sign authorization button
+  /// Reputation screen: title of the card that signs an authorization to move an exported reputation to a new identity
   ///
   /// In en, this message translates to:
-  /// **'Moving to a new identity? Sign an authorization for it here, with the identity your reputation is bound to now. Then, from the new identity, paste it in the authorization field above and export.'**
+  /// **'Move to a new identity'**
+  String get reputationRebindTitle;
+
+  /// Reputation screen, move card: how to move the reputation to a new identity; above the new-identity field and the two sign buttons
+  ///
+  /// In en, this message translates to:
+  /// **'Sign an authorization for the new identity with the identity your reputation is bound to now: for this Mostro, or for lnp2pBot if you got it from there.'**
   String get reputationRebindBody;
 
-  /// Reputation screen, export card: hint of the field for the public key (npub or hex) of the new identity to authorize
+  /// Reputation screen, move card: hint of the field for the public key (npub or hex) of the new identity to authorize
   ///
   /// In en, this message translates to:
   /// **'New identity (npub or hex)'**
   String get reputationNewIdentityHint;
 
-  /// Reputation screen: button that signs an authorization for the new identity; also the confirm button of the dialog shown before signing
+  /// Reputation screen, move card: button that signs the authorization for the active node's issuer key; shown only while the node exports
+  ///
+  /// In en, this message translates to:
+  /// **'Sign for this Mostro'**
+  String get reputationRebindSignNode;
+
+  /// Reputation screen, move card: button that signs the authorization for lnp2pBot's issuer key
+  ///
+  /// In en, this message translates to:
+  /// **'Sign for lnp2pBot'**
+  String get reputationRebindSignBot;
+
+  /// Confirm button of the dialog shown before signing a rebind authorization
   ///
   /// In en, this message translates to:
   /// **'Sign authorization'**
   String get reputationRebindSign;
+
+  /// Reputation screen, move card: shown above an authorization signed for the active node, which the new identity pastes into the export card
+  ///
+  /// In en, this message translates to:
+  /// **'From the new identity, paste it in the authorization field of the export card and export.'**
+  String get reputationRebindSignedForNode;
+
+  /// Reputation screen, move card: shown above an authorization signed for lnp2pBot. The bot takes it only after the new identity opened the link from the import screen (lnp2pBot/bot#934). The quoted label is reputationOpenLnp2pbot
+  ///
+  /// In en, this message translates to:
+  /// **'lnp2pBot takes this only after the new identity asked it for your reputation: if you have not yet, open lnp2pBot from the new identity with \"Get it from lnp2pBot\" on the import screen, and open no other link to it afterwards. Then paste this in that chat and confirm. It is valid for one hour.'**
+  String get reputationRebindSignedForBot;
 
   /// Reputation screen error: the new-identity field does not hold a valid npub or hex public key; also the fallback when signing the authorization fails
   ///
@@ -7782,11 +8028,17 @@ abstract class AppLocalizations {
   /// **'Authorize this identity?'**
   String get reputationRebindConfirmTitle;
 
-  /// Dialog body before signing a rebind authorization: the key that will take the reputation over
+  /// Dialog body before signing a rebind authorization for the active node: the key that will take the reputation over
   ///
   /// In en, this message translates to:
   /// **'Whoever holds this identity will be able to export your reputation from this Mostro, and your current identity no longer will:\n\n{npub}\n\nSign only for an identity that is yours.'**
   String reputationRebindConfirmBody(String npub);
+
+  /// Dialog body before signing a rebind authorization for lnp2pBot: the key that will take the reputation over
+  ///
+  /// In en, this message translates to:
+  /// **'Whoever holds this identity will be able to export your reputation from lnp2pBot, and your current identity no longer will:\n\n{npub}\n\nSign only for an identity that is yours.'**
+  String reputationRebindConfirmBodyBot(String npub);
 
   /// Trade detail payout card (#823): row label before the destination the buyer's sats were paid to
   ///
@@ -8082,11 +8334,29 @@ abstract class AppLocalizations {
   /// **'Trade on another node'**
   String get otherNodeCardDialogTitle;
 
-  /// Notifications (#811): body of the dialog shown when the user taps a card whose trade is on another node; informational only, nodes are switched in Settings
+  /// Notifications (#811): body of the dialog shown when the user taps a card whose trade is on another node; its primary action switches to that node and then opens what was tapped
   ///
   /// In en, this message translates to:
-  /// **'This trade is on node {nodeName}. To act on it, switch to that node in Settings.'**
-  String otherNodeCardOpenHint(String nodeName);
+  /// **'Do you want to switch to node {nodeName}?'**
+  String otherNodeCardSwitchPrompt(String nodeName);
+
+  /// Group header above the stablecoins in the currency pickers (create order, default currency, order book filter)
+  ///
+  /// In en, this message translates to:
+  /// **'Stablecoins'**
+  String get stablecoinsGroupHeader;
+
+  /// Group header above bitcoin on other networks (BTC, LBTC, RBTC: order currencies pegged 1:1 to bitcoin, amounts in sats) in the currency pickers, after the stablecoins (app#907)
+  ///
+  /// In en, this message translates to:
+  /// **'Bitcoin on other networks'**
+  String get bitcoinNetworksGroupHeader;
+
+  /// Under the Market | Fixed control when the node's rates event does not quote the selected stablecoin, so Market is locked
+  ///
+  /// In en, this message translates to:
+  /// **'This node doesn\'t quote {code} at market price. Set a fixed amount in sats.'**
+  String marketPriceNotQuotedByNode(String code);
 }
 
 class _AppLocalizationsDelegate

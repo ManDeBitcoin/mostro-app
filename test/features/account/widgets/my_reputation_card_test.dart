@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -91,15 +92,44 @@ void main() {
     expect(find.text('4,8'), findsOneWidget);
   });
 
-  testWidgets('falls back to the day count when the node sends no since', (
+  // The order book shows the same user at 4,97 (DS-L10N-5).
+  testWidgets('keeps the second decimal, as the order book does', (
     tester,
   ) async {
     await _pump(
       tester,
-      state: MyReputationState(reputation: _rep(since: null, days: 142)),
+      state: MyReputationState(reputation: _rep(rating: 4.97)),
+      locale: const Locale('es'),
     );
 
-    expect(find.textContaining('142 days on Mostro'), findsOneWidget);
+    expect(find.text('4,97'), findsOneWidget);
+    expect(find.text('5,0'), findsNothing);
+  });
+
+  // DS-L10N-5: the age reads as a month on every screen, whatever the node
+  // sent.
+  testWidgets('dates the first trade from the day count without since', (
+    tester,
+  ) async {
+    await withClock(
+      Clock.fixed(DateTime.utc(2026, 1, 1, 12)),
+      () => _pump(
+        tester,
+        state: MyReputationState(reputation: _rep(since: null, days: 142)),
+      ),
+    );
+
+    expect(find.textContaining('since Aug 2025'), findsOneWidget);
+    expect(find.textContaining('142 days'), findsNothing);
+  });
+
+  testWidgets('groups a large ratings count for the locale', (tester) async {
+    await _pump(
+      tester,
+      state: MyReputationState(reputation: _rep(reviews: 1323)),
+    );
+
+    expect(find.textContaining('1,323 ratings'), findsOneWidget);
   });
 
   testWidgets('zero ratings is the empty state, never a 0.0 rating', (

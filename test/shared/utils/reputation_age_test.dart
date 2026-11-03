@@ -1,5 +1,8 @@
 import 'package:clock/clock.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/utils/reputation_age.dart';
 
 import '../../support/fake_trades.dart';
@@ -8,7 +11,7 @@ import '../../support/fake_trades.dart';
 const _since = 1699920000;
 final _sinceDate = DateTime.utc(2023, 11, 14);
 
-/// 64 whole days and a half after [_sinceDate].
+/// 64 days and a half after [_sinceDate].
 final _now = DateTime.utc(2024, 1, 17, 12);
 
 void main() {
@@ -31,66 +34,64 @@ void main() {
     });
   });
 
-  group('daysOnMostro', () {
-    test('counts whole days elapsed since the first trade', () {
-      // Act
-      final days = withClock(
+  group('firstTradeDay', () {
+    test('is the daemon\'s since, whatever the stale day count says', () {
+      final day = withClock(
         Clock.fixed(_now),
-        () => daysOnMostro(_sinceDate, fallbackDays: 10),
+        () => firstTradeDay(_sinceDate, fallbackDays: 10),
       );
 
-      // Assert — the stale fallback is ignored when since is present.
-      expect(days, 64);
+      expect(day, _sinceDate);
     });
 
-    test('is zero on the day of the first trade', () {
-      final days = withClock(
-        Clock.fixed(_sinceDate.add(const Duration(hours: 23))),
-        () => daysOnMostro(_sinceDate, fallbackDays: 10),
-      );
-
-      expect(days, 0);
-    });
-
-    test('falls back to the day count when since is absent', () {
-      final days = withClock(
+    test('counts the day count back from now when since is absent', () {
+      final day = withClock(
         Clock.fixed(_now),
-        () => daysOnMostro(null, fallbackDays: 10),
+        () => firstTradeDay(null, fallbackDays: 10),
       );
 
-      expect(days, 10);
-    });
-
-    test('clamps a since in the future to zero', () {
-      final days = withClock(
-        Clock.fixed(_sinceDate.subtract(const Duration(days: 3))),
-        () => daysOnMostro(_sinceDate, fallbackDays: 10),
-      );
-
-      expect(days, 0);
+      expect(day, _now.subtract(const Duration(days: 10)));
     });
   });
 
-  group('TradeInfo.peerDaysOnMostro', () {
+  group('reputationSinceText', () {
+    // The app's Localizations load each locale's date data; a bare test
+    // does it by hand.
+    setUpAll(initializeDateFormatting);
+
+    test('reads as the month of the first trade, for the locale', () async {
+      final en = await AppLocalizations.delegate.load(const Locale('en'));
+      final es = await AppLocalizations.delegate.load(const Locale('es'));
+
+      expect(reputationSinceText(en, _sinceDate), 'since Nov 2023');
+      expect(reputationSinceText(es, _sinceDate), 'desde nov 2023');
+    });
+  });
+
+  group('TradeInfo.peerFirstTrade', () {
     test('prefers peerSince over the stale peerDays', () {
-      // Arrange
       final trade = fakeTrade(peerDays: 10, peerSince: _since);
 
-      // Act
-      final days = withClock(Clock.fixed(_now), () => trade.peerDaysOnMostro);
+      final day = withClock(Clock.fixed(_now), () => trade.peerFirstTrade);
 
-      // Assert
-      expect(days, 64);
+      expect(day, _sinceDate);
     });
 
     test('falls back to peerDays from a daemon without since', () {
       final trade = fakeTrade(peerDays: 10);
 
-      expect(trade.peerDaysOnMostro, 10);
+      final day = withClock(Clock.fixed(_now), () => trade.peerFirstTrade);
+
+      expect(day, _now.subtract(const Duration(days: 10)));
     });
 
-    test('is zero when the trade carries no reputation at all', () {
-      expect(fakeTrade().peerDaysOnMostro, 0);
+    test('is today when the trade carries no reputation at all', () {
+      final day = withClock(
+        Clock.fixed(_now),
+        () => fakeTrade().peerFirstTrade,
+      );
+
+      expect(day, _now);
     });
   });
 }

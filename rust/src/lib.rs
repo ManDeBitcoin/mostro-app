@@ -12,6 +12,7 @@ pub mod crypto;
 pub mod db;
 mod identity_slot;
 pub mod mostro;
+mod node_pictures;
 pub mod nostr;
 pub mod nwc;
 pub mod queue;

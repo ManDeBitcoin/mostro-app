@@ -19,7 +19,7 @@ Return all current user preferences.
 AppSettings {
   theme: ThemeMode                 # System | Dark | Light (default: System)
   language: String                 # BCP-47 locale code (default: device locale)
-  default_fiat_code: String?       # ISO 4217 code, e.g. "USD" (default: null — show all)
+  default_fiat_code: String?       # Currency code, e.g. "USD" or "USDT" (default: null — show all)
   default_lightning_address: String?  # Lightning address for auto-fill when selling
   logging_enabled: bool            # Runtime-only in Rust; re-applied by Flutter on launch
   privacy_mode: bool               # Mirrors Identity.privacy_mode; false when no Identity exists
@@ -51,8 +51,9 @@ Set the default fiat currency for new orders. Pass null to clear
 
 **Validation** (applied only when `code` is non-null):
 - If no active Mostro node is selected: perform format-only validation
-  (accept any syntactically valid ISO 4217 code). Do NOT return
-  `UnsupportedCurrency`.
+  (accept any syntactically valid currency code: 3 to 5 uppercase ASCII
+  letters — an ISO 4217 fiat, or a stablecoin code from the catalogue such as
+  `USDT`, `USDC`, `DOC`; app#884). Do NOT return `UnsupportedCurrency`.
 - If an active node exists but `MostroNodeInfo.supported_currencies` is
   `null` (list unknown): likewise perform format-only validation and do
   NOT return `UnsupportedCurrency`.
@@ -105,10 +106,18 @@ re-targets the live feeds to it: the order book is cleared, the Kind 38383
 to the new node under the same stable subscription IDs, each closed before it is
 re-issued, because nostr-sdk 0.45 rejects a subscribe whose ID already exists and
 keeps the old filters — the node's current orders are refetched, and its PoW
-requirement is refreshed. A re-subscribe that no relay accepts is an error, not
-a silent success.
+requirement is refreshed. The refetch and the capability fetch (Kind 38385: PoW,
+escrow mode, bond policy, fee) run at the same time, and so do the refetch's two
+scopes (pending book, recent changes): the refetch waits for every relay's EOSE,
+up to 10 s, and the capabilities must not wait behind it (#842). A relay slow to
+answer still holds the switch until the refetch ends. A re-subscribe that no
+relay accepts is an error, not a silent success.
 
-The switch is **purely local**: no Nostr message is sent to either node. Pass
+The switch sends no trade message to either node; outside full privacy mode
+it asks the new node for the user's reputation (`UserInfo`). Once it returns,
+the app restores the account on the new node when the switch came from
+Settings or an order link (FR-058b, #813): that restore runs after the
+subscriptions are re-targeted and the PoW is refreshed. Pass
 `DEFAULT_MOSTRO_PUBKEY` to return to the default node.
 
 **Persistence**: only the pubkey is stored, under key `active_mostro_pubkey` in
@@ -158,6 +167,34 @@ Best-effort with partial updates: whatever arrives within the window is
 cached, even when some authors never answered; only an outright query failure
 errors, leaving the cache untouched. `picture`/`website` are kept only when
 `https://` — a kind 0 event is attacker-controlled input.
+
+### sync_mostro_node_pictures() → Vec<String>
+Called by the UI, in the background, after every `refresh_mostro_node_metadata`
+— at startup once the warm-up has the relays connected, and whenever the
+selector refreshes.
+Downloads the `picture` of each node whose stored copy is missing or came from
+another URL, keeps the bytes as served with that URL (`node_pictures`, a
+SQLite table / two IndexedDB stores, device-scoped: an identity wipe keeps
+them), and drops the copies no node names any more (node removed, or its
+profile dropped its picture). A picture is therefore downloaded once per URL,
+not once per launch. Each download: `https://` only (natively no redirect
+off https is followed; on the web the browser blocks plain http), 30 s, at
+most 5 MB, and the bytes must start like PNG, JPEG, GIF, WebP, BMP or ICO. Returns the
+pubkeys whose stored picture changed. Best effort per picture: a failure is
+logged and retried on the next call; empty without storage.
+
+### get_mostro_node_picture(pubkey: String) → Option<MostroNodePicture>
+The stored copy, `{ url, bytes }`. The UI (`NodeAvatar`) draws it only while
+the node's `picture` is still `url`, and falls back to loading the URL itself
+otherwise — or when none is stored (a download that failed, a host refusing
+the web build's CORS request). Decoding stays in Flutter: on the web, Rust
+shares the page's only thread.
+
+### forget_mostro_node_picture(pubkey: String) → ()
+Drops a stored copy the UI could not decode (truncated, corrupt, or a format
+its platform lacks); otherwise the same URL would never be fetched again. The
+avatar then loads the URL, and the next `sync_mostro_node_pictures` downloads
+the picture anew. No-op without storage.
 
 ### fetch_mostro_node_stats(pubkeys: Vec<String>) → Vec<MostroNodeStats> (`api/node_stats.rs`)
 Decision data for the selector cards, one row per requested pubkey in request

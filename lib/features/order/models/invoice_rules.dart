@@ -5,6 +5,7 @@
 library;
 
 import 'package:intl/intl.dart';
+import 'package:mostro/shared/utils/rating_format.dart';
 import 'package:mostro/src/rust/api/types.dart' as rust_types;
 import 'package:mostro/src/rust/api/types.dart'
     show
@@ -275,12 +276,13 @@ String? invoiceCheckWord(InvoiceCheck check) => switch (check) {
 
 // ── Counterpart ───────────────────────────────────────────────────────────────
 
-/// The reputation beside the counterpart's name: `★ 4.9`, or null when the
-/// counterpart has no rated trade (the caller writes `no trades` instead of
-/// a misleading `0.0 ★`) or no snapshot has arrived yet.
-String? counterpartStars(double? rating, int? reviews) {
+/// The reputation beside the counterpart's name: `★ 4.93`, as every screen
+/// shows a rating (DS-L10N-5), or null when the counterpart has no rated
+/// trade (the caller writes `no trades` instead of a misleading `0 ★`) or no
+/// snapshot has arrived yet.
+String? counterpartStars(double? rating, int? reviews, String locale) {
   if (rating == null || reviews == null || reviews <= 0) return null;
-  return '★ ${rating.toStringAsFixed(1)}';
+  return '★ ${formatRating(rating, locale)}';
 }
 
 /// Lifetime an NWC invoice gets beyond the node's `invoice_expiration_window`.

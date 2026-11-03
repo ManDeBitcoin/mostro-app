@@ -1,4 +1,6 @@
 import 'package:clock/clock.dart';
+import 'package:intl/intl.dart';
+import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/utils/platform_int64.dart';
 import 'package:mostro/src/rust/api/types.dart';
 
@@ -20,18 +22,21 @@ DateTime? reputationSince(Object? seconds) =>
           isUtc: true,
         );
 
-/// Whole days on Mostro: elapsed since [since] when the daemon sent it,
-/// otherwise [fallbackDays]. A [since] in the future (a skewed clock) reads as
-/// `0` rather than a negative age.
-int daysOnMostro(DateTime? since, {required int fallbackDays}) {
-  if (since == null) return fallbackDays;
-  final days = clock.now().difference(since).inDays;
-  return days < 0 ? 0 : days;
-}
+/// The day of the user's first trade, which every screen shows as their age
+/// on Mostro (DS-L10N-5): [since] when the daemon sent it, otherwise
+/// [fallbackDays] before now.
+DateTime firstTradeDay(DateTime? since, {required int fallbackDays}) =>
+    since ?? clock.now().toUtc().subtract(Duration(days: fallbackDays));
 
-/// The counterparty's days on Mostro from the Peer DM snapshot.
+/// `since Mar 2023`: a user's age on Mostro as every screen shows it
+/// (DS-L10N-5). A date does not go stale and reads without arithmetic, where
+/// a day count (`1,323 days`) did neither.
+String reputationSinceText(AppLocalizations l10n, DateTime firstTrade) =>
+    l10n.reputationSince(DateFormat.yMMM(l10n.localeName).format(firstTrade));
+
+/// The counterparty's first trade from the Peer DM snapshot.
 extension TradeInfoPeerAge on TradeInfo {
-  /// From `peerSince` when present, else `peerDays`, else `0`.
-  int get peerDaysOnMostro =>
-      daysOnMostro(reputationSince(peerSince), fallbackDays: peerDays ?? 0);
+  /// The counterparty's first trade: `peerSince`, else `peerDays` back.
+  DateTime get peerFirstTrade =>
+      firstTradeDay(reputationSince(peerSince), fallbackDays: peerDays ?? 0);
 }

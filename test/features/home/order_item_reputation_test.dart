@@ -69,32 +69,33 @@ void main() {
     });
   });
 
-  group('OrderItem.makerDaysOnMostro', () {
-    test('computes the age from makerSince instead of the stale count', () {
+  group('OrderItem.makerFirstTrade', () {
+    test('is makerSince, not the stale count', () {
       // Arrange
       final item = OrderItem.fromInfo(
         _info(daysActive: 10, makerSince: 1699920000),
       );
 
       // Act
-      final days = withClock(
+      final day = withClock(
         Clock.fixed(DateTime.utc(2024, 11, 13, 18)),
-        () => item.makerDaysOnMostro,
+        () => item.makerFirstTrade,
       );
 
-      // Assert — 2024 is a leap year: 365 whole days since 2023-11-14.
-      expect(days, 365);
+      // Assert
+      expect(day, DateTime.utc(2023, 11, 14));
     });
 
-    test('falls back to daysActive from a daemon without since', () {
+    test('counts daysActive back from now without since', () {
       // Arrange
+      final now = DateTime.utc(2024, 11, 13, 18);
       final item = OrderItem.fromInfo(_info(daysActive: 10));
 
       // Act
-      final days = item.makerDaysOnMostro;
+      final day = withClock(Clock.fixed(now), () => item.makerFirstTrade);
 
       // Assert
-      expect(days, 10);
+      expect(day, now.subtract(const Duration(days: 10)));
     });
 
     test('an order with since differs from one without it', () {

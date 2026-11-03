@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,10 +22,11 @@ import 'package:mostro/src/rust/api/types.dart';
 
 /// The embedded Cashu wallet — phase C3 of `docs/cashu/README.md`.
 ///
-/// Deliberately minimal: balance, redeem a token, export a token, and the mint
-/// it all happens at. It exists to fund and drain escrows, not to be a general
-/// Cashu wallet. Melt/mint to Lightning, holding several mints at once and
-/// backup UX are later phases.
+/// Deliberately minimal: balance, redeem a token, export a token, pay a
+/// Lightning invoice (C3b-1, when the mint can), and the mint it all happens
+/// at. It exists to fund and drain escrows, not to be a general Cashu wallet.
+/// Receiving over Lightning, holding several mints at once and backup UX are
+/// later phases.
 ///
 /// Always reachable from Settings, on every node (docs/cashu/README.md §1.2).
 /// The mint is the user's: set here, or taken from the first token received,
@@ -139,7 +142,53 @@ class _CashuWalletScreenState extends ConsumerState<CashuWalletScreen> {
     });
   }
 
-  Future<void> _send(int balanceSats) async {
+  /// Send: ecash as a token, or — when the mint melts to Lightning — a
+  /// Lightning payment. Without that capability the choice is not offered and
+  /// Send goes straight to the token, as before.
+  ///
+  /// A dialog like every other one on this screen, with the two options as
+  /// rows of equal weight rather than as a primary and a secondary button,
+  /// which would read as "accept" and "cancel" (DS-CMP-2). Cancel is the way
+  /// out, as in the Receive dialog.
+  Future<void> _send(CashuWalletStatus status, int balanceSats) async {
+    if (status.canSendLightning) {
+      final l10n = AppLocalizations.of(context);
+      final kind = await _prompt(
+        () => showMostroDialog<_SendKind>(
+          context: context,
+          builder:
+              (dialogContext) => MostroDialog(
+                title: l10n.cashuSendButton,
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _SendKindRow(
+                      icon: Icons.toll_outlined,
+                      label: l10n.cashuSendEcashOption,
+                      kind: _SendKind.ecash,
+                    ),
+                    _SendKindRow(
+                      icon: Icons.bolt,
+                      label: l10n.cashuSendLightningOption,
+                      kind: _SendKind.lightning,
+                    ),
+                  ],
+                ),
+                secondary: ModalAction(
+                  label: l10n.cancel,
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                ),
+              ),
+        ),
+      );
+      if (kind == null || !mounted) return;
+      if (kind == _SendKind.lightning) return _sendLightning();
+    }
+    await _sendEcash(balanceSats);
+  }
+
+  Future<void> _sendEcash(int balanceSats) async {
     final amount = await _prompt(
       () => showMostroDialog<int>(
         context: context,
@@ -155,6 +204,54 @@ class _CashuWalletScreenState extends ConsumerState<CashuWalletScreen> {
       if (mounted) {
         setState(() => _lastToken = token);
         await _showToken(token);
+      }
+    });
+  }
+
+  /// Pay a Lightning invoice from the wallet: invoice, quote, confirmation,
+  /// payment.
+  ///
+  /// Nothing is reserved while the confirmation is open — Rust prices the
+  /// quote again when the user pays and refuses one that expired or now costs
+  /// more than they confirmed. Those two refusals spent nothing, so the wallet
+  /// asks for a fresh quote and shows it, once; it never pays a stale one.
+  Future<void> _sendLightning() async {
+    final invoice = await _prompt(
+      () => showMostroDialog<String>(
+        context: context,
+        builder: (_) => const _InvoiceDialog(),
+      ),
+    );
+    if (invoice == null || invoice.isEmpty || !mounted) return;
+
+    await _run(() async {
+      final controller = ref.read(cashuWalletControllerProvider);
+      var quote = await controller.meltQuote(invoice);
+      var refreshed = false;
+      while (true) {
+        if (!mounted) return;
+        final current = quote;
+        // The dialog stays open while the payment runs, its Pay button busy
+        // (DS-CMP-2), and then shows how it ended — paid with its fee, still
+        // in flight, or failed and why — until the user closes it. A payment
+        // is money leaving the wallet: its outcome is not a passing snackbar.
+        final exit = await showMostroDialog<_MeltStale>(
+          context: context,
+          barrierDismissible: false,
+          builder:
+              (_) => _MeltConfirmDialog(
+                quote: current,
+                refreshed: refreshed,
+                pay:
+                    () =>
+                        controller.melt(current.quoteId, current.maxTotalSats),
+              ),
+        );
+        if (exit == null || !mounted) return;
+        // Refused before paying, nothing spent: show a fresh quote, once.
+        if (refreshed) throw exit.error;
+        refreshed = true;
+        quote = await controller.meltQuote(invoice);
       }
     });
   }
@@ -293,7 +390,7 @@ class _CashuWalletScreenState extends ConsumerState<CashuWalletScreen> {
                   onPressed:
                       _busy || balance == null || balance == BigInt.zero
                           ? null
-                          : () => _send(balance.toInt()),
+                          : () => _send(status!, balance.toInt()),
                   style: _secondaryStyle(book, pal),
                   icon: const Icon(Icons.upload_outlined, size: 18),
                   label: Text(l10n.cashuSendButton),
@@ -789,6 +886,399 @@ class _ReceiveDialogState extends State<_ReceiveDialog> {
         label: l10n.cashuReceiveButton,
         onPressed:
             _token.isEmpty ? null : () => Navigator.of(context).pop(_token),
+      ),
+    );
+  }
+}
+
+/// What Send does with the ecash.
+enum _SendKind { ecash, lightning }
+
+/// One option of the Send dialog: its icon and name. The whole row is the
+/// target, and tapping it is the choice — the same rows as the chat's attach
+/// sheet.
+class _SendKindRow extends StatelessWidget {
+  const _SendKindRow({
+    required this.icon,
+    required this.label,
+    required this.kind,
+  });
+
+  final IconData icon;
+  final String label;
+  final _SendKind kind;
+
+  @override
+  Widget build(BuildContext context) {
+    final book = OrderBookPalette.of(context);
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+      leading: Icon(icon, color: book.limeIcon),
+      title: Text(
+        label,
+        style: TextStyle(fontWeight: FontWeight.w500, color: book.textPrimary),
+      ),
+      onTap: () => Navigator.of(context).pop(kind),
+    );
+  }
+}
+
+/// The Lightning invoice to pay: the field, Paste and Scan QR as its links —
+/// the same way in as the Receive dialog — then Cancel and Continue.
+///
+/// Only emptiness is checked here. Whether it is an invoice the wallet can pay
+/// (amount, expiry, the mint's limits) is Rust's call, answered as a marker.
+/// Pops the trimmed invoice; Continue stays disabled while the field is empty.
+class _InvoiceDialog extends StatefulWidget {
+  const _InvoiceDialog();
+
+  @override
+  State<_InvoiceDialog> createState() => _InvoiceDialogState();
+}
+
+class _InvoiceDialogState extends State<_InvoiceDialog> {
+  final _controller = TextEditingController();
+  String? _error;
+
+  String get _invoice => _controller.text.trim();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _paste() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = (data?.text ?? '').trim();
+    if (!mounted) return;
+    setState(() {
+      if (text.isEmpty) {
+        _error = AppLocalizations.of(context).clipboardEmptyError;
+      } else {
+        _controller.text = text;
+        _error = null;
+      }
+    });
+  }
+
+  /// A scanned invoice goes straight on to the quote: the confirmation that
+  /// follows is where the user checks it, and nothing is paid before it.
+  Future<void> _scan() async {
+    final value =
+        (await _scanQr(
+          context,
+          AppLocalizations.of(context).cashuInvoiceScanHint,
+        ))?.trim();
+    if (!mounted || value == null || value.isEmpty) return;
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final pal = SettingsPalette.of(context);
+    // Read once, so whether Scan QR works and the reason it gives cannot
+    // disagree.
+    final canScan = canScanQr();
+    return MostroDialog(
+      title: l10n.cashuInvoiceDialogTitle,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            l10n.cashuInvoiceFieldLabel.toUpperCase(),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.6,
+              color: pal.fieldLabel,
+            ),
+          ),
+          const SizedBox(height: 8),
+          PasteField(
+            controller: _controller,
+            // As in the Receive dialog: focused only where there is no camera.
+            autofocus: !canScan,
+            hint: l10n.cashuPasteInvoiceHint,
+            errorText: _error,
+            onChanged: (_) => setState(() => _error = null),
+            onEditingComplete: () {
+              if (_invoice.isNotEmpty) Navigator.of(context).pop(_invoice);
+            },
+          ),
+        ],
+      ),
+      links: [
+        ModalLink(label: l10n.pasteButtonLabel, onPressed: _paste),
+        ModalLink(
+          label: l10n.scanQrButtonLabel,
+          onPressed: canScan ? _scan : null,
+          tooltip: canScan ? null : l10n.qrScanUnavailable,
+        ),
+      ],
+      secondary: ModalAction(
+        label: l10n.cancel,
+        onPressed: () => Navigator.of(context).pop(),
+      ),
+      primary: ModalAction(
+        label: l10n.continueButtonLabel,
+        onPressed:
+            _invoice.isEmpty ? null : () => Navigator.of(context).pop(_invoice),
+      ),
+    );
+  }
+}
+
+/// How long the payment dialog waits on Pay before it reports the payment as
+/// pending — never closing the way out for good. Rust answers within its
+/// `MELT_WAIT` (30 s, `rust/src/cashu/wallet.rs`) unless the mint holds the
+/// request open, ignoring `respond-async`, which nothing below times out.
+/// Above that wait, so a real answer is never cut short.
+const _meltDialogWait = Duration(seconds: 40);
+
+/// Why the payment dialog closed, when the caller has more to do: the quote
+/// expired or now costs more than the user confirmed, so nothing was paid and
+/// a fresh quote is due. Every other end — cancelled, or an outcome the user
+/// has read — closes it with `null`.
+final class _MeltStale {
+  _MeltStale(this.error);
+
+  final Object error;
+}
+
+/// True for the two refusals that spent nothing and only need a new quote.
+bool _isStaleQuote(Object error) {
+  final raw = error.toString();
+  return raw.contains('CashuMeltQuoteExpired') ||
+      raw.contains('CashuMeltFeeChanged');
+}
+
+/// The payment, from confirmation to outcome, in one dialog.
+///
+/// First what paying the invoice costs, before anything is spent: the
+/// amount, the fees as an upper bound — routing reserve plus the mint's input
+/// fees — and the most the balance can drop. "Up to", because the mint returns
+/// the routing reserve it does not use.
+///
+/// Pay runs [pay] with the dialog still open and its button busy; while it
+/// runs there is no way out — not Cancel, not the back gesture: closing would
+/// not stop it. Then the same dialog shows how it ended, with Close as its
+/// only button: paid, with the fee actually charged; still in flight; or
+/// failed, with the reason. A stale quote pops [_MeltStale] instead. A
+/// payment with no answer after [_meltDialogWait] shows as still in flight,
+/// so the busy state always ends.
+class _MeltConfirmDialog extends StatefulWidget {
+  const _MeltConfirmDialog({
+    required this.quote,
+    required this.refreshed,
+    required this.pay,
+  });
+
+  final CashuMeltQuote quote;
+
+  /// Shown again with a fresh quote, after the first expired or went up.
+  final bool refreshed;
+
+  final Future<CashuMeltResult> Function() pay;
+
+  @override
+  State<_MeltConfirmDialog> createState() => _MeltConfirmDialogState();
+}
+
+class _MeltConfirmDialogState extends State<_MeltConfirmDialog> {
+  bool _paying = false;
+  CashuMeltResult? _result;
+  Object? _failure;
+
+  Future<void> _pay() async {
+    setState(() => _paying = true);
+    final payment = widget.pay();
+    try {
+      // Not cancelled on timeout — it cannot be, and the payment may still
+      // settle: its late answer is dropped, and Rust broadcasts the balance
+      // whenever it comes.
+      final result = await payment.timeout(
+        _meltDialogWait,
+        onTimeout: () {
+          payment.ignore();
+          return const CashuMeltResult.pending();
+        },
+      );
+      if (mounted) {
+        setState(() {
+          _paying = false;
+          _result = result;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      if (_isStaleQuote(e)) {
+        Navigator.of(context).pop(_MeltStale(e));
+        return;
+      }
+      setState(() {
+        _paying = false;
+        _failure = e;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: !_paying,
+      child: switch ((_result, _failure)) {
+        (final result?, _) => _outcome(context, result),
+        (_, final failure?) => _failed(context, failure),
+        _ => _confirmation(context),
+      },
+    );
+  }
+
+  ModalAction _close(AppLocalizations l10n) => ModalAction(
+    label: l10n.closeButtonLabel,
+    onPressed: () => Navigator.of(context).pop(),
+  );
+
+  // The outcome replaces the confirmation in place, with no route change to
+  // announce it, and how the payment ended is the one thing a screen-reader
+  // user must hear: each outcome is a live region (DS-A11Y-2).
+  Widget _outcome(BuildContext context, CashuMeltResult result) {
+    final l10n = AppLocalizations.of(context);
+    final locale = Localizations.localeOf(context).toString();
+    return switch (result) {
+      CashuMeltResult_Paid(:final amountSats, :final feePaidSats) =>
+        MostroDialog(
+          icon: Icons.check_circle_rounded,
+          title: l10n.cashuMeltPaidTitle(_fmtSats(amountSats, locale)),
+          body: l10n.cashuMeltPaidFee(_fmtSats(feePaidSats, locale)),
+          primary: _close(l10n),
+          liveRegion: true,
+        ),
+      CashuMeltResult_Pending() => MostroDialog(
+        icon: Icons.schedule_rounded,
+        title: l10n.cashuMeltPendingTitle,
+        body: l10n.cashuMeltPendingBody,
+        primary: _close(l10n),
+        liveRegion: true,
+      ),
+    };
+  }
+
+  Widget _failed(BuildContext context, Object failure) {
+    final l10n = AppLocalizations.of(context);
+    return MostroDialog(
+      icon: Icons.error_outline_rounded,
+      iconTone: ModalTone.destructive,
+      title: l10n.cashuMeltFailedTitle,
+      body: cashuErrorMessage(failure, l10n),
+      primary: _close(l10n),
+      liveRegion: true,
+    );
+  }
+
+  Widget _confirmation(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final book = OrderBookPalette.of(context);
+    final locale = Localizations.localeOf(context).toString();
+    final quote = widget.quote;
+    String sats(BigInt value) =>
+        '${_fmtSats(value, locale)} ${l10n.aboutSatoshisSuffix}';
+    return MostroDialog(
+      title: l10n.cashuMeltConfirmTitle,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (widget.refreshed) ...[
+            Text(
+              l10n.cashuMeltQuoteRefreshed,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: book.textBody,
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          _MeltRow(label: l10n.cashuMeltAmount, value: sats(quote.amountSats)),
+          _MeltRow(
+            label: l10n.cashuMeltFees,
+            value: sats(quote.feeReserveSats + quote.inputFeeSats),
+          ),
+          Divider(color: book.border),
+          _MeltRow(
+            label: l10n.cashuMeltTotal,
+            value: sats(quote.maxTotalSats),
+            emphasise: true,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            l10n.cashuMeltFeesNote,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: book.textMuted,
+            ),
+          ),
+        ],
+      ),
+      secondary: ModalAction(
+        label: l10n.cancel,
+        onPressed: _paying ? null : () => Navigator.of(context).pop(),
+      ),
+      primary: ModalAction(
+        label: l10n.cashuPayButton,
+        onPressed: _paying ? null : _pay,
+        busy: _paying,
+      ),
+    );
+  }
+}
+
+/// One line of the payment confirmation: label, then the figure — on the
+/// next line when both do not fit (a narrow phone, large text, German).
+class _MeltRow extends StatelessWidget {
+  const _MeltRow({
+    required this.label,
+    required this.value,
+    this.emphasise = false,
+  });
+
+  final String label;
+  final String value;
+  final bool emphasise;
+
+  @override
+  Widget build(BuildContext context) {
+    final book = OrderBookPalette.of(context);
+    final weight = emphasise ? FontWeight.w600 : FontWeight.w500;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        spacing: 12,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: weight,
+              color: book.textBody,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontFamily: AppFonts.figures,
+              fontSize: 14,
+              fontWeight: weight,
+              color: book.textPrimary,
+            ),
+          ),
+        ],
       ),
     );
   }

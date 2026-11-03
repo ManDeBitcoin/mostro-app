@@ -153,4 +153,14 @@ CREATE TABLE IF NOT EXISTS announcements (
     data            TEXT NOT NULL,               -- JSON-serialised StoredAnnouncement
     created_at      INTEGER NOT NULL
 );
+
+-- Each registry node's kind 0 picture as downloaded (node_pictures.rs), with
+-- the URL it came from: fetched again only when the profile names another.
+-- Device-scoped, so an identity wipe keeps it.
+CREATE TABLE IF NOT EXISTS node_pictures (
+    pubkey          TEXT PRIMARY KEY NOT NULL,
+    url             TEXT NOT NULL,
+    data            BLOB NOT NULL,
+    fetched_at      INTEGER NOT NULL
+);
 "#;

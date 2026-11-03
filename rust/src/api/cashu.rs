@@ -21,7 +21,7 @@ use std::sync::{Arc, OnceLock};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{broadcast, RwLock};
 
-use crate::api::types::CashuWalletStatus;
+use crate::api::types::{CashuMeltQuote, CashuMeltResult, CashuWalletStatus};
 use crate::cashu::CashuWallet;
 use crate::db::{settings_keys, Storage};
 use crate::mostro::escrow_mode;
@@ -418,6 +418,7 @@ async fn snapshot() -> CashuWalletStatus {
                 .into_iter()
                 .map(str::to_string)
                 .collect(),
+            can_send_lightning: wallet.capabilities().nut05_bolt11,
         },
         None => {
             // Not bound, but a mint may be set that is not answering right
@@ -434,6 +435,7 @@ async fn snapshot() -> CashuWalletStatus {
                 mint_url,
                 balance_sats,
                 missing_capabilities: Vec::new(),
+                can_send_lightning: false,
             }
         }
     }
@@ -591,7 +593,22 @@ pub async fn cashu_create_token(amount_sats: u64) -> Result<String> {
 }
 
 /// Reconcile the proof store with the mint: proofs the mint reports spent are
-/// forgotten, and the new balance is broadcast.
+/// forgotten, melts still in flight are settled as the mint reports them, and
+/// the new balance is broadcast.
+///
+/// The melts are settled here because a bound wallet is reused, not
+/// reconnected: without this, a melt that answered `Pending` would keep its
+/// proofs reserved until the next app start. Only them: the full recovery
+/// connect runs would roll back a send or escrow lock still in progress (see
+/// `CashuWallet::recover`).
+///
+/// The melts wait while one is still paying at this mint, or being quoted:
+/// its saga is on record as in flight, and settling it now would roll back a
+/// payment the mint may still make (#864). The next sync settles them.
+///
+/// Both steps run whatever the other did, and the balance is broadcast after
+/// them even when one fails: either may have moved proofs. The first error is
+/// returned.
 ///
 /// **Returns nothing on purpose.** It reclaims neither an unredeemed token of
 /// ours nor the proofs of a half-finished send — cdk's state check cannot see
@@ -599,11 +616,66 @@ pub async fn cashu_create_token(amount_sats: u64) -> Result<String> {
 /// otherwise; see [`CashuWallet::sweep_spent_proofs`]. Getting an abandoned
 /// token back is phase C10.
 ///
-/// **Errors**: `CashuNotConnected`.
+/// **Errors**: `CashuNotConnected`, `CashuStateCheckFailed`.
 pub async fn cashu_sweep_spent_proofs() -> Result<()> {
-    active_wallet().await?.sweep_spent_proofs().await?;
+    let wallet = active_wallet().await?;
+    let swept = wallet.sweep_spent_proofs().await;
+    let settled = wallet.finalize_pending_melts().await;
     notify().await;
-    Ok(())
+    swept.and(settled)
+}
+
+/// Quote paying the BOLT11 `invoice` from the wallet — phase C3b-1.
+///
+/// Reserves nothing: the quote is priced against the wallet's proofs and
+/// released at once, so the balance is untouched while the user decides.
+///
+/// **Errors**: `CashuNotConnected`, `CashuMeltInFlight` (another payment or
+/// quote is still in progress at this mint), `CashuInvalidInvoice`,
+/// `CashuInvoiceNoAmount` (open-amount invoices are not supported),
+/// `CashuInvoiceExpired`, `CashuMeltUnsupported`, `CashuMeltAmountOutOfRange`,
+/// `CashuMeltQuoteFailed` (also when the quote could not be priced or
+/// released), `CashuMeltInsufficientFunds`, `CashuMeltQuoteExpired`,
+/// `CashuMeltFailed`.
+pub async fn cashu_melt_quote(invoice: String) -> Result<CashuMeltQuote> {
+    let quote = active_wallet().await?.melt_quote(&invoice).await?;
+    Ok(CashuMeltQuote {
+        quote_id: quote.quote_id,
+        amount_sats: quote.amount_sats,
+        fee_reserve_sats: quote.fee_reserve_sats,
+        input_fee_sats: quote.input_fee_sats,
+        max_total_sats: quote.max_total_sats,
+    })
+}
+
+/// Pay the quote `quote_id` from [`cashu_melt_quote`], provided it costs no
+/// more than `max_total_sats` — the total the user confirmed.
+///
+/// The wallet's change is broadcast after every attempt, failed ones
+/// included: a failure may have gone through cdk's recovery and moved proofs.
+///
+/// `Pending` covers every payment whose outcome is unknown: still routing,
+/// or interrupted after the request left with the mint not answering. Its
+/// ecash stays reserved until the mint says how it ended.
+///
+/// **Errors**: `CashuNotConnected`, `CashuMeltInFlight` (another payment is
+/// still in progress at this mint), `CashuMeltQuoteExpired` and
+/// `CashuMeltFeeChanged` (refused before paying — ask for a new quote),
+/// `CashuMeltInsufficientFunds`, `CashuMeltFailed` (nothing was paid).
+pub async fn cashu_melt(quote_id: String, max_total_sats: u64) -> Result<CashuMeltResult> {
+    let wallet = active_wallet().await?;
+    let outcome = wallet.melt(&quote_id, max_total_sats).await;
+    notify().await;
+    Ok(match outcome? {
+        crate::cashu::MeltOutcomeInfo::Paid {
+            amount_sats,
+            fee_paid_sats,
+        } => CashuMeltResult::Paid {
+            amount_sats,
+            fee_paid_sats,
+        },
+        crate::cashu::MeltOutcomeInfo::Pending => CashuMeltResult::Pending,
+    })
 }
 
 /// Drop the in-memory wallet. Proofs stay on disk and the wallet's mint stays

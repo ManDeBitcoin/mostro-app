@@ -30,9 +30,9 @@ import 'package:mostro/features/trades/providers/trades_providers.dart'
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/mascot/mascot_cues.dart';
 import 'package:mostro/shared/utils/reputation_age.dart';
+import 'package:mostro/shared/widgets/counterpart_reputation_row.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
 import 'package:mostro/shared/widgets/nwc_invoice_widget.dart';
-import 'package:mostro/shared/widgets/peer_reputation_card.dart';
 import 'package:mostro/shared/widgets/platform_aware_qr_scanner.dart';
 import 'package:mostro/shared/widgets/redesign_app_bar.dart';
 import 'package:mostro/src/rust/api/nostr.dart' as nostr_api;
@@ -851,10 +851,10 @@ class _AddLightningInvoiceScreenState
                 // auto-generates the invoice and the flow can proceed on its
                 // own — that is exactly where the decision matters most (#305).
                 if (trade?.peerRating != null) ...[
-                  PeerReputationCard(
+                  CounterpartReputationRow(
                     rating: trade!.peerRating!,
                     reviews: trade.peerReviews ?? 0,
-                    days: trade.peerDaysOnMostro,
+                    since: trade.peerFirstTrade,
                     counterpartIsBuyer: false,
                   ),
                   const SizedBox(height: AppSpacing.lg),

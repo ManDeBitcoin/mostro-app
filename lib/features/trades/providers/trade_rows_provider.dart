@@ -4,12 +4,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:clock/clock.dart';
 
+import 'package:mostro/core/trade_node.dart';
 import 'package:mostro/features/account/providers/privacy_mode_provider.dart';
 import 'package:mostro/features/order/models/bond_rules.dart'
     show selectClaimsByOrder;
 import 'package:mostro/features/order/providers/bond_providers.dart';
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
 import 'package:mostro/features/rate/providers/rating_providers.dart';
+import 'package:mostro/features/settings/providers/mostro_nodes_provider.dart'
+    show mostroPubkeyProvider;
 import 'package:mostro/features/trades/models/trade_status.dart';
 import 'package:mostro/features/trades/models/trades_list_rules.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart';
@@ -37,6 +40,7 @@ class TradeRow {
     required this.paymentMethod,
     required this.startedAt,
     required this.peerHandle,
+    required this.node,
     this.completedAt,
     this.claimBadge = TradeClaimBadge.none,
     this.claimOnly = false,
@@ -84,6 +88,10 @@ class TradeRow {
 
   /// Built from the claim store alone: the trade row is gone.
   final bool claimOnly;
+
+  /// The node (hex) the trade lives on, or the node that issued the claim
+  /// of a [claimOnly] row; empty when the row does not know (#809).
+  final String node;
 }
 
 /// Every trade of the user as a [TradeRow], unfiltered.
@@ -151,6 +159,7 @@ TradeRow _claimRow(rust_types.BondClaim claim, TradeClaimBadge badge) =>
       peerHandle: null,
       claimBadge: badge,
       claimOnly: true,
+      node: claim.nodePubkey,
     );
 
 TradeRow _row(
@@ -210,8 +219,25 @@ TradeRow _row(
             ? null
             : platformInt64ToInt(trade.completedAt!),
     claimBadge: claimBadge,
+    node: order.nodePubkey,
   );
 }
+
+/// The rows of the active node's trades and claims (#813): what My Trades,
+/// the Chats list and their counters show. [tradeRowsProvider] keeps every
+/// node's: a notification of another node's trade still needs its row for
+/// its header, its pinning and its "Go to trade" (#811).
+final activeNodeTradeRowsProvider = Provider<AsyncValue<List<TradeRow>>>((ref) {
+  final active = ref.watch(mostroPubkeyProvider);
+  return ref
+      .watch(tradeRowsProvider)
+      .whenData(
+        (rows) => [
+          for (final row in rows)
+            if (isOnActiveNode(tradeNode: row.node, activeNode: active)) row,
+        ],
+      );
+});
 
 // ── Filter ────────────────────────────────────────────────────────────────────
 
@@ -262,7 +288,7 @@ final groupedTradeRowsProvider =
     Provider<AsyncValue<List<TradeRowGroup<TradeRow>>>>((ref) {
       final filter = ref.watch(tradeListFilterProvider);
       return ref
-          .watch(tradeRowsProvider)
+          .watch(activeNodeTradeRowsProvider)
           .whenData(
             (rows) => groupTradeRows(
               rows.where((r) => filter.matches(r.state)).toList(),
@@ -275,7 +301,7 @@ final groupedTradeRowsProvider =
 /// Order ids of the trades whose next step is the user's, once the trades
 /// have loaded — null before, so the first load is not read as news.
 final needsActionIdsProvider = Provider<Set<String>?>((ref) {
-  final rows = ref.watch(tradeRowsProvider).valueOrNull;
+  final rows = ref.watch(activeNodeTradeRowsProvider).valueOrNull;
   if (rows == null) return null;
   return {
     for (final r in rows)
@@ -286,6 +312,7 @@ final needsActionIdsProvider = Provider<Set<String>?>((ref) {
 /// Trades whose next step is the user's, whatever the filter: the counter of
 /// `Requieren tu acción` and the badge of the trades tab are the same figure.
 final needsActionCountProvider = Provider<int>((ref) {
-  final rows = ref.watch(tradeRowsProvider).valueOrNull ?? const <TradeRow>[];
+  final rows =
+      ref.watch(activeNodeTradeRowsProvider).valueOrNull ?? const <TradeRow>[];
   return rows.where((r) => r.state.needsAction).length;
 });

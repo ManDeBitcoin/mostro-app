@@ -249,6 +249,43 @@ Future<_FakeNodesNotifier> _pump(
   return notifier;
 }
 
+/// Settings' path: a button opens the selector with
+/// [showMostroNodeSelector]; [afterSwitch] counts the restores it asks for.
+Future<(_FakeNodesNotifier, int Function())> _pumpOpener(
+  WidgetTester tester, {
+  bool failSelect = false,
+}) async {
+  tester.view.physicalSize = const Size(1200, 3000);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+  var restores = 0;
+  final notifier = _FakeNodesNotifier(_fixtureNodes, failSelect: failSelect);
+  final container = createContainer(overrides: _overrides(notifier));
+  await tester.pumpWidget(
+    _app(
+      container,
+      Builder(
+        builder:
+            (context) => Scaffold(
+              body: TextButton(
+                onPressed:
+                    () => showMostroNodeSelector(
+                      context,
+                      afterSwitch: (_) async => restores++,
+                    ),
+                child: const Text('open'),
+              ),
+            ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('open'));
+  await tester.pump();
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+  return (notifier, () => restores);
+}
+
 /// Selecting waits the 200 ms close delay before the switch resolves.
 Future<void> _settleSelection(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 300));
@@ -955,5 +992,86 @@ void main() {
         expect(msg.toLowerCase(), contains(probe));
       });
     }
+  });
+
+  group('restore after a switch (#813)', () {
+    testWidgets('a switch restores on the new node once the sheet closes', (
+      tester,
+    ) async {
+      await withClock(Clock.fixed(_now), () async {
+        final (notifier, restores) = await _pumpOpener(tester);
+        await tester.tap(find.text('Kmbalache 🇨🇺'));
+        await tester.pumpAndSettle();
+
+        expect(notifier.selected, [_cubaPubkey]);
+        expect(find.byType(MostroNodeSelector), findsNothing);
+        expect(restores(), 1);
+      });
+    });
+
+    testWidgets('closing the sheet without a switch restores nothing', (
+      tester,
+    ) async {
+      await withClock(Clock.fixed(_now), () async {
+        final (_, restores) = await _pumpOpener(tester);
+        Navigator.of(tester.element(find.byType(MostroNodeSelector))).pop();
+        await tester.pumpAndSettle();
+
+        expect(restores(), 0);
+      });
+    });
+
+    testWidgets('a failed switch restores nothing', (tester) async {
+      await withClock(Clock.fixed(_now), () async {
+        final (_, restores) = await _pumpOpener(tester, failSelect: true);
+        await tester.tap(find.text('Kmbalache 🇨🇺'));
+        await _settleSelection(tester);
+
+        expect(find.byType(MostroNodeSelector), findsOneWidget);
+        expect(restores(), 0);
+      });
+    });
+
+    testWidgets('a switch still running when the sheet is dismissed restores '
+        'once it goes through', (tester) async {
+      await withClock(Clock.fixed(_now), () async {
+        final (notifier, restores) = await _pumpOpener(tester);
+        final gate = Completer<void>();
+        notifier.selectGate = gate.future;
+        await tester.tap(find.text('Kmbalache 🇨🇺'));
+        await tester.pump();
+        Navigator.of(tester.element(find.byType(MostroNodeSelector))).pop();
+        await tester.pumpAndSettle();
+        expect(find.byType(MostroNodeSelector), findsNothing);
+        expect(restores(), 0);
+
+        gate.complete();
+        await tester.pumpAndSettle();
+
+        expect(notifier.selected, [_cubaPubkey]);
+        expect(restores(), 1);
+      });
+    });
+
+    testWidgets('a switch that fails after the sheet was dismissed restores '
+        'nothing', (tester) async {
+      await withClock(Clock.fixed(_now), () async {
+        final (notifier, restores) = await _pumpOpener(
+          tester,
+          failSelect: true,
+        );
+        final gate = Completer<void>();
+        notifier.selectGate = gate.future;
+        await tester.tap(find.text('Kmbalache 🇨🇺'));
+        await tester.pump();
+        Navigator.of(tester.element(find.byType(MostroNodeSelector))).pop();
+        await tester.pumpAndSettle();
+
+        gate.complete();
+        await tester.pumpAndSettle();
+
+        expect(restores(), 0);
+      });
+    });
   });
 }

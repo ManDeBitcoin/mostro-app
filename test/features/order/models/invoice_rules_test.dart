@@ -246,13 +246,14 @@ void main() {
   });
 
   group('counterpartStars', () {
-    test('shows the rating once there are reviews', () {
-      expect(counterpartStars(4.93, 16), '★ 4.9');
+    test('shows the rating once there are reviews, as the book does', () {
+      expect(counterpartStars(4.93, 16, 'en'), '★ 4.93');
+      expect(counterpartStars(4.93, 16, 'es'), '★ 4,93');
     });
 
     test('is null for a counterpart with no rated trade', () {
-      expect(counterpartStars(0, 0), isNull);
-      expect(counterpartStars(null, null), isNull);
+      expect(counterpartStars(0, 0, 'en'), isNull);
+      expect(counterpartStars(null, null, 'en'), isNull);
     });
   });
 

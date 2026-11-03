@@ -42,6 +42,22 @@ String? _unitName(String code, AppLocalizations l10n) => switch (code) {
 /// Marker → message. Insertion-ordered, most specific first: a marker that is a
 /// prefix of another must come first, or the broader one would shadow it.
 final Map<String, String Function(AppLocalizations)> _messages = {
+  // Paying a Lightning invoice (phase C3b-1). First, so a cdk detail in the
+  // tail of a melt failure can never be read as one of the markers below.
+  'CashuInvalidInvoice': (l) => l.cashuErrorInvalidInvoice,
+  'CashuInvoiceNoAmount': (l) => l.cashuErrorInvoiceNoAmount,
+  'CashuInvoiceExpired': (l) => l.cashuErrorInvoiceExpired,
+  'CashuMeltUnsupported': (l) => l.cashuErrorMeltUnsupported,
+  'CashuMeltAmountOutOfRange': (l) => l.cashuErrorMeltAmountOutOfRange,
+  'CashuMeltQuoteExpired': (l) => l.cashuErrorMeltQuoteExpired,
+  'CashuMeltQuoteFailed': (l) => l.cashuErrorMeltQuoteFailed,
+  // Refused before paying: nothing left the wallet, which is what to say.
+  'CashuMeltFeeChanged': (l) => l.cashuErrorMeltFeeChanged,
+  // Refused before starting: another payment is still waiting for the mint.
+  'CashuMeltInFlight': (l) => l.cashuErrorMeltInFlight,
+  // Not `CashuInsufficientFunds` (escrow) — neither contains the other.
+  'CashuMeltInsufficientFunds': (l) => l.cashuErrorMeltInsufficientFunds,
+  'CashuMeltFailed': (l) => l.cashuErrorMeltFailed,
   'CashuInsufficientFunds': (l) => l.lockEscrowInsufficientFunds,
   'CashuMintNotSupported': (l) => l.lockEscrowMintNotSupported,
   // The wallet's mint is the user's and can differ from the node's: the fix
