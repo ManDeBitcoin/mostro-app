@@ -41,7 +41,7 @@ class RestoreSummary {
 
 /// Read once the restore finished: what the trade list holds.
 final restoreSummaryProvider = Provider.autoDispose<RestoreSummary>((ref) {
-  final rows = ref.watch(tradeRowsProvider).valueOrNull ?? const [];
+  final rows = ref.watch(activeNodeTradeRowsProvider).valueOrNull ?? const [];
   return RestoreSummary(
     inProgress: rows.where((r) => r.state.group != TradeGroup.closed).length,
     needsAction: rows.where((r) => r.state.needsAction).length,

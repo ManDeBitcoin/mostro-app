@@ -1,4 +1,7 @@
 repository: https://github.com/MostroP2P/app
+# Mostro's Zapstore publisher, which also lists MostroP2P/bosstro. zsp refuses
+# to sign with any other key (docs/RELEASING.md → Zapstore).
+pubkey: npub1m0str0kss9282qw6mlslgrdgagw8n63qy9qagtv26ar0p7k282dqx30dna
 description: |
   The official non-custodial, cross-platform client for the Mostro peer-to-peer exchange network.
 
@@ -7,7 +10,7 @@ description: |
   Key Features:
 
     - Non-custodial: Your keys stay on your device — no exchange ever holds your funds
-    - Privacy-first: End-to-end encrypted over Nostr — NIP-44 direct messages with the Mostro daemon and NIP-59 Gift Wrap for peer-to-peer chat
+    - Privacy-first: End-to-end encrypted over Nostr — NIP-44 for messages with the Mostro daemon and for peer-to-peer chat
     - Lightning-native: All Bitcoin settlements happen via Lightning invoices, with Nostr Wallet Connect (NWC) support for automated invoicing
     - Hierarchical Key Management: BIP-32 / BIP-39 key derivation with a unique key per trade
     - Censorship-resistant: Built on Nostr — no central server or domain to block
@@ -27,18 +30,25 @@ tags:
     - freedom-tech
 license: AGPL-3.0-or-later
 website: https://mostro.network
-# TODO: assets/images/wt-*.png are 817-byte placeholder PNGs, not real
-# screenshots. Populate with real store screenshots before publishing.
-# images:
-#     - assets/images/screenshot-1.png
+# Store images, 1242 × 2688 JPEG (quality 85, no chroma subsampling), kept out
+# of assets/ so the app does not bundle them. The first three are one panorama
+# and must stay in this order.
+images:
+    - docs/zapstore/01_hero.jpg
+    - docs/zapstore/02_hero.jpg
+    - docs/zapstore/03_hero.jpg
+    - docs/zapstore/04_book.jpg
+    - docs/zapstore/05_create.jpg
+    - docs/zapstore/06_escrow.jpg
+    - docs/zapstore/07_chat.jpg
+    - docs/zapstore/08_trades.jpg
+    - docs/zapstore/09_nodes.jpg
 supported_nips:
     - "01"
     - "06"
     - "13"
-    - "17"
     - "44"
     - "47"
-    - "59"
     - "69"
 metadata_sources:
     - github

@@ -9,6 +9,7 @@ import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/core/automation/automation_id.dart';
 import 'package:mostro/core/automation/automation_ids.dart';
 import 'package:mostro/core/node_selector_palette.dart';
+import 'package:mostro/features/account/restore/restore_after_switch.dart';
 import 'package:mostro/features/order/providers/exchange_rate_provider.dart';
 import 'package:mostro/features/settings/models/node_display.dart';
 import 'package:mostro/features/settings/models/node_selector_rules.dart';
@@ -23,7 +24,6 @@ import 'package:mostro/features/trades/providers/trades_providers.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/widgets/mostro_modal.dart';
 import 'package:mostro/shared/widgets/dashed_border.dart';
-import 'package:mostro/shared/utils/fiat_currencies.dart';
 import 'package:mostro/src/rust/api/node_stats.dart' show MostroNodeStats;
 import 'package:mostro/src/rust/api/types.dart';
 
@@ -47,7 +47,12 @@ export 'package:mostro/features/settings/widgets/add_custom_node_dialog.dart'
 /// ([cachedNodeStatsProvider]) and a skeleton for the order count — or
 /// skeletons throughout for a node never seen — never a spinner over a card.
 class MostroNodeSelector extends ConsumerStatefulWidget {
-  const MostroNodeSelector({super.key});
+  const MostroNodeSelector({super.key, this.switched});
+
+  /// Completed with the node switched to once a switch goes through, or with
+  /// null once the sheet is gone without one. A switch still running when the
+  /// user dismisses the sheet completes it when it ends (#813).
+  final Completer<String?>? switched;
 
   @override
   ConsumerState<MostroNodeSelector> createState() => _MostroNodeSelectorState();
@@ -64,14 +69,31 @@ class _MostroNodeSelectorState extends ConsumerState<MostroNodeSelector> {
   /// How long the filled radio is shown before the sheet closes itself.
   static const _closeDelay = Duration(milliseconds: 200);
 
+  /// [MostroNodeSelector.switched], kept here: a switch that outlives the
+  /// sheet reports through it after the widget is gone.
+  late final Completer<String?>? _switched;
+
   @override
   void initState() {
     super.initState();
+    _switched = widget.switched;
     // Opportunistic kind 0 refresh (names, avatars) each time the selector
     // opens; the cached registry shows meanwhile.
     Future.microtask(
       () => ref.read(mostroNodesProvider.notifier).refreshMetadata(),
     );
+  }
+
+  @override
+  void dispose() {
+    // A switch still running reports its own outcome when it ends.
+    if (!_switching) _reportSwitch(null);
+    super.dispose();
+  }
+
+  void _reportSwitch(String? node) {
+    final switched = _switched;
+    if (switched != null && !switched.isCompleted) switched.complete(node);
   }
 
   String _activeNodeName() => nodeNameOf(
@@ -86,6 +108,9 @@ class _MostroNodeSelectorState extends ConsumerState<MostroNodeSelector> {
       await _switchTo(entry);
     } finally {
       _switching = false;
+      // Dismissed while it ran: a switch that went through has reported its
+      // node already, and anything else ends without one.
+      if (!mounted) _reportSwitch(null);
     }
   }
 
@@ -120,6 +145,7 @@ class _MostroNodeSelectorState extends ConsumerState<MostroNodeSelector> {
         ref.read(mostroNodesProvider.notifier).selectNode(entry.pubkey),
         Future<void>.delayed(_closeDelay),
       ]);
+      _reportSwitch(entry.pubkey);
       // The user may have dismissed the sheet during the switch; popping via
       // the captured navigator would then close the route underneath it.
       if (mounted) navigator.pop();
@@ -204,7 +230,6 @@ class _MostroNodeSelectorState extends ConsumerState<MostroNodeSelector> {
     final myFiat = ref.watch(
       settingsProvider.select((s) => s.defaultFiatCode?.toUpperCase()),
     );
-    final flags = ref.watch(currencyFlagsProvider);
     final btcPrice =
         myFiat == null
             ? null
@@ -281,7 +306,6 @@ class _MostroNodeSelectorState extends ConsumerState<MostroNodeSelector> {
                           statsCached: live == null,
                           statsLoading: statsAsync.isLoading,
                           myFiat: myFiat,
-                          flags: flags,
                           btcPrice: btcPrice,
                           // One radio at a time: while a switch is in
                           // flight the tapped node owns it, not the node
@@ -445,13 +469,22 @@ class _AddOwnNodeButton extends StatelessWidget {
   }
 }
 
-/// Open the node selector as a modal sheet over Settings.
-Future<void> showMostroNodeSelector(BuildContext context) {
+/// Open the node selector as a modal sheet over Settings. Once a switch
+/// goes through, [afterSwitch] restores the account on the new node (#813),
+/// also when the user dismissed the sheet while the switch ran; a sheet
+/// closed without one, or a failed switch, restores nothing.
+Future<void> showMostroNodeSelector(
+  BuildContext context, {
+  Future<void> Function(BuildContext) afterSwitch = restoreAfterNodeSwitch,
+}) async {
+  final switched = Completer<String?>();
   // A screen, not a question: it paints its own page backdrop and its own
   // footer, so it opens `bare` rather than inside a [MostroSheet].
-  return showMostroSheet<void>(
+  await showMostroSheet<void>(
     context: context,
     bare: true,
-    builder: (_) => const MostroNodeSelector(),
+    builder: (_) => MostroNodeSelector(switched: switched),
   );
+  if (await switched.future == null || !context.mounted) return;
+  await afterSwitch(context);
 }

@@ -50,4 +50,44 @@ void main() {
     expect(hostile, generic);
     expect(hostile, isNot(contains('some')));
   });
+
+  // C3b-1: paying a Lightning invoice. Each marker arrives as the bridge
+  // throws it, with a cdk detail after it, and must reach its own message —
+  // never the generic one, and never another marker's.
+  test('every melt marker has its own message', () {
+    final cases = {
+      'CashuInvalidInvoice': l10n.cashuErrorInvalidInvoice,
+      'CashuInvoiceNoAmount': l10n.cashuErrorInvoiceNoAmount,
+      'CashuInvoiceExpired': l10n.cashuErrorInvoiceExpired,
+      'CashuMeltUnsupported': l10n.cashuErrorMeltUnsupported,
+      'CashuMeltAmountOutOfRange': l10n.cashuErrorMeltAmountOutOfRange,
+      'CashuMeltQuoteFailed': l10n.cashuErrorMeltQuoteFailed,
+      'CashuMeltQuoteExpired': l10n.cashuErrorMeltQuoteExpired,
+      'CashuMeltFeeChanged': l10n.cashuErrorMeltFeeChanged,
+      'CashuMeltInFlight': l10n.cashuErrorMeltInFlight,
+      'CashuMeltInsufficientFunds': l10n.cashuErrorMeltInsufficientFunds,
+      'CashuMeltFailed': l10n.cashuErrorMeltFailed,
+    };
+    for (final MapEntry(key: marker, value: message) in cases.entries) {
+      final shown = cashuErrorMessage(
+        Exception('$marker: Insufficient funds (InvalidMintUrl)'),
+        l10n,
+      );
+      expect(shown, message, reason: marker);
+      expect(shown, isNot(l10n.cashuErrorGeneric), reason: marker);
+    }
+    // Ten markers, ten different things to tell the user.
+    expect(cases.values.toSet(), hasLength(cases.length));
+  });
+
+  test('the melt and the escrow shortfalls stay apart', () {
+    expect(
+      cashuErrorMessage(Exception('CashuMeltInsufficientFunds'), l10n),
+      l10n.cashuErrorMeltInsufficientFunds,
+    );
+    expect(
+      cashuErrorMessage(Exception('CashuInsufficientFunds'), l10n),
+      l10n.lockEscrowInsufficientFunds,
+    );
+  });
 }

@@ -172,6 +172,54 @@ impl PushPlatform {
     }
 }
 
+/// How loudly an announcement is painted (specs/006-announcement-channel
+/// §3.4). The publisher declares a level, never a colour; Dart maps it onto
+/// the palette. A level this build does not know arrives as `Warning`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum AnnouncementSeverity {
+    /// Releases, new features, events.
+    Info,
+    /// Outages, a relay being retired, anything with a deadline.
+    Warning,
+    /// A security issue the user must act on now.
+    Critical,
+}
+
+/// One locale's copy of an announcement, plain text (§3.2).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct AnnouncementText {
+    /// `en`, `es`, … — one of the app's locales.
+    pub locale: String,
+    pub title: String,
+    pub body: String,
+}
+
+/// A project announcement the reader admitted (§5.2), with every locale: Rust
+/// does not translate, Dart picks the copy for the locale on screen.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct AnnouncementInfo {
+    /// `38387:<author hex>:<d>` — the announcement's identity across
+    /// revisions, and the id of its notification card.
+    pub address: String,
+    /// `<created_at>:<event id>`: changes with every correction published
+    /// under the same address, which is what makes it unread again (§5.3).
+    pub revision: String,
+    /// Unix seconds, the event's `created_at`.
+    pub created_at: i64,
+    /// Unix seconds, the NIP-40 `expiration`: the announcement is gone once
+    /// it passes, online or not (§5.5).
+    pub expiration: i64,
+    pub severity: AnnouncementSeverity,
+    /// Every supported locale, in the app's order.
+    pub texts: Vec<AnnouncementText>,
+    /// The one action link, `https` only, as parsed.
+    pub url: Option<String>,
+    pub read: bool,
+    /// Swiped away. A `Critical` stays listed, read, until it expires; the
+    /// other levels leave the list (§3.4).
+    pub dismissed: bool,
+}
+
 /// What the notification settings screen shows about push registration
 /// (docs/PUSH_NOTIFICATIONS.md §8.1, §9.1). Capability (can this platform
 /// push at all) and permission are Dart's to know; this is the token and
@@ -206,6 +254,21 @@ pub struct ResyncOutcome {
     /// This call did no work of its own: a pass that was already running
     /// when it arrived finished meanwhile, and its result is what it reports.
     pub coalesced: bool,
+}
+
+/// What a node's exchange-rates event (Kind 30078, `d` = `mostro-rates`)
+/// says about one currency (`api::nostr::lookup_exchange_rate`).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ExchangeRateLookup {
+    /// The node publishes no usable rates event: none on the relays, expired,
+    /// or unreadable. Nothing can be told, so a market order is sent
+    /// unchecked (#337).
+    NoRates,
+    /// The event is there and quotes no such currency. For a stablecoin that
+    /// means the node will refuse a market order in it.
+    NotQuoted,
+    /// The price of one BTC in the currency.
+    Quoted { rate: f64 },
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -341,7 +404,8 @@ pub struct NewOrderParams {
     pub fiat_amount_min: Option<f64>,
     /// Max fiat amount for range orders (null if fixed).
     pub fiat_amount_max: Option<f64>,
-    /// ISO 4217 fiat currency code.
+    /// Currency code: ISO 4217, or a stablecoin code from the protocol book's
+    /// list (`USDT`, `USDC`, `DOC`).
     pub fiat_code: String,
     /// Comma-separated payment method descriptions.
     pub payment_method: String,
@@ -1076,6 +1140,15 @@ pub struct MostroNodeEntry {
     pub website: Option<String>,
 }
 
+/// A node's kind 0 picture as the device keeps it (`crate::node_pictures`):
+/// the bytes as downloaded and the URL they came from, so the UI shows them
+/// only while the profile still names that URL.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MostroNodePicture {
+    pub url: String,
+    pub bytes: Vec<u8>,
+}
+
 fn default_expiration_seconds() -> u32 {
     900
 }
@@ -1337,6 +1410,46 @@ pub struct CashuWalletStatus {
     /// a mint missing any of them is refused at connect, so a non-empty list
     /// here means the wallet is bound to a mint that has since changed.
     pub missing_capabilities: Vec<String>,
+    /// Whether the mint melts to `bolt11` invoices (NUT-05), so the wallet
+    /// can pay one — phase C3b-1. False when not connected. Optional: a mint
+    /// without it is still usable, and the UI hides "to Lightning" instead.
+    pub can_send_lightning: bool,
+}
+
+/// What paying a Lightning invoice from the Cashu wallet costs — phase C3b-1.
+///
+/// Shown for confirmation before anything is spent. Nothing is reserved
+/// while it is on screen; [`crate::api::cashu::cashu_melt`] prices the quote
+/// again and refuses one that now costs more than `max_total_sats`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CashuMeltQuote {
+    /// The mint's quote id, handed back to pay it.
+    pub quote_id: String,
+    /// What the invoice asks for.
+    pub amount_sats: u64,
+    /// The most the mint may spend on Lightning routing; what it does not
+    /// spend comes back to the wallet.
+    pub fee_reserve_sats: u64,
+    /// The mint's input fees on the ecash spent (a swap's included).
+    pub input_fee_sats: u64,
+    /// The most the payment can take from the balance: amount, fee reserve
+    /// and input fees. "Up to", not exact: unspent reserve is returned.
+    pub max_total_sats: u64,
+}
+
+/// How a confirmed payment to a Lightning invoice ended — phase C3b-1.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum CashuMeltResult {
+    /// The invoice is paid. `fee_paid_sats` is what it actually cost beyond
+    /// the invoice: routing plus the mint's input fees.
+    Paid {
+        amount_sats: u64,
+        fee_paid_sats: u64,
+    },
+    /// How it ended is not known yet: the mint is still routing it, or did
+    /// not answer after the request left. Its ecash stays reserved until the
+    /// mint says, at the next sync.
+    Pending,
 }
 
 /// What a seller is about to lock into a Cashu escrow — phase C5.
@@ -1413,7 +1526,8 @@ pub struct AppSettings {
     pub theme: ThemeMode,
     /// BCP-47 language tag, e.g. `"en"`, `"es"`.
     pub language: String,
-    /// ISO 4217 fiat currency code selected as the user's default, if any.
+    /// Currency code selected as the user's default, if any: ISO 4217 or a
+    /// stablecoin code (3 to 5 upper-case letters).
     pub default_fiat_code: Option<String>,
     /// Default Lightning Address in `user@domain` format, if set.
     pub default_lightning_address: Option<String>,

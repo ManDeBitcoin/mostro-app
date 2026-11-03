@@ -108,7 +108,7 @@ TradeChipKind tradePanelChipKind(TradeStatusFilter status) => switch (status) {
 };
 
 /// The counterparty's public reputation, as the app already holds it.
-typedef PeerReputation = ({double rating, int reviews, int days});
+typedef PeerReputation = ({double rating, int reviews, DateTime since});
 
 /// Whose reputation the user panel shows, from what the app already has:
 ///
@@ -127,7 +127,7 @@ PeerReputation? peerReputation(TradeInfo? trade, OrderItem? order) {
     return (
       rating: snapshot,
       reviews: trade.peerReviews ?? 0,
-      days: trade.peerDaysOnMostro,
+      since: trade.peerFirstTrade,
     );
   }
   final isMine = trade?.order.isMine ?? order?.isMine ?? true;
@@ -135,6 +135,6 @@ PeerReputation? peerReputation(TradeInfo? trade, OrderItem? order) {
   return (
     rating: order.rating,
     reviews: order.tradeCount,
-    days: order.makerDaysOnMostro,
+    since: order.makerFirstTrade,
   );
 }

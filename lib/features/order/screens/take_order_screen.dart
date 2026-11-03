@@ -32,7 +32,10 @@ import 'package:mostro/features/trades/providers/trades_providers.dart'
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/shared/mascot/mascot_cues.dart';
 import 'package:mostro/shared/utils/countdown.dart';
+import 'package:mostro/shared/utils/reputation_age.dart';
 import 'package:mostro/shared/widgets/countdown_urgency_announcer.dart';
+import 'package:mostro/shared/widgets/counterpart_reputation_row.dart'
+    show highlightFigures;
 import 'package:mostro/src/rust/api/types.dart';
 
 /// What the single button is doing.
@@ -99,7 +102,9 @@ class _TakeOrderScreenState extends ConsumerState<TakeOrderScreen> {
     _redirectIfParticipant();
     _rateTimer = Timer.periodic(_rateRefresh, (_) {
       final code = _lastOrder?.fiatCode;
-      if (code != null && mounted) ref.invalidate(exchangeRateProvider(code));
+      if (code != null && mounted) {
+        ref.invalidate(exchangeRateLookupProvider(code));
+      }
     });
   }
 
@@ -807,9 +812,6 @@ class _CounterpartyCard extends StatelessWidget {
     );
     final isNew = order.tradeCount == 0;
     final figure = TextStyle(color: book.textBody, fontWeight: FontWeight.w500);
-    final trades = formats.decimal.format(order.tradeCount);
-    final daysOnMostro = order.makerDaysOnMostro;
-    final days = formats.decimal.format(daysOnMostro);
 
     return OrderDetailCard(
       padding: const EdgeInsets.all(14),
@@ -818,6 +820,7 @@ class _CounterpartyCard extends StatelessWidget {
           Container(
             width: 34,
             height: 34,
+            padding: const EdgeInsets.all(2),
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
@@ -826,25 +829,30 @@ class _CounterpartyCard extends StatelessWidget {
                 color: isNew ? pal.avatarNewBorder : pal.avatarBorder,
               ),
             ),
-            child:
-                isNew
-                    ? Text(
-                      l10n.reputationNew,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: book.textNew,
+            // The grade shrinks to the circle at large text rather than
+            // spill out of it (DS-TYP-7).
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child:
+                  isNew
+                      ? Text(
+                        l10n.reputationNew,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: book.textNew,
+                        ),
+                      )
+                      : Text(
+                        formats.rating.format(order.rating),
+                        style: TextStyle(
+                          fontFamily: AppFonts.figures,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: book.limeInk,
+                        ),
                       ),
-                    )
-                    : Text(
-                      formats.rating.format(order.rating),
-                      style: TextStyle(
-                        fontFamily: AppFonts.figures,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: book.limeInk,
-                      ),
-                    ),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -875,18 +883,13 @@ class _CounterpartyCard extends StatelessWidget {
                 Text.rich(
                   TextSpan(
                     children: [
-                      if (isNew)
-                        TextSpan(text: l10n.reputationNoTrades)
-                      else
-                        ...figureSpans(
-                          l10n.counterpartyTrades(order.tradeCount),
-                          trades,
-                          figure,
-                        ),
+                      ...highlightFigures(
+                        l10n.reputationRatingsCount(order.tradeCount),
+                        figure,
+                      ),
                       const TextSpan(text: ' · '),
-                      ...figureSpans(
-                        l10n.counterpartyDaysOnMostro(daysOnMostro),
-                        days,
+                      ...highlightFigures(
+                        reputationSinceText(l10n, order.makerFirstTrade),
                         figure,
                       ),
                     ],

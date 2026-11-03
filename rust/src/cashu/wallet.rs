@@ -1,16 +1,25 @@
 //! Native Cashu wallet over `cdk` — see [`super`] for scope and the wasm split.
 
+use std::collections::HashMap;
+use std::future::IntoFuture;
 use std::sync::Arc;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, bail, Result};
 use cdk::amount::SplitTarget;
+use cdk::cdk_database::{self, WalletDatabase};
 use cdk::nuts::nut10::SpendingConditions;
-use cdk::nuts::{CurrencyUnit, KeySetInfo, Proof, Token};
+use cdk::mint_url::MintUrl;
+use cdk::nuts::MeltQuoteState;
+use cdk::nuts::{CurrencyUnit, KeySetInfo, MeltMethodSettings, PaymentMethod, Proof, Token};
 use cdk::wallet::types::KeysetLoadPolicy;
-use cdk::wallet::{ReceiveOptions, SendMemo, SendOptions, Wallet};
+use cdk::wallet::{MeltOutcome, PreparedMelt, ReceiveOptions, SendMemo, SendOptions, Wallet};
 use cdk::Amount;
 use cdk_sqlite::WalletSqliteDatabase;
 use std::str::FromStr;
+use uuid::Uuid;
+
+use super::in_flight;
 
 /// Everything the escrow flow needs a mint to support.
 ///
@@ -29,6 +38,18 @@ pub struct MintCapabilities {
     pub nut12_dleq: bool,
     /// A keyset denominated in `sat`. Mostro amounts are satoshis.
     pub has_sat_keyset: bool,
+    /// NUT-05 — melt to a `bolt11` invoice in `sat`, and melting not
+    /// `disabled`. What "send to Lightning" needs (phase C3b-1).
+    ///
+    /// **Optional, unlike the four above**: it is not part of
+    /// [`Self::is_usable`]. An escrow never melts, so a mint without it still
+    /// trades; the wallet screen hides "to Lightning" instead of refusing the
+    /// mint.
+    pub nut05_bolt11: bool,
+    /// The smallest melt the mint accepts, in sats, when it states one.
+    pub melt_min_sats: Option<u64>,
+    /// The largest melt the mint accepts, in sats, when it states one.
+    pub melt_max_sats: Option<u64>,
 }
 
 impl MintCapabilities {
@@ -55,6 +76,41 @@ impl MintCapabilities {
         }
         missing
     }
+}
+
+/// What paying a Lightning invoice from the wallet costs, as quoted by the mint
+/// and priced against the proofs the wallet would spend.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MeltQuoteInfo {
+    /// The mint's quote, to pay with [`CashuWallet::melt`].
+    pub quote_id: String,
+    /// What the invoice asks for.
+    pub amount_sats: u64,
+    /// The most the mint may spend on Lightning routing. What it does not
+    /// spend comes back as change (NUT-08).
+    pub fee_reserve_sats: u64,
+    /// The mint's input fees: on the melt's inputs and, when the wallet's
+    /// proofs do not add up to the exact amount, on the swap that makes them.
+    pub input_fee_sats: u64,
+    /// The most the payment can take from the balance:
+    /// [`melt_max_total`] of the three above.
+    pub max_total_sats: u64,
+}
+
+/// How a melt the user confirmed ended.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MeltOutcomeInfo {
+    /// The invoice is paid.
+    Paid {
+        amount_sats: u64,
+        /// What the payment cost beyond the invoice: input and swap fees plus
+        /// the routing fee the mint kept.
+        fee_paid_sats: u64,
+    },
+    /// The mint accepted the payment and is still routing it. The proofs stay
+    /// reserved; [`CashuWallet::finalize_pending_melts`] settles them once
+    /// the mint says how it ended.
+    Pending,
 }
 
 /// A wallet bound to exactly one mint.
@@ -118,11 +174,59 @@ impl CashuWallet {
         }
 
         log::info!("[cashu] connected to {mint_url}");
-        Ok(Self {
+        let wallet = Self {
             inner,
             mint_url: mint_url.to_string(),
             capabilities,
-        })
+        };
+        wallet.recover().await;
+        Ok(wallet)
+    }
+
+    /// Finish or roll back what a previous session left half done at this
+    /// mint: a send or melt whose proofs were reserved but never handed over,
+    /// a swap or receive whose outputs were never stored, a melt whose
+    /// Lightning payment was still in flight.
+    ///
+    /// Safe for escrow and exported tokens: cdk compensates only a send still
+    /// in `ProofsReserved` — no token exists yet — and never revokes one in
+    /// `TokenCreated` (`wallet/send/saga/resume.rs`, cdk 0.18.2). That
+    /// reclaim stays C10's. Melts in flight are resumed here too, so connect
+    /// does not call [`Self::finalize_pending_melts`] on top.
+    ///
+    /// **Only at connect, never on Sync.** cdk documents it as crash recovery
+    /// ("Call on startup", `wallet/recovery.rs`) and rolls back a send or melt
+    /// in `ProofsReserved` with no check that it is still running
+    /// (`wallet/send/saga/resume.rs`) — the state of an escrow lock, a token
+    /// send or a melt being prepared. Here the wallet is not installed yet, so
+    /// nothing runs on it — but an earlier wallet for the same mint, left by
+    /// switching mints and back, may still be melting. So recovery waits for
+    /// the next connect while a melt holds the mint ([`in_flight`]). A send
+    /// or escrow lock still running there is not covered: closing that needs
+    /// those operations to hold a mark too.
+    ///
+    /// **Best effort.** The mint has just proven usable, so a failure here is a
+    /// round trip that did not come back: it is logged and the connect goes
+    /// on. Whatever was not settled is still recorded as a saga and is tried
+    /// again at the next connect.
+    async fn recover(&self) {
+        if in_flight::melt_in_flight(&self.inner.mint_url) {
+            log::info!(
+                "[cashu] a melt is in flight at this mint: recovery waits for the next connect"
+            );
+            return;
+        }
+        match self.inner.recover_incomplete_sagas().await {
+            Ok(report) if report.is_empty() => {}
+            Ok(report) => log::info!(
+                "[cashu] recovered interrupted operations: {} completed, {} rolled back, {} still pending, {} failed",
+                report.recovered,
+                report.compensated,
+                report.skipped,
+                report.failed
+            ),
+            Err(e) => log::warn!("[cashu] recovering interrupted operations failed: {e}"),
+        }
     }
 
     /// Ask the mint what it supports. Reachability is proven by the same call,
@@ -143,6 +247,7 @@ impl CashuWallet {
             .await
             .map_err(|e| anyhow!("CashuMintUnreachable: {e}"))?;
 
+        let melt = bolt11_sat_melt(&info.nuts.nut05);
         Ok(MintCapabilities {
             nut07_state_check: info.nuts.nut07.supported,
             nut11_p2pk: info.nuts.nut11.supported,
@@ -150,6 +255,9 @@ impl CashuWallet {
             has_sat_keyset: keysets
                 .iter()
                 .any(|k| k.unit == CurrencyUnit::Sat && k.active == Some(true)),
+            nut05_bolt11: melt.is_some(),
+            melt_min_sats: melt.as_ref().and_then(|m| m.min_amount).map(u64::from),
+            melt_max_sats: melt.as_ref().and_then(|m| m.max_amount).map(u64::from),
         })
     }
 
@@ -215,7 +323,7 @@ impl CashuWallet {
     ///
     /// DLEQ (NUT-12) is verified **here**, before the swap, rather than left to
     /// `cdk`: its receive path verifies a proof only `if proof.dleq.is_some()`
-    /// (`wallet/receive/saga/mod.rs`, cdk 0.18.1), so a token whose proofs carry
+    /// (`wallet/receive/saga/mod.rs`, cdk 0.18.2), so a token whose proofs carry
     /// none is accepted on trust. That is the softer guarantee NUT-12 is a hard
     /// connect requirement to avoid — [`Wallet::verify_token_dleq`] rejects the
     /// missing proof instead of skipping it.
@@ -350,7 +458,7 @@ impl CashuWallet {
     /// for the quote to read `Paid` before minting.
     #[cfg(test)]
     pub(crate) async fn mint_for_test(&self, amount_sats: u64) -> Result<u64> {
-        use cdk::nuts::{MintQuoteState, PaymentMethod};
+        use cdk::nuts::MintQuoteState;
 
         let quote = self
             .inner
@@ -396,7 +504,7 @@ impl CashuWallet {
     ///
     /// **Housekeeping, not recovery — nothing comes back from this call.** Two
     /// facts about `cdk`'s `check_all_pending_proofs` (`wallet/proofs.rs`,
-    /// cdk 0.18.1) decide that:
+    /// cdk 0.18.2) decide that:
     ///
     /// * it looks only at proofs no operation owns
     ///   (`p.used_by_operation.is_none()`), and `prepare_send` reserves
@@ -420,6 +528,430 @@ impl CashuWallet {
         log::info!("[cashu] swept spent proofs ({unresolved} sat still unresolved)");
         Ok(())
     }
+
+    /// Ask the mint how the melts still in flight ended, and settle them: a
+    /// paid one keeps its proofs spent and stores its change, a failed one
+    /// returns its proofs to the balance. One the mint still calls pending is
+    /// left as it is, for the next call.
+    ///
+    /// Skipped while a melt holds the mint ([`in_flight`]), quoting
+    /// included: cdk would resume that melt's saga too, and roll it back on a
+    /// mint that has not processed its request yet. The next sync settles it.
+    ///
+    /// **Errors** (stable markers): `CashuStateCheckFailed` when the store
+    /// cannot be read. A single melt the mint does not answer for is logged by
+    /// cdk and skipped, not an error.
+    pub async fn finalize_pending_melts(&self) -> Result<()> {
+        if in_flight::melt_in_flight(&self.inner.mint_url) {
+            log::info!(
+                "[cashu] a melt is in flight at this mint: pending melts wait for the next sync"
+            );
+            return Ok(());
+        }
+        let finalized = self
+            .inner
+            .finalize_pending_melts()
+            .await
+            .map_err(|e| anyhow!("CashuStateCheckFailed: {e}"))?;
+        if !finalized.is_empty() {
+            log::info!("[cashu] settled {} pending melt(s)", finalized.len());
+        }
+        Ok(())
+    }
+
+    /// Quote paying `invoice` from the wallet, reserving nothing.
+    ///
+    /// The fees are only known once proofs are chosen — cdk computes the
+    /// input fee, and whether a swap is needed, in `prepare_melt` alone — so
+    /// the melt is prepared and then cancelled at once. A prepared melt
+    /// borrows the wallet and cannot outlive this call, and the user reading
+    /// the confirmation must not hold any of the balance hostage.
+    ///
+    /// **Errors** (stable markers): `CashuMeltInFlight` while another melt or
+    /// quote holds this mint, those of [`melt_invoice`],
+    /// `CashuMeltUnsupported` when the mint does not melt to `bolt11`,
+    /// `CashuMeltAmountOutOfRange` outside the mint's limits,
+    /// `CashuMeltQuoteFailed` when the mint does not quote or the wallet
+    /// cannot price or release the quote, `CashuMeltInsufficientFunds`,
+    /// `CashuMeltQuoteExpired`, `CashuMeltFailed` (amount overflow).
+    pub async fn melt_quote(&self, invoice: &str) -> Result<MeltQuoteInfo> {
+        // Taken first, and held while the quote is priced: pricing reserves
+        // proofs for a moment, and a connect's recovery would roll that back.
+        // A second payment is refused before its invoice is even read.
+        let _in_flight = in_flight::try_begin_melt(&self.inner.mint_url)?;
+        let (invoice, amount_sats) = melt_invoice(invoice, unix_now())?;
+        melt_gate(&self.capabilities, amount_sats)?;
+
+        let quote = self
+            .inner
+            .melt_quote(PaymentMethod::BOLT11, invoice, None, None)
+            .await
+            .map_err(|e| match e {
+                cdk::Error::AmountOutofLimitRange(..) => {
+                    anyhow!("CashuMeltAmountOutOfRange: {e}")
+                }
+                cdk::Error::UnsupportedPaymentMethod => anyhow!("CashuMeltUnsupported: {e}"),
+                other => anyhow!("CashuMeltQuoteFailed: {other}"),
+            })?;
+
+        let prepared = self
+            .inner
+            .prepare_melt(&quote.id, HashMap::new())
+            .await
+            // Nothing is being paid yet: not "the payment did not go through".
+            .map_err(|e| match e {
+                cdk::Error::InsufficientFunds | cdk::Error::ExpiredQuote(..) => {
+                    prepare_melt_error(e)
+                }
+                other => anyhow!("CashuMeltQuoteFailed: {other}"),
+            })?;
+        let info = quote_info(&prepared);
+        // A quote not released is not offered: its saga still holds the quote
+        // (`reserve_melt_quote`, `wallet/melt/saga/mod.rs`) as well as the
+        // proofs, so paying it would fail. Both stay reserved until the next
+        // connect's recovery rolls the saga back.
+        prepared
+            .cancel()
+            .await
+            .map_err(|e| anyhow!("CashuMeltQuoteFailed: releasing the quote failed: {e}"))?;
+        let info = info?;
+        log::info!(
+            "[cashu] melt quoted: {} sat, up to {} sat in total",
+            info.amount_sats,
+            info.max_total_sats
+        );
+        Ok(info)
+    }
+
+    /// Pay the quote `quote_id`, provided it costs no more than
+    /// `max_total_sats` — the total the user confirmed.
+    ///
+    /// Prepared again rather than kept from [`Self::melt_quote`]: the fees
+    /// are re-read from the proofs the wallet holds now, and a quote that
+    /// expired or now costs more is cancelled before anything leaves.
+    ///
+    /// Refused, too, while another melt or quote holds this mint
+    /// ([`in_flight`]); this one holds it until it returns.
+    ///
+    /// **Errors** (stable markers): `CashuMeltInFlight`,
+    /// `CashuMeltQuoteExpired`, `CashuMeltFeeChanged` (both refused before
+    /// paying, nothing spent), `CashuMeltInsufficientFunds`, `CashuMeltFailed`
+    /// (nothing was paid and the proofs are back — a quote no longer unpaid
+    /// is refused so as well, before anything is sent). A payment the mint has not settled — or could
+    /// not be asked about — after an error is `Pending`, not an error: see
+    /// [`confirm_error_outcome`].
+    pub async fn melt(&self, quote_id: &str, max_total_sats: u64) -> Result<MeltOutcomeInfo> {
+        // Held to the last line, even past the point the caller stops
+        // waiting: until this returns the request may still be on its way to
+        // the mint, and the mint may still pay it.
+        let _in_flight = in_flight::try_begin_melt(&self.inner.mint_url)?;
+        let prepared = self
+            .inner
+            .prepare_melt(quote_id, HashMap::new())
+            .await
+            .map_err(prepare_melt_error)?;
+
+        if let Some(refusal) = melt_refusal(
+            prepared.quote(),
+            u64::from(prepared.total_fee()),
+            &self.inner.mint_url,
+            unix_now().as_secs(),
+            max_total_sats,
+        ) {
+            if let Err(e) = prepared.cancel().await {
+                log::warn!("[cashu] releasing the refused melt failed: {e}");
+            }
+            return Err(refusal);
+        }
+
+        // Read before `confirm` consumes the handle: cdk's `fee_paid` counts
+        // the melt's inputs only, and the swap that made them was paid too.
+        let swap_fee = u64::from(prepared.swap_fee());
+        let operation_id = prepared.operation_id();
+        let localstore = self.inner.localstore.as_ref();
+        // From before the request, so the whole payment answers within
+        // [`MELT_WAIT`] — the time the request took counts against it.
+        let deadline = tokio::time::Instant::now() + MELT_WAIT;
+
+        let finalized = match prepared.confirm_prefer_async().await {
+            Ok(MeltOutcome::Paid(finalized)) => finalized,
+            // The mint took the payment and answered before routing it — what
+            // a mint does with `Prefer: respond-async` (cdk-mintd always does)
+            // however fast the payment then settles. Waiting a while turns the
+            // common case into its real result: proofs settled, change stored,
+            // the fee known. Past the deadline the handle is dropped, which cdk
+            // allows ("can be awaited or dropped"): the saga is recorded as
+            // in flight and `finalize_pending_melts` settles it at the next
+            // sync or connect.
+            Ok(MeltOutcome::Pending(pending)) => {
+                match tokio::time::timeout_at(deadline, pending.into_future()).await {
+                    Ok(Ok(finalized)) => finalized,
+                    Ok(Err(e)) => return after_confirm_error(localstore, operation_id, e).await,
+                    Err(_) => {
+                        log::info!("[cashu] melt still pending {}s in", MELT_WAIT.as_secs());
+                        return Ok(MeltOutcomeInfo::Pending);
+                    }
+                }
+            }
+            Err(e) => return after_confirm_error(localstore, operation_id, e).await,
+        };
+
+        let outcome = melt_outcome(
+            finalized.state(),
+            u64::from(finalized.amount()),
+            u64::from(finalized.fee_paid()),
+            swap_fee,
+        )?;
+        match &outcome {
+            MeltOutcomeInfo::Paid {
+                amount_sats,
+                fee_paid_sats,
+            } => log::info!("[cashu] melted {amount_sats} sat ({fee_paid_sats} sat in fees)"),
+            MeltOutcomeInfo::Pending => log::info!("[cashu] melt pending"),
+        }
+        Ok(outcome)
+    }
+}
+
+/// How long [`CashuWallet::melt`] gives a payment, counted from before its
+/// request, before reporting one the mint answered as pending so. Long enough
+/// for an ordinary Lightning payment, which settles in seconds; short enough
+/// that a held one (a hold invoice, a stuck route) does not keep the
+/// confirmation spinning.
+///
+/// It cannot bound a request the mint holds open, ignoring `respond-async`:
+/// cdk sets no timeout on it, and dropping it mid-flight could leave a swap
+/// half recorded. The payment dialog stops waiting a little after this
+/// instead (`_meltDialogWait` in `cashu_wallet_screen.dart`) — keep it above.
+const MELT_WAIT: Duration = Duration::from_secs(30);
+
+/// What an error from confirming the melt `operation_id` means, read against
+/// the proof store.
+///
+/// By then cdk has run `recover_failed_melt_confirm` (`wallet/melt/mod.rs`,
+/// cdk 0.18.2), which returns the original error whether it rolled the melt
+/// back or left it unresolved. Whether the melt's saga is still on record
+/// tells the two apart; see [`confirm_error_outcome`]. A store that cannot be
+/// read proves nothing, so it counts as still recorded.
+async fn after_confirm_error(
+    localstore: &(dyn WalletDatabase<cdk_database::Error> + Send + Sync),
+    operation_id: Uuid,
+    e: cdk::Error,
+) -> Result<MeltOutcomeInfo> {
+    let still_recorded = localstore
+        .get_saga(&operation_id)
+        .await
+        .map_or(true, |saga| saga.is_some());
+    confirm_error_outcome(still_recorded, e)
+}
+
+/// What an error from confirming a melt means for the user, given whether its
+/// saga is `still_recorded` once cdk's recovery has run.
+///
+/// A rolled-back melt has no saga: cdk deletes it with the reservation
+/// (`compensate_melt`, `wallet/melt/saga/resume.rs`). One still recorded was
+/// sent and the mint did not say how it ended — or could not be asked — so the
+/// payment may yet settle: [`MeltOutcomeInfo::Pending`], whatever the error
+/// said. Telling the user it failed would invite paying a second invoice.
+///
+/// **Errors**, for a melt rolled back only: `CashuMeltQuoteExpired` when the
+/// mint refused the quote as expired, `CashuMeltFailed` otherwise.
+fn confirm_error_outcome(still_recorded: bool, e: cdk::Error) -> Result<MeltOutcomeInfo> {
+    if still_recorded {
+        log::info!("[cashu] melt unresolved after a confirm error: {e}");
+        return Ok(MeltOutcomeInfo::Pending);
+    }
+    match e {
+        cdk::Error::ExpiredQuote(..) => bail!("CashuMeltQuoteExpired"),
+        e => bail!("CashuMeltFailed: {e}"),
+    }
+}
+
+/// What a finalized melt means for the user. `fee_paid` is cdk's, which counts
+/// the melt's inputs only; `swap_fee` is the swap that made them, paid too.
+///
+/// **Errors**: `CashuMeltFailed` for a payment the mint reports failed or
+/// unpaid — cdk has already returned its proofs.
+fn melt_outcome(
+    state: MeltQuoteState,
+    amount_sats: u64,
+    fee_paid: u64,
+    swap_fee: u64,
+) -> Result<MeltOutcomeInfo> {
+    match state {
+        MeltQuoteState::Paid => Ok(MeltOutcomeInfo::Paid {
+            amount_sats,
+            fee_paid_sats: fee_paid.saturating_add(swap_fee),
+        }),
+        MeltQuoteState::Pending | MeltQuoteState::Unknown => Ok(MeltOutcomeInfo::Pending),
+        other => bail!("CashuMeltFailed: payment {other}"),
+    }
+}
+
+/// Whether a melt quote was taken at `wallet_mint`. A quote that records no
+/// mint is not refused for that alone: cdk fills the field for every quote
+/// it takes (`wallet/melt/bolt11.rs`), so only an older store lacks it.
+fn quote_is_for(quote_mint: Option<&MintUrl>, wallet_mint: &MintUrl) -> bool {
+    quote_mint.is_none_or(|mint| mint == wallet_mint)
+}
+
+/// Why [`CashuWallet::melt`] must not pay the prepared `quote`, if it must
+/// not: `None` pays it. `input_fee_sats` is the prepared melt's
+/// [`PreparedMelt::total_fee`], `max_total_sats` the total the user confirmed.
+///
+/// A function of plain values so it can be checked without a mint: a
+/// [`PreparedMelt`] borrows the wallet and only a mint's quote makes one.
+///
+/// **Errors** returned (stable markers): `CashuMeltFailed` for a quote taken
+/// at another mint or no longer unpaid, `CashuMeltQuoteExpired`,
+/// `CashuMeltFeeChanged`, and `CashuMeltFailed` again when the total
+/// overflows.
+fn melt_refusal(
+    quote: &cdk::wallet::MeltQuote,
+    input_fee_sats: u64,
+    wallet_mint: &MintUrl,
+    now_secs: u64,
+    max_total_sats: u64,
+) -> Option<anyhow::Error> {
+    // cdk loads the quote by id from a store shared by every mint and does
+    // not check whose it is (`initialize_melt` in `wallet/melt/saga/mod.rs`,
+    // cdk 0.18.2): a quote taken at another mint would have this mint's
+    // proofs sent to pay it.
+    if !quote_is_for(quote.mint_url.as_ref(), wallet_mint) {
+        return Some(anyhow!(
+            "CashuMeltFailed: the quote belongs to another mint"
+        ));
+    }
+    // cdk checks only the expiry (`initialize_melt`), and a quote that
+    // finalized as paid has had its reservation released, so it prepares
+    // again. If the mint then refuses the melt with anything but
+    // `RequestAlreadyPaid`, cdk reads the quote paid and marks the *new*
+    // proofs spent (`execute_async`, `wallet/melt/saga/mod.rs`, cdk 0.18.2).
+    if quote.state != MeltQuoteState::Unpaid {
+        return Some(anyhow!("CashuMeltFailed: the quote is no longer unpaid"));
+    }
+    if quote.expiry <= now_secs {
+        return Some(anyhow!("CashuMeltQuoteExpired"));
+    }
+    match quote_info_of(quote, input_fee_sats) {
+        Ok(info) if info.max_total_sats > max_total_sats => Some(anyhow!(
+            "CashuMeltFeeChanged: {} sat over {max_total_sats} sat confirmed",
+            info.max_total_sats
+        )),
+        Ok(_) => None,
+        Err(e) => Some(e),
+    }
+}
+
+/// [`MeltQuoteInfo`] of a prepared melt.
+///
+/// cdk 0.18.2 (`wallet/melt/saga/mod.rs`): the proofs are chosen to cover
+/// `amount + fee_reserve`, and the input fee, plus the swap fee when they must
+/// be swapped to fit, comes on top — [`PreparedMelt::total_fee`]. Only
+/// [`PreparedMelt::amount`] is not what its name may suggest: it is the
+/// quote's amount, not what the proofs add up to.
+fn quote_info(prepared: &PreparedMelt<'_>) -> Result<MeltQuoteInfo> {
+    quote_info_of(prepared.quote(), u64::from(prepared.total_fee()))
+}
+
+/// [`quote_info`] from the quote and the prepared melt's input fee.
+fn quote_info_of(quote: &cdk::wallet::MeltQuote, input_fee_sats: u64) -> Result<MeltQuoteInfo> {
+    let amount_sats = u64::from(quote.amount);
+    let fee_reserve_sats = u64::from(quote.fee_reserve);
+    let max_total_sats = melt_max_total(amount_sats, fee_reserve_sats, input_fee_sats)
+        .ok_or_else(|| anyhow!("CashuMeltFailed: amount overflow"))?;
+    Ok(MeltQuoteInfo {
+        quote_id: quote.id.clone(),
+        amount_sats,
+        fee_reserve_sats,
+        input_fee_sats,
+        max_total_sats,
+    })
+}
+
+/// The most a melt can take from the balance: the invoice, the routing fee
+/// reserve and the mint's input fees. Change from an unspent reserve only
+/// ever lowers it.
+pub(crate) fn melt_max_total(amount: u64, fee_reserve: u64, input_fee: u64) -> Option<u64> {
+    amount.checked_add(fee_reserve)?.checked_add(input_fee)
+}
+
+fn prepare_melt_error(e: cdk::Error) -> anyhow::Error {
+    match e {
+        cdk::Error::InsufficientFunds => anyhow!("CashuMeltInsufficientFunds"),
+        cdk::Error::ExpiredQuote(..) => anyhow!("CashuMeltQuoteExpired"),
+        other => anyhow!("CashuMeltFailed: {other}"),
+    }
+}
+
+/// Refuse, from what the mint advertised at connect, a melt it will not do —
+/// before it is asked for a quote.
+///
+/// **Errors** (stable markers): `CashuMeltUnsupported` when the mint does not
+/// melt `sat` to `bolt11`, `CashuMeltAmountOutOfRange` outside its NUT-05
+/// limits, where it states any.
+fn melt_gate(capabilities: &MintCapabilities, amount_sats: u64) -> Result<()> {
+    if !capabilities.nut05_bolt11 {
+        bail!("CashuMeltUnsupported");
+    }
+    let above_min = capabilities
+        .melt_min_sats
+        .is_none_or(|min| amount_sats >= min);
+    let below_max = capabilities
+        .melt_max_sats
+        .is_none_or(|max| amount_sats <= max);
+    if !(above_min && below_max) {
+        bail!("CashuMeltAmountOutOfRange: {amount_sats} sat");
+    }
+    Ok(())
+}
+
+fn unix_now() -> Duration {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+}
+
+/// The invoice the wallet will pay, and its amount in sats, checked before
+/// any mint is asked.
+///
+/// The invoice is handed on lower-cased, with any `lightning:` prefix and
+/// whitespace removed (BOLT11 is case-insensitive). `now` is unix time.
+///
+/// An amount with a fraction of a sat is refused, not rounded: the wallet
+/// holds whole sats, and cdk checks the mint's quote against the invoice's
+/// msat amount *floored* to sats (`wallet/melt/bolt11.rs`, cdk 0.18.2), so
+/// a mint that rounds up — as it must to pay the invoice in full — has its
+/// quote refused anyway, after a round trip. Same rule as
+/// [`crate::api::invoice::whole_sats`].
+///
+/// **Errors** (stable markers): `CashuInvalidInvoice` for anything that is
+/// not a BOLT11 invoice, or one with a fraction of a sat;
+/// `CashuInvoiceNoAmount` for an open-amount invoice; `CashuInvoiceExpired`.
+pub(crate) fn melt_invoice(input: &str, now: Duration) -> Result<(String, u64)> {
+    use lightning_invoice::Bolt11Invoice;
+
+    let invoice = crate::api::invoice::normalize(input).to_ascii_lowercase();
+    let parsed = Bolt11Invoice::from_str(&invoice).map_err(|_| anyhow!("CashuInvalidInvoice"))?;
+    let msat = parsed
+        .amount_milli_satoshis()
+        .ok_or_else(|| anyhow!("CashuInvoiceNoAmount"))?;
+    let sats = crate::api::invoice::whole_sats(Some(msat))
+        .ok_or_else(|| anyhow!("CashuInvalidInvoice: {msat} msat is not whole sats"))?;
+    if parsed.would_expire(now) {
+        bail!("CashuInvoiceExpired");
+    }
+    Ok((invoice, sats))
+}
+
+/// The mint's NUT-05 settings for melting `sat` to a `bolt11` invoice, or
+/// `None` when it does not offer that — melting `disabled` included, whatever
+/// methods it still lists.
+fn bolt11_sat_melt(nut05: &cdk::nuts::nut05::Settings) -> Option<MeltMethodSettings> {
+    if nut05.disabled {
+        return None;
+    }
+    nut05.get_settings(&CurrencyUnit::Sat, &PaymentMethod::BOLT11)
 }
 
 /// The sats held in the proof store at `db_path` — at `mint_url`, or across
@@ -619,6 +1151,7 @@ mod tests {
             nut11_p2pk: true,
             nut12_dleq: true,
             has_sat_keyset: true,
+            ..MintCapabilities::default()
         };
 
         // Assert
@@ -784,6 +1317,297 @@ mod tests {
             unit: None,
         });
         assert!(parse_received_token(&unitless.to_string()).is_ok());
+    }
+
+    #[test]
+    fn a_mint_without_melt_still_trades() {
+        // Arrange — every escrow requirement, and no NUT-05.
+        let no_melt = MintCapabilities {
+            nut07_state_check: true,
+            nut11_p2pk: true,
+            nut12_dleq: true,
+            has_sat_keyset: true,
+            nut05_bolt11: false,
+            melt_min_sats: None,
+            melt_max_sats: None,
+        };
+
+        // Assert — "send to Lightning" is hidden, the mint is not refused.
+        assert!(no_melt.is_usable());
+        assert!(no_melt.missing().is_empty());
+    }
+
+    #[test]
+    fn melting_counts_only_for_bolt11_in_sats_and_not_disabled() {
+        use cdk::nuts::nut05::Settings;
+
+        let method = |method: PaymentMethod, unit: CurrencyUnit| MeltMethodSettings {
+            method,
+            unit,
+            method_name: None,
+            min_amount: Some(Amount::from(10)),
+            max_amount: Some(Amount::from(500_000)),
+            options: None,
+        };
+        let offering =
+            |methods: Vec<MeltMethodSettings>, disabled: bool| Settings { methods, disabled };
+
+        // bolt11 in sats: offered, with its limits.
+        let melt = bolt11_sat_melt(&offering(
+            vec![method(PaymentMethod::BOLT11, CurrencyUnit::Sat)],
+            false,
+        ))
+        .expect("bolt11/sat is a melt this wallet can use");
+        assert_eq!(melt.min_amount, Some(Amount::from(10)));
+        assert_eq!(melt.max_amount, Some(Amount::from(500_000)));
+
+        // The same method with melting disabled, another unit, another
+        // method, or nothing listed: not offered.
+        for (settings, why) in [
+            (
+                offering(vec![method(PaymentMethod::BOLT11, CurrencyUnit::Sat)], true),
+                "disabled",
+            ),
+            (
+                offering(
+                    vec![method(PaymentMethod::BOLT11, CurrencyUnit::Usd)],
+                    false,
+                ),
+                "usd only",
+            ),
+            (
+                offering(
+                    vec![method(PaymentMethod::BOLT12, CurrencyUnit::Sat)],
+                    false,
+                ),
+                "bolt12 only",
+            ),
+            (offering(Vec::new(), false), "nothing listed"),
+        ] {
+            assert!(bolt11_sat_melt(&settings).is_none(), "{why}");
+        }
+    }
+
+    /// BOLT11 spec test vector for 9 678 785.340 µBTC: 967 878 534 msat, a
+    /// fraction of a sat on top of 967 878 sat.
+    const FRACTIONAL_SATS: &str = "lnbc9678785340p1pwmna7lpp5gc3xfm08u9qy06djf8dfflhugl6p7lgza6dsjxq454gxhj9t7a0sd8dgfkx7cmtwd68yetpd5s9xar0wfjn5gpc8qhrsdfq24f5ggrxdaezqsnvda3kkum5wfjkzmfqf3jkgem9wgsyuctwdus9xgrcyqcjcgpzgfskx6eqf9hzqnteypzxz7fzypfhg6trddjhygrcyqezcgpzfysywmm5ypxxjemgw3hxjmn8yptk7untd9hxwg3q2d6xjcmtv4ezq7pqxgsxzmnyyqcjqmt0wfjjq6t5v4khxsp5zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygsxqyjw5qcqp2rzjq0gxwkzc8w6323m55m4jyxcjwmy7stt9hwkwe2qxmy8zpsgg7jcuwz87fcqqeuqqqyqqqqlgqqqqn3qq9q9qrsgqrvgkpnmps664wgkp43l22qsgdw4ve24aca4nymnxddlnp8vh9v2sdxlu5ywdxefsfvm0fq3sesf08uf6q9a2ke0hc9j6z6wlxg5z5kqpu2v9wz";
+
+    /// When `invoice` was issued, as the `now` of [`melt_invoice`]: the spec
+    /// vectors expired years ago, and at their own timestamp they have not.
+    fn issued_at(invoice: &str) -> Duration {
+        lightning_invoice::Bolt11Invoice::from_str(invoice)
+            .unwrap()
+            .duration_since_epoch()
+    }
+
+    /// The stable marker of an error, without the detail after it.
+    fn marker_of(e: anyhow::Error) -> String {
+        e.to_string()
+            .split(':')
+            .next()
+            .unwrap_or_default()
+            .to_string()
+    }
+
+    #[test]
+    fn an_invoice_to_melt_is_checked_before_any_mint_is_asked() {
+        use crate::api::invoice::test_vectors::{COFFEE, DONATION};
+
+        let marker = |input: &str, now: Duration| marker_of(melt_invoice(input, now).unwrap_err());
+
+        // Not an invoice at all — nor a corrupted one, nor an address.
+        for garbage in ["", "hello", "lnbc1short", "satoshi@example.com"] {
+            assert_eq!(
+                marker(garbage, unix_now()),
+                "CashuInvalidInvoice",
+                "{garbage:?}"
+            );
+        }
+        let corrupted = COFFEE.replacen("lnbc2500u1", "lnbc2500u2", 1);
+        assert_eq!(marker(&corrupted, unix_now()), "CashuInvalidInvoice");
+
+        // Open-amount invoices are out of scope, expired ones cannot be paid,
+        // and a fraction of a sat is refused rather than rounded.
+        assert_eq!(
+            marker(DONATION, issued_at(DONATION)),
+            "CashuInvoiceNoAmount"
+        );
+        assert_eq!(marker(COFFEE, unix_now()), "CashuInvoiceExpired");
+        assert_eq!(
+            marker(FRACTIONAL_SATS, issued_at(FRACTIONAL_SATS)),
+            "CashuInvalidInvoice"
+        );
+
+        // A live invoice: its amount in sats, and the invoice as cdk will get
+        // it — scheme and whitespace stripped, lower-cased.
+        let expected = (COFFEE.to_string(), 250_000);
+        let now = issued_at(COFFEE);
+        assert_eq!(melt_invoice(COFFEE, now).unwrap(), expected);
+        let scanned = format!("  lightning:{}\n", COFFEE.to_ascii_uppercase());
+        assert_eq!(melt_invoice(&scanned, now).unwrap(), expected);
+        // Its expiry is 60 s: past it, it is expired.
+        assert_eq!(
+            marker(COFFEE, now + Duration::from_secs(61)),
+            "CashuInvoiceExpired"
+        );
+    }
+
+    #[test]
+    fn the_confirmed_total_is_amount_plus_reserve_plus_input_fees() {
+        // Pins the reading of cdk 0.18.2 behind it: `prepare_melt` selects
+        // proofs for `amount + fee_reserve`, and `total_fee()` (input fee,
+        // plus the swap's when one is needed) comes on top. This is the most
+        // the balance can drop; nothing is left out of it.
+        assert_eq!(melt_max_total(100, 2, 1), Some(103));
+        assert_eq!(melt_max_total(100, 0, 0), Some(100));
+        // Overflow is refused, never wrapped into a small total the user
+        // would confirm.
+        assert_eq!(melt_max_total(u64::MAX, 1, 0), None);
+        assert_eq!(melt_max_total(u64::MAX - 1, 1, 1), None);
+    }
+
+    #[test]
+    fn a_finalized_melt_reads_as_paid_pending_or_failed() {
+        // Paid: the fee the user sees includes the swap that made the inputs.
+        assert_eq!(
+            melt_outcome(MeltQuoteState::Paid, 1_000, 1, 1).unwrap(),
+            MeltOutcomeInfo::Paid {
+                amount_sats: 1_000,
+                fee_paid_sats: 2,
+            }
+        );
+        // Still routing, or the mint cannot say: pending, settled at sync.
+        for state in [MeltQuoteState::Pending, MeltQuoteState::Unknown] {
+            assert_eq!(
+                melt_outcome(state, 1_000, 0, 0).unwrap(),
+                MeltOutcomeInfo::Pending,
+                "{state}"
+            );
+        }
+        // Not paid: a failure, never a success with nothing spent.
+        for state in [MeltQuoteState::Unpaid, MeltQuoteState::Failed] {
+            assert_eq!(
+                marker_of(melt_outcome(state, 1_000, 0, 0).unwrap_err()),
+                "CashuMeltFailed",
+                "{state}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn a_confirm_error_reads_pending_while_the_melt_is_still_recorded() {
+        use cdk::wallet::types::{
+            MeltOperationData, MeltSagaState, OperationData, WalletSaga, WalletSagaState,
+        };
+
+        // Arrange — a melt sent to the mint, its saga in `MeltRequested`: what
+        // cdk leaves when the mint said pending or unknown, or could not be
+        // asked, after a confirm error. A rolled-back melt has no saga.
+        let path = temp_db_path();
+        let store = WalletSqliteDatabase::new(path.to_str().unwrap())
+            .await
+            .unwrap();
+        let in_flight = Uuid::new_v4();
+        store
+            .add_saga(WalletSaga::new(
+                in_flight,
+                WalletSagaState::Melt(MeltSagaState::MeltRequested),
+                Amount::from(1_000),
+                MintUrl::from_str("https://mint.example.com").unwrap(),
+                CurrencyUnit::Sat,
+                OperationData::Melt(MeltOperationData {
+                    quote_id: "quote".to_string(),
+                    amount: Amount::from(1_000),
+                    fee_reserve: Amount::from(10),
+                    counter_start: None,
+                    counter_end: None,
+                    change_amount: None,
+                    metadata: HashMap::new(),
+                    final_proof_ys: None,
+                    change_blinded_messages: None,
+                }),
+            ))
+            .await
+            .unwrap();
+        let rolled_back = Uuid::new_v4();
+        let outcome = |operation_id: Uuid, e: cdk::Error| {
+            let store = &store;
+            async move { after_confirm_error(store, operation_id, e).await }
+        };
+
+        // Act / Assert — still recorded, the payment may yet settle: pending,
+        // never "failed" or "nothing was paid", whatever the error said. A
+        // timeout is the usual one: a connection lost after the request left.
+        for e in [cdk::Error::Timeout, cdk::Error::ExpiredQuote(0, 0)] {
+            let label = e.to_string();
+            assert_eq!(
+                outcome(in_flight, e).await.unwrap(),
+                MeltOutcomeInfo::Pending,
+                "{label}"
+            );
+        }
+
+        // Rolled back, the proofs are back: the error stands.
+        assert_eq!(
+            marker_of(outcome(rolled_back, cdk::Error::Timeout).await.unwrap_err()),
+            "CashuMeltFailed"
+        );
+        assert_eq!(
+            marker_of(
+                outcome(rolled_back, cdk::Error::ExpiredQuote(0, 0))
+                    .await
+                    .unwrap_err()
+            ),
+            "CashuMeltQuoteExpired"
+        );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn a_melt_quote_is_paid_only_at_the_mint_that_issued_it() {
+        let ours = MintUrl::from_str("https://mint.example.com").unwrap();
+        let theirs = MintUrl::from_str("https://other.example.com").unwrap();
+
+        assert!(quote_is_for(Some(&ours), &ours));
+        assert!(!quote_is_for(Some(&theirs), &ours));
+        // A quote that names no mint is not refused for that alone.
+        assert!(quote_is_for(None, &ours));
+    }
+
+    #[test]
+    fn a_melt_is_gated_on_what_the_mint_advertised() {
+        let melts = MintCapabilities {
+            nut05_bolt11: true,
+            ..MintCapabilities::default()
+        };
+        let gate = |caps: &MintCapabilities, sats: u64| melt_gate(caps, sats).map_err(marker_of);
+
+        // No NUT-05: unsupported, whatever the amount.
+        assert_eq!(
+            gate(&MintCapabilities::default(), 100),
+            Err("CashuMeltUnsupported".to_string())
+        );
+
+        // No stated limits: any amount goes to the mint.
+        assert_eq!(gate(&melts, 1), Ok(()));
+        assert_eq!(gate(&melts, u64::MAX), Ok(()));
+
+        // Limits are inclusive at both ends.
+        let limited = MintCapabilities {
+            melt_min_sats: Some(10),
+            melt_max_sats: Some(1_000),
+            ..melts
+        };
+        assert_eq!(gate(&limited, 10), Ok(()));
+        assert_eq!(gate(&limited, 1_000), Ok(()));
+        for outside in [9, 1_001] {
+            assert_eq!(
+                gate(&limited, outside),
+                Err("CashuMeltAmountOutOfRange".to_string()),
+                "{outside} sat"
+            );
+        }
     }
 
     #[test]
@@ -971,5 +1795,387 @@ mod tests {
         assert!(err.to_string().contains("CashuAmountZero"), "got {err}");
 
         let _ = std::fs::remove_file(&path);
+    }
+
+    // ── A melt in flight, and a quote already paid (#864) ─────────────────────
+    //
+    // Driven through the wallet itself, not just the pieces: a wallet whose
+    // keyset and proofs are seeded in its store prices a melt without asking
+    // the mint (`KeysetLoadPolicy::CacheThenNetwork` reads the store first),
+    // and its mint is a local listener that counts what reaches it. "Refused
+    // before anything was sent" is then something a test can see.
+
+    /// A mint's HTTP endpoint, as far as these tests need one: it counts the
+    /// connections it gets and answers each with `body` as JSON, or hangs up
+    /// when there is none.
+    struct StubMint {
+        url: String,
+        connections: Arc<std::sync::atomic::AtomicUsize>,
+    }
+
+    impl StubMint {
+        async fn start(body: Option<String>) -> Self {
+            use std::sync::atomic::{AtomicUsize, Ordering};
+            use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let url = format!("http://{}", listener.local_addr().unwrap());
+            let connections = Arc::new(AtomicUsize::new(0));
+            let counted = connections.clone();
+            tokio::spawn(async move {
+                while let Ok((mut socket, _)) = listener.accept().await {
+                    counted.fetch_add(1, Ordering::SeqCst);
+                    let body = body.clone();
+                    tokio::spawn(async move {
+                        // The request's headers, then the answer; nothing here
+                        // reads a body, and every route gets the same one.
+                        let mut request = Vec::new();
+                        let mut chunk = [0u8; 4096];
+                        while !request.windows(4).any(|w| w == b"\r\n\r\n") {
+                            match socket.read(&mut chunk).await {
+                                Ok(0) | Err(_) => return,
+                                Ok(n) => request.extend_from_slice(&chunk[..n]),
+                            }
+                        }
+                        if let Some(body) = body {
+                            let answer = format!(
+                                "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\n\
+                                 content-length: {}\r\nconnection: close\r\n\r\n{body}",
+                                body.len()
+                            );
+                            let _ = socket.write_all(answer.as_bytes()).await;
+                        }
+                    });
+                }
+            });
+            Self { url, connections }
+        }
+
+        fn connections(&self) -> usize {
+            self.connections.load(std::sync::atomic::Ordering::SeqCst)
+        }
+    }
+
+    /// What every seeded wallet holds: one proof of exactly this much, so a
+    /// melt of it needs no swap.
+    const SEEDED_SATS: u64 = 64;
+
+    /// A wallet at `mint_url` with one [`SEEDED_SATS`] proof under a keyset
+    /// seeded in its store, and no fees anywhere.
+    async fn seeded_wallet(mint_url: &str) -> CashuWallet {
+        use cdk::nuts::{Id, KeySet, Keys, SecretKey, State};
+        use cdk::secret::Secret;
+        use cdk::wallet::types::ProofInfo;
+        use std::collections::BTreeMap;
+
+        let store = WalletSqliteDatabase::new(temp_db_path().to_str().unwrap())
+            .await
+            .unwrap();
+        let mint = MintUrl::from_str(mint_url).unwrap();
+        let keys = Keys::new(
+            (0..8)
+                .map(|bit| {
+                    (
+                        Amount::from(1u64 << bit),
+                        SecretKey::generate().public_key(),
+                    )
+                })
+                .collect::<BTreeMap<_, _>>(),
+        );
+        let id = Id::v1_from_keys(&keys);
+        store.add_mint(mint.clone(), None).await.unwrap();
+        store
+            .add_mint_keysets(
+                mint.clone(),
+                vec![KeySetInfo {
+                    id,
+                    unit: CurrencyUnit::Sat,
+                    active: true,
+                    input_fee_ppk: 0,
+                    final_expiry: None,
+                }],
+            )
+            .await
+            .unwrap();
+        store
+            .add_keys(KeySet {
+                id,
+                unit: CurrencyUnit::Sat,
+                active: Some(true),
+                keys,
+                input_fee_ppk: 0,
+                final_expiry: None,
+            })
+            .await
+            .unwrap();
+        let proof = Proof::new(
+            Amount::from(SEEDED_SATS),
+            id,
+            Secret::generate(),
+            SecretKey::generate().public_key(),
+        );
+        store
+            .update_proofs(
+                vec![ProofInfo::new(proof, mint, State::Unspent, CurrencyUnit::Sat).unwrap()],
+                vec![],
+            )
+            .await
+            .unwrap();
+
+        let inner = Wallet::new(
+            mint_url,
+            CurrencyUnit::Sat,
+            Arc::new(store),
+            *unique_seed(),
+            None,
+        )
+        .unwrap();
+        CashuWallet {
+            inner,
+            mint_url: mint_url.to_string(),
+            capabilities: MintCapabilities {
+                nut05_bolt11: true,
+                ..MintCapabilities::default()
+            },
+        }
+    }
+
+    /// A melt quote for all of [`SEEDED_SATS`], valid for an hour.
+    fn melt_quote_for(id: &str, mint: &MintUrl, state: MeltQuoteState) -> cdk::wallet::MeltQuote {
+        cdk::wallet::MeltQuote {
+            id: id.to_string(),
+            mint_url: Some(mint.clone()),
+            unit: CurrencyUnit::Sat,
+            amount: Amount::from(SEEDED_SATS),
+            request: "lnbcrt640n1placeholder".to_string(),
+            fee_reserve: Amount::ZERO,
+            state,
+            expiry: unix_now().as_secs() + 3_600,
+            payment_proof: None,
+            estimated_blocks: None,
+            fee_index: None,
+            payment_method: PaymentMethod::BOLT11,
+            used_by_operation: None,
+            version: 0,
+        }
+    }
+
+    async fn unspent_sats(wallet: &CashuWallet) -> u64 {
+        wallet
+            .inner
+            .localstore
+            .get_proofs(
+                Some(wallet.inner.mint_url.clone()),
+                Some(CurrencyUnit::Sat),
+                Some(vec![cdk::nuts::State::Unspent]),
+                None,
+            )
+            .await
+            .unwrap()
+            .iter()
+            .map(|p| u64::from(p.proof.amount))
+            .sum()
+    }
+
+    /// Record in `wallet`'s store what an ongoing melt of quote `quote_id`
+    /// looks like once its request has left: the saga in `MeltRequested`, the
+    /// quote and the proof reserved by it, the proof pending. Returns the
+    /// saga's id.
+    async fn record_melt_in_flight(wallet: &CashuWallet, quote_id: &str) -> Uuid {
+        use cdk::nuts::State;
+        use cdk::wallet::types::{
+            MeltOperationData, MeltSagaState, OperationData, WalletSaga, WalletSagaState,
+        };
+
+        let store = &wallet.inner.localstore;
+        let mint = wallet.inner.mint_url.clone();
+        let saga = Uuid::new_v4();
+        store
+            .add_melt_quote(melt_quote_for(quote_id, &mint, MeltQuoteState::Unpaid))
+            .await
+            .unwrap();
+        store.reserve_melt_quote(quote_id, &saga).await.unwrap();
+        let mut proof = store
+            .get_proofs(Some(mint.clone()), None, None, None)
+            .await
+            .unwrap()
+            .pop()
+            .unwrap();
+        proof.state = State::Pending;
+        proof.used_by_operation = Some(saga);
+        let y = proof.y;
+        store.update_proofs(vec![proof], vec![]).await.unwrap();
+        store
+            .add_saga(WalletSaga::new(
+                saga,
+                WalletSagaState::Melt(MeltSagaState::MeltRequested),
+                Amount::from(SEEDED_SATS),
+                mint,
+                CurrencyUnit::Sat,
+                OperationData::Melt(MeltOperationData {
+                    quote_id: quote_id.to_string(),
+                    amount: Amount::from(SEEDED_SATS),
+                    fee_reserve: Amount::ZERO,
+                    counter_start: None,
+                    counter_end: None,
+                    change_amount: None,
+                    metadata: HashMap::new(),
+                    final_proof_ys: Some(vec![y]),
+                    change_blinded_messages: None,
+                }),
+            ))
+            .await
+            .unwrap();
+        saga
+    }
+
+    /// What a mint answers about quote `quote_id` before it has processed the
+    /// melt request: still unpaid, and no preimage. cdk rolls a melt it resumes
+    /// back on exactly this.
+    fn unpaid_answer(quote_id: &str) -> String {
+        format!(
+            r#"{{"quote":"{quote_id}","amount":{SEEDED_SATS},"fee_reserve":0,"state":"UNPAID","expiry":{}}}"#,
+            unix_now().as_secs() + 3_600
+        )
+    }
+
+    #[test]
+    fn a_quote_the_mint_no_longer_calls_unpaid_is_refused() {
+        // Arrange
+        let mint = MintUrl::from_str("https://mint.example.com").unwrap();
+        let now = unix_now().as_secs();
+        let refusal = |quote: &cdk::wallet::MeltQuote, input_fee: u64| {
+            melt_refusal(quote, input_fee, &mint, now, SEEDED_SATS).map(|e| e.to_string())
+        };
+
+        // Act / Assert — paid, still being paid, failed or unknown: paying it
+        // again would have the wallet's proofs marked spent by a mint that never
+        // took them. Refused with a reason that says nothing was sent.
+        for state in [
+            MeltQuoteState::Paid,
+            MeltQuoteState::Pending,
+            MeltQuoteState::Failed,
+            MeltQuoteState::Unknown,
+        ] {
+            assert_eq!(
+                refusal(&melt_quote_for("q", &mint, state), 0).as_deref(),
+                Some("CashuMeltFailed: the quote is no longer unpaid"),
+                "{state}"
+            );
+        }
+
+        // An unpaid quote that holds is paid.
+        let unpaid = melt_quote_for("q", &mint, MeltQuoteState::Unpaid);
+        assert_eq!(refusal(&unpaid, 0), None);
+
+        // And the refusals that were there before still stand.
+        let mut elsewhere = unpaid.clone();
+        elsewhere.mint_url = Some(MintUrl::from_str("https://other.example.com").unwrap());
+        assert_eq!(
+            refusal(&elsewhere, 0).as_deref(),
+            Some("CashuMeltFailed: the quote belongs to another mint")
+        );
+        let mut expired = unpaid.clone();
+        expired.expiry = now;
+        assert_eq!(
+            refusal(&expired, 0).as_deref(),
+            Some("CashuMeltQuoteExpired")
+        );
+        assert_eq!(
+            refusal(&unpaid, 1)
+                .map(|e| marker_of(anyhow!(e)))
+                .as_deref(),
+            Some("CashuMeltFeeChanged")
+        );
+    }
+
+    #[tokio::test]
+    async fn a_paid_quote_is_refused_before_anything_reaches_the_mint() {
+        // Arrange — a quote the wallet's own store records as paid.
+        let mint = StubMint::start(None).await;
+        let wallet = seeded_wallet(&mint.url).await;
+        let quote = melt_quote_for("paid", &wallet.inner.mint_url, MeltQuoteState::Paid);
+        wallet.inner.localstore.add_melt_quote(quote).await.unwrap();
+
+        // Act
+        let refused = wallet.melt("paid", SEEDED_SATS).await;
+
+        // Assert — refused, nothing sent, the proofs and the quote released.
+        assert_eq!(
+            refused.unwrap_err().to_string(),
+            "CashuMeltFailed: the quote is no longer unpaid"
+        );
+        assert_eq!(mint.connections(), 0, "nothing may reach the mint");
+        assert_eq!(unspent_sats(&wallet).await, SEEDED_SATS);
+        let stored = wallet
+            .inner
+            .localstore
+            .get_melt_quote("paid")
+            .await
+            .unwrap();
+        assert_eq!(stored.unwrap().used_by_operation, None);
+    }
+
+    #[tokio::test]
+    async fn a_melt_is_refused_while_another_is_in_flight_at_its_mint() {
+        // Arrange — a quote that would pay, while a melt holds the mint.
+        let mint = StubMint::start(None).await;
+        let wallet = seeded_wallet(&mint.url).await;
+        let quote = melt_quote_for("unpaid", &wallet.inner.mint_url, MeltQuoteState::Unpaid);
+        wallet.inner.localstore.add_melt_quote(quote).await.unwrap();
+        let _in_flight = in_flight::try_begin_melt(&wallet.inner.mint_url).unwrap();
+
+        // Act / Assert — neither paying nor quoting gets as far as the mint.
+        let paying = wallet.melt("unpaid", SEEDED_SATS).await.unwrap_err();
+        assert_eq!(marker_of(paying), "CashuMeltInFlight");
+        let quoting = wallet.melt_quote("lnbcrt1placeholder").await.unwrap_err();
+        assert_eq!(marker_of(quoting), "CashuMeltInFlight");
+        assert_eq!(mint.connections(), 0, "nothing may reach the mint");
+        assert_eq!(unspent_sats(&wallet).await, SEEDED_SATS);
+    }
+
+    #[tokio::test]
+    async fn sync_leaves_a_melt_in_flight_alone() {
+        // Arrange — a melt whose request the mint has not processed yet: it
+        // still calls the quote unpaid. Its `melt()` call is still running.
+        let mint = StubMint::start(Some(unpaid_answer("sync"))).await;
+        let wallet = seeded_wallet(&mint.url).await;
+        let saga = record_melt_in_flight(&wallet, "sync").await;
+        let _in_flight = in_flight::try_begin_melt(&wallet.inner.mint_url).unwrap();
+
+        // Act
+        wallet.finalize_pending_melts().await.unwrap();
+
+        // Assert — not rolled back: the proof stays out of the balance, where
+        // the mint may yet spend it.
+        let recorded = wallet.inner.localstore.get_saga(&saga).await.unwrap();
+        assert!(
+            recorded.is_some(),
+            "the melt was rolled back while in flight"
+        );
+        assert_eq!(unspent_sats(&wallet).await, 0);
+        assert_eq!(mint.connections(), 0, "the mint was asked about it");
+    }
+
+    #[tokio::test]
+    async fn connect_recovery_leaves_a_melt_in_flight_alone() {
+        // Arrange — the same melt, seen by the wallet a mint switch and back
+        // binds while the earlier one is still paying.
+        let mint = StubMint::start(Some(unpaid_answer("connect"))).await;
+        let wallet = seeded_wallet(&mint.url).await;
+        let saga = record_melt_in_flight(&wallet, "connect").await;
+        let _in_flight = in_flight::try_begin_melt(&wallet.inner.mint_url).unwrap();
+
+        // Act
+        wallet.recover().await;
+
+        // Assert
+        let recorded = wallet.inner.localstore.get_saga(&saga).await.unwrap();
+        assert!(
+            recorded.is_some(),
+            "the melt was rolled back while in flight"
+        );
+        assert_eq!(unspent_sats(&wallet).await, 0);
+        assert_eq!(mint.connections(), 0, "the mint was asked about it");
     }
 }

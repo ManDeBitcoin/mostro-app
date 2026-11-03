@@ -21,9 +21,9 @@ import 'package:mostro/core/web/attachment_probe.dart';
 import 'package:mostro/core/web/bridge_probe.dart';
 import 'package:mostro/core/web/store_probe.dart';
 import 'package:mostro/features/chat/attachments/attachment_launcher.dart';
+import 'package:mostro/features/settings/providers/mostro_nodes_provider.dart';
 import 'package:mostro/features/settings/providers/node_stats_provider.dart';
 import 'package:mostro/features/settings/providers/settings_provider.dart';
-import 'package:mostro/features/settings/widgets/mostro_node_selector.dart';
 import 'package:mostro/features/walkthrough/providers/first_run_provider.dart';
 import 'package:mostro/firebase_options.dart';
 import 'package:mostro/src/rust/frb_generated.dart';
@@ -45,8 +45,10 @@ import 'package:mostro/features/notifications/models/notification_model.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart'
     show rawTradesProvider;
 import 'package:mostro/features/notifications/providers/notifications_provider.dart';
+import 'package:mostro/features/notifications/services/announcement_cards.dart';
 import 'package:mostro/features/notifications/services/event_cards.dart';
 import 'package:mostro/core/app_routes.dart' show appRouter;
+import 'package:mostro/src/rust/api/announcements.dart' as announcements_api;
 import 'package:mostro/src/rust/api/messages.dart' as messages_api;
 import 'package:mostro/src/rust/api/my_reputation.dart' as my_reputation_api;
 
@@ -270,6 +272,14 @@ Future<void> _startup(
   await startup.optional('subscribing to chat messages', () async {
     chatMessageStream = await messages_api.onAnyNewMessage();
   });
+  // Project announcements (specs/006 §6.2): Rust re-emits the whole cache
+  // after every sweep, arrival or flag, and the first emit comes with the
+  // relay pool's first `Online` — so this too must be subscribed before the
+  // pool starts.
+  announcements_api.AnnouncementsStream? announcementStream;
+  await startup.optional('subscribing to announcements', () async {
+    announcementStream = await announcements_api.onAnnouncementsChanged();
+  });
 
   // Initialize the Nostr relay pool. `null` means the compiled-in defaults
   // (config.rs); a non-empty seed list replaces them entirely.
@@ -339,6 +349,15 @@ Future<void> _startup(
         (_) => container.invalidate(activeNodeCurrenciesProvider),
       ),
     );
+    // The nodes' profiles and pictures, so a QR has its node's face before
+    // it opens. Best effort, like the warm-up.
+    unawaited(
+      refreshNodeProfilesOnceConnected(container, nodeInfoWarmed).catchError((
+        Object e,
+      ) {
+        debugPrint('[main] node profile refresh failed: $e');
+      }),
+    );
 
     // Restore NWC wallet connection if a URI was saved from a previous session.
     final savedNwcUri = prefs.getString(kNwcUriKey);
@@ -387,6 +406,28 @@ Future<void> _startup(
     final chats = chatMessageStream;
     if (chats != null) {
       pumpEvents('chat-cards', chats.next, eventCards.onChatMessage);
+    }
+    final announcementCards = AnnouncementCards(
+      notifications: () => container.read(notificationsProvider.notifier),
+    );
+    final announcements = announcementStream;
+    if (announcements != null) {
+      pumpEvents(
+        'announcement-cards',
+        announcements.next,
+        announcementCards.onChanged,
+      );
+      // What the cache already holds, without waiting for the pool: the
+      // cards are the last thing the project said, online or not (§5.4).
+      // A stream snapshot that lands first wins over this read.
+      unawaited(
+        announcementCards
+            .readCache(announcements_api.getAnnouncements)
+            .catchError(
+              (Object e) =>
+                  debugPrint('[announcement-cards] initial read failed: $e'),
+            ),
+      );
     }
 
     // Resume = resync in Rust, then re-hydrate every notifier from the bridge

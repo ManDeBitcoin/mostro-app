@@ -321,7 +321,8 @@
     "description": "Screen-reader addition to the order-book filter chip when filters narrow the book; the chip itself shows only the number in a badge. Read after the chip label, e.g. 'Filter, 2 filters on'",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -792,7 +793,8 @@
     "description": "Availability line of a node card",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -949,9 +951,9 @@
   "@drawerTagline": {
     "description": "Subtitle under the Mostro wordmark in the drawer header (rendered uppercase)"
   },
-  "drawerStageBadge": "Alpha",
+  "drawerStageBadge": "Beta",
   "@drawerStageBadge": {
-    "description": "Release-stage chip in the drawer header (rendered uppercase). Single source for the stage label — change it here when the app leaves alpha"
+    "description": "Release-stage chip in the drawer header (rendered uppercase). Single source for the stage label — change it here when the app leaves beta"
   },
   "drawerVersion": "Version {version}",
   "@drawerVersion": {
@@ -1101,7 +1103,7 @@
   "@cancelTradeDialogContentAccept": {
     "description": "Body text for the cancel-trade confirmation dialog when the counterparty already asked to cancel: this cancel accepts theirs"
   },
-  "fiatSentFailed": "Failed to mark fiat as sent. Please try again.",
+  "fiatSentFailed": "Failed to mark the payment as sent. Please try again.",
   "@fiatSentFailed": {
     "description": "Snackbar shown when the fiat-sent action fails"
   },
@@ -1376,7 +1378,8 @@
     "description": "About screen — bond payout claim window value with a pluralized day count",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -1711,6 +1714,38 @@
   "@notifDisputeUpdatesSubtitle": {
     "description": "Subtitle of the dispute updates notification toggle"
   },
+  "notifAnnouncementsTitle": "Announcements",
+  "@notifAnnouncementsTitle": {
+    "description": "Title of the Announcements toggle in notification settings (specs/006)"
+  },
+  "notifAnnouncementsSubtitle": "Releases, outages and relay changes, signed by the Mostro project",
+  "@notifAnnouncementsSubtitle": {
+    "description": "Subtitle of the Announcements toggle"
+  },
+  "announcementsGroupSubtitle": "Announcements are read from the relays and never answered: nothing about you is sent.",
+  "@announcementsGroupSubtitle": {
+    "description": "Line above the Announcements toggle: the channel is one-way, nothing is reported back"
+  },
+  "announcementLevelInfo": "Announcement",
+  "@announcementLevelInfo": {
+    "description": "Label on an info-level announcement card (specs/006 §3.4)"
+  },
+  "announcementLevelWarning": "Notice",
+  "@announcementLevelWarning": {
+    "description": "Label on a warning-level announcement card"
+  },
+  "announcementLevelCritical": "Security update",
+  "@announcementLevelCritical": {
+    "description": "Label on a critical (security) announcement card"
+  },
+  "announcementOpenLink": "Open link",
+  "@announcementOpenLink": {
+    "description": "Button on an announcement card that opens its link externally"
+  },
+  "notificationsBellCritical": "Notifications, a security update is unread",
+  "@notificationsBellCritical": {
+    "description": "Semantic label of the bell while a critical announcement is unread"
+  },
   "searchCurrenciesHint": "Search currencies…",
   "@searchCurrenciesHint": {
     "description": "Hint text of the currency search field"
@@ -1803,7 +1838,7 @@
   "@tradeInstructionActiveBuyer": {
     "description": "Instruction for buyer while trade is active"
   },
-  "tradeInstructionFiatSentBuyer": "Fiat payment marked as sent. Waiting for the seller to confirm receipt and release your sats.",
+  "tradeInstructionFiatSentBuyer": "Payment marked as sent. Waiting for the seller to confirm receipt and release your sats.",
   "@tradeInstructionFiatSentBuyer": {
     "description": "Instruction for buyer after marking fiat sent"
   },
@@ -1811,7 +1846,7 @@
   "@tradeInstructionActiveSeller": {
     "description": "Instruction for seller while trade is active"
   },
-  "tradeInstructionFiatSentSeller": "The buyer has confirmed they sent the fiat payment. Once you verify receipt, release the sats.",
+  "tradeInstructionFiatSentSeller": "The buyer has confirmed they sent the payment. Once you verify receipt, release the sats.",
   "@tradeInstructionFiatSentSeller": {
     "description": "Instruction for seller after buyer marks fiat sent"
   },
@@ -1924,6 +1959,10 @@
   "@tradeStepOrderTaken": {
     "description": "Timeline step: order taken"
   },
+  "tradeStepWaitingTaker": "Waiting for a taker",
+  "@tradeStepWaitingTaker": {
+    "description": "Timeline step 1 while the user's own order is still in the book and nobody has taken it; once taken the same step reads tradeStepOrderTaken"
+  },
   "tradeStepInvoiceBuyer": "The seller locks the sats",
   "@tradeStepInvoiceBuyer": {
     "description": "Trade screen timeline, step 2 for the buyer: the seller locks the sats (the seller's version is tradeStepInvoiceSeller)"
@@ -1932,11 +1971,11 @@
   "@tradeStepInvoiceSeller": {
     "description": "Timeline step for seller: lock sats"
   },
-  "tradeStepFiatBuyer": "You send the fiat payment",
+  "tradeStepFiatBuyer": "You send the payment",
   "@tradeStepFiatBuyer": {
     "description": "Timeline step for buyer: send fiat"
   },
-  "tradeStepFiatSeller": "The buyer sends the fiat payment",
+  "tradeStepFiatSeller": "The buyer sends the payment",
   "@tradeStepFiatSeller": {
     "description": "Timeline step for seller: buyer sends fiat"
   },
@@ -2154,26 +2193,6 @@
   "@rangeAmountTakeAction": {
     "description": "Answer of the range amount dialog, opened from the take-order button. Same wording as takeOrderButton (DS-CMP-26)."
   },
-  "buyerReputation": "Buyer reputation",
-  "@buyerReputation": {
-    "description": "Title of the counterpart reputation card when the taker is the buyer"
-  },
-  "sellerReputation": "Seller reputation",
-  "@sellerReputation": {
-    "description": "Title of the counterpart reputation card when the taker is the seller"
-  },
-  "ratingStatLabel": "rating",
-  "@ratingStatLabel": {
-    "description": "Reputation stat label: rating"
-  },
-  "tradesStatLabel": "trades",
-  "@tradesStatLabel": {
-    "description": "Reputation stat label: trades"
-  },
-  "daysActiveStatLabel": "days active",
-  "@daysActiveStatLabel": {
-    "description": "Reputation stat label: days active"
-  },
   "orderAmountOutOfRange": "Amount must be between {min} and {max} sats for this Mostro node",
   "@orderAmountOutOfRange": {
     "description": "Shown when a fixed-sats order amount is outside the node min/max order amount",
@@ -2272,7 +2291,8 @@
     "description": "Counter in the payment-methods card header. Says \"selected\" (glossary, DS-L10N-4); the key name predates the glossary",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -2521,7 +2541,8 @@
     "description": "Tooltip for a star in the rating selector",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -2623,24 +2644,6 @@
   "@marketPriceCaption": {
     "description": "Caption under an order-book card amount"
   },
-  "reputationTradesLabel": "{count, plural, =1{trade} other{trades}}",
-  "@reputationTradesLabel": {
-    "description": "Unit word after the trade count in the order-book reputation row",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "reputationDaysLabel": "{count, plural, =1{day} other{days}}",
-  "@reputationDaysLabel": {
-    "description": "Unit word after the active-days count in the order-book reputation row",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "sortNewest": "Newest",
   "@sortNewest": {
     "description": "Sort caption on the order-book filter row; must describe the ordering actually applied (newest first)"
@@ -2650,7 +2653,8 @@
     "description": "Number of orders listed on the order-book filter row",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -2687,10 +2691,6 @@
   "reputationNew": "New",
   "@reputationNew": {
     "description": "Replaces the rating on an order-book card when the maker has no trades yet"
-  },
-  "reputationNoTrades": "no trades",
-  "@reputationNoTrades": {
-    "description": "Replaces the trade count on an order-book card when the maker has no trades yet"
   },
   "bottomNavBook": "Book",
   "@bottomNavBook": {
@@ -2729,7 +2729,8 @@
     "description": "Notification group action to expand earlier events",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -2754,7 +2755,8 @@
     "description": "Snack bar after swiping a notification card away; count is how many notices the card held (issue #610)",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -2823,7 +2825,8 @@
     "description": "Notification bell accessibility label with the unread count",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -2832,7 +2835,8 @@
     "description": "Drawer menu item badge accessibility hint with the number of new items",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -2905,7 +2909,8 @@
     "description": "About screen — a pluralized day count",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -3044,7 +3049,8 @@
     "description": "Second line of the trade screen's chat card while it has unread messages; count is the number of unread messages",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -3056,7 +3062,7 @@
   "@tradeChatClosedAnnouncement": {
     "description": "Screen-reader announcement when the trade screen's chat card turns closed while the user is on it (the completed trade's hour ran out); the messages stay readable"
   },
-  "tradeBodyWaitingPaymentBuyer": "The seller is locking the sats. Once they are locked, it's your turn to pay the fiat.",
+  "tradeBodyWaitingPaymentBuyer": "The seller is locking the sats. Once they are locked, it's your turn to pay.",
   "@tradeBodyWaitingPaymentBuyer": {
     "description": "Step body for the buyer while the seller pays the hold invoice"
   },
@@ -3087,6 +3093,69 @@
       }
     }
   },
+  "tradeBodyActiveBuyerStablecoin": "Send it on {method}, to the address they shared in the chat: on another network it can be lost. Then paste the transaction ID in the chat (it is your proof in a dispute) and mark it below.",
+  "@tradeBodyActiveBuyerStablecoin": {
+    "description": "Step body for the buyer of an active stablecoin trade: send on the network the payment method names, then paste the transaction ID in the chat (app#884); {method} is the payment method",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "tradeBodyActiveSellerStablecoin": "Share your {method} address in the chat above.",
+  "@tradeBodyActiveSellerStablecoin": {
+    "description": "Step body for the seller of an active stablecoin trade: share the receiving address (app#884); {method} is the payment method",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "tradeBodyFiatSentSellerStablecoin": "The buyer marked the payment as sent. Before releasing, check that it reached your {method} address, with the transaction ID from the chat.",
+  "@tradeBodyFiatSentSellerStablecoin": {
+    "description": "Step body for the seller of a stablecoin trade once the buyer marked the payment as sent: check the transfer by its transaction ID (app#884); {method} is the payment method",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "tradeBodyActiveBuyerBtcPegged": "Send it on {method}, to the address they shared in the chat, with a fee high enough to confirm soon: the seller releases only once it has confirmed. Then paste the transaction ID in the chat (it is your proof in a dispute) and mark it below.",
+  "@tradeBodyActiveBuyerBtcPegged": {
+    "description": "Step body for the buyer of an active trade in bitcoin on another network (BTC on-chain or RBTC): pay a fee high enough to confirm well before the escrow deadline, worded for any chain, then paste the transaction ID (app#907); {method} is the payment method",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "tradeBodyActiveBuyerLiquid": "Send it on {method}, to the address they shared in the chat. Then paste the unblinded transaction link in the chat: Liquid hides the amount, and the link shows it to the seller and, in a dispute, to the solver. Mark it below.",
+  "@tradeBodyActiveBuyerLiquid": {
+    "description": "Step body for the buyer of an active L-BTC trade: Liquid transactions are confidential, so share the unblinded link that shows the amount (app#907); {method} is the payment method",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "tradeBodyFiatSentSellerBtcPegged": "The buyer marked the payment as sent. Release only once it has confirmed on {method}: check it with the transaction ID from the chat.",
+  "@tradeBodyFiatSentSellerBtcPegged": {
+    "description": "Step body for the seller of a trade in bitcoin on another network once the buyer marked it sent: release only after the transfer confirms (app#907); {method} is the payment method",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "tradeBodyFiatSentSellerLiquid": "The buyer marked the payment as sent. Release only once it has confirmed on {method}: check the amount with the unblinded link from the chat.",
+  "@tradeBodyFiatSentSellerLiquid": {
+    "description": "Step body for the seller of an L-BTC trade once the buyer marked it sent: release only after it confirms, checking the amount with the unblinded link (app#907); {method} is the payment method",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
   "tradeReleaseIrreversible": "Releasing the sats cannot be undone.",
   "@tradeReleaseIrreversible": {
     "description": "Warning inside the step block before releasing"
@@ -3110,24 +3179,6 @@
   "tradeRoleSeller": "Seller",
   "@tradeRoleSeller": {
     "description": "Counterpart role on the reputation row"
-  },
-  "reputationTradesCount": "{count, plural, =1{1 trade} other{{count} trades}}",
-  "@reputationTradesCount": {
-    "description": "Number of trades on the reputation row",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "reputationDaysOnMostro": "{count, plural, =1{1 day on Mostro} other{{count} days on Mostro}}",
-  "@reputationDaysOnMostro": {
-    "description": "Account age on the reputation row",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
   },
   "tradeFiatSentAction": "I've sent the payment",
   "@tradeFiatSentAction": {
@@ -3311,24 +3362,6 @@
   "counterpartyBuyer": "Buyer",
   "@counterpartyBuyer": {
     "description": "Role of the maker on the counterparty card when they buy BTC"
-  },
-  "counterpartyTrades": "{count, plural, =1{{count} trade} other{{count} trades}}",
-  "@counterpartyTrades": {
-    "description": "Completed trades of the maker on the counterparty card",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "counterpartyDaysOnMostro": "{count, plural, =1{{count} day on Mostro} other{{count} days on Mostro}}",
-  "@counterpartyDaysOnMostro": {
-    "description": "Seniority of the maker on the counterparty card",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
   },
   "takeOrderPayWithLabel": "You pay with",
   "@takeOrderPayWithLabel": {
@@ -3548,7 +3581,8 @@
     "description": "Push is off locally, but the server has not confirmed removing these registrations",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -3565,7 +3599,8 @@
     "description": "Status line: how many open trades the push server holds this device's token for",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -3725,7 +3760,8 @@
     "description": "About screen — number of node fields listed on the technical data screen",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -4149,7 +4185,6 @@
   "@invoiceYouPayLabel": {"description": "13a counterpart card row label for the fiat the buyer pays"},
   "invoiceYouGetLabel": "You receive",
   "@invoiceYouGetLabel": {"description": "13b counterpart card row label for the fiat the seller receives"},
-  "invoiceNoTrades": "no trades",
   "@invoiceNoTrades": {"description": "Counterpart reputation when they have no rated trade (instead of 0.0 stars)"},
   "invoiceSendButton": "Send invoice",
   "@invoiceSendButton": {"description": "13a primary action"},
@@ -4191,11 +4226,11 @@
   "@tradeCardWaitingTakerBondMessage": {"description": "Notifications card body for a trade status change (issue #474); role-neutral, both sides see it"},
   "tradeCardActiveTitle": "Trade active",
   "@tradeCardActiveTitle": {"description": "Notifications card title for a trade status change (issue #474); role-neutral, both sides see it"},
-  "tradeCardActiveMessage": "The sats are locked. The buyer can now send the fiat payment.",
+  "tradeCardActiveMessage": "The sats are locked. The buyer can now send the payment.",
   "@tradeCardActiveMessage": {"description": "Notifications card body for a trade status change (issue #474); role-neutral, both sides see it"},
-  "tradeCardFiatSentTitle": "Fiat marked as sent",
+  "tradeCardFiatSentTitle": "Payment marked as sent",
   "@tradeCardFiatSentTitle": {"description": "Notifications card title for a trade status change (issue #474); role-neutral, both sides see it"},
-  "tradeCardFiatSentMessage": "The buyer marked the fiat payment as sent.",
+  "tradeCardFiatSentMessage": "The buyer marked the payment as sent.",
   "@tradeCardFiatSentMessage": {"description": "Notifications card body for a trade status change (issue #474); role-neutral, both sides see it"},
   "tradeCardSettledHoldInvoiceTitle": "Sats released",
   "@tradeCardSettledHoldInvoiceTitle": {"description": "Notifications card title for a trade status change (issue #474); role-neutral, both sides see it"},
@@ -4248,9 +4283,9 @@
   "chatCardSolverTitle": "Messages from the resolver",
   "@chatCardSolverTitle": {"description": "Notifications card copy for trades and chat (issue #474)"},
   "chatCardMessage": "{count, plural, =1{1 new message from your counterpart} other{{count} new messages from your counterpart}}",
-  "@chatCardMessage": {"description": "Notifications chat card body; count is the number of unread messages", "placeholders": {"count": {"type": "int"}}},
+  "@chatCardMessage": {"description": "Notifications chat card body; count is the number of unread messages", "placeholders": {"count": {"type": "int", "format": "decimalPattern"}}},
   "chatCardSolverMessage": "{count, plural, =1{1 new message from the dispute resolver} other{{count} new messages from the dispute resolver}}",
-  "@chatCardSolverMessage": {"description": "Notifications chat card body; count is the number of unread messages", "placeholders": {"count": {"type": "int"}}},
+  "@chatCardSolverMessage": {"description": "Notifications chat card body; count is the number of unread messages", "placeholders": {"count": {"type": "int", "format": "decimalPattern"}}},
   "invalidTradeIndexError": "Your account is out of sync with this Mostro node, so it refused the order. Try again in a moment",
   "@invalidTradeIndexError": {"description": "Error shown when the Mostro node refuses a new order or take with CantDo(InvalidTradeIndex) even after the app resynced its trade-key counter and retried once"},
   "invalidFiatCurrencyError": "This Mostro node does not accept that currency, so it refused the order. Pick another currency",
@@ -4258,13 +4293,13 @@
   "recoveringTradesMessage": "Account imported. Recovering your trades from Mostro…",
   "@recoveringTradesMessage": {"description": "Snackbar shown on the Account screen right after a mnemonic import, while the app asks Mostro for the identity's trades in progress"},
   "recoveredTradesMessage": "{count, plural, =0{Account imported. You had no trades in progress} =1{Account imported. 1 trade recovered} other{Account imported. {count} trades recovered}}",
-  "@recoveredTradesMessage": {"description": "Snackbar shown after a mnemonic import once Mostro returned the identity's trades in progress; count is how many orders and disputes came back", "placeholders": {"count": {"type": "int"}}},
+  "@recoveredTradesMessage": {"description": "Snackbar shown after a mnemonic import once Mostro returned the identity's trades in progress; count is how many orders and disputes came back", "placeholders": {"count": {"type": "int", "format": "decimalPattern"}}},
   "recoverTradesFailedMessage": "Account imported, but Mostro did not answer, so your trades in progress were not recovered",
   "@recoverTradesFailedMessage": {"description": "Snackbar shown after a mnemonic import when Mostro did not answer the recovery request; the import itself succeeded"},
   "paymentMethodsChosenLabel": "Selected",
   "@paymentMethodsChosenLabel": {"description": "Label in front of the chips summarising the methods selected so far on the payment-method picker screen (glossary: selected, DS-L10N-4)"},
   "paymentMethodsSelectedCount": "{count, plural, =0{Select at least one method} =1{1 method selected} other{{count} methods selected}}",
-  "@paymentMethodsSelectedCount": {"description": "Count line above the confirm button of the payment-method picker screen", "placeholders": {"count": {"type": "int"}}},
+  "@paymentMethodsSelectedCount": {"description": "Count line above the confirm button of the payment-method picker screen", "placeholders": {"count": {"type": "int", "format": "decimalPattern"}}},
   "paymentMethodsConfirm": "Confirm methods",
   "@paymentMethodsConfirm": {"description": "Button that saves the payment-method selection and closes the picker screen"},
   "paymentMethodAddCustom": "Add custom payment method",
@@ -4310,7 +4345,7 @@
   "restoreStageRequesting": "Requesting your orders",
   "@restoreStageRequesting": {"description": "Restore stage 2 while waiting for the node to answer"},
   "restoreStageFound": "{count, plural, =1{1 order found} other{{count} orders found}}",
-  "@restoreStageFound": {"description": "Restore stage 2 once the node answered; count is every order and dispute it returned", "placeholders": {"count": {"type": "int"}}},
+  "@restoreStageFound": {"description": "Restore stage 2 once the node answered; count is every order and dispute it returned", "placeholders": {"count": {"type": "int", "format": "decimalPattern"}}},
   "restoreStageLoading": "Loading details",
   "@restoreStageLoading": {"description": "Restore stage 3: loading each order's details"},
   "restoreStageNoResponse": "No response",
@@ -4336,7 +4371,7 @@
   "restoreSummaryInProgress": "In progress",
   "@restoreSummaryInProgress": {"description": "Label of the trades-in-progress count in the restore summary"},
   "restoreActionNotice": "{count, plural, =1{You have 1 active order waiting for you} other{You have {count} active orders waiting for you}}",
-  "@restoreActionNotice": {"description": "Restore summary notice: trades waiting for the user's next step", "placeholders": {"count": {"type": "int"}}},
+  "@restoreActionNotice": {"description": "Restore summary notice: trades waiting for the user's next step", "placeholders": {"count": {"type": "int", "format": "decimalPattern"}}},
   "restorePartialNotice": "{missing} of {total} orders couldn't be loaded",
   "@restorePartialNotice": {"description": "Restore summary warning when some orders' details did not load; missing and total are counts", "placeholders": {"missing": {"type": "int"}, "total": {"type": "int"}}},
   "attachSheetTitle": "Send a file",
@@ -4509,6 +4544,64 @@
   "@cashuUnitEur": {"description": "Cashu unit name inside cashuErrorUnsupportedUnitNamed — euros"},
   "cashuErrorSendUnresolved": "The send failed and the wallet could not confirm the funds are back. Sync with the mint before trying again.",
   "@cashuErrorSendUnresolved": {"description": "Cashu wallet — a failed send whose proofs could not be confirmed back"},
+  "cashuSendEcashOption": "Ecash",
+  "@cashuSendEcashOption": {"description": "Cashu wallet — Send dialog: export ecash as a token"},
+  "cashuSendLightningOption": "Lightning",
+  "@cashuSendLightningOption": {"description": "Cashu wallet — Send dialog: pay a Lightning invoice from the wallet"},
+  "cashuInvoiceDialogTitle": "Pay a Lightning invoice",
+  "@cashuInvoiceDialogTitle": {"description": "Cashu wallet — title of the dialog that takes a bolt11 invoice to pay"},
+  "cashuInvoiceFieldLabel": "Lightning invoice",
+  "@cashuInvoiceFieldLabel": {"description": "Cashu wallet — label above the invoice field; shown in capitals"},
+  "cashuPasteInvoiceHint": "Paste a Lightning invoice",
+  "@cashuPasteInvoiceHint": {"description": "Cashu wallet — dimmed placeholder of the invoice field"},
+  "cashuInvoiceScanHint": "Paste or scan a Lightning invoice",
+  "@cashuInvoiceScanHint": {"description": "Cashu wallet — placeholder in the invoice scanner when the camera cannot start"},
+  "cashuMeltConfirmTitle": "Confirm payment",
+  "@cashuMeltConfirmTitle": {"description": "Cashu wallet — title of the confirmation before paying a Lightning invoice"},
+  "cashuMeltAmount": "Amount",
+  "@cashuMeltAmount": {"description": "Cashu wallet — payment confirmation: what the invoice asks for"},
+  "cashuMeltFees": "Fees, up to",
+  "@cashuMeltFees": {"description": "Cashu wallet — payment confirmation: the most the payment can cost in routing and mint fees"},
+  "cashuMeltTotal": "Total, up to",
+  "@cashuMeltTotal": {"description": "Cashu wallet — payment confirmation: the most the payment can take from the balance"},
+  "cashuMeltFeesNote": "Fees the mint does not use come back to your wallet.",
+  "@cashuMeltFeesNote": {"description": "Cashu wallet — payment confirmation: the routing fee reserve is returned when unspent"},
+  "cashuMeltQuoteRefreshed": "The price changed. Check the new total before paying.",
+  "@cashuMeltQuoteRefreshed": {"description": "Cashu wallet — payment confirmation shown again because the quote expired or its fees went up"},
+  "cashuPayButton": "Pay",
+  "@cashuPayButton": {"description": "Cashu wallet — confirms paying the Lightning invoice"},
+  "cashuMeltPaidTitle": "Paid {sats} sats",
+  "@cashuMeltPaidTitle": {"description": "Cashu wallet — payment dialog result: the Lightning invoice was paid", "placeholders": {"sats": {"type": "String"}}},
+  "cashuMeltPaidFee": "Fee: {fee} sats",
+  "@cashuMeltPaidFee": {"description": "Cashu wallet — payment dialog result: what the payment actually cost beyond the invoice", "placeholders": {"fee": {"type": "String"}}},
+  "cashuMeltPendingTitle": "Payment in progress",
+  "@cashuMeltPendingTitle": {"description": "Cashu wallet — payment dialog result: the mint is still routing the Lightning payment"},
+  "cashuMeltPendingBody": "The outcome isn't confirmed yet. Those sats stay on hold; tap “Sync with mint” later to settle them.",
+  "@cashuMeltPendingBody": {"description": "Cashu wallet — payment dialog result when the outcome is unknown (still routing, or the mint did not answer); names the “Sync with mint” button (cashuSyncButton), which must match it in every locale"},
+  "cashuMeltFailedTitle": "Payment failed",
+  "@cashuMeltFailedTitle": {"description": "Cashu wallet — payment dialog result: the payment did not go through; the reason follows"},
+  "cashuErrorInvalidInvoice": "That is not a Lightning invoice this wallet can pay.",
+  "@cashuErrorInvalidInvoice": {"description": "Cashu error — the text is not a bolt11 invoice, or asks for a fraction of a sat"},
+  "cashuErrorInvoiceNoAmount": "This invoice has no amount. Ask for one that states how much to pay.",
+  "@cashuErrorInvoiceNoAmount": {"description": "Cashu error — amountless invoices are not supported"},
+  "cashuErrorInvoiceExpired": "This invoice has expired. Ask for a new one.",
+  "@cashuErrorInvoiceExpired": {"description": "Cashu error — the invoice to pay has expired"},
+  "cashuErrorMeltUnsupported": "This mint cannot pay Lightning invoices.",
+  "@cashuErrorMeltUnsupported": {"description": "Cashu error — the mint does not support melting to bolt11 (NUT-05)"},
+  "cashuErrorMeltAmountOutOfRange": "This mint does not pay invoices of that amount.",
+  "@cashuErrorMeltAmountOutOfRange": {"description": "Cashu error — the invoice amount is outside the mint's melt limits"},
+  "cashuErrorMeltQuoteFailed": "The mint could not quote this payment. Try again later.",
+  "@cashuErrorMeltQuoteFailed": {"description": "Cashu error — the mint refused or failed to quote the melt"},
+  "cashuErrorMeltQuoteExpired": "The payment quote expired. Nothing was paid; start again.",
+  "@cashuErrorMeltQuoteExpired": {"description": "Cashu error — the melt quote expired before paying; nothing was spent"},
+  "cashuErrorMeltFeeChanged": "The fees went up since you confirmed. Nothing was paid; start again.",
+  "@cashuErrorMeltFeeChanged": {"description": "Cashu error — the melt now costs more than the confirmed total; nothing was spent"},
+  "cashuErrorMeltInFlight": "A Lightning payment from this wallet is still in progress. Wait for it to finish, then try again.",
+  "@cashuErrorMeltInFlight": {"description": "Cashu error — another Lightning payment from the wallet is still waiting for the mint; nothing was started"},
+  "cashuErrorMeltInsufficientFunds": "You do not have enough in the wallet to pay this invoice and its fees.",
+  "@cashuErrorMeltInsufficientFunds": {"description": "Cashu error — the balance does not cover the invoice plus fees"},
+  "cashuErrorMeltFailed": "The payment did not go through. Nothing was paid; the sats are back in your balance.",
+  "@cashuErrorMeltFailed": {"description": "Cashu error — the melt was rolled back: nothing was paid and the proofs are already back in the balance"},
   "lockEscrowTitle": "Lock the escrow",
   "@lockEscrowTitle": {"description": "Title of the seller's Cashu escrow funding screen"},
   "lockEscrowExplanation": "Lock your ecash in a 2-of-3 escrow at this node's mint. Neither you nor the buyer can move it alone \u2014 and if the node disappears, you can reclaim it yourself once the locktime passes.",
@@ -4571,7 +4664,7 @@
   "@tradeHeadlineWaitingPaymentSellerCashu": {"description": "Trade screen headline for the seller while it must lock the Cashu escrow (the hold-invoice step on a Cashu node)"},
   "tradeWaitingPaymentSellerInstructionCashu": "Lock your ecash in the escrow at the node's mint. That starts the trade, and it comes back to you if the node disappears.",
   "@tradeWaitingPaymentSellerInstructionCashu": {"description": "Trade screen instruction for the seller on a Cashu node: lock the escrow"},
-  "tradeBodyWaitingPaymentBuyerCashu": "They're locking the sats in escrow. Once it's locked, it's your turn to pay the fiat.",
+  "tradeBodyWaitingPaymentBuyerCashu": "They're locking the sats in escrow. Once it's locked, it's your turn to pay.",
   "@tradeBodyWaitingPaymentBuyerCashu": {"description": "Trade screen body for the buyer while the seller locks the Cashu escrow"},
   "shareChatKeyAction": "Share the chat key with the resolver",
   "@shareChatKeyAction": {"description": "Dispute chat app bar: tooltip of the action that sends the solver the peer chat key (#415)"},
@@ -4659,18 +4752,19 @@
   "@myReputationTitle": {
     "description": "Title of the Account card showing the user's own reputation on the active node"
   },
-  "myReputationReviews": "{count, plural, =1{1 rating} other{{count} ratings}}",
-  "@myReputationReviews": {
-    "description": "Number of ratings the user has received, on their own reputation card",
+  "reputationRatingsCount": "{count, plural, =0{no ratings} =1{1 rating} other{{count} ratings}}",
+  "@reputationRatingsCount": {
+    "description": "How many ratings a user has received, wherever their reputation shows (DS-L10N-5); zero reads as none",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
-  "myReputationSince": "since {date}",
-  "@myReputationSince": {
-    "description": "Date of the user's first trade on their reputation card; date is a localized month and year",
+  "reputationSince": "since {date}",
+  "@reputationSince": {
+    "description": "Month of a user's first trade, wherever their reputation shows (DS-L10N-5); date is a localized month and year",
     "placeholders": {
       "date": {
         "type": "String"
@@ -4781,23 +4875,6 @@
   "reputationCheck": "Check",
   "reputationImported": "Your reputation was imported.",
   "reputationImportConfirm": "Import into this Mostro",
-  "reputationFigures": "{reviews, plural, =1{1 rating received} other{{reviews} ratings received}}, {rating} on average, {days, plural, =1{trading for 1 day} other{trading for {days} days}}",
-  "@reputationFigures": {
-    "description": "Import reputation screen: the figures of a checked attestation. {rating} is already formatted for the locale",
-    "placeholders": {
-      "reviews": {
-        "type": "int",
-      "format": "decimalPattern"
-      },
-      "rating": {
-        "type": "String"
-      },
-      "days": {
-        "type": "int",
-      "format": "decimalPattern"
-      }
-    }
-  },
   "reputationFiguresNote": "Imported reputation is added to the one you have here; your counterparts see them merged.",
   "@reputationNodeDoesNotExport": {
     "description": "Reputation portability (#674): the active node does not advertise reputation_issuer, so it cannot export"
@@ -4832,6 +4909,14 @@
   "@reputationInvalidAttestation": {
     "description": "Pasted text that is not a valid reputation attestation"
   },
+  "reputationExportFailed": "This Mostro could not export your reputation. Try again later.",
+  "@reputationExportFailed": {
+    "description": "Reputation screen: an export failed for a reason without a message of its own (#882)"
+  },
+  "reputationExportUnexpectedIssuer": "This Mostro signed the answer with a key other than the one it announced. Switch to another Mostro and back to refresh its info, then try again.",
+  "@reputationExportUnexpectedIssuer": {
+    "description": "Reputation screen: the export answer is signed by another key than the reputation_issuer the app read for the node, usually a stale info event (#882)"
+  },
   "@reputationImportTitle": {
     "description": "App bar title of the Import reputation screen"
   },
@@ -4856,6 +4941,23 @@
   },
   "@reputationFiguresNote": {
     "description": "Under the figures: imported reputation is merged with the one on this node"
+  },
+  "reputationIssuedByLnp2pbot": "Issued by lnp2pBot",
+  "@reputationIssuedByLnp2pbot": {
+    "description": "Import reputation screen, above the figures of a checked attestation: it was signed with lnp2pBot's issuer key (#881)"
+  },
+  "reputationIssuedByMostro": "Issued by the Mostro {name}",
+  "@reputationIssuedByMostro": {
+    "description": "Import reputation screen, above the figures: a known Mostro announces the issuer key; name is its cached profile name, or its npub (#881)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "reputationIssuedByUnknownKey": "Issued by a key this app does not know:",
+  "@reputationIssuedByUnknownKey": {
+    "description": "Import reputation screen, above the figures: neither lnp2pBot nor a known Mostro signs with the issuer key; its npub follows on the next line (#881)"
   },
   "reputationIdentityHint": "Before confirming in lnp2pBot, check that it shows this same public key:",
   "reputationUnavailable": "Unable to check whether reputation can be imported. Try again.",
@@ -4906,17 +5008,37 @@
   "@reputationExported": {
     "description": "Reputation screen, export card: shown above the exported reputation, which the user copies to import it on another Mostro node"
   },
-  "reputationRebindBody": "Moving to a new identity? Sign an authorization for it here, with the identity your reputation is bound to now. Then, from the new identity, paste it in the authorization field above and export.",
+  "reputationRebindTitle": "Move to a new identity",
+  "@reputationRebindTitle": {
+    "description": "Reputation screen: title of the card that signs an authorization to move an exported reputation to a new identity"
+  },
+  "reputationRebindBody": "Sign an authorization for the new identity with the identity your reputation is bound to now: for this Mostro, or for lnp2pBot if you got it from there.",
   "@reputationRebindBody": {
-    "description": "Reputation screen, export card: how to move the reputation to a new identity; above the new-identity field and the Sign authorization button"
+    "description": "Reputation screen, move card: how to move the reputation to a new identity; above the new-identity field and the two sign buttons"
   },
   "reputationNewIdentityHint": "New identity (npub or hex)",
   "@reputationNewIdentityHint": {
-    "description": "Reputation screen, export card: hint of the field for the public key (npub or hex) of the new identity to authorize"
+    "description": "Reputation screen, move card: hint of the field for the public key (npub or hex) of the new identity to authorize"
+  },
+  "reputationRebindSignNode": "Sign for this Mostro",
+  "@reputationRebindSignNode": {
+    "description": "Reputation screen, move card: button that signs the authorization for the active node's issuer key; shown only while the node exports"
+  },
+  "reputationRebindSignBot": "Sign for lnp2pBot",
+  "@reputationRebindSignBot": {
+    "description": "Reputation screen, move card: button that signs the authorization for lnp2pBot's issuer key"
   },
   "reputationRebindSign": "Sign authorization",
   "@reputationRebindSign": {
-    "description": "Reputation screen: button that signs an authorization for the new identity; also the confirm button of the dialog shown before signing"
+    "description": "Confirm button of the dialog shown before signing a rebind authorization"
+  },
+  "reputationRebindSignedForNode": "From the new identity, paste it in the authorization field of the export card and export.",
+  "@reputationRebindSignedForNode": {
+    "description": "Reputation screen, move card: shown above an authorization signed for the active node, which the new identity pastes into the export card"
+  },
+  "reputationRebindSignedForBot": "lnp2pBot takes this only after the new identity asked it for your reputation: if you have not yet, open lnp2pBot from the new identity with \"Get it from lnp2pBot\" on the import screen, and open no other link to it afterwards. Then paste this in that chat and confirm. It is valid for one hour.",
+  "@reputationRebindSignedForBot": {
+    "description": "Reputation screen, move card: shown above an authorization signed for lnp2pBot. The bot takes it only after the new identity opened the link from the import screen (lnp2pBot/bot#934). The quoted label is reputationOpenLnp2pbot"
   },
   "reputationInvalidIdentity": "That is not a valid npub or hex key.",
   "@reputationInvalidIdentity": {
@@ -4932,7 +5054,16 @@
   },
   "reputationRebindConfirmBody": "Whoever holds this identity will be able to export your reputation from this Mostro, and your current identity no longer will:\n\n{npub}\n\nSign only for an identity that is yours.",
   "@reputationRebindConfirmBody": {
-    "description": "Dialog body before signing a rebind authorization: the key that will take the reputation over",
+    "description": "Dialog body before signing a rebind authorization for the active node: the key that will take the reputation over",
+    "placeholders": {
+      "npub": {
+        "type": "String"
+      }
+    }
+  },
+  "reputationRebindConfirmBodyBot": "Whoever holds this identity will be able to export your reputation from lnp2pBot, and your current identity no longer will:\n\n{npub}\n\nSign only for an identity that is yours.",
+  "@reputationRebindConfirmBodyBot": {
+    "description": "Dialog body before signing a rebind authorization for lnp2pBot: the key that will take the reputation over",
     "placeholders": {
       "npub": {
         "type": "String"
@@ -5030,7 +5161,8 @@
     "description": "Trade detail payout card (#823): the node gave up after trying count times",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -5117,7 +5249,8 @@
         "type": "String"
       },
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -5191,11 +5324,28 @@
   "@otherNodeCardDialogTitle": {
     "description": "Notifications (#811): title of the dialog shown when the user taps a card whose trade is on another node"
   },
-  "otherNodeCardOpenHint": "This trade is on node {nodeName}. To act on it, switch to that node in Settings.",
-  "@otherNodeCardOpenHint": {
-    "description": "Notifications (#811): body of the dialog shown when the user taps a card whose trade is on another node; informational only, nodes are switched in Settings",
+  "otherNodeCardSwitchPrompt": "Do you want to switch to node {nodeName}?",
+  "@otherNodeCardSwitchPrompt": {
+    "description": "Notifications (#811): body of the dialog shown when the user taps a card whose trade is on another node; its primary action switches to that node and then opens what was tapped",
     "placeholders": {
       "nodeName": {
+        "type": "String"
+      }
+    }
+  },
+  "stablecoinsGroupHeader": "Stablecoins",
+  "@stablecoinsGroupHeader": {
+    "description": "Group header above the stablecoins in the currency pickers (create order, default currency, order book filter)"
+  },
+  "bitcoinNetworksGroupHeader": "Bitcoin on other networks",
+  "@bitcoinNetworksGroupHeader": {
+    "description": "Group header above bitcoin on other networks (BTC, LBTC, RBTC: order currencies pegged 1:1 to bitcoin, amounts in sats) in the currency pickers, after the stablecoins (app#907)"
+  },
+  "marketPriceNotQuotedByNode": "This node doesn't quote {code} at market price. Set a fixed amount in sats.",
+  "@marketPriceNotQuotedByNode": {
+    "description": "Under the Market | Fixed control when the node's rates event does not quote the selected stablecoin, so Market is locked",
+    "placeholders": {
+      "code": {
         "type": "String"
       }
     }

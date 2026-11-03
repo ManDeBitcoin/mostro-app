@@ -5,6 +5,15 @@
 //! many orders it named, and each order's details arriving. Those steps are
 //! pushed here as [`RestoreProgress`]; the outcome stays `recover_trades`'
 //! result. Subscribe **before** calling it, or the first steps are missed.
+//!
+//! Restores run one at a time (`orders::restore_session_on`), and each one
+//! that goes ahead opens with [`started`], which numbers it. Every step
+//! carries the number of its restore, and a stream delivers only the steps
+//! of restores that started after it was opened: a sheet opened while an
+//! earlier restore still runs (its sheet closed, then a node switch) shows
+//! none of that one's steps.
+
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use anyhow::Result;
 use tokio::sync::broadcast;
@@ -15,17 +24,29 @@ use crate::api::types::RestoreProgress;
 /// that falls behind only loses intermediate counts, never the outcome.
 const CAPACITY: usize = 64;
 
-static PROGRESS: std::sync::OnceLock<broadcast::Sender<RestoreProgress>> =
-    std::sync::OnceLock::new();
+/// The number of the last restore that went ahead.
+static GENERATION: AtomicU64 = AtomicU64::new(0);
 
-fn sender() -> &'static broadcast::Sender<RestoreProgress> {
+/// What the channel carries: each step, with the number of its restore.
+type Tagged = (u64, RestoreProgress);
+
+static PROGRESS: std::sync::OnceLock<broadcast::Sender<Tagged>> = std::sync::OnceLock::new();
+
+fn sender() -> &'static broadcast::Sender<Tagged> {
     PROGRESS.get_or_init(|| broadcast::channel(CAPACITY).0)
 }
 
-/// Report a restore step.
+/// Report a restore step. Steps are reported only by the restore that holds
+/// the slot, so the current number is always its own.
 pub(crate) fn emit(step: RestoreProgress) {
     // An error only means nobody is listening.
-    let _ = sender().send(step);
+    let _ = sender().send((GENERATION.load(Ordering::SeqCst), step));
+}
+
+/// Report that a restore goes ahead: it is the only one running and its
+/// node is still the active one. Every step after it is that restore's.
+pub(crate) fn started() {
+    GENERATION.fetch_add(1, Ordering::SeqCst);
 }
 
 /// The steps of the node's answer: every order and dispute it returned, and
@@ -39,21 +60,30 @@ pub(crate) fn found(info: &mostro_core::message::RestoreSessionInfo, to_load: us
 
 /// Stream of restore steps; see the module docs.
 pub async fn on_restore_progress() -> Result<RestoreProgressStream> {
+    // Read before subscribing: a restore that starts in between still
+    // numbers after it.
+    let since = GENERATION.load(Ordering::SeqCst);
     Ok(RestoreProgressStream {
         rx: sender().subscribe(),
+        since,
     })
 }
 
 /// Wrapper for flutter_rust_bridge Dart Stream generation.
 pub struct RestoreProgressStream {
-    rx: broadcast::Receiver<RestoreProgress>,
+    rx: broadcast::Receiver<Tagged>,
+    /// The last restore that started before this stream was opened: its
+    /// steps, and those of any before it, are not delivered.
+    since: u64,
 }
 
 impl RestoreProgressStream {
     pub async fn next(&mut self) -> Option<RestoreProgress> {
         loop {
             match self.rx.recv().await {
-                Ok(step) => return Some(step),
+                Ok((restore, step)) if restore > self.since => return Some(step),
+                // An earlier restore's, still running.
+                Ok(_) => {}
                 // Only intermediate counts were lost; the next step is current.
                 Err(broadcast::error::RecvError::Lagged(n)) => {
                     log::warn!("[restore-progress] stream lagged, {n} steps dropped");
@@ -86,6 +116,7 @@ mod tests {
         let step = RestoreProgress::Loaded { done: 41, to_load: 97 };
 
         // Act
+        started();
         emit(step.clone());
 
         // Assert
@@ -95,6 +126,7 @@ mod tests {
     #[tokio::test]
     async fn a_subscriber_that_fell_behind_still_hears_the_next_step() {
         let mut stream = on_restore_progress().await.unwrap();
+        started();
         for done in 0..=CAPACITY as u32 {
             emit(RestoreProgress::Loaded { done, to_load: 999 });
         }
@@ -103,6 +135,49 @@ mod tests {
         emit(last.clone());
 
         next_matching(&mut stream, &last).await;
+    }
+
+    /// A sheet opened while an earlier restore still runs follows only the
+    /// restore that starts after it: the earlier one's steps never reach it.
+    /// On a channel of its own: other tests start restores on the shared one.
+    #[tokio::test]
+    async fn a_stream_skips_the_steps_of_a_restore_already_running() {
+        let (tx, rx) = broadcast::channel(CAPACITY);
+        let mut stream = RestoreProgressStream { rx, since: 5 };
+        let earlier = RestoreProgress::Loaded {
+            done: 7,
+            to_load: 8,
+        };
+        let own = RestoreProgress::Loaded {
+            done: 1,
+            to_load: 2,
+        };
+
+        tx.send((5, earlier)).unwrap();
+        tx.send((6, own.clone())).unwrap();
+
+        assert_eq!(stream.next().await, Some(own));
+    }
+
+    /// Falling behind while the earlier restore runs does not make its steps
+    /// the stream's own: the next one delivered is the restore it waits for.
+    #[tokio::test]
+    async fn a_stream_that_fell_behind_on_an_earlier_restore_still_skips_it() {
+        let (tx, rx) = broadcast::channel(CAPACITY);
+        let mut stream = RestoreProgressStream { rx, since: 5 };
+        for done in 0..=CAPACITY as u32 {
+            tx.send((5, RestoreProgress::Loaded { done, to_load: 999 }))
+                .unwrap();
+        }
+        tx.send((5, RestoreProgress::Connected)).unwrap();
+        let own = RestoreProgress::Loaded {
+            done: 1,
+            to_load: 2,
+        };
+
+        tx.send((6, own.clone())).unwrap();
+
+        assert_eq!(stream.next().await, Some(own));
     }
 
     #[test]

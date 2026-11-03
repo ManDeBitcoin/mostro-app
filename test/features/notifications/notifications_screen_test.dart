@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mostro/core/app_theme.dart';
+import 'package:mostro/core/mostro_defaults.dart';
 import 'package:mostro/features/account/providers/backup_reminder_provider.dart';
 import 'package:mostro/features/notifications/models/notification_model.dart';
 import 'package:mostro/features/notifications/providers/notifications_provider.dart';
@@ -53,6 +54,7 @@ TradeRow _row(
   paymentMethod: 'Bank transfer',
   startedAt: 0,
   peerHandle: null,
+  node: defaultMostroPubkey,
 );
 
 Future<NotificationsNotifier> _pump(

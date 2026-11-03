@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mostro/core/node_selector_palette.dart';
 import 'package:mostro/features/settings/models/node_display.dart';
+import 'package:mostro/features/settings/providers/node_picture_provider.dart';
 import 'package:mostro/src/rust/api/types.dart';
 
 /// [color] with its alpha scaled by [dim] — how decorative surfaces fade on a
@@ -13,7 +15,11 @@ Color dimmed(Color color, double dim) =>
 /// derived from its name when it has none or the picture does not load. The
 /// node selector shows it beside each node and a QR that pays a node in its
 /// centre (#851), so the user knows the node by the same face in both.
-class NodeAvatar extends StatelessWidget {
+///
+/// The picture is the one the device keeps ([nodePictureProvider]), stored
+/// when the profile was fetched. It is loaded from its URL only while none
+/// is stored from the URL the profile names now.
+class NodeAvatar extends ConsumerWidget {
   const NodeAvatar({
     super.key,
     required this.entry,
@@ -38,14 +44,8 @@ class NodeAvatar extends StatelessWidget {
   /// themes, so its centre takes [NodeSelectorPalette.light].
   final NodeSelectorPalette? palette;
 
-  /// One decode width for every size: the node selector and a QR's centre
-  /// share the image cache's entry, so the picture is fetched once, not once
-  /// per screen. Sharp up to 64 dp at 3x: the centre of a QR as wide as
-  /// `MostroQr.maxSide`.
-  static const int _cacheWidth = 192;
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final pal = palette ?? NodeSelectorPalette.of(context);
     final name = nodeDisplayName(entry);
     final initial = name.isEmpty ? '?' : name.characters.first.toUpperCase();
@@ -70,13 +70,25 @@ class NodeAvatar extends StatelessWidget {
     );
     final picture = entry.picture;
     if (picture == null) return fallback;
+    final stored = ref.watch(nodePictureProvider(entry.pubkey.toLowerCase()));
+    final kept = stored.valueOrNull;
+    final ImageProvider image;
+    if (kept != null && kept.url == picture) {
+      image = nodePictureImage(kept.bytes);
+    } else if (stored.isLoading && !stored.hasValue) {
+      // The device answers within a frame or two: no download meanwhile.
+      return SizedBox.square(dimension: size);
+    } else {
+      image = ResizeImage(NetworkImage(picture), width: nodePictureCacheWidth);
+    }
     return ClipOval(
-      child: Image.network(
-        picture,
+      child: Image(
+        image: image,
         width: size,
         height: size,
         fit: BoxFit.cover,
-        cacheWidth: _cacheWidth,
+        // A picture replaced by its stored copy shows no gap.
+        gaplessPlayback: true,
         errorBuilder: (_, __, ___) => fallback,
       ),
     );

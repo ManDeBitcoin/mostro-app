@@ -17,6 +17,8 @@ import 'package:mostro/features/about/providers/mostro_node_provider.dart';
 import 'package:mostro/features/account/providers/backup_reminder_provider.dart';
 import 'package:mostro/features/account/providers/my_reputation_provider.dart';
 import 'package:mostro/features/account/providers/privacy_mode_provider.dart';
+import 'package:mostro/features/account/restore/restore_after_switch.dart'
+    show shouldRestoreAccount;
 import 'package:mostro/features/account/restore/restore_run.dart';
 import 'package:mostro/features/account/restore/restore_sheet.dart';
 import 'package:mostro/features/account/widgets/account_card.dart';
@@ -549,18 +551,6 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     await _openRestoreSheet();
   }
 
-  /// Whether `Actualizar` should run the restore after the book refreshed:
-  /// not in privacy mode, and not when that cannot be told — a failed check
-  /// must not turn the refresh that already succeeded into a failure.
-  Future<bool> _refreshRestores() async {
-    try {
-      return !await _privacyMode();
-    } catch (e) {
-      debugPrint('[account] privacy mode unavailable: $e');
-      return false;
-    }
-  }
-
   Future<bool> _privacyMode() =>
       widget.debugPrivacyMode?.call() ?? reputation_api.getPrivacyMode();
 
@@ -613,7 +603,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                     // failed restore (20c) sends the user here to retry: the
                     // same restore sheet, unless privacy mode has no account
                     // on the node to restore.
-                    if (await _refreshRestores() && mounted) {
+                    if (await shouldRestoreAccount(
+                          privacyMode: _privacyMode,
+                        ) &&
+                        mounted) {
                       await _openRestoreSheet();
                       return;
                     }

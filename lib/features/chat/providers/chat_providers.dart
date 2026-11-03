@@ -1,6 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mostro/core/trade_node.dart';
+import 'package:mostro/features/settings/providers/mostro_nodes_provider.dart'
+    show mostroPubkeyProvider;
+import 'package:mostro/features/trades/providers/trade_rows_provider.dart';
 import 'package:mostro/features/trades/providers/trades_providers.dart';
 import 'package:mostro/l10n/app_localizations.dart';
 import 'package:mostro/src/rust/api/identity.dart' as identity_api;
@@ -194,10 +198,33 @@ class ChatRoomsNotifier extends StateNotifier<List<ChatRoomState>> {
 /// Source-of-truth provider for the list of chat rooms.
 ///
 /// Sorted order is provided by [sortedChatRoomsProvider].
+///
+/// A row without a node goes when no restore adopted it (#813), and its room
+/// goes with it: hidden with the row, it must not come back as the room of a
+/// trade that is gone. Watched here, where every room enters, so the row's
+/// going is seen whether or not the Chats list is open (PR #865 review).
 final chatRoomsNotifierProvider =
-    StateNotifierProvider<ChatRoomsNotifier, List<ChatRoomState>>(
-      (_) => ChatRoomsNotifier(),
-    );
+    StateNotifierProvider<ChatRoomsNotifier, List<ChatRoomState>>((ref) {
+      final notifier = ChatRoomsNotifier();
+      // The trade list the rooms are built from, not its rows: nothing of a
+      // row's live state is needed to tell that it went.
+      ref.listen<AsyncValue<List<rust_types.TradeInfo>>>(rawTradesProvider, (
+        previous,
+        next,
+      ) {
+        final before = previous?.valueOrNull;
+        final after = next.valueOrNull;
+        if (before == null || after == null) return;
+        final kept = {for (final trade in after) trade.order.id};
+        for (final trade in before) {
+          if (trade.order.nodePubkey.isEmpty &&
+              !kept.contains(trade.order.id)) {
+            notifier.removeRoom(trade.order.id);
+          }
+        }
+      });
+      return notifier;
+    });
 
 /// Chat rooms sorted by [ChatRoomState.lastMessageAt] descending (newest first).
 final sortedChatRoomsProvider = Provider<List<ChatRoomState>>((ref) {
@@ -207,11 +234,30 @@ final sortedChatRoomsProvider = Provider<List<ChatRoomState>>((ref) {
   return sorted;
 });
 
-/// Total unread message count across all rooms.
+/// The rooms the Chats list shows: those of the active node's trades
+/// (#813). The notifier keeps every room live; a room of another node's
+/// trade waits for a switch to that node. A room whose trade row is gone
+/// stays, as before, except the room of a row that did not know its node,
+/// which the notifier drops with the row. Until the trades load nothing is
+/// shown, so another node's rooms never flash in; a failed load shows every
+/// room.
+final activeNodeChatRoomsProvider = Provider<List<ChatRoomState>>((ref) {
+  final rooms = ref.watch(chatRoomsNotifierProvider);
+  final trades = ref.watch(tradeRowsProvider);
+  if (!trades.hasValue) return trades.hasError ? rooms : const [];
+  final active = ref.watch(mostroPubkeyProvider);
+  final nodeOf = {for (final t in trades.value!) t.orderId: t.node};
+  return rooms.where((room) {
+    final node = nodeOf[room.orderId];
+    return node == null || isOnActiveNode(tradeNode: node, activeNode: active);
+  }).toList();
+});
+
+/// Total unread message count across the rooms the Chats list shows.
 ///
 /// Consumed by [chatNotificationCountProvider] in BottomNavBar.
 final chatCountProvider = Provider<int>((ref) {
-  final rooms = ref.watch(chatRoomsNotifierProvider);
+  final rooms = ref.watch(activeNodeChatRoomsProvider);
   return rooms.fold(0, (sum, r) => sum + r.unreadCount);
 });
 

@@ -256,10 +256,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String filtersActiveCount(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count filtros activos',
+      other: '$countString filtros activos',
       one: '1 filtro activo',
     );
     return '$_temp0';
@@ -615,10 +619,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String nodeStatusOnline(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count órdenes',
+      other: '$countString órdenes',
       one: '1 orden',
     );
     return 'En línea · $_temp0';
@@ -741,7 +749,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get drawerTagline => 'Exchange P2P';
 
   @override
-  String get drawerStageBadge => 'Alfa';
+  String get drawerStageBadge => 'Beta';
 
   @override
   String drawerVersion(String version) {
@@ -862,7 +870,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get fiatSentFailed =>
-      'Error al marcar el fiat como enviado. Por favor, inténtalo de nuevo.';
+      'Error al marcar el pago como enviado. Por favor, inténtalo de nuevo.';
 
   @override
   String get releaseFailed =>
@@ -1077,11 +1085,15 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String aboutBondClaimWindowValue(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count días',
-      one: '$count día',
+      other: '$countString días',
+      one: '$countString día',
     );
     return '$_temp0';
   }
@@ -1363,6 +1375,33 @@ class AppLocalizationsEs extends AppLocalizations {
       'Acciones de los resolutores y resoluciones de disputas';
 
   @override
+  String get notifAnnouncementsTitle => 'Anuncios';
+
+  @override
+  String get notifAnnouncementsSubtitle =>
+      'Versiones, caídas y cambios de relays, firmados por el proyecto Mostro';
+
+  @override
+  String get announcementsGroupSubtitle =>
+      'Los anuncios se leen de los relays y nunca se responden: no se envía nada sobre ti.';
+
+  @override
+  String get announcementLevelInfo => 'Anuncio';
+
+  @override
+  String get announcementLevelWarning => 'Aviso';
+
+  @override
+  String get announcementLevelCritical => 'Actualización de seguridad';
+
+  @override
+  String get announcementOpenLink => 'Abrir enlace';
+
+  @override
+  String get notificationsBellCritical =>
+      'Notificaciones, hay una actualización de seguridad sin leer';
+
+  @override
   String get searchCurrenciesHint => 'Buscar monedas…';
 
   @override
@@ -1437,7 +1476,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get tradeInstructionFiatSentBuyer =>
-      'Pago fiat marcado como enviado. Esperando que el vendedor confirme la recepción y libere tus sats.';
+      'Pago marcado como enviado. Esperando que el vendedor confirme la recepción y libere tus sats.';
 
   @override
   String get tradeInstructionActiveSeller =>
@@ -1445,7 +1484,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get tradeInstructionFiatSentSeller =>
-      'El comprador confirmó que envió el pago fiat. Una vez que verifiques la recepción, libera los sats.';
+      'El comprador confirmó que envió el pago. Una vez que verifiques la recepción, libera los sats.';
 
   @override
   String get tradeInstructionDisputed =>
@@ -1550,16 +1589,19 @@ class AppLocalizationsEs extends AppLocalizations {
   String get tradeStepOrderTaken => 'Orden tomada';
 
   @override
+  String get tradeStepWaitingTaker => 'Esperando tomador';
+
+  @override
   String get tradeStepInvoiceBuyer => 'El vendedor bloquea los sats';
 
   @override
   String get tradeStepInvoiceSeller => 'Bloqueas los sats';
 
   @override
-  String get tradeStepFiatBuyer => 'Envías el pago fiat';
+  String get tradeStepFiatBuyer => 'Envías el pago';
 
   @override
-  String get tradeStepFiatSeller => 'El comprador envía el pago fiat';
+  String get tradeStepFiatSeller => 'El comprador envía el pago';
 
   @override
   String get tradeStepReleaseBuyer => 'El vendedor libera tus sats';
@@ -1715,21 +1757,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get rangeAmountTakeAction => 'Tomar orden';
 
   @override
-  String get buyerReputation => 'Reputación del comprador';
-
-  @override
-  String get sellerReputation => 'Reputación del vendedor';
-
-  @override
-  String get ratingStatLabel => 'calificación';
-
-  @override
-  String get tradesStatLabel => 'operaciones';
-
-  @override
-  String get daysActiveStatLabel => 'días activo';
-
-  @override
   String orderAmountOutOfRange(int min, int max) {
     return 'El monto debe estar entre $min y $max sats para este nodo Mostro';
   }
@@ -1790,10 +1817,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String paymentMethodsChosenCount(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count seleccionados',
+      other: '$countString seleccionados',
       one: '1 seleccionado',
       zero: 'ninguno seleccionado',
     );
@@ -1926,10 +1957,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String selectStarTooltip(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Seleccionar $count estrellas',
+      other: 'Seleccionar $countString estrellas',
       one: 'Seleccionar 1 estrella',
     );
     return '$_temp0';
@@ -2009,36 +2044,18 @@ class AppLocalizationsEs extends AppLocalizations {
   String get marketPriceCaption => 'Precio de mercado';
 
   @override
-  String reputationTradesLabel(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'operaciones',
-      one: 'operación',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String reputationDaysLabel(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'días',
-      one: 'día',
-    );
-    return '$_temp0';
-  }
-
-  @override
   String get sortNewest => 'Más recientes';
 
   @override
   String ordersCount(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count órdenes',
+      other: '$countString órdenes',
       one: '1 orden',
     );
     return '$_temp0';
@@ -2068,9 +2085,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get reputationNew => 'Nuevo';
 
   @override
-  String get reputationNoTrades => 'sin operaciones';
-
-  @override
   String get bottomNavBook => 'Libro';
 
   @override
@@ -2098,10 +2112,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String viewEarlierEvents(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Ver $count eventos anteriores',
+      other: 'Ver $countString eventos anteriores',
       one: 'Ver 1 evento anterior',
     );
     return '$_temp0';
@@ -2121,10 +2139,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String notificationDeletedSnack(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count notificaciones eliminadas',
+      other: '$countString notificaciones eliminadas',
       one: 'Notificación eliminada',
     );
     return '$_temp0';
@@ -2183,10 +2205,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String notificationsBellUnread(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Notificaciones, $count sin leer',
+      other: 'Notificaciones, $countString sin leer',
       one: 'Notificaciones, 1 sin leer',
     );
     return '$_temp0';
@@ -2194,10 +2220,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String drawerBadgeNewCount(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count nuevos',
+      other: '$countString nuevos',
       one: '1 nuevo',
     );
     return '$_temp0';
@@ -2255,11 +2285,15 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String aboutDaysValue(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count días',
-      one: '$count día',
+      other: '$countString días',
+      one: '$countString día',
     );
     return '$_temp0';
   }
@@ -2365,10 +2399,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String tradeChatNewMessages(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count mensajes nuevos',
+      other: '$countString mensajes nuevos',
       one: '1 mensaje nuevo',
     );
     return '$_temp0';
@@ -2383,7 +2421,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get tradeBodyWaitingPaymentBuyer =>
-      'Está pagando la factura. Cuando los sats estén bloqueados, te toca pagar el fiat.';
+      'Está pagando la factura. Cuando los sats estén bloqueados, te toca pagar.';
 
   @override
   String tradeBodyActiveSeller(String method) {
@@ -2398,6 +2436,41 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String tradeBodyFiatSentSeller(String method) {
     return 'El comprador marcó el pago como enviado. Revisa tu cuenta de $method antes de liberar.';
+  }
+
+  @override
+  String tradeBodyActiveBuyerStablecoin(String method) {
+    return 'Envíalo por $method, a la dirección que te pasó por el chat: por otra red se puede perder. Luego pega el ID de la transacción en el chat (es tu prueba en una disputa) y márcalo abajo.';
+  }
+
+  @override
+  String tradeBodyActiveSellerStablecoin(String method) {
+    return 'Pásale tu dirección de $method por el chat de arriba.';
+  }
+
+  @override
+  String tradeBodyFiatSentSellerStablecoin(String method) {
+    return 'El comprador marcó el pago como enviado. Antes de liberar, comprueba que llegó a tu dirección de $method, con el ID de la transacción del chat.';
+  }
+
+  @override
+  String tradeBodyActiveBuyerBtcPegged(String method) {
+    return 'Envíalo por $method, a la dirección que te pasó por el chat, con una comisión suficiente para que confirme pronto: el vendedor libera solo cuando esté confirmado. Luego pega el ID de la transacción en el chat (es tu prueba en una disputa) y márcalo abajo.';
+  }
+
+  @override
+  String tradeBodyActiveBuyerLiquid(String method) {
+    return 'Envíalo por $method, a la dirección que te pasó por el chat. Luego pega en el chat el enlace desbloqueado de la transacción: Liquid oculta el monto, y el enlace se lo muestra al vendedor y, en una disputa, al resolutor. Márcalo abajo.';
+  }
+
+  @override
+  String tradeBodyFiatSentSellerBtcPegged(String method) {
+    return 'El comprador marcó el pago como enviado. Libera solo cuando esté confirmado en $method: compruébalo con el ID de la transacción del chat.';
+  }
+
+  @override
+  String tradeBodyFiatSentSellerLiquid(String method) {
+    return 'El comprador marcó el pago como enviado. Libera solo cuando esté confirmado en $method: comprueba el monto con el enlace desbloqueado del chat.';
   }
 
   @override
@@ -2418,28 +2491,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get tradeRoleSeller => 'Vendedor';
-
-  @override
-  String reputationTradesCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count operaciones',
-      one: '1 operación',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String reputationDaysOnMostro(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count días en Mostro',
-      one: '1 día en Mostro',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get tradeFiatSentAction => 'Ya envié el pago';
@@ -2559,28 +2610,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get counterpartyBuyer => 'Comprador';
-
-  @override
-  String counterpartyTrades(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count operaciones',
-      one: '$count operación',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String counterpartyDaysOnMostro(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count días en Mostro',
-      one: '$count día en Mostro',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get takeOrderPayWithLabel => 'Pagas con';
@@ -2751,10 +2780,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String pushStatusCleanupPending(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Desactivadas — quedan $count registros push por eliminar',
+      other: 'Desactivadas — quedan $countString registros push por eliminar',
       one: 'Desactivadas — queda 1 registro push por eliminar',
     );
     return '$_temp0';
@@ -2769,10 +2802,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String pushStatusRegistered(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Registrado para $count operaciones',
+      other: 'Registrado para $countString operaciones',
       one: 'Registrado para 1 operación',
     );
     return '$_temp0';
@@ -2892,11 +2929,15 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String aboutFieldCount(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count campos',
-      one: '$count campo',
+      other: '$countString campos',
+      one: '$countString campo',
     );
     return '$_temp0';
   }
@@ -3610,9 +3651,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get invoiceYouGetLabel => 'Recibes';
 
   @override
-  String get invoiceNoTrades => 'sin operaciones';
-
-  @override
   String get invoiceSendButton => 'Enviar factura';
 
   @override
@@ -3688,14 +3726,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get tradeCardActiveMessage =>
-      'Los sats están bloqueados. El comprador ya puede enviar el pago fiat.';
+      'Los sats están bloqueados. El comprador ya puede enviar el pago.';
 
   @override
-  String get tradeCardFiatSentTitle => 'Fiat marcado como enviado';
+  String get tradeCardFiatSentTitle => 'Pago marcado como enviado';
 
   @override
   String get tradeCardFiatSentMessage =>
-      'El comprador marcó el pago fiat como enviado.';
+      'El comprador marcó el pago como enviado.';
 
   @override
   String get tradeCardSettledHoldInvoiceTitle => 'Sats liberados';
@@ -3784,10 +3822,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String chatCardMessage(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count mensajes nuevos de tu contraparte',
+      other: '$countString mensajes nuevos de tu contraparte',
       one: '1 mensaje nuevo de tu contraparte',
     );
     return '$_temp0';
@@ -3795,10 +3837,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String chatCardSolverMessage(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count mensajes nuevos del resolutor de disputas',
+      other: '$countString mensajes nuevos del resolutor de disputas',
       one: '1 mensaje nuevo del resolutor de disputas',
     );
     return '$_temp0';
@@ -3818,10 +3864,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String recoveredTradesMessage(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Cuenta importada. Se recuperaron $count operaciones',
+      other: 'Cuenta importada. Se recuperaron $countString operaciones',
       one: 'Cuenta importada. Se recuperó 1 operación',
       zero: 'Cuenta importada. No tenías operaciones en curso',
     );
@@ -3837,10 +3887,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String paymentMethodsSelectedCount(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count métodos seleccionados',
+      other: '$countString métodos seleccionados',
       one: '1 método seleccionado',
       zero: 'Selecciona al menos un método',
     );
@@ -3920,10 +3974,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String restoreStageFound(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count órdenes encontradas',
+      other: '$countString órdenes encontradas',
       one: '1 orden encontrada',
     );
     return '$_temp0';
@@ -3972,10 +4030,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String restoreActionNotice(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Tienes $count órdenes activas esperando tu acción',
+      other: 'Tienes $countString órdenes activas esperando tu acción',
       one: 'Tienes 1 orden activa esperando tu acción',
     );
     return '$_temp0';
@@ -4284,6 +4346,110 @@ class AppLocalizationsEs extends AppLocalizations {
       'El envío falló y la billetera no pudo confirmar que los fondos volvieron. Sincroniza con el mint antes de intentar de nuevo.';
 
   @override
+  String get cashuSendEcashOption => 'Ecash';
+
+  @override
+  String get cashuSendLightningOption => 'Lightning';
+
+  @override
+  String get cashuInvoiceDialogTitle => 'Pagar una factura Lightning';
+
+  @override
+  String get cashuInvoiceFieldLabel => 'Factura Lightning';
+
+  @override
+  String get cashuPasteInvoiceHint => 'Pega una factura Lightning';
+
+  @override
+  String get cashuInvoiceScanHint => 'Pega o escanea una factura Lightning';
+
+  @override
+  String get cashuMeltConfirmTitle => 'Confirmar pago';
+
+  @override
+  String get cashuMeltAmount => 'Monto';
+
+  @override
+  String get cashuMeltFees => 'Comisiones, hasta';
+
+  @override
+  String get cashuMeltTotal => 'Total, hasta';
+
+  @override
+  String get cashuMeltFeesNote =>
+      'Las comisiones que el mint no use vuelven a tu billetera.';
+
+  @override
+  String get cashuMeltQuoteRefreshed =>
+      'El precio cambió. Revisa el nuevo total antes de pagar.';
+
+  @override
+  String get cashuPayButton => 'Pagar';
+
+  @override
+  String cashuMeltPaidTitle(String sats) {
+    return 'Pagaste $sats sats';
+  }
+
+  @override
+  String cashuMeltPaidFee(String fee) {
+    return 'Comisión: $fee sats';
+  }
+
+  @override
+  String get cashuMeltPendingTitle => 'Pago en curso';
+
+  @override
+  String get cashuMeltPendingBody =>
+      'El resultado aún no está confirmado. Esos sats quedan retenidos; toca «Sincronizar con el mint» más tarde para resolverlo.';
+
+  @override
+  String get cashuMeltFailedTitle => 'El pago falló';
+
+  @override
+  String get cashuErrorInvalidInvoice =>
+      'Eso no es una factura Lightning que esta billetera pueda pagar.';
+
+  @override
+  String get cashuErrorInvoiceNoAmount =>
+      'Esta factura no tiene monto. Pide una que indique cuánto pagar.';
+
+  @override
+  String get cashuErrorInvoiceExpired => 'Esta factura venció. Pide una nueva.';
+
+  @override
+  String get cashuErrorMeltUnsupported =>
+      'Este mint no puede pagar facturas Lightning.';
+
+  @override
+  String get cashuErrorMeltAmountOutOfRange =>
+      'Este mint no paga facturas de ese monto.';
+
+  @override
+  String get cashuErrorMeltQuoteFailed =>
+      'El mint no pudo cotizar este pago. Inténtalo más tarde.';
+
+  @override
+  String get cashuErrorMeltQuoteExpired =>
+      'La cotización del pago venció. No se pagó nada; empieza de nuevo.';
+
+  @override
+  String get cashuErrorMeltFeeChanged =>
+      'Las comisiones subieron desde que confirmaste. No se pagó nada; empieza de nuevo.';
+
+  @override
+  String get cashuErrorMeltInFlight =>
+      'Todavía hay un pago Lightning de esta billetera en curso. Espera a que termine y vuelve a intentarlo.';
+
+  @override
+  String get cashuErrorMeltInsufficientFunds =>
+      'No tienes suficiente en la billetera para pagar esta factura y sus comisiones.';
+
+  @override
+  String get cashuErrorMeltFailed =>
+      'El pago no se completó. No se pagó nada; los sats volvieron a tu saldo.';
+
+  @override
   String get lockEscrowTitle => 'Bloquear la custodia';
 
   @override
@@ -4401,7 +4567,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get tradeBodyWaitingPaymentBuyerCashu =>
-      'Está bloqueando los sats en la custodia. Cuando estén bloqueados, te toca pagar el fiat.';
+      'Está bloqueando los sats en la custodia. Cuando estén bloqueados, te toca pagar.';
 
   @override
   String get shareChatKeyAction =>
@@ -4483,18 +4649,23 @@ class AppLocalizationsEs extends AppLocalizations {
   String get myReputationTitle => 'Tu reputación';
 
   @override
-  String myReputationReviews(int count) {
+  String reputationRatingsCount(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count calificaciones',
+      other: '$countString calificaciones',
       one: '1 calificación',
+      zero: 'sin calificaciones',
     );
     return '$_temp0';
   }
 
   @override
-  String myReputationSince(String date) {
+  String reputationSince(String date) {
     return 'desde $date';
   }
 
@@ -4628,37 +4799,32 @@ class AppLocalizationsEs extends AppLocalizations {
   String get reputationImportConfirm => 'Importar en este Mostro';
 
   @override
-  String reputationFigures(int reviews, String rating, int days) {
-    final intl.NumberFormat reviewsNumberFormat = intl
-        .NumberFormat.decimalPattern(localeName);
-    final String reviewsString = reviewsNumberFormat.format(reviews);
-    final intl.NumberFormat daysNumberFormat = intl.NumberFormat.decimalPattern(
-      localeName,
-    );
-    final String daysString = daysNumberFormat.format(days);
-
-    String _temp0 = intl.Intl.pluralLogic(
-      reviews,
-      locale: localeName,
-      other: '$reviewsString calificaciones recibidas',
-      one: '1 calificación recibida',
-    );
-    String _temp1 = intl.Intl.pluralLogic(
-      days,
-      locale: localeName,
-      other: 'operando desde hace $daysString días',
-      one: 'operando desde hace 1 día',
-    );
-    return '$_temp0, $rating de promedio, $_temp1';
-  }
-
-  @override
   String get reputationFiguresNote =>
       'La reputación importada se suma a la que tienes aquí; tus contrapartes las ven juntas.';
 
   @override
+  String get reputationExportFailed =>
+      'Este Mostro no pudo exportar tu reputación. Inténtalo más tarde.';
+
+  @override
+  String get reputationExportUnexpectedIssuer =>
+      'Este Mostro firmó la respuesta con una clave distinta de la que anunció. Cambia a otro Mostro y vuelve para actualizar su información, y luego inténtalo de nuevo.';
+
+  @override
   String get reputationOpenLnp2pbotFailed =>
       'No se pudo abrir Telegram. Abre lnp2pBot en Telegram por tu cuenta y pega aquí lo que te envíe.';
+
+  @override
+  String get reputationIssuedByLnp2pbot => 'Emitida por lnp2pBot';
+
+  @override
+  String reputationIssuedByMostro(String name) {
+    return 'Emitida por el Mostro $name';
+  }
+
+  @override
+  String get reputationIssuedByUnknownKey =>
+      'Emitida por una clave que esta app no conoce:';
 
   @override
   String get reputationIdentityHint =>
@@ -4702,14 +4868,31 @@ class AppLocalizationsEs extends AppLocalizations {
       'Tu reputación está lista. Cambia al Mostro donde la quieres e impórtala; es válida durante 7 días.';
 
   @override
+  String get reputationRebindTitle => 'Mudarse a una identidad nueva';
+
+  @override
   String get reputationRebindBody =>
-      '¿Te mudas a una identidad nueva? Firma aquí una autorización para ella, con la identidad a la que está ligada tu reputación ahora. Luego, desde la identidad nueva, pégala en el campo de autorización de arriba y exporta.';
+      'Firma una autorización para la identidad nueva con la identidad a la que está ligada tu reputación ahora: para este Mostro, o para lnp2pBot si la obtuviste allí.';
 
   @override
   String get reputationNewIdentityHint => 'Identidad nueva (npub o hex)';
 
   @override
+  String get reputationRebindSignNode => 'Firmar para este Mostro';
+
+  @override
+  String get reputationRebindSignBot => 'Firmar para lnp2pBot';
+
+  @override
   String get reputationRebindSign => 'Firmar autorización';
+
+  @override
+  String get reputationRebindSignedForNode =>
+      'Desde la identidad nueva, pégala en el campo de autorización de la tarjeta de exportar y exporta.';
+
+  @override
+  String get reputationRebindSignedForBot =>
+      'lnp2pBot solo acepta esto después de que la identidad nueva le haya pedido tu reputación: si aún no lo hiciste, abre lnp2pBot desde la identidad nueva con «Obtenerla de lnp2pBot» en la pantalla de importar, y no abras después ningún otro enlace al bot. Luego pega esto en ese chat y confirma. Vale una hora.';
 
   @override
   String get reputationInvalidIdentity =>
@@ -4725,6 +4908,11 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String reputationRebindConfirmBody(String npub) {
     return 'Quien tenga esta identidad podrá exportar tu reputación de este Mostro, y tu identidad actual ya no podrá:\n\n$npub\n\nFirma solo para una identidad que sea tuya.';
+  }
+
+  @override
+  String reputationRebindConfirmBodyBot(String npub) {
+    return 'Quien tenga esta identidad podrá exportar tu reputación de lnp2pBot, y tu identidad actual ya no podrá:\n\n$npub\n\nFirma solo para una identidad que sea tuya.';
   }
 
   @override
@@ -4786,10 +4974,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String payoutOutcomeFailedAttempts(int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Falló tras $count intentos',
+      other: 'Falló tras $countString intentos',
       one: 'Falló tras 1 intento',
     );
     return '$_temp0';
@@ -4851,10 +5043,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String invoicePayoutFailedAttempts(String destination, int count) {
+    final intl.NumberFormat countNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'El pago a $destination falló tras $count intentos.',
+      other: 'El pago a $destination falló tras $countString intentos.',
       one: 'El pago a $destination falló tras 1 intento.',
     );
     return '$_temp0';
@@ -4915,7 +5111,18 @@ class AppLocalizationsEs extends AppLocalizations {
   String get otherNodeCardDialogTitle => 'Operación en otro nodo';
 
   @override
-  String otherNodeCardOpenHint(String nodeName) {
-    return 'Esta operación es del nodo $nodeName. Para operarla, cambia a ese nodo en Configuración.';
+  String otherNodeCardSwitchPrompt(String nodeName) {
+    return '¿Quieres cambiar al nodo $nodeName?';
+  }
+
+  @override
+  String get stablecoinsGroupHeader => 'Stablecoins';
+
+  @override
+  String get bitcoinNetworksGroupHeader => 'Bitcoin en otras redes';
+
+  @override
+  String marketPriceNotQuotedByNode(String code) {
+    return 'Este nodo no cotiza $code a precio de mercado. Indica un monto fijo en sats.';
   }
 }

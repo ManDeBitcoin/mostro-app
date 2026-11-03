@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:mostro/core/trade_node.dart';
 import 'package:mostro/features/order/providers/trade_state_provider.dart';
+import 'package:mostro/features/settings/providers/mostro_nodes_provider.dart'
+    show mostroPubkeyProvider;
 import 'package:mostro/features/trades/providers/trade_rows_provider.dart'
     show needsActionCountProvider;
 import 'package:mostro/l10n/app_localizations.dart';
@@ -116,14 +119,24 @@ final tradeInfoProvider = FutureProvider.autoDispose
 bool isTradeInProgress(rust_types.TradeInfo trade) =>
     trade.completedAt == null && trade.outcome == null;
 
-/// Whether the user has a trade in progress ([isTradeInProgress]) — the
-/// question every node switch asks first. `null` when the trades could not be
-/// read: the caller must not switch on a guess.
+/// Whether the user has a trade in progress ([isTradeInProgress]) whose
+/// actions go to the active node — the question every node switch asks
+/// first. `null` when the trades could not be read: the caller must not
+/// switch on a guess.
 final tradeInProgressLookupProvider = Provider<Future<bool?> Function()>(
   (ref) => () async {
     try {
       final trades = await ref.read(rawTradesProvider.future);
-      return trades.any(isTradeInProgress);
+      final active = ref.read(mostroPubkeyProvider);
+      // The active node's, and those whose row does not know its node: their
+      // actions go to the active node (#810), so a switch re-routes them too.
+      // Other nodes' trades are already out of view, and the switch may well
+      // be to their node (#813).
+      return trades.any(
+        (t) =>
+            !isOnOtherNode(tradeNode: t.order.nodePubkey, activeNode: active) &&
+            isTradeInProgress(t),
+      );
     } catch (e) {
       debugPrint('[trades] in-progress lookup failed: $e');
       return null;

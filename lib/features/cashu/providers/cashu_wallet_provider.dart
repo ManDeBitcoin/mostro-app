@@ -59,6 +59,17 @@ class CashuWalletController {
   /// phase C10. The Rust side returns nothing for exactly that reason, and the
   /// UI must not claim a "reclaimed N sat" it cannot know.
   Future<void> sweepSpentProofs() => cashu_api.cashuSweepSpentProofs();
+
+  /// Price paying the bolt11 [invoice] from the wallet — phase C3b-1. Reserves
+  /// nothing: the quote is only shown, and [melt] prices it again.
+  Future<CashuMeltQuote> meltQuote(String invoice) =>
+      cashu_api.cashuMeltQuote(invoice: invoice);
+
+  /// Pay the quote [quoteId], provided it costs no more than [maxTotalSats] —
+  /// the total the user confirmed. Throws `CashuMeltQuoteExpired` or
+  /// `CashuMeltFeeChanged`, with nothing spent, when it no longer holds.
+  Future<CashuMeltResult> melt(String quoteId, BigInt maxTotalSats) =>
+      cashu_api.cashuMelt(quoteId: quoteId, maxTotalSats: maxTotalSats);
 }
 
 final cashuWalletControllerProvider = Provider<CashuWalletController>(

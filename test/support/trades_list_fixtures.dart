@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mostro/core/mostro_defaults.dart';
 import 'package:mostro/features/account/providers/backup_reminder_provider.dart';
 import 'package:mostro/features/notifications/providers/notifications_provider.dart';
 import 'package:mostro/features/order/providers/exchange_rate_provider.dart';
@@ -15,6 +16,7 @@ final kTradesNow = DateTime(2026, 9, 12, 15, 30);
 int _ago(Duration d) => kTradesNow.subtract(d).millisecondsSinceEpoch ~/ 1000;
 
 /// One trade of the My Trades fixtures, every field the card reads settable.
+/// It lives on the default node, the active one unless a test changes it.
 TradeInfo listTrade({
   required String id,
   required OrderStatus status,
@@ -27,6 +29,7 @@ TradeInfo listTrade({
   String counterparty = '',
   bool isMine = false,
   int? ratedAt,
+  String nodePubkey = defaultMostroPubkey,
 }) => TradeInfo(
   id: id,
   order: OrderInfo(
@@ -38,7 +41,7 @@ TradeInfo listTrade({
     fiatCode: fiatCode,
     paymentMethod: paymentMethod,
     premium: 0,
-    nodePubkey: 'creator-$id',
+    nodePubkey: nodePubkey,
     createdAt: _ago(ago),
     isMine: isMine,
     rating: 0,

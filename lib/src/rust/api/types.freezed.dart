@@ -16,6 +16,792 @@ final _privateConstructorUsedError = UnsupportedError(
 );
 
 /// @nodoc
+mixin _$CashuMeltResult {
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(BigInt amountSats, BigInt feePaidSats) paid,
+    required TResult Function() pending,
+  }) => throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(BigInt amountSats, BigInt feePaidSats)? paid,
+    TResult? Function()? pending,
+  }) => throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(BigInt amountSats, BigInt feePaidSats)? paid,
+    TResult Function()? pending,
+    required TResult orElse(),
+  }) => throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(CashuMeltResult_Paid value) paid,
+    required TResult Function(CashuMeltResult_Pending value) pending,
+  }) => throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(CashuMeltResult_Paid value)? paid,
+    TResult? Function(CashuMeltResult_Pending value)? pending,
+  }) => throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(CashuMeltResult_Paid value)? paid,
+    TResult Function(CashuMeltResult_Pending value)? pending,
+    required TResult orElse(),
+  }) => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $CashuMeltResultCopyWith<$Res> {
+  factory $CashuMeltResultCopyWith(
+    CashuMeltResult value,
+    $Res Function(CashuMeltResult) then,
+  ) = _$CashuMeltResultCopyWithImpl<$Res, CashuMeltResult>;
+}
+
+/// @nodoc
+class _$CashuMeltResultCopyWithImpl<$Res, $Val extends CashuMeltResult>
+    implements $CashuMeltResultCopyWith<$Res> {
+  _$CashuMeltResultCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of CashuMeltResult
+  /// with the given fields replaced by the non-null parameter values.
+}
+
+/// @nodoc
+abstract class _$$CashuMeltResult_PaidImplCopyWith<$Res> {
+  factory _$$CashuMeltResult_PaidImplCopyWith(
+    _$CashuMeltResult_PaidImpl value,
+    $Res Function(_$CashuMeltResult_PaidImpl) then,
+  ) = __$$CashuMeltResult_PaidImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({BigInt amountSats, BigInt feePaidSats});
+}
+
+/// @nodoc
+class __$$CashuMeltResult_PaidImplCopyWithImpl<$Res>
+    extends _$CashuMeltResultCopyWithImpl<$Res, _$CashuMeltResult_PaidImpl>
+    implements _$$CashuMeltResult_PaidImplCopyWith<$Res> {
+  __$$CashuMeltResult_PaidImplCopyWithImpl(
+    _$CashuMeltResult_PaidImpl _value,
+    $Res Function(_$CashuMeltResult_PaidImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of CashuMeltResult
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({Object? amountSats = null, Object? feePaidSats = null}) {
+    return _then(
+      _$CashuMeltResult_PaidImpl(
+        amountSats:
+            null == amountSats
+                ? _value.amountSats
+                : amountSats // ignore: cast_nullable_to_non_nullable
+                    as BigInt,
+        feePaidSats:
+            null == feePaidSats
+                ? _value.feePaidSats
+                : feePaidSats // ignore: cast_nullable_to_non_nullable
+                    as BigInt,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+
+class _$CashuMeltResult_PaidImpl extends CashuMeltResult_Paid {
+  const _$CashuMeltResult_PaidImpl({
+    required this.amountSats,
+    required this.feePaidSats,
+  }) : super._();
+
+  @override
+  final BigInt amountSats;
+  @override
+  final BigInt feePaidSats;
+
+  @override
+  String toString() {
+    return 'CashuMeltResult.paid(amountSats: $amountSats, feePaidSats: $feePaidSats)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$CashuMeltResult_PaidImpl &&
+            (identical(other.amountSats, amountSats) ||
+                other.amountSats == amountSats) &&
+            (identical(other.feePaidSats, feePaidSats) ||
+                other.feePaidSats == feePaidSats));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, amountSats, feePaidSats);
+
+  /// Create a copy of CashuMeltResult
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$CashuMeltResult_PaidImplCopyWith<_$CashuMeltResult_PaidImpl>
+  get copyWith =>
+      __$$CashuMeltResult_PaidImplCopyWithImpl<_$CashuMeltResult_PaidImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(BigInt amountSats, BigInt feePaidSats) paid,
+    required TResult Function() pending,
+  }) {
+    return paid(amountSats, feePaidSats);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(BigInt amountSats, BigInt feePaidSats)? paid,
+    TResult? Function()? pending,
+  }) {
+    return paid?.call(amountSats, feePaidSats);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(BigInt amountSats, BigInt feePaidSats)? paid,
+    TResult Function()? pending,
+    required TResult orElse(),
+  }) {
+    if (paid != null) {
+      return paid(amountSats, feePaidSats);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(CashuMeltResult_Paid value) paid,
+    required TResult Function(CashuMeltResult_Pending value) pending,
+  }) {
+    return paid(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(CashuMeltResult_Paid value)? paid,
+    TResult? Function(CashuMeltResult_Pending value)? pending,
+  }) {
+    return paid?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(CashuMeltResult_Paid value)? paid,
+    TResult Function(CashuMeltResult_Pending value)? pending,
+    required TResult orElse(),
+  }) {
+    if (paid != null) {
+      return paid(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class CashuMeltResult_Paid extends CashuMeltResult {
+  const factory CashuMeltResult_Paid({
+    required final BigInt amountSats,
+    required final BigInt feePaidSats,
+  }) = _$CashuMeltResult_PaidImpl;
+  const CashuMeltResult_Paid._() : super._();
+
+  BigInt get amountSats;
+  BigInt get feePaidSats;
+
+  /// Create a copy of CashuMeltResult
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$CashuMeltResult_PaidImplCopyWith<_$CashuMeltResult_PaidImpl>
+  get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$CashuMeltResult_PendingImplCopyWith<$Res> {
+  factory _$$CashuMeltResult_PendingImplCopyWith(
+    _$CashuMeltResult_PendingImpl value,
+    $Res Function(_$CashuMeltResult_PendingImpl) then,
+  ) = __$$CashuMeltResult_PendingImplCopyWithImpl<$Res>;
+}
+
+/// @nodoc
+class __$$CashuMeltResult_PendingImplCopyWithImpl<$Res>
+    extends _$CashuMeltResultCopyWithImpl<$Res, _$CashuMeltResult_PendingImpl>
+    implements _$$CashuMeltResult_PendingImplCopyWith<$Res> {
+  __$$CashuMeltResult_PendingImplCopyWithImpl(
+    _$CashuMeltResult_PendingImpl _value,
+    $Res Function(_$CashuMeltResult_PendingImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of CashuMeltResult
+  /// with the given fields replaced by the non-null parameter values.
+}
+
+/// @nodoc
+
+class _$CashuMeltResult_PendingImpl extends CashuMeltResult_Pending {
+  const _$CashuMeltResult_PendingImpl() : super._();
+
+  @override
+  String toString() {
+    return 'CashuMeltResult.pending()';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$CashuMeltResult_PendingImpl);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(BigInt amountSats, BigInt feePaidSats) paid,
+    required TResult Function() pending,
+  }) {
+    return pending();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(BigInt amountSats, BigInt feePaidSats)? paid,
+    TResult? Function()? pending,
+  }) {
+    return pending?.call();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(BigInt amountSats, BigInt feePaidSats)? paid,
+    TResult Function()? pending,
+    required TResult orElse(),
+  }) {
+    if (pending != null) {
+      return pending();
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(CashuMeltResult_Paid value) paid,
+    required TResult Function(CashuMeltResult_Pending value) pending,
+  }) {
+    return pending(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(CashuMeltResult_Paid value)? paid,
+    TResult? Function(CashuMeltResult_Pending value)? pending,
+  }) {
+    return pending?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(CashuMeltResult_Paid value)? paid,
+    TResult Function(CashuMeltResult_Pending value)? pending,
+    required TResult orElse(),
+  }) {
+    if (pending != null) {
+      return pending(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class CashuMeltResult_Pending extends CashuMeltResult {
+  const factory CashuMeltResult_Pending() = _$CashuMeltResult_PendingImpl;
+  const CashuMeltResult_Pending._() : super._();
+}
+
+/// @nodoc
+mixin _$ExchangeRateLookup {
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function() noRates,
+    required TResult Function() notQuoted,
+    required TResult Function(double rate) quoted,
+  }) => throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function()? noRates,
+    TResult? Function()? notQuoted,
+    TResult? Function(double rate)? quoted,
+  }) => throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function()? noRates,
+    TResult Function()? notQuoted,
+    TResult Function(double rate)? quoted,
+    required TResult orElse(),
+  }) => throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(ExchangeRateLookup_NoRates value) noRates,
+    required TResult Function(ExchangeRateLookup_NotQuoted value) notQuoted,
+    required TResult Function(ExchangeRateLookup_Quoted value) quoted,
+  }) => throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(ExchangeRateLookup_NoRates value)? noRates,
+    TResult? Function(ExchangeRateLookup_NotQuoted value)? notQuoted,
+    TResult? Function(ExchangeRateLookup_Quoted value)? quoted,
+  }) => throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(ExchangeRateLookup_NoRates value)? noRates,
+    TResult Function(ExchangeRateLookup_NotQuoted value)? notQuoted,
+    TResult Function(ExchangeRateLookup_Quoted value)? quoted,
+    required TResult orElse(),
+  }) => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $ExchangeRateLookupCopyWith<$Res> {
+  factory $ExchangeRateLookupCopyWith(
+    ExchangeRateLookup value,
+    $Res Function(ExchangeRateLookup) then,
+  ) = _$ExchangeRateLookupCopyWithImpl<$Res, ExchangeRateLookup>;
+}
+
+/// @nodoc
+class _$ExchangeRateLookupCopyWithImpl<$Res, $Val extends ExchangeRateLookup>
+    implements $ExchangeRateLookupCopyWith<$Res> {
+  _$ExchangeRateLookupCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of ExchangeRateLookup
+  /// with the given fields replaced by the non-null parameter values.
+}
+
+/// @nodoc
+abstract class _$$ExchangeRateLookup_NoRatesImplCopyWith<$Res> {
+  factory _$$ExchangeRateLookup_NoRatesImplCopyWith(
+    _$ExchangeRateLookup_NoRatesImpl value,
+    $Res Function(_$ExchangeRateLookup_NoRatesImpl) then,
+  ) = __$$ExchangeRateLookup_NoRatesImplCopyWithImpl<$Res>;
+}
+
+/// @nodoc
+class __$$ExchangeRateLookup_NoRatesImplCopyWithImpl<$Res>
+    extends
+        _$ExchangeRateLookupCopyWithImpl<$Res, _$ExchangeRateLookup_NoRatesImpl>
+    implements _$$ExchangeRateLookup_NoRatesImplCopyWith<$Res> {
+  __$$ExchangeRateLookup_NoRatesImplCopyWithImpl(
+    _$ExchangeRateLookup_NoRatesImpl _value,
+    $Res Function(_$ExchangeRateLookup_NoRatesImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of ExchangeRateLookup
+  /// with the given fields replaced by the non-null parameter values.
+}
+
+/// @nodoc
+
+class _$ExchangeRateLookup_NoRatesImpl extends ExchangeRateLookup_NoRates {
+  const _$ExchangeRateLookup_NoRatesImpl() : super._();
+
+  @override
+  String toString() {
+    return 'ExchangeRateLookup.noRates()';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$ExchangeRateLookup_NoRatesImpl);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function() noRates,
+    required TResult Function() notQuoted,
+    required TResult Function(double rate) quoted,
+  }) {
+    return noRates();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function()? noRates,
+    TResult? Function()? notQuoted,
+    TResult? Function(double rate)? quoted,
+  }) {
+    return noRates?.call();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function()? noRates,
+    TResult Function()? notQuoted,
+    TResult Function(double rate)? quoted,
+    required TResult orElse(),
+  }) {
+    if (noRates != null) {
+      return noRates();
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(ExchangeRateLookup_NoRates value) noRates,
+    required TResult Function(ExchangeRateLookup_NotQuoted value) notQuoted,
+    required TResult Function(ExchangeRateLookup_Quoted value) quoted,
+  }) {
+    return noRates(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(ExchangeRateLookup_NoRates value)? noRates,
+    TResult? Function(ExchangeRateLookup_NotQuoted value)? notQuoted,
+    TResult? Function(ExchangeRateLookup_Quoted value)? quoted,
+  }) {
+    return noRates?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(ExchangeRateLookup_NoRates value)? noRates,
+    TResult Function(ExchangeRateLookup_NotQuoted value)? notQuoted,
+    TResult Function(ExchangeRateLookup_Quoted value)? quoted,
+    required TResult orElse(),
+  }) {
+    if (noRates != null) {
+      return noRates(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class ExchangeRateLookup_NoRates extends ExchangeRateLookup {
+  const factory ExchangeRateLookup_NoRates() = _$ExchangeRateLookup_NoRatesImpl;
+  const ExchangeRateLookup_NoRates._() : super._();
+}
+
+/// @nodoc
+abstract class _$$ExchangeRateLookup_NotQuotedImplCopyWith<$Res> {
+  factory _$$ExchangeRateLookup_NotQuotedImplCopyWith(
+    _$ExchangeRateLookup_NotQuotedImpl value,
+    $Res Function(_$ExchangeRateLookup_NotQuotedImpl) then,
+  ) = __$$ExchangeRateLookup_NotQuotedImplCopyWithImpl<$Res>;
+}
+
+/// @nodoc
+class __$$ExchangeRateLookup_NotQuotedImplCopyWithImpl<$Res>
+    extends
+        _$ExchangeRateLookupCopyWithImpl<
+          $Res,
+          _$ExchangeRateLookup_NotQuotedImpl
+        >
+    implements _$$ExchangeRateLookup_NotQuotedImplCopyWith<$Res> {
+  __$$ExchangeRateLookup_NotQuotedImplCopyWithImpl(
+    _$ExchangeRateLookup_NotQuotedImpl _value,
+    $Res Function(_$ExchangeRateLookup_NotQuotedImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of ExchangeRateLookup
+  /// with the given fields replaced by the non-null parameter values.
+}
+
+/// @nodoc
+
+class _$ExchangeRateLookup_NotQuotedImpl extends ExchangeRateLookup_NotQuoted {
+  const _$ExchangeRateLookup_NotQuotedImpl() : super._();
+
+  @override
+  String toString() {
+    return 'ExchangeRateLookup.notQuoted()';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$ExchangeRateLookup_NotQuotedImpl);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function() noRates,
+    required TResult Function() notQuoted,
+    required TResult Function(double rate) quoted,
+  }) {
+    return notQuoted();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function()? noRates,
+    TResult? Function()? notQuoted,
+    TResult? Function(double rate)? quoted,
+  }) {
+    return notQuoted?.call();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function()? noRates,
+    TResult Function()? notQuoted,
+    TResult Function(double rate)? quoted,
+    required TResult orElse(),
+  }) {
+    if (notQuoted != null) {
+      return notQuoted();
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(ExchangeRateLookup_NoRates value) noRates,
+    required TResult Function(ExchangeRateLookup_NotQuoted value) notQuoted,
+    required TResult Function(ExchangeRateLookup_Quoted value) quoted,
+  }) {
+    return notQuoted(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(ExchangeRateLookup_NoRates value)? noRates,
+    TResult? Function(ExchangeRateLookup_NotQuoted value)? notQuoted,
+    TResult? Function(ExchangeRateLookup_Quoted value)? quoted,
+  }) {
+    return notQuoted?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(ExchangeRateLookup_NoRates value)? noRates,
+    TResult Function(ExchangeRateLookup_NotQuoted value)? notQuoted,
+    TResult Function(ExchangeRateLookup_Quoted value)? quoted,
+    required TResult orElse(),
+  }) {
+    if (notQuoted != null) {
+      return notQuoted(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class ExchangeRateLookup_NotQuoted extends ExchangeRateLookup {
+  const factory ExchangeRateLookup_NotQuoted() =
+      _$ExchangeRateLookup_NotQuotedImpl;
+  const ExchangeRateLookup_NotQuoted._() : super._();
+}
+
+/// @nodoc
+abstract class _$$ExchangeRateLookup_QuotedImplCopyWith<$Res> {
+  factory _$$ExchangeRateLookup_QuotedImplCopyWith(
+    _$ExchangeRateLookup_QuotedImpl value,
+    $Res Function(_$ExchangeRateLookup_QuotedImpl) then,
+  ) = __$$ExchangeRateLookup_QuotedImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({double rate});
+}
+
+/// @nodoc
+class __$$ExchangeRateLookup_QuotedImplCopyWithImpl<$Res>
+    extends
+        _$ExchangeRateLookupCopyWithImpl<$Res, _$ExchangeRateLookup_QuotedImpl>
+    implements _$$ExchangeRateLookup_QuotedImplCopyWith<$Res> {
+  __$$ExchangeRateLookup_QuotedImplCopyWithImpl(
+    _$ExchangeRateLookup_QuotedImpl _value,
+    $Res Function(_$ExchangeRateLookup_QuotedImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of ExchangeRateLookup
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({Object? rate = null}) {
+    return _then(
+      _$ExchangeRateLookup_QuotedImpl(
+        rate:
+            null == rate
+                ? _value.rate
+                : rate // ignore: cast_nullable_to_non_nullable
+                    as double,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+
+class _$ExchangeRateLookup_QuotedImpl extends ExchangeRateLookup_Quoted {
+  const _$ExchangeRateLookup_QuotedImpl({required this.rate}) : super._();
+
+  @override
+  final double rate;
+
+  @override
+  String toString() {
+    return 'ExchangeRateLookup.quoted(rate: $rate)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$ExchangeRateLookup_QuotedImpl &&
+            (identical(other.rate, rate) || other.rate == rate));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, rate);
+
+  /// Create a copy of ExchangeRateLookup
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$ExchangeRateLookup_QuotedImplCopyWith<_$ExchangeRateLookup_QuotedImpl>
+  get copyWith => __$$ExchangeRateLookup_QuotedImplCopyWithImpl<
+    _$ExchangeRateLookup_QuotedImpl
+  >(this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function() noRates,
+    required TResult Function() notQuoted,
+    required TResult Function(double rate) quoted,
+  }) {
+    return quoted(rate);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function()? noRates,
+    TResult? Function()? notQuoted,
+    TResult? Function(double rate)? quoted,
+  }) {
+    return quoted?.call(rate);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function()? noRates,
+    TResult Function()? notQuoted,
+    TResult Function(double rate)? quoted,
+    required TResult orElse(),
+  }) {
+    if (quoted != null) {
+      return quoted(rate);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(ExchangeRateLookup_NoRates value) noRates,
+    required TResult Function(ExchangeRateLookup_NotQuoted value) notQuoted,
+    required TResult Function(ExchangeRateLookup_Quoted value) quoted,
+  }) {
+    return quoted(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(ExchangeRateLookup_NoRates value)? noRates,
+    TResult? Function(ExchangeRateLookup_NotQuoted value)? notQuoted,
+    TResult? Function(ExchangeRateLookup_Quoted value)? quoted,
+  }) {
+    return quoted?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(ExchangeRateLookup_NoRates value)? noRates,
+    TResult Function(ExchangeRateLookup_NotQuoted value)? notQuoted,
+    TResult Function(ExchangeRateLookup_Quoted value)? quoted,
+    required TResult orElse(),
+  }) {
+    if (quoted != null) {
+      return quoted(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class ExchangeRateLookup_Quoted extends ExchangeRateLookup {
+  const factory ExchangeRateLookup_Quoted({required final double rate}) =
+      _$ExchangeRateLookup_QuotedImpl;
+  const ExchangeRateLookup_Quoted._() : super._();
+
+  double get rate;
+
+  /// Create a copy of ExchangeRateLookup
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$ExchangeRateLookup_QuotedImplCopyWith<_$ExchangeRateLookup_QuotedImpl>
+  get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
 mixin _$InvoiceVerdict {
   @optionalTypeArgs
   TResult when<TResult extends Object?>({

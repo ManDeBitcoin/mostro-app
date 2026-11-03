@@ -53,6 +53,31 @@ Future<void> removeCustomMostroNode({required String pubkey}) =>
 Future<List<MostroNodeEntry>> refreshMostroNodeMetadata() =>
     RustLib.instance.api.crateApiNodesRefreshMostroNodeMetadata();
 
+/// Download the picture of every node whose kind 0 profile names a new one,
+/// and drop the stored pictures no node names any more
+/// (`crate::node_pictures`). Called after each
+/// [`refresh_mostro_node_metadata`]: a picture already stored from the URL
+/// the profile names is not downloaded again.
+///
+/// Returns the pubkeys whose stored picture changed, for the UI to read
+/// again; empty when there is no storage yet. Best effort per picture: one
+/// that fails to download is tried again on the next call.
+Future<List<String>> syncMostroNodePictures() =>
+    RustLib.instance.api.crateApiNodesSyncMostroNodePictures();
+
+/// `pubkey`'s picture as the device keeps it, with the URL it was downloaded
+/// from; `None` when none is stored or there is no storage yet. The UI shows
+/// it only while the node's `picture` is still that URL.
+Future<MostroNodePicture?> getMostroNodePicture({required String pubkey}) =>
+    RustLib.instance.api.crateApiNodesGetMostroNodePicture(pubkey: pubkey);
+
+/// Drop `pubkey`'s stored picture, for bytes the UI could not decode:
+/// truncated, corrupt, or in a format its platform lacks. The UI then loads
+/// the URL, and the next [`sync_mostro_node_pictures`] downloads it again —
+/// kept, the same URL would never be fetched anew. A no-op without storage.
+Future<void> forgetMostroNodePicture({required String pubkey}) =>
+    RustLib.instance.api.crateApiNodesForgetMostroNodePicture(pubkey: pubkey);
+
 /// Cached kind 0 profile fields, persisted under
 /// [`settings_keys::MOSTRO_NODE_METADATA`] as a pubkey → metadata map.
 class NodeMetadata {

@@ -66,7 +66,7 @@ A user browses available buy/sell offers in the public order book. The list is o
 **Acceptance Scenarios**:
 
 1. **Given** the order book has pending orders, **When** a user opens the app, **Then** the order book shows two tabs (BUY BTC / SELL BTC) with a scrollable list of order cards.
-2. **Given** an order card is rendered, **When** a user looks at it, **Then** they can see: fiat amount or range, currency code, country flag, price type, premium, payment methods, maker rating, trade count, and days active.
+2. **Given** an order card is rendered, **When** a user looks at it, **Then** they can see: fiat amount or range, currency code, country flag, price type, premium, payment methods, and the maker's reputation: rating, ratings count and the month of their first trade (`★ 4.97 · 687 ratings · since Mar 2023`, DS-L10N-5).
 3. **Given** the user taps the Filter button, **When** they select a currency or payment method, **Then** only matching orders are shown and the offer count updates.
 4. **Given** there are no matching orders for the active filter, **When** the filter is applied, **Then** a "No orders available" empty state is shown.
 5. **Given** the user applied filters, **When** they close the app completely and reopen it, **Then** the same filters are still applied and the Filter chip shows that the book is filtered and how many filters are on (#575).
@@ -126,6 +126,7 @@ A buyer (taker of a sell order) completes a trade. Without NWC, they manually en
 2. **Given** a buyer has taken a sell order and NWC IS configured, **When** the order is accepted, **Then** the invoice step is skipped entirely and the buyer proceeds to the active trade view.
 3. **Given** the trade is in "active" status, **When** the buyer views Trade Detail, **Then** they see: trade summary, payment method, order ID, instructions to contact the seller, a "Fiat Sent" primary CTA, a secondary row with outlined Cancel and Dispute buttons, and a persistent chat chip for Contact.
 4. **Given** the buyer has sent fiat payment, **When** they tap "Fiat Sent", **Then** the order status changes to "Fiat sent" and the seller sees instructions to verify and release.
+4a. **Given** an active trade in a stablecoin (a catalogue entry with a `peg`, app#884), **When** the buyer views Trade Detail, **Then** the step tells them to send on the network the payment method names, to the address the seller shared in the chat, and then to paste the transaction ID in the chat, their proof of the transfer in a dispute. The seller is asked for their address on that network, and once the payment is marked as sent, to check by that ID that it arrived before releasing. Every step of the buyer's leg calls it the payment, never fiat, for a fiat trade too.
 5. **Given** the seller releases sats, **When** the daemon settles the hold invoice, **Then** the seller is prompted to rate the buyer right away, on the last of their five timeline steps; the buyer sees the payout as pending and is prompted to rate the seller once the Lightning payment completes (#586). The buyer's timeline has six steps: while the payout is pending the release is done and "Mostro sends you your sats" is current, and it is done at `success`, when rating opens (#844).
 
 ---
@@ -243,6 +244,7 @@ A user views all their active and historical trades in the My Trades tab. Each c
 2. **Given** the user applies a status filter, **When** a status is selected from the dropdown, **Then** only trades with that status are shown.
 3. **Given** a trade has a status update the user has not yet seen, **When** they look at the bottom nav bar, **Then** a red dot badge appears on the My Trades tab.
 4. **Given** the user taps a trade card, **When** they navigate, **Then** the Trade Detail screen for that specific trade opens.
+5. **Given** the user has trades on more than one Mostro node, **When** they open My Trades or the Chats list, **Then** only the active node's trades and their conversations are shown, and the needs-action and unread counts count only those; switching node shows the new node's (#813). A trade whose row does not know its node is shown on no node until its node names it — in a restore, or in a message about it — which gives it that node; a finished one that nothing names is removed, with its conversation, 72 hours after the app first ran with this rule; a live one stays hidden (FR-058c).
 
 ---
 
@@ -347,7 +349,7 @@ Users manage their cryptographic identity from the Account screen: view their 12
 **Order Book**
 
 - **FR-014**: The system MUST display a public order book with two tabs (BUY BTC / SELL BTC) labeled from the taker's perspective.
-- **FR-015**: Each order card MUST display: fiat amount or range, currency code, country flag, price type, premium, payment methods, maker rating, total trade count, and days active.
+- **FR-015**: Each order card MUST display: fiat amount or range, currency code, country flag, price type, premium, payment methods, and the maker's reputation: average rating, ratings count and the month of their first trade, in the one format every screen uses (`.specify/DESIGN_SYSTEM.md` DS-L10N-5).
 - **FR-016**: The order book MUST support filtering by fiat currency (multi-select), payment method (multi-select), rating range (slider), and premium range (slider).
 - **FR-016a**: The order-book filters MUST persist across app restarts, as a device preference (a new identity keeps them). A stored value MUST be validated on load — ranges clamped to the slider bounds, an unreadable control reset to "no filter" on its own — and every selected value MUST stay visible in the Filters dialog even when the currency catalogue or the method list no longer offers it, so it can be deselected. While any filter is on, the Filter chip MUST say so and how many are on (#575).
 - **FR-017**: The system MUST display only orders with "pending" status in the public order book.
@@ -415,7 +417,7 @@ Users manage their cryptographic identity from the Account screen: view their 12
 - **FR-047**: Both parties MUST be prompted to rate each other after a trade completes: the seller when sats are released, the buyer when payment is confirmed received.
 - **FR-048**: The rating interface MUST display 5 tappable stars; the Submit button MUST remain disabled until at least 1 star is selected.
 - **FR-049**: Rating MUST be optional — users MUST be able to close the rating prompt without any penalty.
-- **FR-050**: Accumulated reputation (average rating, total reviews, days active) MUST be visible on order cards in the public order book.
+- **FR-050**: Accumulated reputation (average rating, total reviews, first trade) MUST be visible on order cards in the public order book, read as on every other screen (DS-L10N-5).
 - **FR-050a**: The Account screen MUST show the user's own reputation on the active node, as the node answers `user-info` (rating, ratings received, date of the first trade, and the node's name when it has one). The app MUST ask the node at startup, when the Account screen opens, when the user picks another node, and once the user has rated the counterpart of a trade (not when the trade reaches `success`: the counterpart has not rated them yet), and MUST keep the last answer per identity and node so the screen shows it before a new one arrives. Zero ratings MUST read as "no reputation yet", never as a `0.0` rating. In full privacy mode the app MUST NOT send `user-info` and the screen MUST say that no reputation is kept in that mode (#755).
 
 **NWC Integration**
@@ -436,6 +438,8 @@ Users manage their cryptographic identity from the Account screen: view their 12
 
 - **FR-058**: Users MUST be able to configure: app language (7 languages: EN, ES, IT, FR, DE, NL, PT), default fiat currency, default Lightning address, relay list (add/toggle), push notification preferences, and Mostro node.
 - **FR-058a**: Lightning, NWC and the Cashu wallet MUST always be active in the app. Settings MUST always show the default Lightning address, the NWC wallet and the Cashu wallet, whatever the active node's `escrow_mode` (`lightning`, `cashu` or not advertised). Lightning flows MUST keep working as they always have. The active node's escrow mode selects only the settlement flow of a trade on that node (hold invoice or Cashu escrow); it MUST NOT hide or disable any payment method.
+- **FR-058b**: After the user switches the active Mostro node from Settings or accepts the switch an order link asks for, the app MUST restore the account on the new node in the same sheet as Account → Refresh, which offers a retry when the node does not answer; the switch stands either way. It MUST NOT restore in full privacy mode, nor on the first-run node choice. Only one restore runs at a time: one started while another runs waits for it, and its sheet shows only its own steps (#813).
+- **FR-058c**: A trade row that does not know its node (written by releases before #809) MUST take the node that names its order with the same trade index: a restore whose reply lists it, among the orders or among the disputes, or a message from the active node to the row's trade key that names the order, including the history replayed at start, except a refusal (`cant-do`), which names whatever order it refuses. Nothing else of the row changes, and a finished row adopted this way shows again as history. A finished row still without a node that started before the stale sweep first ran on a release with this rule (a time stored once per identity) MUST be deleted 72 hours after that time, never by the first sweep after the app starts, with its chat messages and without any notification, and its conversation MUST leave the Chats list; a later restore that names it rebuilds it and fetches its chat again. A row without a node in a live status is not deleted: it stays hidden until its node names it. A row that loses its node later is not deleted either (#813).
 
 ### Key Entities
 

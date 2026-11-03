@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -25,11 +27,28 @@ class _FakeController extends CashuWalletController {
     this.connectError,
     this.createTokenError,
     this.token = 'cashuBtesttoken',
-  });
+    List<CashuMeltQuote>? quotes,
+    List<Object>? meltOutcomes,
+  }) : quotes = quotes ?? [],
+       meltOutcomes = meltOutcomes ?? [];
 
   final Object? connectError;
   final Object? createTokenError;
   final String token;
+
+  /// The quotes [meltQuote] answers with, in order.
+  final List<CashuMeltQuote> quotes;
+
+  /// What each [melt] does, in order: a [CashuMeltResult] is returned, a
+  /// `Future<CashuMeltResult>` is awaited (a payment still running), anything
+  /// else is thrown.
+  final List<Object> meltOutcomes;
+
+  /// Every invoice handed to [meltQuote].
+  final List<String> quoted = [];
+
+  /// Every (quote id, confirmed total) handed to [melt].
+  final List<(String, BigInt)> melts = [];
 
   /// Every token handed to [receiveToken].
   final List<String> received = [];
@@ -59,16 +78,49 @@ class _FakeController extends CashuWalletController {
 
   @override
   Future<void> sweepSpentProofs() async {}
+
+  @override
+  Future<CashuMeltQuote> meltQuote(String invoice) async {
+    quoted.add(invoice);
+    return quotes.removeAt(0);
+  }
+
+  @override
+  Future<CashuMeltResult> melt(String quoteId, BigInt maxTotalSats) async {
+    melts.add((quoteId, maxTotalSats));
+    final outcome = meltOutcomes.removeAt(0);
+    if (outcome is CashuMeltResult) return outcome;
+    if (outcome is Future<CashuMeltResult>) return outcome;
+    throw outcome;
+  }
 }
+
+/// A quote for a 100 sat invoice: [reserve] in routing reserve, [input] in
+/// input fees, and their sum on top as the most the payment can take.
+CashuMeltQuote _quote(String id, {int reserve = 2, int input = 1}) =>
+    CashuMeltQuote(
+      quoteId: id,
+      amountSats: BigInt.from(100),
+      feeReserveSats: BigInt.from(reserve),
+      inputFeeSats: BigInt.from(input),
+      maxTotalSats: BigInt.from(100 + reserve + input),
+    );
+
+const _invoice = 'lnbc1000n1pinvoice';
 
 /// `balance: null` models an unreadable balance, which the screen must not
 /// render as zero.
-CashuWalletStatus _status({required bool connected, required int? balance}) {
+CashuWalletStatus _status({
+  required bool connected,
+  required int? balance,
+  bool canSendLightning = false,
+}) {
   return CashuWalletStatus(
     connected: connected,
     mintUrl: connected ? 'https://mint.example.com' : null,
     balanceSats: balance == null ? null : BigInt.from(balance),
     missingCapabilities: const [],
+    canSendLightning: canSendLightning,
   );
 }
 
@@ -495,6 +547,7 @@ void main() {
         mintUrl: 'https://mint.example.com',
         balanceSats: BigInt.parse('9007199254740993'),
         missingCapabilities: const [],
+        canSendLightning: false,
       );
 
       // Act
@@ -971,6 +1024,7 @@ void main() {
           mintUrl: 'https://mint.example.com',
           balanceSats: BigInt.from(500),
           missingCapabilities: const [],
+          canSendLightning: false,
         ),
         controller: _FakeController(connectError: 'CashuMintUnreachable'),
       );
@@ -1090,4 +1144,488 @@ void main() {
       expect(tester.getRect(button).bottom, lessThanOrEqualTo(800));
     }
   });
+
+  group('CashuWalletScreen — send to Lightning (C3b-1)', () {
+    /// A mint that melts, a wallet with funds, and Send → Lightning → the
+    /// invoice → Continue: the confirmation is on screen.
+    Future<void> openConfirmation(
+      WidgetTester tester,
+      _FakeController controller,
+    ) async {
+      await _pump(
+        tester,
+        status: _status(connected: true, balance: 1000, canSendLightning: true),
+        controller: controller,
+      );
+      await tester.tap(find.text('Send'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Lightning'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '  $_invoice ');
+      await tester.pump();
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> pay(WidgetTester tester) async {
+      await tester.tap(find.text('Pay'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a mint that cannot melt sends a token, as before', (
+      tester,
+    ) async {
+      await _pump(tester, status: _status(connected: true, balance: 100));
+
+      await tester.tap(find.text('Send'));
+      await tester.pumpAndSettle();
+
+      // Straight to the amount: no choice, and no Lightning anywhere.
+      expect(find.text('Amount in sats'), findsOneWidget);
+      expect(find.text('Lightning'), findsNothing);
+    });
+
+    testWidgets('a mint that melts offers ecash or Lightning', (tester) async {
+      await _pump(
+        tester,
+        status: _status(connected: true, balance: 100, canSendLightning: true),
+      );
+
+      await tester.tap(find.text('Send'));
+      await tester.pumpAndSettle();
+
+      // A dialog, like the rest of the screen, with two rows of equal weight,
+      // each with its icon — no primary button that would rank one option
+      // over the other (DS-CMP-2); Cancel is the only button.
+      expect(find.byType(MostroDialog), findsOneWidget);
+      expect(find.text('Ecash'), findsOneWidget);
+      expect(find.text('Lightning'), findsOneWidget);
+      expect(find.byIcon(Icons.toll_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.bolt), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(MostroDialog),
+          matching: find.byType(FilledButton),
+        ),
+        findsNothing,
+      );
+      expect(find.text('Cancel'), findsOneWidget);
+
+      // Ecash is the token flow it always was.
+      await tester.tap(find.text('Ecash'));
+      await tester.pumpAndSettle();
+      expect(find.text('Amount in sats'), findsOneWidget);
+    });
+
+    testWidgets('Continue waits for an invoice', (tester) async {
+      final controller = _FakeController();
+      await _pump(
+        tester,
+        status: _status(connected: true, balance: 100, canSendLightning: true),
+        controller: controller,
+      );
+
+      await tester.tap(find.text('Send'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Lightning'));
+      await tester.pumpAndSettle();
+
+      final continueButton = find.descendant(
+        of: find.byType(MostroDialog),
+        matching: find.widgetWithText(FilledButton, 'Continue'),
+      );
+      expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+      expect(controller.quoted, isEmpty);
+    });
+
+    testWidgets('the confirmation shows the amount, fees up to, and total', (
+      tester,
+    ) async {
+      final controller = _FakeController(
+        quotes: [_quote('q1', reserve: 2, input: 1)],
+      );
+      await openConfirmation(tester, controller);
+
+      // The trimmed invoice went to Rust; the fees are reserve + input.
+      expect(controller.quoted, [_invoice]);
+      expect(find.text('Confirm payment'), findsOneWidget);
+      expect(find.text('Amount'), findsOneWidget);
+      expect(find.text('100 Satoshis'), findsOneWidget);
+      expect(find.text('Fees, up to'), findsOneWidget);
+      expect(find.text('3 Satoshis'), findsOneWidget);
+      expect(find.text('Total, up to'), findsOneWidget);
+      expect(find.text('103 Satoshis'), findsOneWidget);
+      // Nothing is paid by looking.
+      expect(controller.melts, isEmpty);
+    });
+
+    testWidgets('Cancel on the confirmation pays nothing', (tester) async {
+      final controller = _FakeController(quotes: [_quote('q1')]);
+      await openConfirmation(tester, controller);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MostroDialog), findsNothing);
+      expect(controller.melts, isEmpty);
+    });
+
+    testWidgets('a paid invoice reports the fee actually charged', (
+      tester,
+    ) async {
+      final controller = _FakeController(
+        quotes: [_quote('q1')],
+        meltOutcomes: [
+          CashuMeltResult.paid(
+            amountSats: BigInt.from(100),
+            feePaidSats: BigInt.one,
+          ),
+        ],
+      );
+      await openConfirmation(tester, controller);
+
+      await pay(tester);
+
+      // Paid with the total the user saw as the ceiling, and said so in the
+      // dialog itself — amount, the fee actually charged, a check mark — until
+      // the user closes it.
+      expect(controller.melts, [('q1', BigInt.from(103))]);
+      expect(find.text('Paid 100 sats'), findsOneWidget);
+      expect(find.text('Fee: 1 sats'), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+      expect(find.text('Confirm payment'), findsNothing);
+
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+      expect(find.byType(MostroDialog), findsNothing);
+    });
+
+    testWidgets('the confirmation stays open, busy, while the payment runs', (
+      tester,
+    ) async {
+      final routing = Completer<CashuMeltResult>();
+      final controller = _FakeController(
+        quotes: [_quote('q1')],
+        meltOutcomes: [routing.future],
+      );
+      await openConfirmation(tester, controller);
+
+      await tester.tap(find.text('Pay'));
+      await tester.pump();
+
+      // Still on screen, Pay replaced by its spinner, and no way out: closing
+      // would not stop the payment.
+      expect(find.text('Confirm payment'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      final cancel = tester.widget<OutlinedButton>(
+        find.ancestor(
+          of: find.text('Cancel'),
+          matching: find.byType(OutlinedButton),
+        ),
+      );
+      expect(cancel.onPressed, isNull);
+      await tester.tapAt(const Offset(4, 4));
+      await tester.pump();
+      expect(find.text('Confirm payment'), findsOneWidget);
+
+      routing.complete(
+        CashuMeltResult.paid(
+          amountSats: BigInt.from(100),
+          feePaidSats: BigInt.one,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Confirm payment'), findsNothing);
+      expect(find.text('Paid 100 sats'), findsOneWidget);
+    });
+
+    testWidgets('a payment that never answers ends as pending, with a way out', (
+      tester,
+    ) async {
+      // A mint that ignores `respond-async` holds the request for as long as
+      // the payment takes — a hold invoice, a stuck route — and nothing in the
+      // bridge times it out.
+      final routing = Completer<CashuMeltResult>();
+      final controller = _FakeController(
+        quotes: [_quote('q1')],
+        meltOutcomes: [routing.future],
+      );
+      await openConfirmation(tester, controller);
+
+      await tester.tap(find.text('Pay'));
+      await tester.pump();
+
+      // Rust waits up to 30 s on a payment the mint answered as pending, and
+      // its answer is worth more than a guess: still busy then.
+      await tester.pump(const Duration(seconds: 30));
+      expect(find.text('Confirm payment'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      // Within a minute the dialog stops waiting: the outcome is not known,
+      // which is what "pending" says, and Close lets the user out.
+      await tester.pump(const Duration(seconds: 30));
+      await tester.pump();
+      expect(find.text('Payment in progress'), findsOneWidget);
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+      expect(find.byType(MostroDialog), findsNothing);
+
+      // The payment itself was never cancelled: when it ends, late and with
+      // the dialog gone, nothing is shown and nothing breaks.
+      routing.completeError(Exception('CashuMeltFailed: too late'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(MostroDialog), findsNothing);
+      expect(controller.melts, hasLength(1));
+    });
+
+    testWidgets('a payment not yet settled says how to settle it', (
+      tester,
+    ) async {
+      final controller = _FakeController(
+        quotes: [_quote('q1')],
+        meltOutcomes: [const CashuMeltResult.pending()],
+      );
+      await openConfirmation(tester, controller);
+
+      await pay(tester);
+
+      expect(find.text('Payment in progress'), findsOneWidget);
+      // Not "still routing": a mint that did not answer reads as pending
+      // too. And nothing syncs on its own, so it names the button that does.
+      expect(
+        find.text(
+          "The outcome isn't confirmed yet. Those sats stay on hold; tap "
+          '“Sync with mint” later to settle them.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.schedule_rounded), findsOneWidget);
+    });
+
+    testWidgets('how the payment ended is announced to a screen reader', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        for (final (outcome, title) in [
+          (
+            CashuMeltResult.paid(
+              amountSats: BigInt.from(100),
+              feePaidSats: BigInt.one,
+            ),
+            'Paid 100 sats',
+          ),
+          (const CashuMeltResult.pending(), 'Payment in progress'),
+          (
+            AnyhowException('CashuMeltFailed: payment Failed'),
+            'Payment failed',
+          ),
+        ]) {
+          final controller = _FakeController(
+            quotes: [_quote('q1')],
+            meltOutcomes: [outcome],
+          );
+          await openConfirmation(tester, controller);
+
+          await pay(tester);
+
+          // It replaces the confirmation in place: no route change says it.
+          // Title and body are read as one message.
+          final node = tester.getSemantics(find.text(title));
+          expect(node, isSemantics(isLiveRegion: true), reason: title);
+          expect(node.label, contains('\n'), reason: title);
+          await tester.tap(find.text('Close'));
+          await tester.pumpAndSettle();
+        }
+      } finally {
+        semantics.dispose();
+      }
+    });
+
+    test('the pending note names the Sync button as each locale labels it', () {
+      for (final locale in AppLocalizations.supportedLocales) {
+        final l10n = lookupAppLocalizations(locale);
+        expect(
+          l10n.cashuMeltPendingBody,
+          contains(l10n.cashuSyncButton),
+          reason: '$locale',
+        );
+      }
+    });
+
+    testWidgets('a failed payment says so in the dialog, with the reason', (
+      tester,
+    ) async {
+      final controller = _FakeController(
+        quotes: [_quote('q1')],
+        meltOutcomes: [AnyhowException('CashuMeltFailed: payment Failed')],
+      );
+      await openConfirmation(tester, controller);
+
+      await pay(tester);
+
+      // Not a passing snackbar over a closed dialog: the outcome, its reason
+      // in words, and Close.
+      expect(find.text('Payment failed'), findsOneWidget);
+      expect(
+        find.text(
+          'The payment did not go through. Nothing was paid; the sats are '
+          'back in your balance.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.error_outline_rounded), findsOneWidget);
+      expect(find.textContaining('payment Failed'), findsNothing);
+
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+      expect(find.byType(MostroDialog), findsNothing);
+      // Asked once, never retried.
+      expect(controller.melts, hasLength(1));
+    });
+
+    for (final stale in ['CashuMeltFeeChanged', 'CashuMeltQuoteExpired']) {
+      testWidgets('$stale asks for a fresh quote and shows it, never pays '
+          'the stale one', (tester) async {
+        final controller = _FakeController(
+          quotes: [_quote('q1'), _quote('q2', reserve: 5)],
+          meltOutcomes: [
+            AnyhowException('$stale: detail'),
+            CashuMeltResult.paid(
+              amountSats: BigInt.from(100),
+              feePaidSats: BigInt.two,
+            ),
+          ],
+        );
+        await openConfirmation(tester, controller);
+
+        await pay(tester);
+
+        // A second quote, shown with its own total and a word on why.
+        expect(controller.quoted, [_invoice, _invoice]);
+        expect(
+          find.text('The price changed. Check the new total before paying.'),
+          findsOneWidget,
+        );
+        expect(find.text('106 Satoshis'), findsOneWidget);
+
+        await pay(tester);
+
+        expect(controller.melts, [
+          ('q1', BigInt.from(103)),
+          ('q2', BigInt.from(106)),
+        ]);
+        expect(find.text('Paid 100 sats'), findsOneWidget);
+        expect(find.text('Fee: 2 sats'), findsOneWidget);
+      });
+    }
+
+    testWidgets('a second stale quote is shown as an error, not retried', (
+      tester,
+    ) async {
+      final controller = _FakeController(
+        quotes: [_quote('q1'), _quote('q2')],
+        meltOutcomes: [
+          AnyhowException('CashuMeltFeeChanged: detail'),
+          AnyhowException('CashuMeltFeeChanged: detail'),
+        ],
+      );
+      await openConfirmation(tester, controller);
+
+      await pay(tester);
+      await pay(tester);
+
+      expect(controller.quoted, hasLength(2));
+      expect(find.byType(MostroDialog), findsNothing);
+      expect(
+        find.text(
+          'The fees went up since you confirmed. Nothing was paid; start '
+          'again.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a refused quote is a localized message, never raw', (
+      tester,
+    ) async {
+      final controller = _FakeControllerQuoteError(
+        AnyhowException('CashuInvoiceNoAmount'),
+      );
+      await _pump(
+        tester,
+        status: _status(connected: true, balance: 100, canSendLightning: true),
+        controller: controller,
+      );
+      await tester.tap(find.text('Send'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Lightning'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), _invoice);
+      await tester.pump();
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'This invoice has no amount. Ask for one that states how much to '
+          'pay.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('CashuInvoiceNoAmount'), findsNothing);
+    });
+
+    // DS-A11Y-4: the longest translation, doubled, on the narrowest phone.
+    testWidgets('the payment confirmation fits a narrow screen at German and '
+        '2x text', (tester) async {
+      tester.view.physicalSize = const Size(320, 800);
+      tester.view.devicePixelRatio = 1.0;
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final de = await AppLocalizations.delegate.load(const Locale('de'));
+      await _pump(
+        tester,
+        status: _status(connected: true, balance: 1000, canSendLightning: true),
+        controller: _FakeController(quotes: [_quote('q1')]),
+        locale: const Locale('de'),
+      );
+
+      await tester.ensureVisible(find.text(de.cashuSendButton));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(de.cashuSendButton));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.text(de.cashuSendLightningOption));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.enterText(find.byType(TextField), _invoice);
+      await tester.pump();
+      await tester.tap(find.text(de.continueButtonLabel));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      for (final action in [de.cancel, de.cashuPayButton]) {
+        final button = find.descendant(
+          of: find.byType(MostroDialog),
+          matching: find.text(action),
+        );
+        await tester.ensureVisible(button);
+        expect(tester.getRect(button).bottom, lessThanOrEqualTo(800));
+      }
+    });
+  });
+}
+
+/// A wallet whose mint refuses to quote, with [error].
+class _FakeControllerQuoteError extends _FakeController {
+  _FakeControllerQuoteError(this.error);
+
+  final Object error;
+
+  @override
+  Future<CashuMeltQuote> meltQuote(String invoice) async => throw error;
 }

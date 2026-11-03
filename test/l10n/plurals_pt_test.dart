@@ -20,9 +20,9 @@ void main() {
     expect(pt.ordersCount(0), '0 ordens');
     expect(pt.ordersCount(1), '1 ordem');
     expect(pt.ordersCount(3), '3 ordens');
-    expect(pt.reputationTradesCount(0), '0 operações');
-    expect(pt.reputationTradesCount(1), '1 operação');
-    expect(pt.reputationTradesCount(2), '2 operações');
+    expect(pt.reputationRatingsCount(0), 'sem avaliações');
+    expect(pt.reputationRatingsCount(1), '1 avaliação');
+    expect(pt.reputationRatingsCount(2), '2 avaliações');
   });
 
   test('every plural in app_pt.arb has its own =0 case', () {

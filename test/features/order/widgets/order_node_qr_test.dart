@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,6 +8,7 @@ import 'package:mostro/core/app_theme.dart';
 import 'package:mostro/core/node_selector_palette.dart';
 import 'package:mostro/features/order/widgets/order_node_qr.dart';
 import 'package:mostro/features/settings/providers/mostro_nodes_provider.dart';
+import 'package:mostro/features/settings/providers/node_picture_provider.dart';
 import 'package:mostro/features/settings/widgets/node_avatar.dart';
 import 'package:mostro/shared/widgets/mostro_qr.dart';
 import 'package:mostro/src/rust/api/types.dart';
@@ -47,12 +51,16 @@ Future<void> _pump(
   required String nodePubkey,
   required List<MostroNodeEntry> nodes,
   ThemeData? theme,
+  Future<MostroNodePicture?> Function(String pubkey)? stored,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         mostroNodesProvider.overrideWith(() => _Nodes(nodes)),
         mostroPubkeyProvider.overrideWith((ref) => _active),
+        nodePictureProvider.overrideWith(
+          (ref, pubkey) => stored?.call(pubkey) ?? Future.value(),
+        ),
       ],
       child: MaterialApp(
         theme: theme,
@@ -62,7 +70,8 @@ Future<void> _pump(
       ),
     ),
   );
-  // The registry answers.
+  // The registry answers, then the device's stored picture.
+  await tester.pump();
   await tester.pump();
 }
 
@@ -90,17 +99,74 @@ void main() {
     expect(find.text('M'), findsOneWidget);
   });
 
-  testWidgets('a node with a picture shows its picture', (tester) async {
-    const picture = 'https://example.com/bolivia.png';
+  const picture = 'https://example.com/bolivia.png';
+  final bytes = Uint8List.fromList([0x89, 0x50, 0x4E, 0x47]);
+
+  /// What the centre's image is drawn from.
+  ImageProvider source(WidgetTester tester) {
+    final image = tester.widget<Image>(find.byType(Image)).image;
+    expect(image, isA<ResizeImage>());
+    return (image as ResizeImage).imageProvider;
+  }
+
+  testWidgets('a stored picture is drawn from the device, not downloaded', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      nodePubkey: _other,
+      nodes: [_node(_other, 'Bitcoin Bolivia', picture: picture)],
+      stored:
+          (pubkey) async =>
+              pubkey == _other
+                  ? MostroNodePicture(url: picture, bytes: bytes)
+                  : null,
+    );
+    final image = source(tester);
+    expect(image, isA<MemoryImage>());
+    expect((image as MemoryImage).bytes, same(bytes));
+  });
+
+  testWidgets('a picture not stored yet loads from its URL', (tester) async {
     await _pump(
       tester,
       nodePubkey: _other,
       nodes: [_node(_other, 'Bitcoin Bolivia', picture: picture)],
     );
-    final image = tester.widget<Image>(find.byType(Image)).image;
-    expect(image, isA<ResizeImage>());
-    final source = (image as ResizeImage).imageProvider;
-    expect((source as NetworkImage).url, picture);
+    expect((source(tester) as NetworkImage).url, picture);
+  });
+
+  testWidgets('a picture stored from an older URL is not shown', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      nodePubkey: _other,
+      nodes: [_node(_other, 'Bitcoin Bolivia', picture: picture)],
+      stored:
+          (_) async => MostroNodePicture(
+            url: 'https://example.com/old.png',
+            bytes: bytes,
+          ),
+    );
+    expect((source(tester) as NetworkImage).url, picture);
+  });
+
+  testWidgets('nothing is downloaded while the device answers', (tester) async {
+    final pending = Completer<MostroNodePicture?>();
+    await _pump(
+      tester,
+      nodePubkey: _other,
+      nodes: [_node(_other, 'Bitcoin Bolivia', picture: picture)],
+      stored: (_) => pending.future,
+    );
+    expect(find.byType(Image), findsNothing);
+    expect(find.byType(NodeAvatar), findsOneWidget);
+
+    pending.complete(MostroNodePicture(url: picture, bytes: bytes));
+    await tester.pump();
+    await tester.pump();
+    expect(source(tester), isA<MemoryImage>());
   });
 
   testWidgets('a node the registry does not hold: its pubkey names it', (

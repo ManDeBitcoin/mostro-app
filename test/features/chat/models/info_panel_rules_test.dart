@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mostro/features/chat/models/info_panel_rules.dart';
 import 'package:mostro/features/trades/models/trades_list_rules.dart'
@@ -112,21 +113,35 @@ void main() {
 
   group('peerReputation', () {
     test('a maker gets the taker\'s snapshot', () {
-      final reputation = peerReputation(
-        fakeTrade(isMine: true, peerRating: 4.4, peerReviews: 4, peerDays: 9),
-        fakeOrder(isMine: true, rating: 5, tradeCount: 99),
+      final reputation = withClock(
+        Clock.fixed(kFakeNow),
+        () => peerReputation(
+          fakeTrade(isMine: true, peerRating: 4.4, peerReviews: 4, peerDays: 9),
+          fakeOrder(isMine: true, rating: 5, tradeCount: 99),
+        ),
       );
 
-      expect(reputation, (rating: 4.4, reviews: 4, days: 9));
+      expect(reputation, (
+        rating: 4.4,
+        reviews: 4,
+        since: kFakeNow.subtract(const Duration(days: 9)),
+      ));
     });
 
     test('a taker gets the maker\'s rating tag from the order', () {
-      final reputation = peerReputation(
-        fakeTrade(),
-        fakeOrder(rating: 4.8, tradeCount: 12, daysActive: 186),
+      final reputation = withClock(
+        Clock.fixed(kFakeNow),
+        () => peerReputation(
+          fakeTrade(),
+          fakeOrder(rating: 4.8, tradeCount: 12, daysActive: 186),
+        ),
       );
 
-      expect(reputation, (rating: 4.8, reviews: 12, days: 186));
+      expect(reputation, (
+        rating: 4.8,
+        reviews: 12,
+        since: kFakeNow.subtract(const Duration(days: 186)),
+      ));
     });
 
     test('a maker without a snapshot gets none, never their own rating', () {

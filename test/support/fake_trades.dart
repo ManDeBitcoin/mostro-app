@@ -1,3 +1,4 @@
+import 'package:mostro/core/mostro_defaults.dart';
 import 'package:mostro/src/rust/api/types.dart';
 
 /// Builds a [TradeInfo] exposing only the fields the trades-list mapping reads.
@@ -6,7 +7,8 @@ import 'package:mostro/src/rust/api/types.dart';
 /// unless [orderId] names one. [fiatAmountMin]/[fiatAmountMax] make it a
 /// range order; [fiatAmount] is then the slice a take priced, if any.
 /// [completedAt] is when Rust recorded the completion (Unix seconds).
-/// [kind] is the order's side, a sell order unless given.
+/// [kind] is the order's side, a sell order unless given. [nodePubkey] is
+/// the trade's node, the default (active) node unless given.
 TradeInfo fakeTrade({
   String id = 'trade-1',
   String? orderId,
@@ -30,6 +32,7 @@ TradeInfo fakeTrade({
   int? peerSince,
   BondInfo? bond,
   CooperativeCancelState? cooperativeCancelState,
+  String nodePubkey = defaultMostroPubkey,
 }) {
   final order = OrderInfo(
     id: orderId ?? 'order-$id',
@@ -42,7 +45,7 @@ TradeInfo fakeTrade({
     fiatCode: fiatCode,
     paymentMethod: paymentMethod,
     premium: 0,
-    nodePubkey: 'pubkey-$id',
+    nodePubkey: nodePubkey,
     createdAt: startedAt,
     expiresAt: expiresAt,
     isMine: isMine,

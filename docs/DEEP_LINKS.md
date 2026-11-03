@@ -66,8 +66,9 @@ setup) is still found through the pool's relays.
    dialog names the node as the registry does, or by its key. A node outside
    the registry — neither trusted nor added — comes with a warning, since only
    the link vouches for it; a trade in progress is named as Settings names it.
-   Agreeing takes the Settings path (`selectNode`), then the link is resolved
-   again.
+   Agreeing takes the Settings path (`selectNode`), then restores the account
+   on that node in the restore sheet, as a switch from Settings does (#813),
+   and the link is resolved again once the sheet closes.
 4. **Where it leads** (`orderLinkDestination`): a user who takes part in the
    order goes to the trade; a pending order opens the take screen of its side;
    anything else says the order is no longer available. The link screen

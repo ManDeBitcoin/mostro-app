@@ -402,7 +402,7 @@ void main() {
       );
       expect(row.rating, 4.8);
       expect(row.reviews, 12);
-      expect(row.days, 186);
+      expect(DateTime.now().toUtc().difference(row.since).inDays, 186);
       expect(row.counterpartIsBuyer, isFalse, reason: 'the maker sells');
     });
 
@@ -425,7 +425,7 @@ void main() {
       );
       expect(row.rating, 4.4);
       expect(row.reviews, 4);
-      expect(row.days, 64);
+      expect(DateTime.now().toUtc().difference(row.since).inDays, 64);
       expect(row.counterpartIsBuyer, isTrue, reason: 'this maker sells');
     });
 

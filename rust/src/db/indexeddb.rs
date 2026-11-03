@@ -28,7 +28,7 @@ use crate::db::{settings_keys, trade_json, web_lock, Storage};
 use crate::queue::outbox::QueuedMessage;
 
 /// Bumped when a store is added; `open_db` creates whatever is missing.
-const DB_VERSION: u32 = 6;
+const DB_VERSION: u32 = 7;
 const MESSAGES_STORE: &str = "messages";
 const SETTINGS_STORE: &str = "settings";
 const TRADES_STORE: &str = "trades";
@@ -46,13 +46,19 @@ const ATTACHMENT_INDEX_STORE: &str = "attachment_blob_index";
 /// Announcements (specs/006 §5.4), a `StoredAnnouncement` JSON per address.
 /// Device-scoped: `clear_identity_data` leaves it alone.
 const ANNOUNCEMENTS_STORE: &str = "announcements";
+/// Node pictures (`crate::node_pictures`): the bytes as a `Uint8Array` per
+/// node pubkey, and beside them a [`NodePictureEntry`] JSON naming the URL
+/// they came from, so a sync compares URLs without loading a picture.
+/// Device-scoped: `clear_identity_data` leaves both alone.
+const NODE_PICTURES_STORE: &str = "node_pictures";
+const NODE_PICTURE_INDEX_STORE: &str = "node_picture_index";
 /// The single identity document's key, mirroring SQLite's `id = 1` row.
 const IDENTITY_KEY: &str = "1";
 /// Origin-wide lock names (see [`web_lock`]): one per store whose documents
 /// are read, changed and written back as a whole.
 const TRADES_LOCK: &str = "mostro:db:trades";
 const OUTBOX_LOCK: &str = "mostro:db:queued_messages";
-const ALL_STORES: [&str; 12] = [
+const ALL_STORES: [&str; 14] = [
     MESSAGES_STORE,
     SETTINGS_STORE,
     TRADES_STORE,
@@ -65,7 +71,16 @@ const ALL_STORES: [&str; 12] = [
     ATTACHMENT_BLOBS_STORE,
     ATTACHMENT_INDEX_STORE,
     ANNOUNCEMENTS_STORE,
+    NODE_PICTURES_STORE,
+    NODE_PICTURE_INDEX_STORE,
 ];
+
+/// What [`NODE_PICTURE_INDEX_STORE`] keeps of one node's picture.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct NodePictureEntry {
+    pubkey: String,
+    url: String,
+}
 
 /// Map an opaque JS-side error into an `anyhow` error the trait can carry.
 fn js_err(context: &str, e: impl std::fmt::Debug) -> anyhow::Error {
@@ -365,6 +380,15 @@ impl Storage for IndexedDbStorage {
         for mut msg in unread {
             msg.is_read = true;
             self.save_message(&msg).await?;
+        }
+        Ok(())
+    }
+
+    async fn delete_messages_for_order(&self, order_id: &str) -> Result<()> {
+        // No index on the order id: the store is read whole, as
+        // `list_messages` does. A message that no longer decodes is left.
+        for msg in self.list_messages(order_id).await? {
+            self.delete_key(MESSAGES_STORE, &msg.id).await?;
         }
         Ok(())
     }
@@ -752,6 +776,29 @@ impl Storage for IndexedDbStorage {
         Ok(true)
     }
 
+    async fn adopt_trade_node(&self, order_id: &str, trade_index: u32, node: &str) -> Result<bool> {
+        // The whole read-modify-write inside the trades' exclusive section,
+        // like every patch: no write can land between the check and the put.
+        let _section = self.exclusive(TRADES_LOCK).await;
+        let mut adopted = false;
+        for mut doc in self.trade_documents().await? {
+            if trade_json::order_id_of(&doc) != Some(order_id)
+                || !trade_json::adopt_node(&mut doc, trade_index, node)?
+            {
+                continue;
+            }
+            let key = doc
+                .get("id")
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| anyhow!("trade document without an id"))?
+                .to_owned();
+            self.put_string(TRADES_STORE, &key, &doc.to_string())
+                .await?;
+            adopted = true;
+        }
+        Ok(adopted)
+    }
+
     async fn update_trade_counterparty(
         &self,
         order_id: &str,
@@ -894,6 +941,95 @@ impl Storage for IndexedDbStorage {
         Ok(value
             .filter(JsCast::is_instance_of::<web_sys::js_sys::Uint8Array>)
             .map(|v| web_sys::js_sys::Uint8Array::from(v).to_vec()))
+    }
+
+    // ── Node pictures — bytes and URL, written and removed together ─────────
+
+    async fn save_node_picture(&self, pubkey: &str, url: &str, bytes: &[u8]) -> Result<()> {
+        let entry = serde_json::to_string(&NodePictureEntry {
+            pubkey: pubkey.to_string(),
+            url: url.to_string(),
+        })?;
+        let data = web_sys::js_sys::Uint8Array::from(bytes);
+        // Both requests are queued before the first await (see
+        // `clear_identity_data`), so the URL never names other bytes.
+        let db = self.open_db().await?;
+        let stores = [NODE_PICTURES_STORE, NODE_PICTURE_INDEX_STORE];
+        let tx = db
+            .transaction_on_multi_with_mode(&stores, IdbTransactionMode::Readwrite)
+            .map_err(|e| js_err("tx open", e))?;
+        tx.object_store(NODE_PICTURES_STORE)
+            .map_err(|e| js_err("store open", e))?
+            .put_key_val_owned(pubkey, &data)
+            .map_err(|e| js_err("put", e))?;
+        tx.object_store(NODE_PICTURE_INDEX_STORE)
+            .map_err(|e| js_err("store open", e))?
+            .put_key_val_owned(pubkey, &JsValue::from_str(&entry))
+            .map_err(|e| js_err("put", e))?;
+        tx.await.into_result().map_err(|e| js_err("tx commit", e))?;
+        Ok(())
+    }
+
+    async fn get_node_picture(
+        &self,
+        pubkey: &str,
+    ) -> Result<Option<crate::api::types::MostroNodePicture>> {
+        let db = self.open_db().await?;
+        let stores = [NODE_PICTURES_STORE, NODE_PICTURE_INDEX_STORE];
+        let tx = db
+            .transaction_on_multi_with_mode(&stores, IdbTransactionMode::Readonly)
+            .map_err(|e| js_err("tx open", e))?;
+        // Both requests queued before either is awaited, as in the save.
+        let bytes = tx
+            .object_store(NODE_PICTURES_STORE)
+            .map_err(|e| js_err("store open", e))?
+            .get_owned(pubkey)
+            .map_err(|e| js_err("get", e))?;
+        let entry = tx
+            .object_store(NODE_PICTURE_INDEX_STORE)
+            .map_err(|e| js_err("store open", e))?
+            .get_owned(pubkey)
+            .map_err(|e| js_err("get", e))?;
+        let bytes = bytes
+            .await
+            .map_err(|e| js_err("get await", e))?
+            .filter(JsCast::is_instance_of::<web_sys::js_sys::Uint8Array>)
+            .map(|v| web_sys::js_sys::Uint8Array::from(v).to_vec());
+        let url = entry
+            .await
+            .map_err(|e| js_err("get await", e))?
+            .and_then(|v| v.as_string())
+            .and_then(|json| serde_json::from_str::<NodePictureEntry>(&json).ok())
+            .map(|entry| entry.url);
+        Ok(url
+            .zip(bytes)
+            .map(|(url, bytes)| crate::api::types::MostroNodePicture { url, bytes }))
+    }
+
+    async fn list_node_picture_urls(&self) -> Result<std::collections::HashMap<String, String>> {
+        Ok(self
+            .get_all_strings(NODE_PICTURE_INDEX_STORE)
+            .await?
+            .into_iter()
+            .filter_map(|json| serde_json::from_str::<NodePictureEntry>(&json).ok())
+            .map(|entry| (entry.pubkey, entry.url))
+            .collect())
+    }
+
+    async fn delete_node_picture(&self, pubkey: &str) -> Result<()> {
+        let db = self.open_db().await?;
+        let stores = [NODE_PICTURES_STORE, NODE_PICTURE_INDEX_STORE];
+        let tx = db
+            .transaction_on_multi_with_mode(&stores, IdbTransactionMode::Readwrite)
+            .map_err(|e| js_err("tx open", e))?;
+        for name in stores {
+            tx.object_store(name)
+                .map_err(|e| js_err("store open", e))?
+                .delete_owned(pubkey)
+                .map_err(|e| js_err("delete", e))?;
+        }
+        tx.await.into_result().map_err(|e| js_err("tx commit", e))?;
+        Ok(())
     }
 }
 

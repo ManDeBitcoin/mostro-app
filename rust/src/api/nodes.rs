@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use std::sync::OnceLock;
 use tokio::sync::Mutex;
 
-use crate::api::types::MostroNodeEntry;
+use crate::api::types::{MostroNodeEntry, MostroNodePicture};
 use crate::db::{settings_keys, Storage};
 
 /// Serializes every load-modify-save cycle on the registry's KV blobs
@@ -74,8 +74,9 @@ fn parse_node_pubkey(input: &str) -> Result<String> {
     Ok(pk.to_hex())
 }
 
-/// Keep only https URLs — a kind 0 event is attacker-controlled input, and the
-/// UI loads `picture` straight into an image widget.
+/// Keep only https URLs — a kind 0 event is attacker-controlled input, and
+/// `picture` is downloaded (`crate::node_pictures`) and, while no copy is
+/// stored, loaded by the UI straight into an image widget.
 fn sanitize_https_url(url: Option<String>) -> Option<String> {
     url.map(|u| u.trim().to_string())
         .filter(|u| u.starts_with("https://"))
@@ -374,6 +375,44 @@ pub async fn refresh_mostro_node_metadata() -> Result<Vec<MostroNodeEntry>> {
     }
 
     list_mostro_nodes().await
+}
+
+/// Download the picture of every node whose kind 0 profile names a new one,
+/// and drop the stored pictures no node names any more
+/// (`crate::node_pictures`). Called after each
+/// [`refresh_mostro_node_metadata`]: a picture already stored from the URL
+/// the profile names is not downloaded again.
+///
+/// Returns the pubkeys whose stored picture changed, for the UI to read
+/// again; empty when there is no storage yet. Best effort per picture: one
+/// that fails to download is tried again on the next call.
+pub async fn sync_mostro_node_pictures() -> Result<Vec<String>> {
+    let Some(db) = crate::db::app_db::db() else {
+        return Ok(Vec::new());
+    };
+    let nodes = list_mostro_nodes().await?;
+    crate::node_pictures::sync(db, &nodes).await
+}
+
+/// `pubkey`'s picture as the device keeps it, with the URL it was downloaded
+/// from; `None` when none is stored or there is no storage yet. The UI shows
+/// it only while the node's `picture` is still that URL.
+pub async fn get_mostro_node_picture(pubkey: String) -> Result<Option<MostroNodePicture>> {
+    let Some(db) = crate::db::app_db::db() else {
+        return Ok(None);
+    };
+    db.get_node_picture(&pubkey.to_lowercase()).await
+}
+
+/// Drop `pubkey`'s stored picture, for bytes the UI could not decode:
+/// truncated, corrupt, or in a format its platform lacks. The UI then loads
+/// the URL, and the next [`sync_mostro_node_pictures`] downloads it again —
+/// kept, the same URL would never be fetched anew. A no-op without storage.
+pub async fn forget_mostro_node_picture(pubkey: String) -> Result<()> {
+    let Some(db) = crate::db::app_db::db() else {
+        return Ok(());
+    };
+    db.delete_node_picture(&pubkey.to_lowercase()).await
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────

@@ -64,7 +64,22 @@ Future<String> cashuCreateToken({required BigInt amountSats}) =>
     RustLib.instance.api.crateApiCashuCashuCreateToken(amountSats: amountSats);
 
 /// Reconcile the proof store with the mint: proofs the mint reports spent are
-/// forgotten, and the new balance is broadcast.
+/// forgotten, melts still in flight are settled as the mint reports them, and
+/// the new balance is broadcast.
+///
+/// The melts are settled here because a bound wallet is reused, not
+/// reconnected: without this, a melt that answered `Pending` would keep its
+/// proofs reserved until the next app start. Only them: the full recovery
+/// connect runs would roll back a send or escrow lock still in progress (see
+/// `CashuWallet::recover`).
+///
+/// The melts wait while one is still paying at this mint, or being quoted:
+/// its saga is on record as in flight, and settling it now would roll back a
+/// payment the mint may still make (#864). The next sync settles them.
+///
+/// Both steps run whatever the other did, and the balance is broadcast after
+/// them even when one fails: either may have moved proofs. The first error is
+/// returned.
 ///
 /// **Returns nothing on purpose.** It reclaims neither an unredeemed token of
 /// ours nor the proofs of a half-finished send — cdk's state check cannot see
@@ -72,9 +87,46 @@ Future<String> cashuCreateToken({required BigInt amountSats}) =>
 /// otherwise; see [`CashuWallet::sweep_spent_proofs`]. Getting an abandoned
 /// token back is phase C10.
 ///
-/// **Errors**: `CashuNotConnected`.
+/// **Errors**: `CashuNotConnected`, `CashuStateCheckFailed`.
 Future<void> cashuSweepSpentProofs() =>
     RustLib.instance.api.crateApiCashuCashuSweepSpentProofs();
+
+/// Quote paying the BOLT11 `invoice` from the wallet — phase C3b-1.
+///
+/// Reserves nothing: the quote is priced against the wallet's proofs and
+/// released at once, so the balance is untouched while the user decides.
+///
+/// **Errors**: `CashuNotConnected`, `CashuMeltInFlight` (another payment or
+/// quote is still in progress at this mint), `CashuInvalidInvoice`,
+/// `CashuInvoiceNoAmount` (open-amount invoices are not supported),
+/// `CashuInvoiceExpired`, `CashuMeltUnsupported`, `CashuMeltAmountOutOfRange`,
+/// `CashuMeltQuoteFailed` (also when the quote could not be priced or
+/// released), `CashuMeltInsufficientFunds`, `CashuMeltQuoteExpired`,
+/// `CashuMeltFailed`.
+Future<CashuMeltQuote> cashuMeltQuote({required String invoice}) =>
+    RustLib.instance.api.crateApiCashuCashuMeltQuote(invoice: invoice);
+
+/// Pay the quote `quote_id` from [`cashu_melt_quote`], provided it costs no
+/// more than `max_total_sats` — the total the user confirmed.
+///
+/// The wallet's change is broadcast after every attempt, failed ones
+/// included: a failure may have gone through cdk's recovery and moved proofs.
+///
+/// `Pending` covers every payment whose outcome is unknown: still routing,
+/// or interrupted after the request left with the mint not answering. Its
+/// ecash stays reserved until the mint says how it ended.
+///
+/// **Errors**: `CashuNotConnected`, `CashuMeltInFlight` (another payment is
+/// still in progress at this mint), `CashuMeltQuoteExpired` and
+/// `CashuMeltFeeChanged` (refused before paying — ask for a new quote),
+/// `CashuMeltInsufficientFunds`, `CashuMeltFailed` (nothing was paid).
+Future<CashuMeltResult> cashuMelt({
+  required String quoteId,
+  required BigInt maxTotalSats,
+}) => RustLib.instance.api.crateApiCashuCashuMelt(
+  quoteId: quoteId,
+  maxTotalSats: maxTotalSats,
+);
 
 /// Drop the in-memory wallet. Proofs stay on disk and the wallet's mint stays
 /// set — this is a disconnect, not a wipe. A node switch does **not** call it:

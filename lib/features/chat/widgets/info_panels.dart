@@ -90,6 +90,7 @@ class TradeInformationTab extends ConsumerWidget {
       amount: facts.fiatAmount,
       min: facts.fiatAmountMin,
       max: facts.fiatAmountMax,
+      code: facts.fiatCode,
       locale: locale,
     );
     return '$amount ${facts.fiatCode}';
@@ -141,7 +142,6 @@ class UserInformationTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final book = OrderBookPalette.of(context);
-    final textTheme = Theme.of(context).textTheme;
     final trade = ref.watch(tradeInfoProvider(room.orderId)).valueOrNull;
     final order = ref.watch(chatTradeOrderProvider(room.orderId)).valueOrNull;
     final reputation = peerReputation(trade, order);
@@ -168,8 +168,9 @@ class UserInformationTab extends ConsumerWidget {
             Expanded(
               child: Text(
                 room.displayHandle(l10n),
-                style: textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
                   color: book.textPrimary,
                 ),
               ),
@@ -181,7 +182,7 @@ class UserInformationTab extends ConsumerWidget {
           CounterpartReputationRow(
             rating: reputation.rating,
             reviews: reputation.reviews,
-            days: reputation.days,
+            since: reputation.since,
             counterpartIsBuyer: counterpartIsBuyer,
           )
         else
